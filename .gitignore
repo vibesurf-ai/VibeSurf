@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.idea
+
+tmp
+browser_use
+browser_use_org
+
+uv.lock
+.env
+swarmsurf_workspace
+workspace
+*.db
+vibe_surf/_version.py

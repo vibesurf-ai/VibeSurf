@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeSurf</title>
+    <style>
+        body {
+            width: 300px;
+            height: 200px;
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin: 0 0 10px 0;
+            font-weight: 600;
+        }
+        
+        p {
+            font-size: 14px;
+            margin: 0 0 20px 0;
+            opacity: 0.9;
+            line-height: 1.4;
+        }
+        
+        .open-panel-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .open-panel-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .status {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        
+        .status-dot.disconnected {
+            background: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">🌊</div>
+    <h1>VibeSurf</h1>
+    <p>AI-powered browsing automation at your fingertips</p>
+    <button class="open-panel-btn" id="openPanelBtn">Open Side Panel</button>
+    
+    <div class="status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Ready</span>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const openPanelBtn = document.getElementById('openPanelBtn');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            // Handle open panel button click
+            openPanelBtn.addEventListener('click', async () => {
+                try {
+                    // Get current tab
+                    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                    
+                    // Open side panel
+                    await chrome.sidePanel.open({ tabId: tab.id });
+                    
+                    // Close popup
+                    window.close();
+                } catch (error) {
+                    console.error('Failed to open side panel:', error);
+                    statusText.textContent = 'Error';
+                    statusDot.classList.add('disconnected');
+                }
+            });
+            
+            // Check backend status
+            try {
+                const response = await chrome.runtime.sendMessage({ type: 'GET_BACKEND_STATUS' });
+                
+                if (response.status === 'connected') {
+                    statusText.textContent = 'Connected';
+                    statusDot.classList.remove('disconnected');
+                } else {
+                    statusText.textContent = 'Disconnected';
+                    statusDot.classList.add('disconnected');
+                }
+            } catch (error) {
+                console.error('Failed to check backend status:', error);
+                statusText.textContent = 'Error';
+                statusDot.classList.add('disconnected');
+            }
+        });
+    </script>
+</body>
+</html>

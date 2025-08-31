@@ -1,0 +1,9 @@
+include README.md
+include LICENSE
+include .env.example
+recursive-include vibe_surf/backend *.py
+recursive-include vibe_surf/chrome_extension *.js *.html *.css *.json *.png *.md
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store
+global-exclude Thumbs.db

@@ -1,0 +1,74 @@
+[project]
+name = "vibesurf"
+dynamic = ["version"]
+authors = [{ name = "Shao Warm" }]
+description = "VibeSurf: A powerful browser assistant for vibe surfing"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+keywords = ["browser use", "browser automation", "browser assistant", "agentic browser", "vibe surf", "AI browser"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+]
+dependencies = [
+    "uuid7>=0.1.0",
+    "aiofiles>=24.1.0",
+    "anyio>=4.9.0",
+    "psutil>=7.0.0",
+    "pydantic>=2.11.5",
+    "cdp-use>=1.4.0",
+    "json-repair>=0.48.0",
+    "aiohttp>=3.12.15",
+    "scikit-image>=0.25.2",
+    "python-socks>=2.7.2",
+    "browser-use==0.6.1",
+    "langgraph>=0.6.4",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+    "websockets>=12.0",
+    "python-dotenv>=1.0.0",
+    "sqlalchemy>=2.0.43",
+    "aiosqlite>=0.21.0",
+    "rich>=13.0.0",
+]
+
+[project.urls]
+Repository = "https://github.com/vvincent1234/VibeSurf"
+
+[project.scripts]
+vibesurf = "vibe_surf.cli:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-scm>=6.2", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = [
+    "vibe_surf",
+    "vibe_surf.agents",
+    "vibe_surf.agents.prompts",
+    "vibe_surf.browser",
+    "vibe_surf.browser.watchdogs",
+    "vibe_surf.controller",
+    "vibe_surf.llm",
+    "vibe_surf.backend"
+]
+
+[tool.setuptools.package-data]
+"vibe_surf" = [
+    "backend/**/*",
+    "chrome_extension/**/*"
+]
+
+[tool.setuptools.package-dir]
+"" = "."
+
+[tool.setuptools_scm]
+write_to = "vibe_surf/_version.py"

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeSurf Extension</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/animations.css">
+    <link rel="stylesheet" href="styles/settings.css">
+</head>
+<body>
+    <div id="app" class="vibesurf-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">
+                    <div class="logo-content">
+                        <div class="logo-brand">
+                            <img src="icons/logo.png" alt="VibeSurf" class="logo-image">
+                            <span class="logo-text">VibeSurf</span>
+                        </div>
+                        <div class="session-info">
+                            <span class="session-label">Session:</span>
+                            <span id="session-id">-</span>
+                            <button id="copy-session-btn" class="copy-btn" title="Copy Session ID">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <button id="new-session-btn" class="icon-btn" title="New Session">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <button id="history-btn" class="icon-btn" title="Chat History">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 3V11A4 4 0 0 0 7 15H17L21 19V3H3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <button id="settings-btn" class="icon-btn" title="Settings">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M19.4 15C19.2669 15.3016 19.2272 15.6362 19.286 15.9606C19.3448 16.285 19.4995 16.5843 19.73 16.82L19.79 16.88C19.976 17.0657 20.1235 17.2863 20.2241 17.5291C20.3248 17.7719 20.3766 18.0322 20.3766 18.295C20.3766 18.5578 20.3248 18.8181 20.2241 19.0609C20.1235 19.3037 19.976 19.5243 19.79 19.71C19.6043 19.896 19.3837 20.0435 19.1409 20.1441C18.8981 20.2448 18.6378 20.2966 18.375 20.2966C18.1122 20.2966 17.8519 20.2448 17.6091 20.1441C17.3663 20.0435 17.1457 19.896 16.96 19.71L16.9 19.65C16.6643 19.4195 16.365 19.2648 16.0406 19.206C15.7162 19.1472 15.3816 19.1869 15.08 19.32C14.7842 19.4468 14.532 19.6572 14.3543 19.9255C14.1766 20.1938 14.0813 20.5082 14.08 20.83V21C14.08 21.5304 13.8693 22.0391 13.4942 22.4142C13.1191 22.7893 12.6104 23 12.08 23C11.5496 23 11.0409 22.7893 10.6658 22.4142C10.2907 22.0391 10.08 21.5304 10.08 21V20.91C10.0723 20.579 9.96512 20.2579 9.77251 19.9887C9.5799 19.7194 9.31074 19.5143 9 19.4C8.69838 19.2669 8.36381 19.2272 8.03941 19.286C7.71502 19.3448 7.41568 19.4995 7.18 19.73L7.12 19.79C6.93425 19.976 6.71368 20.1235 6.47088 20.2241C6.22808 20.3248 5.96783 20.3766 5.705 20.3766C5.44217 20.3766 5.18192 20.3248 4.93912 20.2241C4.69632 20.1235 4.47575 19.976 4.29 19.79C4.10405 19.6043 3.95653 19.3837 3.85588 19.1409C3.75523 18.8981 3.70343 18.6378 3.70343 18.375C3.70343 18.1122 3.75523 17.8519 3.85588 17.6091C3.95653 17.3663 4.10405 17.1457 4.29 16.96L4.35 16.9C4.58054 16.6643 4.73519 16.365 4.794 16.0406C4.85282 15.7162 4.81312 15.3816 4.68 15.08C4.55324 14.7842 4.34276 14.532 4.07447 14.3543C3.80618 14.1766 3.49179 14.0813 3.17 14.08H3C2.46957 14.08 1.96086 13.8693 1.58579 13.4942C1.21071 13.1191 1 12.6104 1 12.08C1 11.5496 1.21071 11.0409 1.58579 10.6658C1.96086 10.2907 2.46957 10.08 3 10.08H3.09C3.42099 10.0723 3.742 9.96512 4.01127 9.77251C4.28053 9.5799 4.48572 9.31074 4.6 9C4.73312 8.69838 4.77282 8.36381 4.714 8.03941C4.65519 7.71502 4.50054 7.41568 4.27 7.18L4.21 7.12C4.02405 6.93425 3.87653 6.71368 3.77588 6.47088C3.67523 6.22808 3.62343 5.96783 3.62343 5.705C3.62343 5.44217 3.67523 5.18192 3.77588 4.93912C3.87653 4.69632 4.02405 4.47575 4.21 4.29C4.39575 4.10405 4.61632 3.95653 4.85912 3.85588C5.10192 3.75523 5.36217 3.70343 5.625 3.70343C5.88783 3.70343 6.14808 3.75523 6.39088 3.85588C6.63368 3.95653 6.85425 4.10405 7.04 4.29L7.1 4.35C7.33568 4.58054 7.63502 4.73519 7.95941 4.794C8.28381 4.85282 8.61838 4.81312 8.92 4.68H9C9.29577 4.55324 9.54802 4.34276 9.72569 4.07447C9.90337 3.80618 9.99872 3.49179 10 3.17V3C10 2.46957 10.2107 1.96086 10.5858 1.58579C10.9609 1.21071 11.4696 1 12 1C12.5304 1 13.0391 1.21071 13.4142 1.58579C13.7893 1.96086 14 2.46957 14 3V3.09C14.0013 3.41179 14.0966 3.72618 14.2743 3.99447C14.452 4.26276 14.7042 4.47324 15 4.6C15.3016 4.73312 15.6362 4.77282 15.9606 4.714C16.285 4.65519 16.5843 4.50054 16.82 4.27L16.88 4.21C17.0657 4.02405 17.2863 3.87653 17.5291 3.77588C17.7719 3.67523 18.0322 3.62343 18.295 3.62343C18.5578 3.62343 18.8181 3.67523 19.0609 3.77588C19.3037 3.87653 19.5243 4.02405 19.71 4.21C19.896 4.39575 20.0435 4.61632 20.1441 4.85912C20.2448 5.10192 20.2966 5.36217 20.2966 5.625C20.2966 5.88783 20.2448 6.14808 20.1441 6.39088C20.0435 6.63368 19.896 6.85425 19.71 7.04L19.65 7.1C19.4195 7.33568 19.2648 7.63502 19.206 7.95941C19.1472 8.28381 19.1869 8.61838 19.32 8.92V9C19.4468 9.29577 19.6572 9.54802 19.9255 9.72569C20.1938 9.90337 20.5082 9.99872 20.83 10H21C21.5304 10 22.0391 10.2107 22.4142 10.5858C22.7893 10.9609 23 11.4696 23 12C23 12.5304 22.7893 13.0391 22.4142 13.4142C22.0391 13.7893 21.5304 14 21 14H20.91C20.5882 14.0013 20.2738 14.0966 20.0055 14.2743C19.7372 14.452 19.5268 14.7042 19.4 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Activity Log Area -->
+            <div class="activity-section">
+                <div id="activity-log" class="activity-log">
+                    <div class="welcome-message">
+                        <div class="welcome-text">
+                            <h4>Welcome to VibeSurf</h4>
+                            <p>Let's vibe surfing the internet with AI automation</p>
+                        </div>
+                        <div class="quick-tasks">
+                            <div class="task-suggestion" data-task="research">
+                                <div class="task-icon">🔍</div>
+                                <div class="task-content">
+                                    <div class="task-title">Research Founders</div>
+                                    <div class="task-description">Search information about browser-use and browser-use-webui, write a brief report</div>
+                                </div>
+                            </div>
+                            <div class="task-suggestion" data-task="news">
+                                <div class="task-icon">📰</div>
+                                <div class="task-content">
+                                    <div class="task-title">HackerNews Summary</div>
+                                    <div class="task-description">Get top 10 news from HackerNews and provide a summary</div>
+                                </div>
+                            </div>
+                            <div class="task-suggestion" data-task="analysis">
+                                <div class="task-icon">📈</div>
+                                <div class="task-content">
+                                    <div class="task-title">Stock Market Analysis</div>
+                                    <div class="task-description">Analyze recent week stock market trends for major tech companies</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control Panel -->
+            <div id="control-panel" class="control-panel hidden">
+                <button id="cancel-btn" class="control-btn cancel-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Cancel
+                </button>
+                <button id="resume-btn" class="control-btn resume-btn hidden">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 5V19L19 12L8 5Z" fill="currentColor"/>
+                    </svg>
+                    Resume
+                </button>
+                <button id="terminate-btn" class="control-btn terminate-btn hidden">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 5H19V19H5V5Z" fill="currentColor"/>
+                    </svg>
+                    Terminate
+                </button>
+            </div>
+        </main>
+
+        <!-- Input Section -->
+        <footer class="input-section">
+            <div class="input-container">
+                <div class="input-main">
+                    <div class="textarea-container">
+                        <textarea 
+                            id="task-input" 
+                            class="task-input" 
+                            placeholder="Describe your browsing task..."
+                            rows="3"></textarea>
+                        <div class="input-actions">
+                            <button id="attach-file-btn" class="action-btn attach-btn" title="Attach Files">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M21.44 11.05L12.25 20.24C11.1242 21.3658 9.59722 21.9983 8.005 21.9983C6.41278 21.9983 4.88583 21.3658 3.76 20.24C2.63417 19.1142 2.00166 17.5872 2.00166 15.995C2.00166 14.4028 2.63417 12.8758 3.76 11.75L12.33 3.18C13.0806 2.42944 14.0986 2.00696 15.16 2.00696C16.2214 2.00696 17.2394 2.42944 17.99 3.18C18.7406 3.93056 19.163 4.94859 19.163 6.01C19.163 7.07141 18.7406 8.08944 17.99 8.84L10.07 16.76C9.69469 17.1353 9.1897 17.3442 8.665 17.3442C8.1403 17.3442 7.63531 17.1353 7.26 16.76C6.88469 16.3847 6.67581 15.8797 6.67581 15.355C6.67581 14.8303 6.88469 14.3253 7.26 13.95L15.19 6.02" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                            <button id="send-btn" class="action-btn send-btn" title="Send Task">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-footer">
+                    <select id="llm-profile-select" class="llm-select compact">
+                    </select>
+                </div>
+            </div>
+            <input type="file" id="file-input" class="hidden" multiple accept="*/*">
+        </footer>
+    </div>
+
+    <!-- Modals -->
+    <!-- History Modal -->
+    <div id="history-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content history-modal-content">
+            <div class="modal-header">
+                <h3>Chat History</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="history-content">
+                <!-- Recent Tasks Section -->
+                <div class="history-section recent-tasks-section">
+                    <div class="section-header">
+                        <h4>Recent Tasks</h4>
+                        <span class="section-subtitle">Last 3 sessions</span>
+                    </div>
+                    <div id="recent-tasks-list" class="recent-tasks-list">
+                        <!-- Recent tasks will be populated here -->
+                    </div>
+                    <button id="view-more-tasks-btn" class="view-more-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        View More Tasks
+                    </button>
+                </div>
+
+                <!-- All Sessions Section (initially hidden) -->
+                <div id="all-sessions-section" class="history-section all-sessions-section hidden">
+                    <div class="section-header">
+                        <h4>All Sessions</h4>
+                        <button id="back-to-recent-btn" class="back-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            Back to Recent
+                        </button>
+                    </div>
+                    <div class="search-filter-bar">
+                        <input type="text" id="session-search" placeholder="Search sessions..." class="search-input">
+                        <select id="session-filter" class="filter-select">
+                            <option value="all">All Sessions</option>
+                            <option value="active">Active</option>
+                            <option value="completed">Completed</option>
+                            <option value="error">Error</option>
+                        </select>
+                    </div>
+                    <div id="all-sessions-list" class="sessions-list">
+                        <!-- All sessions will be populated here -->
+                    </div>
+                    <div class="pagination-controls">
+                        <button id="prev-page-btn" class="page-btn" disabled>Previous</button>
+                        <span id="page-info" class="page-info">Page 1 of 1</span>
+                        <button id="next-page-btn" class="page-btn" disabled>Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content settings-modal-content">
+            <div class="settings-header">
+                <div class="settings-title">
+                    <img src="icons/logo.png" alt="VibeSurf" class="settings-logo">
+                    <h3>VibeSurf Settings</h3>
+                </div>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Tab Navigation -->
+            <div class="settings-tabs">
+                <button class="settings-tab active" data-tab="llm-profiles">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    LLM Profiles
+                </button>
+                <button class="settings-tab" data-tab="mcp-profiles">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
+                        <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    MCP Profiles
+                </button>
+                <button class="settings-tab" data-tab="environment">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
+                        <path d="M12 3C16.97 3 21 7.03 21 12S16.97 21 12 21S3 16.97 3 12S7.03 3 12 3ZM12 8C9.79 8 8 9.79 8 12S9.79 16 12 16S16 14.21 16 12S14.21 8 12 8Z" fill="currentColor"/>
+                    </svg>
+                    Environment
+                </button>
+            </div>
+            
+            <!-- Tab Content -->
+            <div class="settings-content">
+                <!-- LLM Profiles Tab -->
+                <div id="llm-profiles-tab" class="settings-tab-content active">
+                    <div id="llm-profiles-container" class="profiles-container">
+                        <div id="llm-profiles-list" class="profiles-list">
+                            <!-- LLM profiles will be populated here -->
+                        </div>
+                    </div>
+                    <button id="add-llm-profile-btn" class="add-profile-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Add LLM Profile
+                    </button>
+                </div>
+                
+                <!-- MCP Profiles Tab -->
+                <div id="mcp-profiles-tab" class="settings-tab-content">
+                    <div id="mcp-profiles-container" class="profiles-container">
+                        <div id="mcp-profiles-list" class="profiles-list">
+                            <!-- MCP profiles will be populated here -->
+                        </div>
+                    </div>
+                    <button id="add-mcp-profile-btn" class="add-profile-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Add MCP Profile
+                    </button>
+                </div>
+                
+                <!-- Environment Variables Tab -->
+                <div id="environment-tab" class="settings-tab-content">
+                    <div class="env-variables-container">
+                        <div class="form-group">
+                            <label class="form-label">Environment Variables</label>
+                            <div id="env-variables-list">
+                                <!-- Environment variables will be populated here -->
+                            </div>
+                        </div>
+                        <div class="env-var-actions-center">
+                            <button id="save-env-vars-btn" class="save-env-vars-btn-modern">
+                                <div class="btn-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16L21 8V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M17 21V13H7V21M7 3V8H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </div>
+                                <span class="btn-text">Update Variables</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Form Modal -->
+    <div id="profile-form-modal" class="profile-form-modal hidden">
+        <div class="profile-form-container">
+            <div class="profile-form-header">
+                <h3 id="profile-form-title">Add LLM Profile</h3>
+                <button class="profile-form-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="profile-form-content">
+                <form id="profile-form">
+                    <!-- Form content will be dynamically generated -->
+                </form>
+            </div>
+            <div class="profile-form-actions">
+                <button type="button" class="form-btn secondary" id="profile-form-cancel">Cancel</button>
+                <button type="submit" class="form-btn primary" id="profile-form-submit">Save Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Connecting to VibeSurf...</div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="scripts/markdown-it.min.js"></script>
+    <script src="scripts/api-client.js"></script>
+    <script src="scripts/session-manager.js"></script>
+    <script src="scripts/ui-manager.js"></script>
+    <script src="scripts/main.js"></script>
+</body>
+</html>

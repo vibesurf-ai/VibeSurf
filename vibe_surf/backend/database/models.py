@@ -1,0 +1,164 @@
+"""
+Database Models for VibeSurf Backend - With LLM Profile Management
+
+SQLAlchemy models for task execution system with LLM profile management.
+"""
+
+from sqlalchemy import Column, String, Text, DateTime, Enum, JSON, Boolean, Index, BigInteger
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.sql import func
+from datetime import datetime
+import enum
+from uuid import uuid4
+
+Base = declarative_base()
+
+# Enums for type safety
+class TaskStatus(enum.Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    STOPPED = "stopped"
+
+class LLMProfile(Base):
+    """LLM Profile model for managing LLM configurations with encrypted API keys"""
+    __tablename__ = 'llm_profiles'
+    
+    # Primary identifier
+    profile_id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    profile_name = Column(String(100), nullable=False, unique=True)  # User-defined unique name
+    
+    # LLM Configuration
+    provider = Column(String(50), nullable=False)  # openai, anthropic, google, azure_openai, etc.
+    model = Column(String(100), nullable=False)
+    base_url = Column(String(500), nullable=True)
+    encrypted_api_key = Column(Text, nullable=True)  # Encrypted API key using MAC address
+    
+    # LLM Parameters (stored as JSON to allow null values)
+    temperature = Column(JSON, nullable=True)  # Allow float or null
+    max_tokens = Column(JSON, nullable=True)   # Allow int or null
+    top_p = Column(JSON, nullable=True)
+    frequency_penalty = Column(JSON, nullable=True)
+    seed = Column(JSON, nullable=True)
+    
+    # Provider-specific configuration
+    provider_config = Column(JSON, nullable=True)
+    
+    # Profile metadata
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_default = Column(Boolean, default=False, nullable=False)
+    
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    last_used_at = Column(DateTime, nullable=True)
+    
+    def __repr__(self):
+        return f"<LLMProfile(profile_name={self.profile_name}, provider={self.provider}, model={self.model})>"
+
+class Task(Base):
+    """Task model with LLM profile reference and workspace directory"""
+    __tablename__ = 'tasks'
+    
+    # Primary identifier
+    task_id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    
+    # Session tracking
+    session_id = Column(String(36), nullable=False)
+    
+    # Task definition
+    task_description = Column(Text, nullable=False)
+    status = Column(Enum(TaskStatus), nullable=False, default=TaskStatus.PENDING)
+    
+    # LLM Profile reference (instead of storing LLM config directly)
+    llm_profile_name = Column(String(100), nullable=False)  # Reference to LLMProfile.profile_name
+    
+    # File uploads and workspace
+    upload_files_path = Column(String(500), nullable=True)  # Path to uploaded files
+    workspace_dir = Column(String(500), nullable=True)     # Workspace directory for this task
+    
+    # Configuration (JSON strings without API keys)
+    mcp_server_config = Column(Text, nullable=True)  # MCP server config as JSON string
+    
+    # Results
+    task_result = Column(Text, nullable=True)  # Final markdown result
+    error_message = Column(Text, nullable=True)
+    report_path = Column(String(500), nullable=True)  # Generated report file path
+    
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    
+    # Additional metadata
+    task_metadata = Column(JSON, nullable=True)  # Additional context
+    
+    def __repr__(self):
+        return f"<Task(task_id={self.task_id}, status={self.status.value}, llm_profile={self.llm_profile_name})>"
+
+class UploadedFile(Base):
+    """Model for tracking uploaded files"""
+    __tablename__ = "uploaded_files"
+    
+    file_id = Column(String(36), primary_key=True)  # UUID7 string
+    original_filename = Column(String(255), nullable=False, index=True)
+    stored_filename = Column(String(255), nullable=False)
+    file_path = Column(Text, nullable=False)
+    session_id = Column(String(255), nullable=True, index=True)
+    file_size = Column(BigInteger, nullable=False)
+    mime_type = Column(String(100), nullable=False)
+    upload_time = Column(DateTime, default=func.now(), nullable=False, index=True)
+    relative_path = Column(Text, nullable=False)  # Relative to workspace_dir
+    is_deleted = Column(Boolean, default=False, nullable=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
+    
+    def __repr__(self):
+        return f"<UploadedFile(file_id={self.file_id}, filename={self.original_filename}, session={self.session_id})>"
+
+# Create useful indexes for performance
+Index('idx_llm_profiles_name', LLMProfile.profile_name)
+Index('idx_llm_profiles_active', LLMProfile.is_active)
+Index('idx_llm_profiles_default', LLMProfile.is_default)
+Index('idx_llm_profiles_provider', LLMProfile.provider)
+
+Index('idx_tasks_status', Task.status)
+Index('idx_tasks_session', Task.session_id)
+Index('idx_tasks_llm_profile', Task.llm_profile_name)
+Index('idx_tasks_created', Task.created_at)
+
+class McpProfile(Base):
+    """MCP Profile model for managing MCP server configurations"""
+    __tablename__ = 'mcp_profiles'
+    
+    # Primary identifier
+    mcp_id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    display_name = Column(String(100), nullable=False, unique=True)  # User-friendly name
+    mcp_server_name = Column(String(100), nullable=False, unique=True)  # Server identifier (e.g., "filesystem", "markitdown")
+    
+    # MCP Server Configuration
+    mcp_server_params = Column(JSON, nullable=False)  # {"command": "npx", "args": [...]}
+    
+    # Profile metadata
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    last_used_at = Column(DateTime, nullable=True)
+    
+    def __repr__(self):
+        return f"<McpProfile(display_name={self.display_name}, server_name={self.mcp_server_name}, active={self.is_active})>"
+
+Index('idx_uploaded_files_session_time', UploadedFile.session_id, UploadedFile.upload_time)
+Index('idx_uploaded_files_active', UploadedFile.is_deleted, UploadedFile.upload_time)
+Index('idx_uploaded_files_filename', UploadedFile.original_filename)
+
+# MCP Profile indexes
+Index('idx_mcp_profiles_display_name', McpProfile.display_name)
+Index('idx_mcp_profiles_server_name', McpProfile.mcp_server_name)
+Index('idx_mcp_profiles_active', McpProfile.is_active)
