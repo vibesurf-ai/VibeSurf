@@ -341,7 +341,7 @@ def main():
         extension_path = configure_extension_path()
         
         # Set browser path in environment
-        os.environ['VIBESURF_BROWSER_PATH'] = browser_path
+        os.environ['BROWSER_EXECUTION_PATH'] = browser_path
         
         # Start backend
         start_backend(port)
