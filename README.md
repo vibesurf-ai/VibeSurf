@@ -40,7 +40,8 @@ vibesurf
 
 ## 🎬 Demo
 
-<!-- VIDEO_PLACEHOLDER: Add demo video here -->
+<video src="https://github.com/user-attachments/assets/0a4650c0-c4ed-423e-9e16-7889e9f9816d" controls="controls">Your browser does not support playing this video!</video>
+
 
 ## 📝 License
 

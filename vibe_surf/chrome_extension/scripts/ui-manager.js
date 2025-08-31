@@ -1410,6 +1410,12 @@ class VibeSurfUIManager {
   setupProfileFormEvents() {
     console.log('[UIManager] Setting up profile form events');
     
+    // Add form submission handler first (directly, no cloning)
+    if (this.elements.profileForm) {
+      this.elements.profileForm.addEventListener('submit', this.handleProfileFormSubmit.bind(this));
+      console.log('[UIManager] Form submit listener added');
+    }
+    
     // Provider change handler for LLM profiles
     const providerSelect = this.elements.profileForm?.querySelector('select[name="provider"]');
     if (providerSelect) {
@@ -1445,17 +1451,6 @@ class VibeSurfUIManager {
       
       // Trigger initial validation
       this.handleJsonInputValidation({ target: jsonInput });
-    }
-    
-    // Re-add form submission handler in case it was lost
-    if (this.elements.profileForm) {
-      // Remove existing listeners to avoid duplicates
-      const newForm = this.elements.profileForm.cloneNode(true);
-      this.elements.profileForm.parentNode.replaceChild(newForm, this.elements.profileForm);
-      this.elements.profileForm = newForm;
-      
-      this.elements.profileForm.addEventListener('submit', this.handleProfileFormSubmit.bind(this));
-      console.log('[UIManager] Form submit listener re-added in setupProfileFormEvents');
     }
   }
 
