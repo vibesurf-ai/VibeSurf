@@ -15,6 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
+        ref: 'main'  # Always checkout main branch for latest code
         fetch-depth: 0  # Full history for setuptools-scm
     
     - name: Set up Python ${{ matrix.python-version }}
@@ -40,6 +41,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
+        ref: 'main'  # Always checkout main branch for latest code
         fetch-depth: 0  # Full history for setuptools-scm
     
     - name: Set up Python
