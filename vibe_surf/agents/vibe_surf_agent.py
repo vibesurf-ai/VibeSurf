@@ -1565,9 +1565,25 @@ class VibeSurfAgent:
 
         except asyncio.CancelledError:
             logger.info("🛑 VibeSurfAgent execution was cancelled")
+            # Add cancellation activity log
+            if agent_activity_logs:
+                activity_entry = {
+                    "agent_name": "VibeSurfAgent",
+                    "agent_status": "cancelled",
+                    "agent_msg": "Task execution was cancelled by user request."
+                }
+                agent_activity_logs.append(activity_entry)
             return f"# Task Execution Cancelled\n\n**Task:** {task}\n\nExecution was stopped by user request."
         except Exception as e:
             logger.error(f"❌ VibeSurfAgent execution failed: {e}")
+            # Add error activity log
+            if agent_activity_logs:
+                activity_entry = {
+                    "agent_name": "VibeSurfAgent",
+                    "agent_status": "error",
+                    "agent_msg": f"Task execution failed: {str(e)}"
+                }
+                agent_activity_logs.append(activity_entry)
             return f"# Task Execution Failed\n\n**Task:** {task}\n\n**Error:** {str(e)}\n\nPlease try again or contact support."
         finally:
             # Reset state

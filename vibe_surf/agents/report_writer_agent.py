@@ -91,6 +91,14 @@ class ReportWriterAgent:
         )
         
         response = await self.llm.ainvoke([UserMessage(content=content_prompt)])
+        logger.debug(f"Content generation response type: {type(response)}")
+        logger.debug(f"Content generation completion: {response.completion}")
+        logger.debug(f"Content generation completion type: {type(response.completion)}")
+        
+        if response.completion is None:
+            logger.error("❌ Content generation returned None completion")
+            raise ValueError("LLM response completion is None - unable to generate report content")
+        
         return response.completion
     
     async def _format_as_html(self, content: str) -> str:
@@ -98,6 +106,14 @@ class ReportWriterAgent:
         format_prompt = REPORT_FORMAT_PROMPT.format(report_content=content)
         
         response = await self.llm.ainvoke([UserMessage(content=format_prompt)])
+        logger.debug(f"Format generation response type: {type(response)}")
+        logger.debug(f"Format generation completion: {response.completion}")
+        logger.debug(f"Format generation completion type: {type(response.completion)}")
+        
+        if response.completion is None:
+            logger.error("❌ Format generation returned None completion")
+            raise ValueError("LLM response completion is None - unable to format report as HTML")
+        
         html_content = response.completion
         
         # Clean up the HTML content if needed

@@ -7,6 +7,7 @@ A command-line interface for VibeSurf browser automation tool.
 import os
 import sys
 import glob
+import json
 import socket
 import platform
 import importlib.util
@@ -34,6 +35,17 @@ VIBESURF_LOGO = """
 """
 
 console = Console()
+
+# Add logger import for the workspace directory logging
+try:
+    import logging
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO)
+except ImportError:
+    class SimpleLogger:
+        def info(self, msg):
+            console.print(f"[dim]{msg}[/dim]")
+    logger = SimpleLogger()
 
 
 def find_chrome_browser() -> Optional[str]:
@@ -322,6 +334,55 @@ def start_backend(port: int) -> None:
         sys.exit(1)
 
 
+def get_browser_execution_path() -> Optional[str]:
+    """Get browser execution path from envs.json or environment variables."""
+    # 1. Load environment variables
+    env_workspace_dir = os.getenv("VIBESURF_WORKSPACE", "")
+    if not env_workspace_dir or not env_workspace_dir.strip():
+        # Set default workspace directory based on OS
+        if platform.system() == "Windows":
+            default_workspace = os.path.join(os.environ.get("APPDATA", ""), "VibeSurf")
+        elif platform.system() == "Darwin":  # macOS
+            default_workspace = os.path.join(os.path.expanduser("~"), "Library", "Application Support", "VibeSurf")
+        else:  # Linux and others
+            default_workspace = os.path.join(os.path.expanduser("~"), ".vibesurf")
+        workspace_dir = default_workspace
+    else:
+        workspace_dir = env_workspace_dir
+    workspace_dir = os.path.abspath(workspace_dir)
+    os.makedirs(workspace_dir, exist_ok=True)
+    logger.info("WorkSpace directory: {}".format(workspace_dir))
+
+    # Load environment configuration from envs.json
+    envs_file_path = os.path.join(workspace_dir, "envs.json")
+    browser_path_from_envs = None
+    try:
+        if os.path.exists(envs_file_path):
+            with open(envs_file_path, 'r', encoding='utf-8') as f:
+                envs = json.load(f)
+                browser_path_from_envs = envs.get("BROWSER_EXECUTION_PATH", "")
+                if browser_path_from_envs:
+                    browser_path_from_envs = browser_path_from_envs.strip()
+    except (json.JSONDecodeError, IOError) as e:
+        logger.info(f"Failed to load envs.json: {e}")
+        browser_path_from_envs = None
+
+    # 2. Get BROWSER_EXECUTION_PATH from environment variables
+    browser_path_from_env = os.getenv("BROWSER_EXECUTION_PATH", "")
+    if browser_path_from_env:
+        browser_path_from_env = browser_path_from_env.strip()
+
+    # Check paths in priority order: 1. envs.json -> 2. environment variables
+    for source, path in [("envs.json", browser_path_from_envs), ("environment variable", browser_path_from_env)]:
+        if path and os.path.exists(path) and os.path.isfile(path):
+            console.print(f"[green]✅ Using browser path from {source}: {path}[/green]")
+            return path
+        elif path:
+            console.print(f"[yellow]⚠️  Browser path from {source} exists but file not found: {path}[/yellow]")
+
+    return None
+
+
 def main():
     """Main CLI entry point."""
     try:
@@ -329,10 +390,14 @@ def main():
         console.print(Panel(VIBESURF_LOGO, title="[bold cyan]VibeSurf CLI[/bold cyan]", border_style="cyan"))
         console.print("[dim]A powerful browser automation tool for vibe surfing 🏄‍♂️[/dim]\n")
         
-        # Browser selection
-        browser_path = select_browser()
+        # Check for existing browser path from configuration
+        browser_path = get_browser_execution_path()
+        
+        # If no valid browser path found, ask user to select
         if not browser_path:
-            return
+            browser_path = select_browser()
+            if not browser_path:
+                return
         
         # Port configuration
         port = configure_port()
