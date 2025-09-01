@@ -417,6 +417,37 @@ body {
   background-color: rgba(220, 53, 69, 0.1);
 }
 
+/* Control Panel Error State */
+.control-panel.error-state {
+  background-color: rgba(220, 53, 69, 0.05);
+  border-left: 4px solid var(--danger-color);
+  border-color: rgba(220, 53, 69, 0.2);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
+}
+
+.control-panel.error-state::before {
+  content: '⚠️ Error occurred - task controls remain available';
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--danger-color);
+  margin-bottom: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: rgba(220, 53, 69, 0.1);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(220, 53, 69, 0.2);
+  font-weight: var(--font-weight-medium);
+}
+
+.control-panel.error-state .control-btn {
+  border-color: rgba(220, 53, 69, 0.3);
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+.control-panel.error-state .control-btn:hover {
+  background-color: var(--bg-primary);
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+}
+
 /* Input Section */
 .input-section {
   background-color: var(--bg-primary);
