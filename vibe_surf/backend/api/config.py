@@ -115,10 +115,24 @@ async def create_llm_profile(
         
     except Exception as e:
         logger.error(f"Failed to create LLM profile: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create LLM profile: {str(e)}"
-        )
+        
+        # Handle specific database constraint errors
+        error_msg = str(e)
+        if "UNIQUE constraint failed: llm_profiles.profile_name" in error_msg:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Profile with name '{profile_request.profile_name}' already exists. Please choose a different name."
+            )
+        elif "IntegrityError" in error_msg and "profile_name" in error_msg:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Profile name '{profile_request.profile_name}' is already in use. Please choose a different name."
+            )
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create LLM profile: {str(e)}"
+            )
 
 @router.get("/llm-profiles", response_model=List[LLMProfileResponse])
 async def list_llm_profiles(

@@ -366,6 +366,46 @@
   padding-right: 32px;
 }
 
+/* Form input error state */
+.form-input.form-error {
+  border-color: var(--danger-color) !important;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1) !important;
+}
+
+.form-input.form-error:focus {
+  border-color: var(--danger-color) !important;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.2) !important;
+}
+
+/* Form error message */
+.form-error-message {
+  font-size: var(--font-size-xs);
+  color: var(--danger-color);
+  margin-top: var(--spacing-xs);
+  display: block;
+  font-weight: var(--font-weight-medium);
+  animation: slideDown 0.2s ease-out;
+}
+
+.profile-name-error {
+  background-color: rgba(220, 53, 69, 0.05);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Legacy form error class for backwards compatibility */
 .form-error {
   font-size: var(--font-size-xs);
   color: var(--danger-color);

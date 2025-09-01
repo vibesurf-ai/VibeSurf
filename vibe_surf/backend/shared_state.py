@@ -277,7 +277,8 @@ async def _load_active_mcp_servers():
 
     try:
         if not db_manager:
-            return {}
+            logger.info("Database manager not available, returning empty MCP config")
+            return {"mcpServers": {}}
 
         from .database.queries import McpProfileQueries
 
@@ -298,13 +299,13 @@ async def _load_active_mcp_servers():
 
             except Exception as e:
                 logger.warning(f"Failed to load MCP servers from database: {e}")
-                return {}
+                return {"mcpServers": {}}
             finally:
                 break
 
     except Exception as e:
         logger.warning(f"Database not available for MCP server loading: {e}")
-        return {}
+        return {"mcpServers": {}}
 
 
 async def initialize_vibesurf_components():

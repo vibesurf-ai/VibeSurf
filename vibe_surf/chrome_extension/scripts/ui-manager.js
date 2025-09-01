@@ -1609,12 +1609,23 @@ class VibeSurfUIManager {
     console.log('[UIManager] Profile form submit triggered');
     
     const form = event.target;
+    
+    // Prevent multiple submissions
+    if (form.dataset.submitting === 'true') {
+      console.log('[UIManager] Form already submitting, ignoring duplicate submission');
+      return;
+    }
+    
     const formData = new FormData(form);
     const type = form.dataset.type;
     const mode = form.dataset.mode;
     const profileId = form.dataset.profileId;
     
     console.log('[UIManager] Form submission details:', { type, mode, profileId });
+    
+    // Set submitting state and disable form
+    form.dataset.submitting = 'true';
+    this.setProfileFormSubmitting(true);
     
     // Convert FormData to object
     const data = {};
@@ -1746,7 +1757,113 @@ class VibeSurfUIManager {
       
     } catch (error) {
       console.error(`[UIManager] Failed to ${mode} ${type} profile:`, error);
-      this.showNotification(`Failed to ${mode} ${type} profile: ${error.message}`, 'error');
+      
+      // Handle specific error types for better user experience
+      let errorMessage = error.message || 'Unknown error occurred';
+      
+      if (errorMessage.includes('already exists') || errorMessage.includes('already in use')) {
+        // For duplicate profile name errors, highlight the name field
+        this.highlightProfileNameError(errorMessage);
+        errorMessage = errorMessage; // Use the specific error message from backend
+      } else if (errorMessage.includes('UNIQUE constraint')) {
+        errorMessage = `Profile name '${data.profile_name || data.display_name}' already exists. Please choose a different name.`;
+        this.highlightProfileNameError(errorMessage);
+      }
+      
+      this.showNotification(`Failed to ${mode} ${type} profile: ${errorMessage}`, 'error');
+    } finally {
+      // Reset form state
+      form.dataset.submitting = 'false';
+      this.setProfileFormSubmitting(false);
+    }
+  }
+
+  setProfileFormSubmitting(isSubmitting) {
+    const form = this.elements.profileForm;
+    const submitButton = this.elements.profileFormSubmit;
+    const cancelButton = this.elements.profileFormCancel;
+    
+    if (!form) return;
+    
+    // Disable/enable form inputs
+    const inputs = form.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+      input.disabled = isSubmitting;
+    });
+    
+    // Update submit button
+    if (submitButton) {
+      submitButton.disabled = isSubmitting;
+      submitButton.textContent = isSubmitting ? 'Saving...' : 'Save Profile';
+    }
+    
+    // Update cancel button
+    if (cancelButton) {
+      cancelButton.disabled = isSubmitting;
+    }
+    
+    console.log(`[UIManager] Profile form submitting state: ${isSubmitting}`);
+  }
+
+  highlightProfileNameError(errorMessage) {
+    const nameInput = this.elements.profileForm?.querySelector('input[name="profile_name"], input[name="display_name"]');
+    
+    if (nameInput) {
+      // Add error styling
+      nameInput.classList.add('form-error');
+      nameInput.focus();
+      
+      // Create or update error message
+      let errorElement = nameInput.parentElement.querySelector('.profile-name-error');
+      if (!errorElement) {
+        errorElement = document.createElement('div');
+        errorElement.className = 'form-error-message profile-name-error';
+        nameInput.parentElement.appendChild(errorElement);
+      }
+      
+      errorElement.textContent = errorMessage;
+      
+      // Remove error styling after user starts typing
+      const removeError = () => {
+        nameInput.classList.remove('form-error');
+        if (errorElement) {
+          errorElement.remove();
+        }
+        nameInput.removeEventListener('input', removeError);
+      };
+      
+      nameInput.addEventListener('input', removeError);
+      
+      console.log('[UIManager] Highlighted profile name error:', errorMessage);
+    }
+  }
+
+  // Real-time profile name validation
+  async validateProfileNameAvailability(profileName, profileType) {
+    if (!profileName || profileName.trim().length < 2) {
+      return { isValid: true, message: '' }; // Don't validate very short names
+    }
+    
+    try {
+      // Check if profile already exists
+      const profiles = profileType === 'llm' ? this.state.llmProfiles : this.state.mcpProfiles;
+      const nameField = profileType === 'llm' ? 'profile_name' : 'display_name';
+      
+      const existingProfile = profiles.find(profile =>
+        profile[nameField].toLowerCase() === profileName.toLowerCase()
+      );
+      
+      if (existingProfile) {
+        return {
+          isValid: false,
+          message: `${profileType.toUpperCase()} profile "${profileName}" already exists. Please choose a different name.`
+        };
+      }
+      
+      return { isValid: true, message: '' };
+    } catch (error) {
+      console.error('[UIManager] Error validating profile name:', error);
+      return { isValid: true, message: '' }; // Don't block on validation errors
     }
   }
 

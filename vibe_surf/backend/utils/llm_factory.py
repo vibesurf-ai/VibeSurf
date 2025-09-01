@@ -43,21 +43,21 @@ def create_llm_from_profile(llm_profile):
         
         # Define provider-specific parameter support
         provider_param_support = {
-            "openai": ["temperature", "max_tokens", "top_p", "frequency_penalty", "seed"],
-            "anthropic": ["temperature", "max_tokens", "top_p"],
-            "google": ["temperature", "max_tokens", "top_p"],
-            "azure_openai": ["temperature", "max_tokens", "top_p", "frequency_penalty", "seed"],
-            "groq": ["temperature", "max_tokens", "top_p"],
+            "openai": ["temperature", "top_p", "frequency_penalty", "seed"],
+            "anthropic": ["temperature", "top_p"],
+            "google": ["temperature", "top_p"],
+            "azure_openai": ["temperature", "top_p", "frequency_penalty", "seed"],
+            "groq": ["temperature", "top_p"],
             "ollama": ["temperature"],
             "openrouter": ["temperature", "top_p"],  # OpenRouter doesn't support max_tokens
-            "deepseek": ["temperature", "max_tokens", "top_p"],
-            "aws_bedrock": ["temperature", "max_tokens"],
-            "anthropic_bedrock": ["temperature", "max_tokens"],
-            "openai_compatible": ["temperature", "max_tokens", "top_p", "frequency_penalty", "seed"]
+            "deepseek": ["temperature", "top_p"],
+            "aws_bedrock": ["temperature"],
+            "anthropic_bedrock": ["temperature"],
+            "openai_compatible": ["temperature", "top_p", "frequency_penalty", "seed"]
         }
         
         # Build common parameters based on provider support
-        supported_params = provider_param_support.get(provider, ["temperature", "max_tokens", "top_p", "frequency_penalty", "seed"])
+        supported_params = provider_param_support.get(provider, ["temperature", "top_p", "frequency_penalty", "seed"])
         common_params = {}
         
         if temperature is not None and "temperature" in supported_params:
