@@ -1,6 +1,10 @@
 # VibeSurf: A powerful browser assistant for vibe surfing
+[![Discord](https://img.shields.io/discord/1303749220842340412?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://discord.gg/TXNnP9gJ)
+[![WarmShao](https://img.shields.io/twitter/follow/warmshao?style=social)](https://x.com/warmshao)
 
 VibeSurf is an open-source AI agentic browser that revolutionizes browser automation and research.
+
+If you're as excited about open-source AI browsing as I am, give it a star! ⭐
 
 ## ✨ Key Features
 
