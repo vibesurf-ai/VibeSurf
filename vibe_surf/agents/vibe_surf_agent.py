@@ -47,7 +47,6 @@ class TodoItem(BaseModel):
 class ExecutionMode(BaseModel):
     """Execution mode configuration"""
     mode: Literal["single", "parallel"] = "single"
-    max_parallel_agents: int = 5
     reason: str = Field(description="LLM reasoning for mode selection")
 
 
@@ -229,14 +228,12 @@ def parse_execution_planning_response(response_text: str) -> ExecutionMode:
     """Parse execution planning JSON response"""
     fallback = {
         "execution_mode": "single",
-        "max_parallel_agents": 3,
         "reasoning": "Default single mode"
     }
     result = parse_json_response(response_text, fallback)
 
     return ExecutionMode(
         mode=result.get("execution_mode", "single"),
-        max_parallel_agents=result.get("max_parallel_agents", 3),
         reason=result.get("reasoning", "Default execution mode")
     )
 
@@ -558,7 +555,6 @@ async def _supervisor_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                 
                 state.execution_mode = ExecutionMode(
                     mode=task_type,
-                    max_parallel_agents=5 if task_type == "parallel" else 1,
                     reason=reasoning
                 )
                 state.pending_tasks = tasks_to_execute_new
@@ -755,7 +751,7 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
 
     # Register agents with browser manager
     agents = []
-    pending_tasks = state.pending_tasks[:state.execution_mode.max_parallel_agents]
+    pending_tasks = state.pending_tasks
     bu_agent_ids = []
     register_sessions = []
     for i, task in enumerate(pending_tasks):
@@ -801,7 +797,8 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                 task_id=f"{state.task_id}-{i + 1}",
                 file_system_path=state.task_dir,
                 register_new_step_callback=step_callback,
-                extend_system_message="Please make sure the language of your output in JSON value should remain the same as the user's request or task."
+                extend_system_message="Please make sure the language of your output in JSON value should remain the same as the user's request or task.",
+                preload=False
             )
             agents.append(agent)
 
@@ -899,6 +896,7 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> List[BrowserTask
                 task_id=f"{state.task_id}-{i}",
                 file_system_path=state.task_dir,
                 register_new_step_callback=step_callback,
+                preload=False,
                 extend_system_message="Please make sure the language of your output in JSON values should remain the same as the user's request or task."
             )
 
