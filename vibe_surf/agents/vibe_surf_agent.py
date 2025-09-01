@@ -1584,9 +1584,6 @@ class VibeSurfAgent:
                 agent_activity_logs.append(activity_entry)
             return f"# Task Execution Failed\n\n**Task:** {task}\n\n**Error:** {str(e)}\n\nPlease try again or contact support."
         finally:
-            # Reset state
-            self.save_message_history()
-            self.save_activity_logs()
             if agent_activity_logs:
                 activity_entry = {
                     "agent_name": "VibeSurfAgent",
@@ -1594,6 +1591,9 @@ class VibeSurfAgent:
                     "agent_msg": "Finish Task."
                 }
                 agent_activity_logs.append(activity_entry)
+            # Reset state
+            self.save_message_history()
+            self.save_activity_logs()
             async with self._control_lock:
                 self._current_state = None
                 self._execution_task = None
