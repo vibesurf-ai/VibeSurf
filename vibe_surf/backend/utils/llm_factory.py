@@ -48,7 +48,7 @@ def create_llm_from_profile(llm_profile):
             "google": ["temperature", "top_p"],
             "azure_openai": ["temperature", "top_p", "frequency_penalty", "seed"],
             "groq": ["temperature", "top_p"],
-            "ollama": ["temperature"],
+            "ollama": [],
             "openrouter": ["temperature", "top_p"],  # OpenRouter doesn't support max_tokens
             "deepseek": ["temperature", "top_p"],
             "aws_bedrock": ["temperature"],
