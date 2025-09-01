@@ -543,7 +543,25 @@ class VibeSurfUIManager {
   handleTaskError(data) {
     console.error('[UIManager] Task error:', data.error);
     this.showNotification(`Task error: ${data.error}`, 'error');
-    this.updateControlPanel('ready');
+    
+    // ✅ FIXED: Keep control panel visible during errors
+    // Don't assume task stopped - it might still be running server-side
+    this.updateControlPanel('error');
+    
+    // Optional: Verify task status after a delay
+    setTimeout(() => {
+      this.checkTaskStatus().then(status => {
+        if (!status.isRunning) {
+          console.log('[UIManager] Task confirmed stopped after error, hiding controls');
+          this.updateControlPanel('ready');
+        } else {
+          console.log('[UIManager] Task still running after error, keeping controls visible');
+        }
+      }).catch(err => {
+        console.warn('[UIManager] Could not verify task status after error:', err);
+        // If we can't verify, keep controls visible for safety
+      });
+    }, 2000);
   }
 
   // Task Status Monitoring
@@ -2413,11 +2431,13 @@ class VibeSurfUIManager {
       case 'ready':
         console.log('[UIManager] Setting control panel to ready (hidden)');
         panel.classList.add('hidden');
+        panel.classList.remove('error-state');
         break;
         
       case 'running':
         console.log('[UIManager] Setting control panel to running (showing cancel button)');
         panel.classList.remove('hidden');
+        panel.classList.remove('error-state');
         cancelBtn?.classList.remove('hidden');
         resumeBtn?.classList.add('hidden');
         terminateBtn?.classList.add('hidden');
@@ -2429,14 +2449,25 @@ class VibeSurfUIManager {
       case 'paused':
         console.log('[UIManager] Setting control panel to paused (showing resume/terminate buttons)');
         panel.classList.remove('hidden');
+        panel.classList.remove('error-state');
         cancelBtn?.classList.add('hidden');
         resumeBtn?.classList.remove('hidden');
+        terminateBtn?.classList.remove('hidden');
+        break;
+        
+      case 'error':
+        console.log('[UIManager] Setting control panel to error (keeping cancel/terminate buttons visible)');
+        panel.classList.remove('hidden');
+        panel.classList.add('error-state');
+        cancelBtn?.classList.remove('hidden');
+        resumeBtn?.classList.add('hidden');
         terminateBtn?.classList.remove('hidden');
         break;
         
       default:
         console.log(`[UIManager] Unknown control panel status: ${status}, hiding panel`);
         panel.classList.add('hidden');
+        panel.classList.remove('error-state');
     }
   }
   
