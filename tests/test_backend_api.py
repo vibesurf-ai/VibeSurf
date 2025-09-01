@@ -770,7 +770,7 @@ async def run_all_tests():
 if __name__ == "__main__":
     print("VibeSurf Backend API Tester")
     print("Make sure your backend is running on http://127.0.0.1:9335")
-    print("Command: uvicorn backend.main:app --host 127.0.0.1 --port 9335")
+    print("Command: uvicorn vibe_surf.backend.main:app --host 127.0.0.1 --port 9335")
     print()
 
     asyncio.run(run_all_tests())
