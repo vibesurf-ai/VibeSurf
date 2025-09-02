@@ -1442,7 +1442,7 @@ class VibeSurfAgent:
                 # Also try to pause if available as a fallback
                 if agent and hasattr(agent, 'stop'):
                     await agent.stop()
-                    logger.debug(f"⏸️ stop agent {agent_id}")
+                    logger.info(f"⏸️ stop agent {agent_id}")
             except Exception as e:
                 logger.warning(f"⚠️ Failed to stop agent {agent_id}: {e}")
 
@@ -1452,7 +1452,7 @@ class VibeSurfAgent:
             try:
                 if hasattr(agent, 'pause'):
                     await agent.pause()
-                    logger.debug(f"⏸️ Paused agent {agent_id}")
+                    logger.info(f"⏸️ Paused agent {agent_id}")
                     if self._current_state:
                         self._current_state.paused_agents.add(agent_id)
             except Exception as e:
@@ -1464,7 +1464,7 @@ class VibeSurfAgent:
             try:
                 if hasattr(agent, 'resume'):
                     await agent.resume()
-                    logger.debug(f"▶️ Resumed agent {agent_id}")
+                    logger.info(f"▶️ Resumed agent {agent_id}")
                     if self._current_state:
                         self._current_state.paused_agents.discard(agent_id)
             except Exception as e:

@@ -13,6 +13,10 @@ import platform
 import importlib.util
 from pathlib import Path
 from typing import Optional
+import os
+
+# In case user has a proxy in localhost
+os.environ['no_proxy'] = 'localhost,127.0.0.1,::1'
 
 try:
     from rich.console import Console
@@ -388,7 +392,9 @@ def main():
     try:
         # Display logo
         console.print(Panel(VIBESURF_LOGO, title="[bold cyan]VibeSurf CLI[/bold cyan]", border_style="cyan"))
-        console.print("[dim]A powerful browser automation tool for vibe surfing 🏄‍♂️[/dim]\n")
+        console.print("[dim]A powerful browser automation tool for vibe surfing 🏄‍♂️[/dim]")
+        import vibe_surf
+        console.print(f"[dim]Version: {vibe_surf.__version__}[/dim]\n")
         
         # Check for existing browser path from configuration
         browser_path = get_browser_execution_path()
