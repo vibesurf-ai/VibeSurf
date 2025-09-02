@@ -506,7 +506,7 @@ class VibeSurfUIManager {
     if (this.controlPanelMinVisibilityActive) {
       console.log('[UIManager] Task completed during minimum visibility period, delaying control panel hide');
       // Wait for minimum visibility period to end before hiding
-      const remainingTime = 2000; // Could be calculated more precisely, but 2s is reasonable
+      const remainingTime = 1000; // Could be calculated more precisely, but 2s is reasonable
       setTimeout(() => {
         console.log('[UIManager] Minimum visibility period respected, now hiding control panel');
         this.updateControlPanel('ready');
@@ -561,7 +561,7 @@ class VibeSurfUIManager {
         console.warn('[UIManager] Could not verify task status after error:', err);
         // If we can't verify, keep controls visible for safety
       });
-    }, 2000);
+    }, 1000);
   }
 
   // Task Status Monitoring
@@ -589,7 +589,7 @@ class VibeSurfUIManager {
     // Check task status every 2 seconds
     this.taskStatusInterval = setInterval(() => {
       this.checkTaskStatus();
-    }, 2000);
+    }, 500);
   }
 
   stopTaskStatusMonitoring() {

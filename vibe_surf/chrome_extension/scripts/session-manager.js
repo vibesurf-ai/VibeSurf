@@ -201,7 +201,6 @@ class VibeSurfSessionManager {
     }
 
     try {
-      // ✅ 改进：提交新任务前先同步session的所有activity logs
       console.log('[SessionManager] 🔄 Syncing activity logs before task submission...');
       await this.syncActivityLogsFromServer();
 
@@ -343,7 +342,6 @@ class VibeSurfSessionManager {
     }
 
     try {
-      // ✅ 使用当前logs数量作为message_index，确保获取下一个预期的log
       const requestIndex = this.activityLogs.length;
       
       console.log(`[SessionManager] 🔄 Polling activity at index ${requestIndex}, current logs: ${this.activityLogs.length}`);
