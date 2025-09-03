@@ -34,7 +34,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 ### Step 2: Setup and Install
 ```bash
 uv venv --python 3.12
-uv pip install vibesurf
+uv pip install vibesurf -U
 ```
 
 ### Step 3: Launch
@@ -44,7 +44,11 @@ vibesurf
 
 ## 🎬 Demo
 
+### How to use?
 <video src="https://github.com/user-attachments/assets/0a4650c0-c4ed-423e-9e16-7889e9f9816d" controls="controls">Your browser does not support playing this video!</video>
+
+### Dozens of agent running in on browser
+<video src="https://github.com/user-attachments/assets/9c461a6e-5d97-4335-ba09-59e8ec4ad47b" controls="controls">Your browser does not support playing this video!</video>
 
 
 ## 📝 License
