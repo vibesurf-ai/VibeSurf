@@ -126,12 +126,12 @@ class AgentBrowserSession(BrowserSession):
         from vibe_surf.browser.watchdogs.action_watchdog import CustomActionWatchdog
         from vibe_surf.browser.watchdogs.dom_watchdog import CustomDOMWatchdog
 
-        from browser_use.browser.downloads_watchdog import DownloadsWatchdog
-        from browser_use.browser.local_browser_watchdog import LocalBrowserWatchdog
-        from browser_use.browser.permissions_watchdog import PermissionsWatchdog
-        from browser_use.browser.popups_watchdog import PopupsWatchdog
-        from browser_use.browser.screenshot_watchdog import ScreenshotWatchdog
-        from browser_use.browser.security_watchdog import SecurityWatchdog
+        from browser_use.browser.watchdogs.downloads_watchdog import DownloadsWatchdog
+        from browser_use.browser.watchdogs.local_browser_watchdog import LocalBrowserWatchdog
+        from browser_use.browser.watchdogs.permissions_watchdog import PermissionsWatchdog
+        from browser_use.browser.watchdogs.popups_watchdog import PopupsWatchdog
+        from browser_use.browser.watchdogs.screenshot_watchdog import ScreenshotWatchdog
+        from browser_use.browser.watchdogs.security_watchdog import SecurityWatchdog
 
         # NOTE: AboutBlankWatchdog is deliberately excluded to disable DVD animation
 

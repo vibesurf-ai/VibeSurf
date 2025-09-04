@@ -126,5 +126,5 @@ class AgentBrowserProfile(BrowserProfile):
             extension_paths.extend(self.custom_extensions)
         if extension_paths:
             args.append(f'--load-extension={",".join(extension_paths)}')
-        print(args)
+        logger.info(f"Extension infos: {args}")
         return args
