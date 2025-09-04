@@ -1500,7 +1500,7 @@ class VibeSurfAgent:
             if upload_files and not isinstance(upload_files, list):
                 upload_files = [upload_files]
             upload_files_md = format_upload_files_list(upload_files)
-            user_request = "* User's New Request:\n{task}\n"
+            user_request = f"* User's New Request:\n{task}\n"
             if upload_files:
                 user_request += f"* User Uploaded Files:\n{upload_files_md}\n"
             supervisor_message_history.append(
@@ -1605,7 +1605,7 @@ class VibeSurfAgent:
         if session_id is None:
             session_id = self.cur_session_id
         
-        logger.info(f"📊 GET_ACTIVITY_LOGS DEBUG - Session: {session_id}, Message Index: {message_index}, Current Session: {self.cur_session_id}")
+        logger.debug(f"📊 GET_ACTIVITY_LOGS DEBUG - Session: {session_id}, Message Index: {message_index}, Current Session: {self.cur_session_id}")
         
         # Ensure session_id exists in activity_logs
         if session_id not in self.activity_logs:
@@ -1613,10 +1613,10 @@ class VibeSurfAgent:
             return None
             
         session_logs = self.activity_logs[session_id]
-        logger.info(f"📋 Session {session_id} has {len(session_logs)} activity logs")
+        logger.debug(f"📋 Session {session_id} has {len(session_logs)} activity logs")
         
         if message_index is None:
-            logger.info(f"📤 Returning all {len(session_logs)} activity logs for session {session_id}")
+            logger.debug(f"📤 Returning all {len(session_logs)} activity logs for session {session_id}")
             return session_logs
         else:
             if message_index >= len(session_logs):
@@ -1624,7 +1624,7 @@ class VibeSurfAgent:
                 return None
             else:
                 activity_log = session_logs[message_index]
-                logger.info(f"📤 Returning activity log at index {message_index}: {activity_log.get('agent_name', 'unknown')} - {activity_log.get('agent_status', 'unknown')}")
+                logger.debug(f"📤 Returning activity log at index {message_index}: {activity_log.get('agent_name', 'unknown')} - {activity_log.get('agent_status', 'unknown')}")
                 return activity_log
 
     async def _get_result(self, state) -> str:

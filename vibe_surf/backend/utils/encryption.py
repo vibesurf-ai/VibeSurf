@@ -5,47 +5,17 @@ Uses machine MAC address for key derivation to encrypt sensitive data like API k
 """
 
 import hashlib
+import pdb
 import uuid
 import base64
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from getmac import get_mac_address
+
 import logging
 
 logger = logging.getLogger(__name__)
-
-import psutil
-import logging
-
-
-def get_machine_id() -> str:
-    """Get unique machine identifier based on MAC address."""
-    try:
-        nics = psutil.net_if_addrs()
-
-        priority_interfaces = ['en0', 'eth0', 'en1']
-
-        for interface in priority_interfaces:
-            if interface in nics:
-                for addr in nics[interface]:
-                    if addr.family == psutil.AF_LINK:
-                        mac = addr.address
-                        if mac and mac != '00:00:00:00:00:00':
-                            return mac.replace(':', '').upper()
-
-        for interface, addrs in nics.items():
-            for addr in addrs:
-                if addr.family == psutil.AF_LINK:
-                    mac = addr.address
-                    if (mac and mac != '00:00:00:00:00:00' and
-                            not mac.startswith('02:') and
-                            not interface.startswith(('lo', 'docker', 'veth'))):
-                        return mac.replace(':', '').upper()
-
-    except Exception as e:
-        logging.warning(f"Could not get MAC address via psutil: {e}")
-
-    return "VIBESURF_WARMSHAO"
 
 
 def derive_key(machine_id: str, salt: bytes = None) -> bytes:
@@ -69,8 +39,8 @@ def derive_key(machine_id: str, salt: bytes = None) -> bytes:
 
 def get_encryption_key() -> bytes:
     """Get the encryption key for this machine."""
-    machine_id = get_machine_id()
-    return derive_key(machine_id)
+    machine_id1 = get_mac_address()
+    return derive_key(machine_id1)
 
 def encrypt_api_key(api_key: str) -> str:
     """

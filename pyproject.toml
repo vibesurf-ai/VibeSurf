@@ -38,6 +38,7 @@ dependencies = [
     "aiosqlite>=0.21.0",
     "rich>=13.0.0",
     "greenlet>=3.2.4",
+    "getmac>=0.9.5",
 ]
 
 [project.urls]

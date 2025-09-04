@@ -86,8 +86,8 @@ async def run_multi_bu_agents():
     await main_browser_session.start()
     browser_manager = BrowserManager(main_browser_session=main_browser_session)
     controller = VibeSurfController()
-    await controller.register_mcp_clients(mcp_server_config)
-    llm = ChatOpenAICompatible(model='gemini-2.5-pro', base_url=os.getenv("OPENAI_ENDPOINT"),
+    # await controller.register_mcp_clients(mcp_server_config)
+    llm = ChatOpenAICompatible(model='gemini-2.5-flash', base_url=os.getenv("OPENAI_ENDPOINT"),
                                api_key=os.getenv("OPENAI_API_KEY"))
     agent_browser_sessions = await asyncio.gather(
         browser_manager.register_agent("agent-1"),
@@ -375,6 +375,6 @@ async def test_vibe_surf_agent_control():
 
 if __name__ == "__main__":
     # asyncio.run(run_single_bu_agent())
-    # asyncio.run(run_multi_bu_agents())
-    asyncio.run(test_vibe_surf_agent())
+    asyncio.run(run_multi_bu_agents())
+    # asyncio.run(test_vibe_surf_agent())
     # asyncio.run(test_vibe_surf_agent_control())

@@ -33,7 +33,6 @@ class AgentBrowserSession(BrowserSession):
         browser_profile: AgentBrowserProfile | None = None,
         # Custom AgentBrowserSession fields
         main_browser_session: BrowserSession | None = None,
-        disable_dvd_animation: bool = True,
         # BrowserProfile fields that can be passed directly
         # From BrowserConnectArgs
         headers: dict[str, str] | None = None,
@@ -88,12 +87,11 @@ class AgentBrowserSession(BrowserSession):
         # Filter out AgentBrowserSession specific parameters
         agent_session_params = {
             'main_browser_session': main_browser_session,
-            'disable_dvd_animation': disable_dvd_animation,
         }
 
         # Get all browser profile parameters
         profile_kwargs = {k: v for k, v in locals().items()
-                         if k not in ['self', 'browser_profile', 'id', 'main_browser_session', 'disable_dvd_animation']
+                         if k not in ['self', 'browser_profile', 'id', 'main_browser_session']
                          and v is not None}
 
         # Apply BrowserSession's is_local logic first
@@ -125,7 +123,6 @@ class AgentBrowserSession(BrowserSession):
 
         # Set AgentBrowserSession specific fields
         self.main_browser_session = main_browser_session
-        self.disable_dvd_animation = disable_dvd_animation
 
     # Override browser_profile field to ensure it's always AgentBrowserProfile
     browser_profile: AgentBrowserProfile = Field(
@@ -133,12 +130,7 @@ class AgentBrowserSession(BrowserSession):
         description='AgentBrowserProfile() options to use for the session',
     )
     main_browser_session: BrowserSession | None = Field(default=None)
-    
-    # Add a flag to control DVD animation (for future extensibility)
-    disable_dvd_animation: bool = Field(
-        default=True,
-        description="Disable the DVD screensaver animation on about:blank pages"
-    )
+
 
     async def connect_agent(self, target_id: str) -> Self:
         """Register agent to browser with optional target assignment."""
@@ -284,36 +276,6 @@ class AgentBrowserSession(BrowserSession):
         self._watchdogs_attached = True
 
         self.logger.info('✅ VibeSurfBrowserSession: All watchdogs attached (AboutBlankWatchdog excluded)')
-
-    async def _ensure_minimal_about_blank_tab(self) -> None:
-        """
-        Ensure there's at least one about:blank tab without any animation.
-        This replaces AboutBlankWatchdog's functionality but without the DVD animation.
-        """
-        try:
-            # Get all page targets using CDP
-            page_targets = await self._cdp_get_all_pages()
-
-            # If no tabs exist at all, create one to keep browser alive
-            if len(page_targets) == 0:
-                self.logger.info('[VibeSurfBrowserSession] No tabs exist, creating new about:blank tab (no animation)')
-                from browser_use.browser.events import NavigateToUrlEvent
-                navigate_event = self.event_bus.dispatch(NavigateToUrlEvent(url='about:blank', new_tab=True))
-                await navigate_event
-                # Note: NO DVD screensaver injection here!
-
-        except Exception as e:
-            self.logger.error(f'[VibeSurfBrowserSession] Error ensuring about:blank tab: {e}')
-
-    async def on_BrowserStartEvent(self, event) -> dict[str, str]:
-        """Override to ensure minimal about:blank handling without animation."""
-        # Call parent implementation first
-        result = await super().on_BrowserStartEvent(event)
-
-        # Ensure we have at least one tab without animation
-        await self._ensure_minimal_about_blank_tab()
-
-        return result
 
     def get_cdp_session_pool(self):
         return self._cdp_session_pool
