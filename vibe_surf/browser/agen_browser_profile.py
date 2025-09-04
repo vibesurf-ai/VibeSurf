@@ -20,8 +20,8 @@ from browser_use.browser import BrowserProfile
 
 
 class AgentBrowserProfile(BrowserProfile):
-    custom_extensions: list = Field(
-        default=lambda: [],
+    custom_extensions: list[str] | None = Field(
+        default=None,
         description="Enable Custom Extensions.",
     )
 
@@ -121,6 +121,7 @@ class AgentBrowserProfile(BrowserProfile):
             '--enable-extension-activity-logging',
             '--disable-features=DisableLoadExtensionCommandLineSwitch'
         ]
+        pdb.set_trace()
         if self.custom_extensions:
             extension_paths.extend(self.custom_extensions)
         if extension_paths:

@@ -1,6 +1,7 @@
 """DOM watchdog for browser DOM tree management using CDP."""
 
 import asyncio
+import pdb
 import time
 from typing import TYPE_CHECKING
 

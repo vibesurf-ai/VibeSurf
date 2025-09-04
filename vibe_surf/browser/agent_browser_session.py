@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import os
+import pdb
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from browser_use.browser.session import BrowserSession, CDPSession
 from pydantic import Field
@@ -21,21 +22,109 @@ DEFAULT_BROWSER_PROFILE = AgentBrowserProfile()
 
 class AgentBrowserSession(BrowserSession):
     """Isolated browser session for a specific agent."""
+
+    def __init__(
+        self,
+        # Core configuration
+        id: str | None = None,
+        cdp_url: str | None = None,
+        is_local: bool = False,
+        browser_profile: AgentBrowserProfile | None = None,
+        # Custom AgentBrowserSession fields
+        main_browser_session: BrowserSession | None = None,
+        disable_dvd_animation: bool = True,
+        # BrowserProfile fields that can be passed directly
+        # From BrowserConnectArgs
+        headers: dict[str, str] | None = None,
+        # From BrowserLaunchArgs
+        env: dict[str, str | float | bool] | None = None,
+        executable_path: str | Path | None = None,
+        headless: bool | None = None,
+        args: list[str] | None = None,
+        ignore_default_args: list[str] | list[bool] | None = None,
+        channel: str | None = None,
+        chromium_sandbox: bool | None = None,
+        devtools: bool | None = None,
+        downloads_path: str | Path | None = None,
+        traces_dir: str | Path | None = None,
+        # From BrowserContextArgs
+        accept_downloads: bool | None = None,
+        permissions: list[str] | None = None,
+        user_agent: str | None = None,
+        screen: dict | None = None,
+        viewport: dict | None = None,
+        no_viewport: bool | None = None,
+        device_scale_factor: float | None = None,
+        record_har_content: str | None = None,
+        record_har_mode: str | None = None,
+        record_har_path: str | Path | None = None,
+        record_video_dir: str | Path | None = None,
+        # From BrowserLaunchPersistentContextArgs
+        user_data_dir: str | Path | None = None,
+        # From BrowserNewContextArgs
+        storage_state: str | Path | dict[str, Any] | None = None,
+        # BrowserProfile specific fields
+        disable_security: bool | None = None,
+        deterministic_rendering: bool | None = None,
+        allowed_domains: list[str] | None = None,
+        keep_alive: bool | None = None,
+        proxy: any | None = None,
+        enable_default_extensions: bool | None = None,
+        window_size: dict | None = None,
+        window_position: dict | None = None,
+        cross_origin_iframes: bool | None = None,
+        minimum_wait_page_load_time: float | None = None,
+        wait_for_network_idle_page_load_time: float | None = None,
+        wait_between_actions: float | None = None,
+        highlight_elements: bool | None = None,
+        filter_highlight_ids: bool | None = None,
+        auto_download_pdfs: bool | None = None,
+        profile_directory: str | None = None,
+        cookie_whitelist_domains: list[str] | None = None,
+        # AgentBrowserProfile specific fields
+        custom_extensions: list[str] | None = None,
+    ):
+        # Filter out AgentBrowserSession specific parameters
+        agent_session_params = {
+            'main_browser_session': main_browser_session,
+            'disable_dvd_animation': disable_dvd_animation,
+        }
+
+        # Get all browser profile parameters
+        profile_kwargs = {k: v for k, v in locals().items()
+                         if k not in ['self', 'browser_profile', 'id', 'main_browser_session', 'disable_dvd_animation']
+                         and v is not None}
+
+        # Create AgentBrowserProfile from direct parameters or use provided one
+        if browser_profile is not None:
+            # Merge any direct kwargs into the provided browser_profile (direct kwargs take precedence)
+            merged_kwargs = {**browser_profile.model_dump(exclude_unset=True), **profile_kwargs}
+            resolved_browser_profile = AgentBrowserProfile(**merged_kwargs)
+        else:
+            resolved_browser_profile = browser_profile
+        # Call parent constructor with core parameters and resolved profile
+        super().__init__(
+            id=id,
+            cdp_url=cdp_url,
+            is_local=is_local,
+            browser_profile=resolved_browser_profile,
+        )
+
+        # Set AgentBrowserSession specific fields
+        self.main_browser_session = main_browser_session
+        self.disable_dvd_animation = disable_dvd_animation
+
+    # Override browser_profile field to ensure it's always AgentBrowserProfile
     browser_profile: AgentBrowserProfile = Field(
         default_factory=lambda: DEFAULT_BROWSER_PROFILE,
-        description='BrowserProfile() options to use for the session, otherwise a default profile will be used',
+        description='AgentBrowserProfile() options to use for the session',
     )
     main_browser_session: BrowserSession | None = Field(default=None)
-    connected_agent: bool = False
+    
     # Add a flag to control DVD animation (for future extensibility)
     disable_dvd_animation: bool = Field(
         default=True,
         description="Disable the DVD screensaver animation on about:blank pages"
-    )
-    # Custom extensions to load
-    custom_extension_paths: List[str] = Field(
-        default_factory=list,
-        description="List of paths to custom Chrome extensions to load"
     )
 
     async def connect_agent(self, target_id: str) -> Self:
@@ -54,7 +143,6 @@ class AgentBrowserSession(BrowserSession):
             await self.agent_focus.cdp_client.send.Runtime.runIfWaitingForDebugger(
                 session_id=self.agent_focus.session_id)
             self._cdp_session_pool[target_id] = self.agent_focus
-        self.connected_agent = True
         return self
 
     async def disconnect_agent(self) -> None:
@@ -62,7 +150,7 @@ class AgentBrowserSession(BrowserSession):
         for session in self._cdp_session_pool.values():
             await session.disconnect()
         self._cdp_session_pool.clear()
-        self.connected_agent = False
+        self.main_browser_session = None
 
     async def _cdp_get_all_pages(
             self,
@@ -80,7 +168,7 @@ class AgentBrowserSession(BrowserSession):
         if not self._cdp_client_root:
             return []
         targets = await self.cdp_client.send.Target.getTargets()
-        if self.connected_agent:
+        if self.main_browser_session is not None:
             assigned_target_ids = self._cdp_session_pool.keys()
             return [
                 t

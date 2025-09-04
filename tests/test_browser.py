@@ -163,8 +163,8 @@ async def test_browser_state_capture(manager: BrowserManager):
         task_start = time.time()
         logging.info(f"🔍 DIAGNOSIS: {agent_name} get state started at {task_start - start_time:.3f}s")
         # 使用新的并发导航方法绕过串行瓶颈
-        # state = await agent.get_browser_state_summary()
-        state = await agent.get_browser_state()
+        state = await agent.get_browser_state_summary()
+        # state = await agent.get_browser_state()
         task_end = time.time()
         logging.info(
             f"🔍 DIAGNOSIS: {agent_name} get state completed at {task_end - start_time:.3f}s (duration: {task_end - task_start:.3f}s)")
@@ -215,7 +215,7 @@ async def test_browser_state_capture(manager: BrowserManager):
 
     # Get new state for agent 1
     logging.info("Capturing new state for agent 1...")
-    state1_new = await agent1.get_browser_state()
+    state1_new = await agent1.get_browser_state_summary()
 
     # Print new tabs and save screenshot
     logging.info(f"Agent 1 new tabs: {state1_new.tabs}")
@@ -255,13 +255,14 @@ async def main():
         from pathlib import Path
         current_file = Path(__file__)
         project_root = current_file.parent.parent  # vibe_surf/browser -> vibe_surf -> project_root
-        chrome_extension_path = project_root / "chrome_extension"
+        chrome_extension_path = project_root / "vibe_surf" / "chrome_extension"
         assert os.path.exists(chrome_extension_path)
 
         browser_profile = AgentBrowserProfile(
             executable_path=browser_exec_path,
             user_data_dir=os.path.abspath('./tmp/chrome/profiles/default'),
             headless=False,
+            highlight_elements=True,
             custom_extensions=[str(chrome_extension_path.absolute())]
         )
         # Use SwarmBrowserSession instead of BrowserSession to disable DVD animation
