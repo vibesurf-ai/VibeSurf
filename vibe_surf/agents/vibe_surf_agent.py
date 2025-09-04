@@ -30,7 +30,7 @@ from vibe_surf.agents.prompts.vibe_surf_prompt import (
     SUPERVISOR_AGENT_SYSTEM_PROMPT,
 )
 from vibe_surf.browser.browser_manager import BrowserManager
-from vibe_surf.controller.vibesurf_controller import VibeSurfController
+from vibe_surf.controller.vibesurf_tools import VibeSurfController
 
 logger = logging.getLogger(__name__)
 
@@ -798,7 +798,6 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                 file_system_path=state.task_dir,
                 register_new_step_callback=step_callback,
                 extend_system_message="Please make sure the language of your output in JSON value should remain the same as the user's request or task.",
-                preload=False
             )
             agents.append(agent)
 
@@ -896,7 +895,6 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> List[BrowserTask
                 task_id=f"{state.task_id}-{i}",
                 file_system_path=state.task_dir,
                 register_new_step_callback=step_callback,
-                preload=False,
                 extend_system_message="Please make sure the language of your output in JSON values should remain the same as the user's request or task."
             )
 
@@ -1502,11 +1500,14 @@ class VibeSurfAgent:
             if upload_files and not isinstance(upload_files, list):
                 upload_files = [upload_files]
             upload_files_md = format_upload_files_list(upload_files)
+            user_request = f"* User's New Request:\n{task}\n"
+            if upload_files:
+                user_request += f"* User Uploaded Files:\n{upload_files_md}\n"
             supervisor_message_history.append(
                 UserMessage(
-                    content=f"* User's New Request:\n{task}\n* Uploaded Files for Completing Task:\n{upload_files_md}\n")
+                    content=user_request)
             )
-            logger.info(f"* User's New Request:\n{task}\n* Uploaded Files for Completing Task:\n{upload_files_md}\n")
+            logger.info(user_request)
 
             if self.cur_session_id not in self.activity_logs:
                 self.activity_logs[self.cur_session_id] = []
@@ -1604,7 +1605,7 @@ class VibeSurfAgent:
         if session_id is None:
             session_id = self.cur_session_id
         
-        logger.info(f"📊 GET_ACTIVITY_LOGS DEBUG - Session: {session_id}, Message Index: {message_index}, Current Session: {self.cur_session_id}")
+        logger.debug(f"📊 GET_ACTIVITY_LOGS DEBUG - Session: {session_id}, Message Index: {message_index}, Current Session: {self.cur_session_id}")
         
         # Ensure session_id exists in activity_logs
         if session_id not in self.activity_logs:
@@ -1612,10 +1613,10 @@ class VibeSurfAgent:
             return None
             
         session_logs = self.activity_logs[session_id]
-        logger.info(f"📋 Session {session_id} has {len(session_logs)} activity logs")
+        logger.debug(f"📋 Session {session_id} has {len(session_logs)} activity logs")
         
         if message_index is None:
-            logger.info(f"📤 Returning all {len(session_logs)} activity logs for session {session_id}")
+            logger.debug(f"📤 Returning all {len(session_logs)} activity logs for session {session_id}")
             return session_logs
         else:
             if message_index >= len(session_logs):
@@ -1623,7 +1624,7 @@ class VibeSurfAgent:
                 return None
             else:
                 activity_log = session_logs[message_index]
-                logger.info(f"📤 Returning activity log at index {message_index}: {activity_log.get('agent_name', 'unknown')} - {activity_log.get('agent_status', 'unknown')}")
+                logger.debug(f"📤 Returning activity log at index {message_index}: {activity_log.get('agent_name', 'unknown')} - {activity_log.get('agent_status', 'unknown')}")
                 return activity_log
 
     async def _get_result(self, state) -> str:

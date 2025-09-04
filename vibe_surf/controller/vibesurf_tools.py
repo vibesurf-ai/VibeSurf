@@ -8,7 +8,7 @@ import mimetypes
 
 from typing import Optional, Type, Callable, Dict, Any, Union, Awaitable, TypeVar
 from pydantic import BaseModel
-from browser_use.controller.service import Controller
+from browser_use.tools.service import Controller, Tools
 import logging
 from browser_use.agent.views import ActionModel, ActionResult
 from browser_use.utils import time_execution_sync
@@ -16,7 +16,7 @@ from browser_use.filesystem.file_system import FileSystem
 from browser_use.browser import BrowserSession
 from browser_use.browser.events import UploadFileEvent
 from browser_use.observability import observe_debug
-from browser_use.controller.views import (
+from browser_use.tools.views import (
     ClickElementAction,
     CloseTabAction,
     DoneAction,
@@ -50,7 +50,7 @@ Context = TypeVar('Context')
 T = TypeVar('T', bound=BaseModel)
 
 
-class VibeSurfController(Controller):
+class VibeSurfTools(Tools):
     def __init__(self,
                  exclude_actions: list[str] = [],
                  output_model: type[T] | None = None,
@@ -360,6 +360,11 @@ Provide the extracted information in a clear, structured format."""
 
         @self.registry.action('Read file_name from file system. If this is a file not in Current workspace dir or with a absolute path, Set external_file=True.')
         async def read_file(file_name: str, external_file: bool, file_system: FileSystem):
+            if not os.path.exists(file_name):
+                # if not exists, assume it is external_file
+                external_file = True
+            else:
+                external_file = False
             result = await file_system.read_file(file_name, external_file=external_file)
 
             MAX_MEMORY_SIZE = 1000
@@ -397,10 +402,10 @@ Provide the extracted information in a clear, structured format."""
             try:
                 # Get file path
                 file_path = params.file_path
-                
+
                 # Check if file exists
                 if not os.path.exists(file_path):
-                    raise Exception(f'File not found: {file_path}')
+                    file_path = os.path.join(file_system.get_dir(), file_path)
                 
                 # Determine if file is an image based on MIME type
                 mime_type, _ = mimetypes.guess_type(file_path)
@@ -526,8 +531,8 @@ Provide the extracted information in a clear, structured format."""
                 
                 # Register tools to controller with prefix
                 prefix = f"mcp.{server_name}."
-                await client.register_to_controller(
-                    controller=self,
+                await client.register_to_tools(
+                    tools=self,
                     prefix=prefix
                 )
                 
@@ -573,44 +578,4 @@ Provide the extracted information in a clear, structured format."""
         self.mcp_clients.clear()
         logger.info('All MCP clients unregistered and disconnected')
 
-    @observe_debug(ignore_input=True, ignore_output=True, name='act')
-    @time_execution_sync('--act')
-    async def act(
-            self,
-            action: ActionModel,
-            browser_session: BrowserSession| None = None,
-            #
-            page_extraction_llm: BaseChatModel | None = None,
-            sensitive_data: dict[str, str | dict[str, str]] | None = None,
-            available_file_paths: list[str] | None = None,
-            file_system: FileSystem | None = None,
-            #
-            context: Context | None = None,
-    ) -> ActionResult:
-        """Execute an action"""
-
-        for action_name, params in action.model_dump(exclude_unset=True).items():
-            if params is not None:
-                try:
-                    result = await self.registry.execute_action(
-                        action_name=action_name,
-                        params=params,
-                        browser_session=browser_session,
-                        page_extraction_llm=page_extraction_llm,
-                        file_system=file_system,
-                        sensitive_data=sensitive_data,
-                        available_file_paths=available_file_paths,
-                        context=context,
-                    )
-                except Exception as e:
-                    result = ActionResult(error=str(e))
-
-                if isinstance(result, str):
-                    return ActionResult(extracted_content=result)
-                elif isinstance(result, ActionResult):
-                    return result
-                elif result is None:
-                    return ActionResult()
-                else:
-                    raise ValueError(f'Invalid action result type: {type(result)} of {result}')
-        return ActionResult()
+VibeSurfController = VibeSurfTools

@@ -89,7 +89,7 @@ class BrowserManager:
         # Get or create available target
         if target_id is None:
             new_target = await self.main_browser_session.cdp_client.send.Target.createTarget(
-                params={'url': 'about:blank'})
+                params={'url': ''})
             target_id = new_target["targetId"]
 
         await agent_session.connect_agent(target_id=target_id)
@@ -257,7 +257,7 @@ class BrowserManager:
         if page_targets:
             target_id = page_targets[-1]["targetId"]
         else:
-            new_target = await client.send.Target.createTarget(params={'url': 'about:blank'})
+            new_target = await client.send.Target.createTarget(params={'url': ''})
             target_id = new_target["targetId"]
         await self.main_browser_session.get_or_create_cdp_session(target_id, focus=False)
         return target_id

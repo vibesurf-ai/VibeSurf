@@ -3,11 +3,7 @@ import logging
 import time
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, create_model
 
-from browser_use.agent.views import ActionResult
-from browser_use.controller.registry.service import Registry
-from browser_use.controller.service import Controller
 from browser_use.telemetry import MCPClientTelemetryEvent, ProductTelemetry
 from browser_use.utils import get_browser_use_version
 from browser_use.mcp.client import MCPClient

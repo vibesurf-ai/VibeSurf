@@ -12,8 +12,7 @@ load_dotenv()
 
 async def test_controller_with_mcp():
     import os
-    from vibe_surf.controller.vibesurf_controller import VibeSurfController
-    from browser_use.controller.registry.views import ActionModel
+    from vibe_surf.controller.vibesurf_tools import VibeSurfController
 
     mcp_server_config = {
         "mcpServers": {

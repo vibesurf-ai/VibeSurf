@@ -689,21 +689,14 @@ def create_highlighted_screenshot(
         for element_id, element in selector_map.items():
             try:
                 # Use snapshot bounds (document coordinates) if available, otherwise absolute_position
-                bounds = None
-                if element.snapshot_node and element.snapshot_node.bounds:
-                    bounds = element.snapshot_node.bounds
-                elif element.absolute_position:
-                    bounds = element.absolute_position
+                bounds = element.absolute_position
 
-                if not bounds:
-                    continue
-
-                # Convert from CSS pixels to device pixels for screenshot coordinates
-                # Note: bounds are already in CSS pixels, screenshot is in device pixels
-                x1 = int((bounds.x - viewport_offset_x) * device_pixel_ratio)
-                y1 = int((bounds.y - viewport_offset_y) * device_pixel_ratio)
-                x2 = int((bounds.x + bounds.width - viewport_offset_x) * device_pixel_ratio)
-                y2 = int((bounds.y + bounds.height - viewport_offset_y) * device_pixel_ratio)
+                # Scale coordinates from CSS pixels to device pixels for screenshot
+                # The screenshot is captured at device pixel resolution, but coordinates are in CSS pixels
+                x1 = int(bounds.x * device_pixel_ratio)
+                y1 = int(bounds.y * device_pixel_ratio)
+                x2 = int((bounds.x + bounds.width) * device_pixel_ratio)
+                y2 = int((bounds.y + bounds.height) * device_pixel_ratio)
 
                 # Ensure coordinates are within image bounds
                 img_width, img_height = image.size

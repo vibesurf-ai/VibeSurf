@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import os
+import pdb
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from browser_use.browser.session import BrowserSession, CDPSession
 from pydantic import Field
@@ -16,27 +17,120 @@ from browser_use.browser.views import BrowserStateSummary
 from browser_use.dom.views import TargetInfo
 from vibe_surf.browser.agen_browser_profile import AgentBrowserProfile
 from typing import Self
+from uuid_extensions import uuid7str
 
 DEFAULT_BROWSER_PROFILE = AgentBrowserProfile()
 
 class AgentBrowserSession(BrowserSession):
     """Isolated browser session for a specific agent."""
+
+    def __init__(
+        self,
+        # Core configuration
+        id: str | None = None,
+        cdp_url: str | None = None,
+        is_local: bool = False,
+        browser_profile: AgentBrowserProfile | None = None,
+        # Custom AgentBrowserSession fields
+        main_browser_session: BrowserSession | None = None,
+        # BrowserProfile fields that can be passed directly
+        # From BrowserConnectArgs
+        headers: dict[str, str] | None = None,
+        # From BrowserLaunchArgs
+        env: dict[str, str | float | bool] | None = None,
+        executable_path: str | Path | None = None,
+        headless: bool | None = None,
+        args: list[str] | None = None,
+        ignore_default_args: list[str] | list[bool] | None = None,
+        channel: str | None = None,
+        chromium_sandbox: bool | None = None,
+        devtools: bool | None = None,
+        downloads_path: str | Path | None = None,
+        traces_dir: str | Path | None = None,
+        # From BrowserContextArgs
+        accept_downloads: bool | None = None,
+        permissions: list[str] | None = None,
+        user_agent: str | None = None,
+        screen: dict | None = None,
+        viewport: dict | None = None,
+        no_viewport: bool | None = None,
+        device_scale_factor: float | None = None,
+        record_har_content: str | None = None,
+        record_har_mode: str | None = None,
+        record_har_path: str | Path | None = None,
+        record_video_dir: str | Path | None = None,
+        # From BrowserLaunchPersistentContextArgs
+        user_data_dir: str | Path | None = None,
+        # From BrowserNewContextArgs
+        storage_state: str | Path | dict[str, Any] | None = None,
+        # BrowserProfile specific fields
+        disable_security: bool | None = None,
+        deterministic_rendering: bool | None = None,
+        allowed_domains: list[str] | None = None,
+        keep_alive: bool | None = None,
+        proxy: any | None = None,
+        enable_default_extensions: bool | None = None,
+        window_size: dict | None = None,
+        window_position: dict | None = None,
+        cross_origin_iframes: bool | None = None,
+        minimum_wait_page_load_time: float | None = None,
+        wait_for_network_idle_page_load_time: float | None = None,
+        wait_between_actions: float | None = None,
+        highlight_elements: bool | None = None,
+        filter_highlight_ids: bool | None = None,
+        auto_download_pdfs: bool | None = None,
+        profile_directory: str | None = None,
+        cookie_whitelist_domains: list[str] | None = None,
+        # AgentBrowserProfile specific fields
+        custom_extensions: list[str] | None = None,
+    ):
+        # Filter out AgentBrowserSession specific parameters
+        agent_session_params = {
+            'main_browser_session': main_browser_session,
+        }
+
+        # Get all browser profile parameters
+        profile_kwargs = {k: v for k, v in locals().items()
+                         if k not in ['self', 'browser_profile', 'id', 'main_browser_session']
+                         and v is not None}
+
+        # Apply BrowserSession's is_local logic first
+        effective_is_local = is_local
+        if is_local is False and executable_path is not None:
+            effective_is_local = True
+        if not cdp_url:
+            effective_is_local = True
+
+        # Always include is_local in profile_kwargs to ensure it's properly set
+        profile_kwargs['is_local'] = effective_is_local
+
+        # Create AgentBrowserProfile from direct parameters or use provided one
+        if browser_profile is not None:
+            # Always merge to ensure is_local logic is applied
+            merged_kwargs = {**browser_profile.model_dump(), **profile_kwargs}
+            resolved_browser_profile = AgentBrowserProfile(**merged_kwargs)
+        else:
+            resolved_browser_profile = AgentBrowserProfile(**profile_kwargs)
+
+        # Initialize the Pydantic model directly (like BrowserSession does)
+        # Don't call BrowserSession.__init__ as it would recreate BrowserProfile and lose custom_extensions
+        from pydantic import BaseModel
+        BaseModel.__init__(
+            self,
+            id=id or str(uuid7str()),
+            browser_profile=resolved_browser_profile,
+        )
+
+        # Set AgentBrowserSession specific fields
+        self.main_browser_session = main_browser_session
+
+    # Override browser_profile field to ensure it's always AgentBrowserProfile
     browser_profile: AgentBrowserProfile = Field(
         default_factory=lambda: DEFAULT_BROWSER_PROFILE,
-        description='BrowserProfile() options to use for the session, otherwise a default profile will be used',
+        description='AgentBrowserProfile() options to use for the session',
     )
     main_browser_session: BrowserSession | None = Field(default=None)
-    connected_agent: bool = False
-    # Add a flag to control DVD animation (for future extensibility)
-    disable_dvd_animation: bool = Field(
-        default=True,
-        description="Disable the DVD screensaver animation on about:blank pages"
-    )
-    # Custom extensions to load
-    custom_extension_paths: List[str] = Field(
-        default_factory=list,
-        description="List of paths to custom Chrome extensions to load"
-    )
+
 
     async def connect_agent(self, target_id: str) -> Self:
         """Register agent to browser with optional target assignment."""
@@ -54,7 +148,6 @@ class AgentBrowserSession(BrowserSession):
             await self.agent_focus.cdp_client.send.Runtime.runIfWaitingForDebugger(
                 session_id=self.agent_focus.session_id)
             self._cdp_session_pool[target_id] = self.agent_focus
-        self.connected_agent = True
         return self
 
     async def disconnect_agent(self) -> None:
@@ -62,7 +155,7 @@ class AgentBrowserSession(BrowserSession):
         for session in self._cdp_session_pool.values():
             await session.disconnect()
         self._cdp_session_pool.clear()
-        self.connected_agent = False
+        self.main_browser_session = None
 
     async def _cdp_get_all_pages(
             self,
@@ -80,7 +173,7 @@ class AgentBrowserSession(BrowserSession):
         if not self._cdp_client_root:
             return []
         targets = await self.cdp_client.send.Target.getTargets()
-        if self.connected_agent:
+        if self.main_browser_session is not None:
             assigned_target_ids = self._cdp_session_pool.keys()
             return [
                 t
@@ -126,12 +219,12 @@ class AgentBrowserSession(BrowserSession):
         from vibe_surf.browser.watchdogs.action_watchdog import CustomActionWatchdog
         from vibe_surf.browser.watchdogs.dom_watchdog import CustomDOMWatchdog
 
-        from browser_use.browser.downloads_watchdog import DownloadsWatchdog
-        from browser_use.browser.local_browser_watchdog import LocalBrowserWatchdog
-        from browser_use.browser.permissions_watchdog import PermissionsWatchdog
-        from browser_use.browser.popups_watchdog import PopupsWatchdog
-        from browser_use.browser.screenshot_watchdog import ScreenshotWatchdog
-        from browser_use.browser.security_watchdog import SecurityWatchdog
+        from browser_use.browser.watchdogs.downloads_watchdog import DownloadsWatchdog
+        from browser_use.browser.watchdogs.local_browser_watchdog import LocalBrowserWatchdog
+        from browser_use.browser.watchdogs.permissions_watchdog import PermissionsWatchdog
+        from browser_use.browser.watchdogs.popups_watchdog import PopupsWatchdog
+        from browser_use.browser.watchdogs.screenshot_watchdog import ScreenshotWatchdog
+        from browser_use.browser.watchdogs.security_watchdog import SecurityWatchdog
 
         # NOTE: AboutBlankWatchdog is deliberately excluded to disable DVD animation
 
@@ -183,36 +276,6 @@ class AgentBrowserSession(BrowserSession):
         self._watchdogs_attached = True
 
         self.logger.info('✅ VibeSurfBrowserSession: All watchdogs attached (AboutBlankWatchdog excluded)')
-
-    async def _ensure_minimal_about_blank_tab(self) -> None:
-        """
-        Ensure there's at least one about:blank tab without any animation.
-        This replaces AboutBlankWatchdog's functionality but without the DVD animation.
-        """
-        try:
-            # Get all page targets using CDP
-            page_targets = await self._cdp_get_all_pages()
-
-            # If no tabs exist at all, create one to keep browser alive
-            if len(page_targets) == 0:
-                self.logger.info('[VibeSurfBrowserSession] No tabs exist, creating new about:blank tab (no animation)')
-                from browser_use.browser.events import NavigateToUrlEvent
-                navigate_event = self.event_bus.dispatch(NavigateToUrlEvent(url='about:blank', new_tab=True))
-                await navigate_event
-                # Note: NO DVD screensaver injection here!
-
-        except Exception as e:
-            self.logger.error(f'[VibeSurfBrowserSession] Error ensuring about:blank tab: {e}')
-
-    async def on_BrowserStartEvent(self, event) -> dict[str, str]:
-        """Override to ensure minimal about:blank handling without animation."""
-        # Call parent implementation first
-        result = await super().on_BrowserStartEvent(event)
-
-        # Ensure we have at least one tab without animation
-        await self._ensure_minimal_about_blank_tab()
-
-        return result
 
     def get_cdp_session_pool(self):
         return self._cdp_session_pool
