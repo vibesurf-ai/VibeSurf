@@ -30,7 +30,7 @@ from vibe_surf.agents.prompts.vibe_surf_prompt import (
     SUPERVISOR_AGENT_SYSTEM_PROMPT,
 )
 from vibe_surf.browser.browser_manager import BrowserManager
-from vibe_surf.controller.vibesurf_controller import VibeSurfController
+from vibe_surf.controller.vibesurf_tools import VibeSurfController
 
 logger = logging.getLogger(__name__)
 
@@ -798,7 +798,6 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                 file_system_path=state.task_dir,
                 register_new_step_callback=step_callback,
                 extend_system_message="Please make sure the language of your output in JSON value should remain the same as the user's request or task.",
-                preload=False
             )
             agents.append(agent)
 
@@ -896,7 +895,6 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> List[BrowserTask
                 task_id=f"{state.task_id}-{i}",
                 file_system_path=state.task_dir,
                 register_new_step_callback=step_callback,
-                preload=False,
                 extend_system_message="Please make sure the language of your output in JSON values should remain the same as the user's request or task."
             )
 

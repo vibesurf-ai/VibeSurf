@@ -121,7 +121,6 @@ class AgentBrowserProfile(BrowserProfile):
             '--enable-extension-activity-logging',
             '--disable-features=DisableLoadExtensionCommandLineSwitch'
         ]
-
         if self.custom_extensions:
             extension_paths.extend(self.custom_extensions)
         if extension_paths:

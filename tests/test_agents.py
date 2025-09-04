@@ -14,10 +14,7 @@ from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from browser_use.llm import ChatOpenAI
-from browser_use.controller.service import Controller
-from browser_use.agent.service import Agent as OrgBrowserUseAgent
-from vibe_surf.controller.vibesurf_controller import VibeSurfController
+from vibe_surf.controller.vibesurf_tools import VibeSurfController
 from vibe_surf.llm.openai_compatible import ChatOpenAICompatible
 from vibe_surf.agents.browser_use_agent import BrowserUseAgent
 from vibe_surf.agents.vibe_surf_agent import VibeSurfAgent

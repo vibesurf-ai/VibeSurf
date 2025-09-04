@@ -53,12 +53,12 @@ from browser_use.agent.views import (
     StepMetadata,
 )
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, create_model, model_validator
-from browser_use.browser import BrowserProfile, BrowserSession
+from browser_use import Browser, BrowserProfile, BrowserSession
 from browser_use.browser.session import DEFAULT_BROWSER_PROFILE
 from browser_use.browser.views import BrowserStateSummary
 from browser_use.config import CONFIG
-from browser_use.controller.registry.views import ActionModel
-from browser_use.controller.service import Controller
+from browser_use.tools.registry.views import ActionModel
+from browser_use.tools.service import Controller, Tools
 from browser_use.dom.views import DOMInteractedElement
 from browser_use.filesystem.file_system import FileSystem
 from browser_use.observability import observe, observe_debug
@@ -79,45 +79,6 @@ from vibe_surf.controller.file_system import CustomFileSystem
 Context = TypeVar('Context')
 
 
-def log_response(response: AgentOutput, registry=None, logger=None) -> None:
-    """Utility function to log the model's response."""
-
-    # Use module logger if no logger provided
-    if logger is None:
-        logger = logging.getLogger(__name__)
-
-    # Only log thinking if it's present
-    if response.current_state.thinking:
-        logger.info(f'💡 Thinking:\n{response.current_state.thinking}')
-
-    # Only log evaluation if it's not empty
-    eval_goal = response.current_state.evaluation_previous_goal
-    if eval_goal:
-        if 'success' in eval_goal.lower():
-            emoji = '👍'
-            # Green color for success
-            logger.info(f'  \033[32m{emoji} Eval: {eval_goal}\033[0m')
-        elif 'failure' in eval_goal.lower():
-            emoji = '⚠️'
-            # Red color for failure
-            logger.info(f'  \033[31m{emoji} Eval: {eval_goal}\033[0m')
-        else:
-            emoji = '❔'
-            # No color for unknown/neutral
-            logger.info(f'  {emoji} Eval: {eval_goal}')
-
-    # Always log memory if present
-    if response.current_state.memory:
-        logger.debug(f'🧠 Memory: {response.current_state.memory}')
-
-    # Only log next goal if it's not empty
-    next_goal = response.current_state.next_goal
-    if next_goal:
-        # Blue color for next goal
-        logger.info(f'  \033[34m🎯 Next goal: {next_goal}\033[0m')
-    else:
-        logger.info('')  # Add empty line for spacing
-
 
 class BrowserUseAgent(Agent):
     @time_execution_sync('--init')
@@ -128,7 +89,9 @@ class BrowserUseAgent(Agent):
             # Optional parameters
             browser_profile: BrowserProfile | None = None,
             browser_session: BrowserSession | None = None,
-            controller: Controller[Context] | None = None,
+            browser: Browser | None = None,  # Alias for browser_session
+            tools: Tools[Context] | None = None,
+            controller: Tools[Context] | None = None,  # Alias for tools
             # Initial agent run parameters
             sensitive_data: dict[str, str | dict[str, str]] | None = None,
             initial_actions: list[dict[str, dict[str, Any]]] | None = None,
@@ -147,14 +110,11 @@ class BrowserUseAgent(Agent):
             # Agent settings
             output_model_schema: type[AgentStructuredOutput] | None = None,
             use_vision: bool = True,
-            use_vision_for_planner: bool = False,  # Deprecated
             save_conversation_path: str | Path | None = None,
             save_conversation_path_encoding: str | None = 'utf-8',
             max_failures: int = 3,
-            retry_delay: int = 10,
             override_system_message: str | None = None,
             extend_system_message: str | None = None,
-            validate_output: bool = False,
             generate_gif: bool | str = False,
             available_file_paths: list[str] | None = None,
             include_attributes: list[str] | None = None,
@@ -163,12 +123,7 @@ class BrowserUseAgent(Agent):
             flash_mode: bool = False,
             max_history_items: int | None = None,
             page_extraction_llm: BaseChatModel | None = None,
-            planner_llm: BaseChatModel | None = None,  # Deprecated
-            planner_interval: int = 1,  # Deprecated
-            is_planner_reasoning: bool = False,  # Deprecated
-            extend_planner_system_message: str | None = None,  # Deprecated
             injected_agent_state: AgentState | None = None,
-            context: Context | None = None,
             source: str | None = None,
             file_system_path: str | None = None,
             task_id: str | None = None,
@@ -179,38 +134,11 @@ class BrowserUseAgent(Agent):
             vision_detail_level: Literal['auto', 'low', 'high'] = 'auto',
             llm_timeout: int = 90,
             step_timeout: int = 120,
-            preload: bool = True,
+            directly_open_url: bool = True,
             include_recent_events: bool = False,
             allow_parallel_action_types: list[str] = ["extract_structured_data", "extract_content_from_file"],
             **kwargs,
     ):
-        if not isinstance(llm, BaseChatModel):
-            raise ValueError('invalid llm, must be from browser_use.llm')
-        # Check for deprecated planner parameters
-        planner_params = [
-            planner_llm,
-            use_vision_for_planner,
-            is_planner_reasoning,
-            extend_planner_system_message,
-        ]
-        if any(param is not None and param is not False for param in planner_params) or planner_interval != 1:
-            self.logger.warning(
-                '⚠️ Planner functionality has been removed in browser-use v0.3.3+. '
-                'The planner_llm, use_vision_for_planner, planner_interval, is_planner_reasoning, '
-                'and extend_planner_system_message parameters are deprecated and will be ignored. '
-                'Please remove these parameters from your Agent() initialization.'
-            )
-
-        # Check for deprecated memory parameters
-        if kwargs.get('enable_memory', False) or kwargs.get('memory_config') is not None:
-            self.logger.warning(
-                'Memory support has been removed as of version 0.3.2. '
-                'The agent context for memory is significantly improved and no longer requires the old memory system. '
-                "Please remove the 'enable_memory' and 'memory_config' parameters."
-            )
-            kwargs['enable_memory'] = False
-            kwargs['memory_config'] = None
-
         if page_extraction_llm is None:
             page_extraction_llm = llm
         if available_file_paths is None:
@@ -221,39 +149,49 @@ class BrowserUseAgent(Agent):
         self.session_id: str = uuid7str()
         self.allow_parallel_action_types = allow_parallel_action_types
 
+        browser_profile = browser_profile or DEFAULT_BROWSER_PROFILE
+
+        # Handle browser vs browser_session parameter (browser takes precedence)
+        if browser and browser_session:
+            raise ValueError(
+                'Cannot specify both "browser" and "browser_session" parameters. Use "browser" for the cleaner API.')
+        browser_session = browser or browser_session
+
+        self.browser_session = browser_session or BrowserSession(
+            browser_profile=browser_profile,
+            id=uuid7str()[:-4] + self.id[-4:],  # re-use the same 4-char suffix so they show up together in logs
+        )
+
         # Initialize available file paths as direct attribute
         self.available_file_paths = available_file_paths
-
-        # Temporary logger for initialization (will be replaced by property)
-        self._logger = None
 
         # Core components
         self.task = task
         self.llm = llm
-        self.preload = preload
+        self.directly_open_url = directly_open_url
         self.include_recent_events = include_recent_events
-        self.controller = (
-            controller if controller is not None else Controller(display_files_in_done_text=display_files_in_done_text)
-        )
+        if tools is not None:
+            self.tools = tools
+        elif controller is not None:
+            self.tools = controller
+        else:
+            self.tools = Tools(display_files_in_done_text=display_files_in_done_text)
 
         # Structured output
         self.output_model_schema = output_model_schema
         if self.output_model_schema is not None:
-            self.controller.use_structured_output_action(self.output_model_schema)
+            self.tools.use_structured_output_action(self.output_model_schema)
 
         self.sensitive_data = sensitive_data
 
         self.settings = AgentSettings(
             use_vision=use_vision,
             vision_detail_level=vision_detail_level,
-            use_vision_for_planner=False,  # Always False now (deprecated)
             save_conversation_path=save_conversation_path,
             save_conversation_path_encoding=save_conversation_path_encoding,
             max_failures=max_failures,
-            retry_delay=retry_delay,
             override_system_message=override_system_message,
             extend_system_message=extend_system_message,
-            validate_output=validate_output,
             generate_gif=generate_gif,
             include_attributes=include_attributes,
             max_actions_per_step=max_actions_per_step,
@@ -261,10 +199,6 @@ class BrowserUseAgent(Agent):
             flash_mode=flash_mode,
             max_history_items=max_history_items,
             page_extraction_llm=page_extraction_llm,
-            planner_llm=None,  # Always None now (deprecated)
-            planner_interval=1,  # Always 1 now (deprecated)
-            is_planner_reasoning=False,  # Always False now (deprecated)
-            extend_planner_system_message=None,  # Always None now (deprecated)
             calculate_cost=calculate_cost,
             include_tool_call_examples=include_tool_call_examples,
             llm_timeout=llm_timeout,
@@ -275,7 +209,6 @@ class BrowserUseAgent(Agent):
         self.token_cost_service = TokenCost(include_cost=calculate_cost)
         self.token_cost_service.register_llm(llm)
         self.token_cost_service.register_llm(page_extraction_llm)
-        # Note: No longer registering planner_llm (deprecated)
 
         # Initialize state
         self.state = injected_agent_state or AgentState()
@@ -297,8 +230,19 @@ class BrowserUseAgent(Agent):
         # Action setup
         self._setup_action_models()
         self._set_browser_use_version_and_source(source)
-        self.initial_actions = self._convert_initial_actions(initial_actions) if initial_actions else None
 
+        initial_url = None
+
+        # only load url if no initial actions are provided
+        if self.directly_open_url and not self.state.follow_up_task and not initial_actions:
+            initial_url = self._extract_url_from_task(self.task)
+            if initial_url:
+                self.logger.info(f'🔗 Found URL in task: {initial_url}, adding as initial action...')
+                initial_actions = [{'go_to_url': {'url': initial_url, 'new_tab': False}}]
+
+        self.initial_url = initial_url
+
+        self.initial_actions = self._convert_initial_actions(initial_actions) if initial_actions else None
         # Verify we can connect to the model
         self._verify_and_setup_llm()
 
@@ -308,40 +252,35 @@ class BrowserUseAgent(Agent):
             self.logger.warning(
                 '⚠️ DeepSeek models do not support use_vision=True yet. Setting use_vision=False for now...')
             self.settings.use_vision = False
-        # Note: No longer checking planner_llm for DeepSeek (deprecated)
 
         # Handle users trying to use use_vision=True with XAI models
         if 'grok' in self.llm.model.lower():
             self.logger.warning('⚠️ XAI models do not support use_vision=True yet. Setting use_vision=False for now...')
             self.settings.use_vision = False
-        # Note: No longer checking planner_llm for XAI models (deprecated)
 
         self.logger.info(f'🧠 Starting a browser-use version {self.version} with model={self.llm.model}')
-        self.logger.debug(
+        self.logger.info(
             f'{" +vision" if self.settings.use_vision else ""}'
             f' extraction_model={self.settings.page_extraction_llm.model if self.settings.page_extraction_llm else "Unknown"}'
-            # Note: No longer logging planner_model (deprecated)
             f'{" +file_system" if self.file_system else ""}'
         )
 
         # Initialize available actions for system prompt (only non-filtered actions)
         # These will be used for the system prompt to maintain caching
-        self.unfiltered_actions = self.controller.registry.get_prompt_description()
+        self.unfiltered_actions = self.tools.registry.get_prompt_description()
 
         # Initialize message manager with state
         # Initial system prompt with all actions - will be updated during each step
-        system_message = SystemPrompt(
+        self._message_manager = MessageManager(
+            task=task,
+            system_message=SystemPrompt(
                 action_description=self.unfiltered_actions,
                 max_actions_per_step=self.settings.max_actions_per_step,
                 override_system_message=override_system_message,
                 extend_system_message=extend_system_message,
                 use_thinking=self.settings.use_thinking,
                 flash_mode=self.settings.flash_mode,
-            ).get_system_message()
-        self.logger.debug(system_message)
-        self._message_manager = MessageManager(
-            task=task,
-            system_message=system_message,
+            ).get_system_message(),
             file_system=self.file_system,
             state=self.state.message_manager_state,
             use_thinking=self.settings.use_thinking,
@@ -352,13 +291,6 @@ class BrowserUseAgent(Agent):
             vision_detail_level=self.settings.vision_detail_level,
             include_tool_call_examples=self.settings.include_tool_call_examples,
             include_recent_events=self.include_recent_events,
-        )
-
-        browser_profile = browser_profile or DEFAULT_BROWSER_PROFILE
-
-        self.browser_session = browser_session or BrowserSession(
-            browser_profile=browser_profile,
-            id=uuid7str()[:-4] + self.id[-4:],  # re-use the same 4-char suffix so they show up together in logs
         )
 
         if self.sensitive_data:
@@ -429,9 +361,6 @@ class BrowserUseAgent(Agent):
         self.register_new_step_callback = register_new_step_callback
         self.register_done_callback = register_done_callback
         self.register_external_agent_status_raise_error_callback = register_external_agent_status_raise_error_callback
-
-        # Context
-        self.context: Context | None = context
 
         # Telemetry
         self.telemetry = ProductTelemetry()
@@ -585,39 +514,6 @@ class BrowserUseAgent(Agent):
             self._task_start_time = self._session_start_time  # Initialize task start time
 
             self.logger.debug('🔧 Browser session started with watchdogs attached')
-
-            # Check if task contains a URL and add it as an initial action (only if preload is enabled)
-            if self.preload:
-                initial_url = self._extract_url_from_task(self.task)
-                if initial_url:
-                    self.logger.info(f'🔗 Found URL in task: {initial_url}, adding as initial action...')
-
-                    # Create a go_to_url action for the initial URL
-                    go_to_url_action = {
-                        'go_to_url': {
-                            'url': initial_url,
-                            'new_tab': False,  # Navigate in current tab
-                        }
-                    }
-
-                    # Add to initial_actions or create new list if none exist
-                    if self.initial_actions:
-                        # Convert back to dict format, prepend URL navigation, then convert back
-                        initial_actions_dicts = []
-                        for action in self.initial_actions:
-                            action_data = action.model_dump(exclude_unset=True)
-                            initial_actions_dicts.append(action_data)
-
-                        # Prepend the go_to_url action
-                        initial_actions_dicts = [go_to_url_action] + initial_actions_dicts
-
-                        # Convert back to ActionModel instances
-                        self.initial_actions = self._convert_initial_actions(initial_actions_dicts)
-                    else:
-                        # Create new initial_actions with just the go_to_url
-                        self.initial_actions = self._convert_initial_actions([go_to_url_action])
-
-                    self.logger.debug(f'✅ Added navigation to {initial_url} as initial action')
 
             # Execute initial actions if provided
             if self.initial_actions:
