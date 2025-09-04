@@ -1500,11 +1500,14 @@ class VibeSurfAgent:
             if upload_files and not isinstance(upload_files, list):
                 upload_files = [upload_files]
             upload_files_md = format_upload_files_list(upload_files)
+            user_request = "* User's New Request:\n{task}\n"
+            if upload_files:
+                user_request += f"* User Uploaded Files:\n{upload_files_md}\n"
             supervisor_message_history.append(
                 UserMessage(
-                    content=f"* User's New Request:\n{task}\n* Uploaded Files for Completing Task:\n{upload_files_md}\n")
+                    content=user_request)
             )
-            logger.info(f"* User's New Request:\n{task}\n* Uploaded Files for Completing Task:\n{upload_files_md}\n")
+            logger.info(user_request)
 
             if self.cur_session_id not in self.activity_logs:
                 self.activity_logs[self.cur_session_id] = []

@@ -860,14 +860,13 @@ class BrowserUseAgent(Agent):
             self.logger.info(f'  🦾 {blue}[PARALLEL ACTION {action_index + 1}/{total_actions}]{reset} {action_params}')
             
             # Execute the action
-            result = await self.controller.act(
+            result = await self.tools.act(
                 action=action,
                 browser_session=self.browser_session,
                 file_system=self.file_system,
                 page_extraction_llm=self.settings.page_extraction_llm,
                 sensitive_data=self.sensitive_data,
                 available_file_paths=self.available_file_paths,
-                context=self.context,
             )
             
             time_end = time.time()
@@ -982,14 +981,13 @@ class BrowserUseAgent(Agent):
         
         self.logger.info(f'  🦾 {blue}[ACTION {action_index + 1}/{total_actions}]{reset} {action_params}')
 
-        result = await self.controller.act(
+        result = await self.tools.act(
             action=action,
             browser_session=self.browser_session,
             file_system=self.file_system,
             page_extraction_llm=self.settings.page_extraction_llm,
             sensitive_data=self.sensitive_data,
             available_file_paths=self.available_file_paths,
-            context=self.context,
         )
 
         time_end = time.time()

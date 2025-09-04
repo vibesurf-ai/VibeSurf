@@ -17,6 +17,7 @@ from browser_use.browser.views import BrowserStateSummary
 from browser_use.dom.views import TargetInfo
 from vibe_surf.browser.agen_browser_profile import AgentBrowserProfile
 from typing import Self
+from uuid_extensions import uuid7str
 
 DEFAULT_BROWSER_PROFILE = AgentBrowserProfile()
 
@@ -95,18 +96,30 @@ class AgentBrowserSession(BrowserSession):
                          if k not in ['self', 'browser_profile', 'id', 'main_browser_session', 'disable_dvd_animation']
                          and v is not None}
 
+        # Apply BrowserSession's is_local logic first
+        effective_is_local = is_local
+        if is_local is False and executable_path is not None:
+            effective_is_local = True
+        if not cdp_url:
+            effective_is_local = True
+
+        # Always include is_local in profile_kwargs to ensure it's properly set
+        profile_kwargs['is_local'] = effective_is_local
+
         # Create AgentBrowserProfile from direct parameters or use provided one
         if browser_profile is not None:
-            # Merge any direct kwargs into the provided browser_profile (direct kwargs take precedence)
-            merged_kwargs = {**browser_profile.model_dump(exclude_unset=True), **profile_kwargs}
+            # Always merge to ensure is_local logic is applied
+            merged_kwargs = {**browser_profile.model_dump(), **profile_kwargs}
             resolved_browser_profile = AgentBrowserProfile(**merged_kwargs)
         else:
-            resolved_browser_profile = browser_profile
-        # Call parent constructor with core parameters and resolved profile
-        super().__init__(
-            id=id,
-            cdp_url=cdp_url,
-            is_local=is_local,
+            resolved_browser_profile = AgentBrowserProfile(**profile_kwargs)
+
+        # Initialize the Pydantic model directly (like BrowserSession does)
+        # Don't call BrowserSession.__init__ as it would recreate BrowserProfile and lose custom_extensions
+        from pydantic import BaseModel
+        BaseModel.__init__(
+            self,
+            id=id or str(uuid7str()),
             browser_profile=resolved_browser_profile,
         )
 

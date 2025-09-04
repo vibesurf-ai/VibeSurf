@@ -126,7 +126,7 @@ async def run_multi_bu_agents():
     await main_browser_session.kill()
 
 
-async def test_swarm_surf_agent():
+async def test_vibe_surf_agent():
     """Test VibeSurfAgent with both simple and browser tasks"""
     import platform
     if platform.system() != "Darwin":
@@ -140,6 +140,7 @@ async def test_swarm_surf_agent():
         user_data_dir=os.path.abspath('./tmp/chrome/profiles/default'),
         headless=False,
         keep_alive=True,
+        highlight_elements=True,
         window_size={"width": 1100, "height": 1280}
         # window_size={"width": primary_monitor.width, "height": primary_monitor.height}
     )
@@ -193,7 +194,7 @@ async def test_swarm_surf_agent():
 
         # Test 4: Browser parallel task
         print("🧪 Testing browser parallel tasks...")
-        browser_task = "Search for Dify, n8n, browser-use and gather relative information, and generate a report for comparison"
+        browser_task = "Search for Dify, n8n, browser-use and get latest news"
         result4 = await agent.run(browser_task)
         print(f"✅ Browser task result:")
         pprint.pprint(result4)
@@ -211,7 +212,7 @@ async def test_swarm_surf_agent():
         await main_browser_session.kill()
 
 
-async def test_swarm_surf_agent_control():
+async def test_vibe_surf_agent_control():
     """Test VibeSurfAgent control functionality (pause/resume/stop)"""
     import platform
     if platform.system() != "Darwin":
@@ -375,5 +376,5 @@ async def test_swarm_surf_agent_control():
 if __name__ == "__main__":
     # asyncio.run(run_single_bu_agent())
     # asyncio.run(run_multi_bu_agents())
-    asyncio.run(test_swarm_surf_agent())
-    # asyncio.run(test_swarm_surf_agent_control())
+    asyncio.run(test_vibe_surf_agent())
+    # asyncio.run(test_vibe_surf_agent_control())
