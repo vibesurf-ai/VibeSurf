@@ -229,7 +229,13 @@ jobs:
         
         # Show final result
         echo "=== Final executable/archive ==="
-        ls -lh dist/${{ matrix.asset_name }}
+        if [[ "$RUNNER_OS" == "macOS" ]] && [ -d "dist/VibeSurf.app" ]; then
+          # For macOS with .app bundle, check the DMG file
+          ls -lh dist/${{ matrix.asset_name }}.dmg
+        else
+          # For other platforms or fallback macOS executable
+          ls -lh dist/${{ matrix.asset_name }}
+        fi
 
     - name: Test executable
       shell: bash

@@ -11,17 +11,34 @@ print(f"Using Python: {python_path}")
 
 block_cipher = None
 
-# Dynamically find vibe_surf installation location
+# Dynamically find vibe_surf installation location and get version
 try:
     import vibe_surf
     vibe_surf_path = Path(vibe_surf.__file__).parent
+    app_version = vibe_surf.__version__
     print(f"VibeSurf package location: {vibe_surf_path}")
+    print(f"VibeSurf version: {app_version}")
     cli_path = vibe_surf_path / 'cli.py'
 except ImportError:
     # Fallback to relative path (development environment)
     vibe_surf_path = Path.cwd() / 'vibe_surf'
     cli_path = vibe_surf_path / 'cli.py'
+    
+    # Try to get version from _version.py or fallback
+    try:
+        version_file = vibe_surf_path / '_version.py'
+        if version_file.exists():
+            version_locals = {}
+            exec(version_file.read_text(), version_locals)
+            app_version = version_locals.get('version', '0.0.0+dev')
+        else:
+            app_version = '0.0.0+dev'
+    except Exception as e:
+        app_version = '0.0.0+dev'
+        print(f"WARNING: Could not determine version: {e}")
+    
     print(f"Using development path: {vibe_surf_path}")
+    print(f"Using fallback version: {app_version}")
 
 # Dynamically find browser_use installation location for prompt templates
 try:
@@ -250,13 +267,13 @@ if current_platform == "Darwin":
         name='VibeSurf.app',
         icon=str(icon_file) if icon_file else None,  # macOS icon set here
         bundle_identifier='com.vibesurf.app',
-        version='1.0.0',
+        version=app_version,
         info_plist={
             'CFBundleName': 'VibeSurf',
             'CFBundleDisplayName': 'VibeSurf',
             'CFBundleIdentifier': 'com.vibesurf.app',
-            'CFBundleVersion': '1.0.0',
-            'CFBundleShortVersionString': '1.0.0',
+            'CFBundleVersion': app_version,
+            'CFBundleShortVersionString': app_version,
             'CFBundleExecutable': 'vibesurf',
             'CFBundleIconFile': 'logo.icns',
             'NSHighResolutionCapable': True,
