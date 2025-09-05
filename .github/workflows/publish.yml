@@ -183,18 +183,34 @@ jobs:
             echo "Verifying code signature..."
             codesign --verify --deep dist/VibeSurf.app && echo "✅ Signature verified" || echo "⚠️ Signature verification failed"
             
-            # Create ZIP archive (more Mac-friendly, auto-extracts on double-click)
-            echo "Creating ZIP archive with signed .app bundle..."
+            # Create professional DMG disk image (macOS standard)
+            echo "Creating DMG disk image with signed .app bundle..."
             cd dist
-            zip -r ${{ matrix.asset_name }}.zip VibeSurf.app
             
-            # Verify archive was created
-            if [ -f "${{ matrix.asset_name }}.zip" ]; then
-              echo "✅ ZIP archive created successfully: ${{ matrix.asset_name }}.zip"
-              ls -lh ${{ matrix.asset_name }}.zip
-              mv ${{ matrix.asset_name }}.zip ${{ matrix.asset_name }}
+            # Create a temporary directory for DMG contents
+            mkdir -p dmg_temp
+            cp -R VibeSurf.app dmg_temp/
+            
+            # Create a symbolic link to Applications folder for easy installation
+            ln -s /Applications dmg_temp/Applications
+            
+            # Create the DMG with proper settings
+            hdiutil create -volname "VibeSurf" \
+                          -srcfolder dmg_temp \
+                          -ov -format UDZO \
+                          -imagekey zlib-level=9 \
+                          ${{ matrix.asset_name }}.dmg
+            
+            # Clean up temporary directory
+            rm -rf dmg_temp
+            
+            # Verify DMG was created
+            if [ -f "${{ matrix.asset_name }}.dmg" ]; then
+              echo "✅ DMG created successfully: ${{ matrix.asset_name }}.dmg"
+              ls -lh ${{ matrix.asset_name }}.dmg
+              echo "Professional macOS disk image created"
             else
-              echo "❌ Failed to create archive"
+              echo "❌ Failed to create DMG"
               exit 1
             fi
             cd ..
@@ -242,7 +258,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.asset_name }}
-        path: dist/${{ matrix.asset_name }}
+        # For macOS, upload the .dmg file; for others, upload the executable
+        path: |
+          ${{ runner.os == 'macOS' && format('dist/{0}.dmg', matrix.asset_name) || format('dist/{0}', matrix.asset_name) }}
         retention-days: 90
 
   publish-pypi:
@@ -284,6 +302,6 @@ jobs:
       with:
         files: |
           vibesurf-windows-x64.exe/vibesurf-windows-x64.exe
-          vibesurf-macos-intel-x64/vibesurf-macos-intel-x64
-          vibesurf-macos-apple-silicon/vibesurf-macos-apple-silicon
+          vibesurf-macos-intel-x64/vibesurf-macos-intel-x64.dmg
+          vibesurf-macos-apple-silicon/vibesurf-macos-apple-silicon.dmg
           vibesurf-linux-x64/vibesurf-linux-x64
