@@ -131,62 +131,35 @@ jobs:
         echo "=== Creating uv environment ==="
         uv venv --python 3.12
         
-        echo "=== Installing dependencies ==="
-        if [[ "$RUNNER_OS" == "Windows" ]]; then
-          # Windows: Use direct uv commands without activation in bash
-          uv pip install -e .
-          uv pip install pyinstaller
-          echo "=== Windows: Installed packages ==="
-          uv pip list
-        else
-          source .venv/bin/activate
-          uv pip install -e .
-          uv pip install pyinstaller
-          echo "=== Unix: Installed packages ==="
-          uv pip list
-        fi
+        echo "=== Installing dependencies (all platforms use uv) ==="
+        uv pip install -e .
+        uv pip install pyinstaller
+        echo "=== Installed packages ==="
+        uv pip list
 
-    # Verify environment
-    - name: Verify environment
+    # Verify environment using uv run (cross-platform)
+    - name: Verify environment with uv run
       shell: bash
       run: |
-        echo "=== Environment verification ==="
-        if [[ "$RUNNER_OS" == "Windows" ]]; then
-          # Windows: Use uv run to ensure correct environment
-          echo "Python version:"
-          uv run python --version
-          echo "Testing dotenv import:"
-          uv run python -c "from dotenv import load_dotenv; print('dotenv available')"
-          echo "Testing vibe_surf import:"
-          uv run python -c "import vibe_surf; print('vibe_surf available')"
-          echo "Testing CLI import:"
-          uv run python -c "from vibe_surf.cli import main; print('CLI available')"
-        else
-          source .venv/bin/activate
-          echo "Python version:"
-          python --version
-          echo "Python path:"
-          which python
-          echo "Testing dotenv import:"
-          python -c "from dotenv import load_dotenv; print('dotenv available')"
-          echo "Testing vibe_surf import:"
-          python -c "import vibe_surf; print('vibe_surf available')"
-          echo "Testing CLI import:"
-          python -c "from vibe_surf.cli import main; print('CLI available')"
-        fi
+        echo "=== Environment verification using uv run ==="
+        echo "Python version:"
+        uv run python --version
+        echo "Testing dotenv import:"
+        uv run python -c "from dotenv import load_dotenv; print('dotenv available')"
+        echo "Testing vibe_surf import:"
+        uv run python -c "import vibe_surf; print('vibe_surf available')"
+        echo "Testing CLI import:"
+        uv run python -c "from vibe_surf.cli import main; print('CLI available')"
 
-    # Build executable using uv environment
-    - name: Build executable with uv environment
+    # Build executable using uv run (cross-platform)
+    - name: Build executable with uv run
       shell: bash
       run: |
-        echo "=== Building executable ==="
-        if [[ "$RUNNER_OS" == "Windows" ]]; then
-          # Windows: Use uv run to ensure correct environment
-          uv run pyinstaller vibesurf.spec --clean --noconfirm
-        else
-          source .venv/bin/activate
-          pyinstaller vibesurf.spec --clean --noconfirm
-        fi
+        echo "=== Building executable with uv run ==="
+        echo "Python version check:"
+        uv run python --version
+        echo "Running PyInstaller..."
+        uv run pyinstaller vibesurf.spec --clean --noconfirm
 
     - name: Prepare executable
       shell: bash
