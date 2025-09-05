@@ -214,6 +214,10 @@ jobs:
               exit 1
             fi
             cd ..
+            
+            # Clean up: remove the .app bundle to avoid duplicate uploads
+            echo "Cleaning up .app bundle after DMG creation..."
+            rm -rf dist/VibeSurf.app
           else
             # Fallback: single executable
             echo "No .app bundle found, using single executable"
@@ -265,8 +269,7 @@ jobs:
       with:
         name: ${{ matrix.asset_name }}
         # For macOS, upload the .dmg file; for others, upload the executable
-        path: |
-          ${{ runner.os == 'macOS' && format('dist/{0}.dmg', matrix.asset_name) || format('dist/{0}', matrix.asset_name) }}
+        path: ${{ runner.os == 'macOS' && format('dist/{0}.dmg', matrix.asset_name) || format('dist/{0}', matrix.asset_name) }}
         retention-days: 90
 
   publish-pypi:
