@@ -185,7 +185,7 @@ a = Analysis(
 # Remove duplicate files to reduce size
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-# Create executable
+# Create executable - icon configuration depends on platform
 exe = EXE(
     pyz,
     a.scripts,
@@ -205,5 +205,38 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=str(icon_file) if icon_file else None,
+    # For macOS, icon is set in BUNDLE; for others, set in EXE
+    icon=None if current_platform == "Darwin" else (str(icon_file) if icon_file else None),
 )
+
+# For macOS, create a proper .app bundle
+if current_platform == "Darwin":
+    app = BUNDLE(
+        exe,
+        name='VibeSurf.app',
+        icon=str(icon_file) if icon_file else None,  # macOS icon set here
+        bundle_identifier='com.vibesurf.app',
+        version='1.0.0',
+        info_plist={
+            'CFBundleName': 'VibeSurf',
+            'CFBundleDisplayName': 'VibeSurf',
+            'CFBundleIdentifier': 'com.vibesurf.app',
+            'CFBundleVersion': '1.0.0',
+            'CFBundleShortVersionString': '1.0.0',
+            'CFBundleExecutable': 'vibesurf',
+            'CFBundleIconFile': 'logo.icns',
+            'NSHighResolutionCapable': True,
+            'LSApplicationCategoryType': 'public.app-category.developer-tools',
+            'NSAppleEventsUsageDescription': 'VibeSurf needs Apple Events access for browser automation.',
+            'NSCameraUsageDescription': 'VibeSurf may need camera access for certain automation tasks.',
+            'NSMicrophoneUsageDescription': 'VibeSurf may need microphone access for certain automation tasks.',
+            'NSScreenCaptureUsageDescription': 'VibeSurf needs screen capture access for browser automation.',
+            'LSMinimumSystemVersion': '10.13.0',
+        },
+        codesign_identity=None,  # Set this to your Developer ID if you have one
+        entitlements_file=None,
+    )
+    print("Created macOS .app bundle: VibeSurf.app")
+    print(f"Bundle icon: {icon_file}")
+else:
+    print(f"Executable icon: {icon_file}")
