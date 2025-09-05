@@ -169,6 +169,12 @@ jobs:
         else
           mv dist/vibesurf dist/${{ matrix.asset_name }}
           chmod +x dist/${{ matrix.asset_name }}
+          
+          # Add ad-hoc code signing for macOS to reduce warnings
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            echo "Adding ad-hoc code signature for macOS..."
+            codesign --force --deep --sign - dist/${{ matrix.asset_name }} || echo "Code signing failed, continuing..."
+          fi
         fi
 
     - name: Test executable
