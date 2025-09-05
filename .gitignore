@@ -20,3 +20,4 @@ swarmsurf_workspace
 workspace
 *.db
 vibe_surf/_version.py
+.build-env

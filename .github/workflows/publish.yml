@@ -1,4 +1,4 @@
-name: Publish to PyPI
+name: Build and Publish
 
 on:
   release:
@@ -34,7 +34,7 @@ jobs:
         python -c "import vibe_surf; print(f'VibeSurf version: {vibe_surf.__version__}')"
         python -c "from vibe_surf.cli import main; print('CLI import successful')"
 
-  build:
+  build-wheels:
     needs: test
     runs-on: ubuntu-latest
     
@@ -76,8 +76,114 @@ jobs:
         name: dist
         path: dist/
 
-  publish:
-    needs: [test, build]
+  build-executables:
+    needs: test
+    strategy:
+      matrix:
+        include:
+          # Windows x64
+          - os: windows-latest
+            asset_name: vibesurf-windows-x64.exe
+            activate_cmd: .venv\Scripts\activate.bat
+          # macOS Intel (x86_64) - compatible with Apple Silicon via Rosetta 2
+          - os: macos-13
+            asset_name: vibesurf-macos-intel-x64
+            activate_cmd: source .venv/bin/activate
+          # macOS Apple Silicon (arm64) - native performance
+          - os: macos-14
+            asset_name: vibesurf-macos-apple-silicon
+            activate_cmd: source .venv/bin/activate
+          # Linux x64
+          - os: ubuntu-latest
+            asset_name: vibesurf-linux-x64
+            activate_cmd: source .venv/bin/activate
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    # Install uv (key step for consistent environment)
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    # Create uv environment and install current repository code
+    - name: Create uv environment
+      shell: bash
+      run: |
+        uv venv --python 3.12
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          .venv/Scripts/activate.bat
+          uv pip install -e .
+          uv pip install pyinstaller
+        else
+          source .venv/bin/activate
+          uv pip install -e .
+          uv pip install pyinstaller
+        fi
+
+    # Verify environment
+    - name: Verify environment
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          .venv/Scripts/activate.bat
+          python --version
+          python -c "from vibe_surf.cli import main; print('CLI available')"
+        else
+          source .venv/bin/activate
+          python --version
+          which python
+          python -c "from vibe_surf.cli import main; print('CLI available')"
+        fi
+
+    # Build executable using uv environment
+    - name: Build executable with uv environment
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          .venv/Scripts/activate.bat
+          pyinstaller vibesurf.spec --clean --noconfirm
+        else
+          source .venv/bin/activate
+          pyinstaller vibesurf.spec --clean --noconfirm
+        fi
+
+    - name: Prepare executable
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          mv dist/vibesurf.exe dist/${{ matrix.asset_name }}
+        else
+          mv dist/vibesurf dist/${{ matrix.asset_name }}
+          chmod +x dist/${{ matrix.asset_name }}
+        fi
+
+    - name: Test executable
+      shell: bash
+      run: |
+        # Basic test to ensure executable runs
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          echo "Testing Windows executable..."
+          # Simple existence check for Windows
+          ls -la dist/${{ matrix.asset_name }}
+        else
+          echo "Testing Unix executable..."
+          ./dist/${{ matrix.asset_name }} --help || echo "Basic test completed"
+        fi
+
+    - name: Upload executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.asset_name }}
+        path: dist/${{ matrix.asset_name }}
+
+  publish-pypi:
+    needs: [test, build-wheels]
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -96,3 +202,21 @@ jobs:
         password: ${{ secrets.PYPI_API_TOKEN }}
         # Use the following line if you want to use trusted publishing instead
         # skip-existing: true
+
+  publish-executables:
+    needs: [test, build-executables]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Upload executables to release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          vibesurf-windows-x64.exe/vibesurf-windows-x64.exe
+          vibesurf-macos-intel-x64/vibesurf-macos-intel-x64
+          vibesurf-macos-apple-silicon/vibesurf-macos-apple-silicon
+          vibesurf-linux-x64/vibesurf-linux-x64

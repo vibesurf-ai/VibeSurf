@@ -297,8 +297,15 @@ def configure_extension_path() -> str:
         console.print(f"[green]✅ Using extension from environment: {env_extension}[/green]")
         return env_extension
     
-    # Default to chrome_extension in parent directory of this file
-    default_extension = Path(__file__).parent / "chrome_extension"
+    # Check if running in PyInstaller frozen environment
+    if getattr(sys, 'frozen', False):
+        # PyInstaller frozen environment
+        bundle_dir = Path(sys._MEIPASS)
+        default_extension = bundle_dir / "vibe_surf" / "chrome_extension"
+        console.print(f"[cyan]📦 Detected packaged environment, using bundled extension[/cyan]")
+    else:
+        # Development environment
+        default_extension = Path(__file__).parent / "chrome_extension"
     
     if default_extension.exists():
         extension_path = str(default_extension.resolve())
