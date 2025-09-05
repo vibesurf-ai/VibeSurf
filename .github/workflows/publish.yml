@@ -170,21 +170,37 @@ jobs:
         elif [[ "$RUNNER_OS" == "macOS" ]]; then
           # macOS: handle .app bundle
           if [ -d "dist/VibeSurf.app" ]; then
-            echo "Found macOS .app bundle, creating archive..."
-            cd dist
-            # Create tar.gz archive of the .app bundle for distribution
-            tar -czf ${{ matrix.asset_name }}.tar.gz VibeSurf.app
-            mv ${{ matrix.asset_name }}.tar.gz ${{ matrix.asset_name }}
-            cd ..
+            echo "Found macOS .app bundle"
             
-            # Apply ad-hoc code signing to the .app bundle
+            # Apply ad-hoc code signing FIRST, before creating archive
             echo "Adding ad-hoc code signature to .app bundle..."
             codesign --force --deep --sign - dist/VibeSurf.app || echo "Code signing failed, continuing..."
             
             # Remove quarantine attribute to help with Gatekeeper
             xattr -cr dist/VibeSurf.app 2>/dev/null || echo "No quarantine attributes to remove"
+            
+            # Verify signing
+            echo "Verifying code signature..."
+            codesign --verify --deep dist/VibeSurf.app && echo "✅ Signature verified" || echo "⚠️ Signature verification failed"
+            
+            # Now create tar.gz archive of the SIGNED .app bundle
+            echo "Creating archive with signed .app bundle..."
+            cd dist
+            tar -czf ${{ matrix.asset_name }}.tar.gz VibeSurf.app
+            
+            # Verify archive was created
+            if [ -f "${{ matrix.asset_name }}.tar.gz" ]; then
+              echo "✅ Archive created successfully: ${{ matrix.asset_name }}.tar.gz"
+              ls -lh ${{ matrix.asset_name }}.tar.gz
+              mv ${{ matrix.asset_name }}.tar.gz ${{ matrix.asset_name }}
+            else
+              echo "❌ Failed to create archive"
+              exit 1
+            fi
+            cd ..
           else
             # Fallback: single executable
+            echo "No .app bundle found, using single executable"
             mv dist/vibesurf dist/${{ matrix.asset_name }}
             chmod +x dist/${{ matrix.asset_name }}
             codesign --force --deep --sign - dist/${{ matrix.asset_name }} || echo "Code signing failed, continuing..."
@@ -194,6 +210,10 @@ jobs:
           mv dist/vibesurf dist/${{ matrix.asset_name }}
           chmod +x dist/${{ matrix.asset_name }}
         fi
+        
+        # Show final result
+        echo "=== Final executable/archive ==="
+        ls -lh dist/${{ matrix.asset_name }}
 
     - name: Test executable
       shell: bash
@@ -223,6 +243,7 @@ jobs:
       with:
         name: ${{ matrix.asset_name }}
         path: dist/${{ matrix.asset_name }}
+        retention-days: 90
 
   publish-pypi:
     needs: [test, build-wheels]
@@ -269,17 +290,29 @@ jobs:
         body: |
           ## 📦 Download Instructions
           
-          ### Windows
+          ### 🪟 Windows
           - Download `vibesurf-windows-x64.exe`
           - Run directly or add to PATH
           
-          ### macOS
-          - Download `vibesurf-macos-intel-x64` (Intel) or `vibesurf-macos-apple-silicon` (Apple Silicon)
+          ### 🍎 macOS (with proper .app bundle)
+          - **Intel Macs**: Download `vibesurf-macos-intel-x64`
+          - **Apple Silicon**: Download `vibesurf-macos-apple-silicon`
           - Extract: `tar -xzf vibesurf-macos-*.tar.gz`
-          - Open: Double-click `VibeSurf.app` or right-click → Open
-          - If blocked by Gatekeeper: System Preferences → Security & Privacy → "Open Anyway"
+          - Open: Double-click `VibeSurf.app` in Finder
+          - **If blocked**: Right-click → "Open" → "Open" in dialog
+          - **Alternative**: System Preferences → Security & Privacy → "Open Anyway"
           
-          ### Linux
+          ✅ **Features**:
+          - Proper ICNS icon
+          - No terminal window (windowed mode)
+          - Ad-hoc signed (reduces warnings)
+          - Standard macOS .app bundle
+          
+          ### 🐧 Linux
           - Download `vibesurf-linux-x64`
           - Make executable: `chmod +x vibesurf-linux-x64`
           - Run: `./vibesurf-linux-x64`
+          
+          ---
+          
+          **Note**: All builds include automatic platform detection and appropriate configurations.
