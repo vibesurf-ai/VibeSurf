@@ -215,6 +215,9 @@ jobs:
     needs: [test, build-executables]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
+    permissions:
+      contents: write  # Required for uploading to GitHub releases
+      actions: read    # Required for downloading artifacts
     
     steps:
     - name: Download all artifacts
