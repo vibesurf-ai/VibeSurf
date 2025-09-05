@@ -27,7 +27,6 @@ dependencies = [
     "aiohttp>=3.12.15",
     "scikit-image>=0.25.2",
     "python-socks>=2.7.2",
-    "browser-use==0.7.1",
     "langgraph>=0.6.4",
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
@@ -39,6 +38,7 @@ dependencies = [
     "rich>=13.0.0",
     "greenlet>=3.2.4",
     "getmac>=0.9.5",
+    "browser-use==0.7.1",
 ]
 
 [project.urls]

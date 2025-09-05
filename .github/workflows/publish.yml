@@ -169,6 +169,12 @@ jobs:
         else
           mv dist/vibesurf dist/${{ matrix.asset_name }}
           chmod +x dist/${{ matrix.asset_name }}
+          
+          # Add ad-hoc code signing for macOS to reduce warnings
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            echo "Adding ad-hoc code signature for macOS..."
+            codesign --force --deep --sign - dist/${{ matrix.asset_name }} || echo "Code signing failed, continuing..."
+          fi
         fi
 
     - name: Test executable
@@ -208,13 +214,17 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.PYPI_API_TOKEN }}
+        skip-existing: true  # Skip if version already exists on PyPI
         # Use the following line if you want to use trusted publishing instead
-        # skip-existing: true
+        # trusted-publishing: true
 
   publish-executables:
     needs: [test, build-executables]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
+    permissions:
+      contents: write  # Required for uploading to GitHub releases
+      actions: read    # Required for downloading artifacts
     
     steps:
     - name: Download all artifacts
