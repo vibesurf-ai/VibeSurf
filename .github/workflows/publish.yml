@@ -183,16 +183,16 @@ jobs:
             echo "Verifying code signature..."
             codesign --verify --deep dist/VibeSurf.app && echo "✅ Signature verified" || echo "⚠️ Signature verification failed"
             
-            # Now create tar.gz archive of the SIGNED .app bundle
-            echo "Creating archive with signed .app bundle..."
+            # Create ZIP archive (more Mac-friendly, auto-extracts on double-click)
+            echo "Creating ZIP archive with signed .app bundle..."
             cd dist
-            tar -czf ${{ matrix.asset_name }}.tar.gz VibeSurf.app
+            zip -r ${{ matrix.asset_name }}.zip VibeSurf.app
             
             # Verify archive was created
-            if [ -f "${{ matrix.asset_name }}.tar.gz" ]; then
-              echo "✅ Archive created successfully: ${{ matrix.asset_name }}.tar.gz"
-              ls -lh ${{ matrix.asset_name }}.tar.gz
-              mv ${{ matrix.asset_name }}.tar.gz ${{ matrix.asset_name }}
+            if [ -f "${{ matrix.asset_name }}.zip" ]; then
+              echo "✅ ZIP archive created successfully: ${{ matrix.asset_name }}.zip"
+              ls -lh ${{ matrix.asset_name }}.zip
+              mv ${{ matrix.asset_name }}.zip ${{ matrix.asset_name }}
             else
               echo "❌ Failed to create archive"
               exit 1
@@ -287,32 +287,3 @@ jobs:
           vibesurf-macos-intel-x64/vibesurf-macos-intel-x64
           vibesurf-macos-apple-silicon/vibesurf-macos-apple-silicon
           vibesurf-linux-x64/vibesurf-linux-x64
-        body: |
-          ## 📦 Download Instructions
-          
-          ### 🪟 Windows
-          - Download `vibesurf-windows-x64.exe`
-          - Run directly or add to PATH
-          
-          ### 🍎 macOS (with proper .app bundle)
-          - **Intel Macs**: Download `vibesurf-macos-intel-x64`
-          - **Apple Silicon**: Download `vibesurf-macos-apple-silicon`
-          - Extract: `tar -xzf vibesurf-macos-*.tar.gz`
-          - Open: Double-click `VibeSurf.app` in Finder
-          - **If blocked**: Right-click → "Open" → "Open" in dialog
-          - **Alternative**: System Preferences → Security & Privacy → "Open Anyway"
-          
-          ✅ **Features**:
-          - Proper ICNS icon
-          - No terminal window (windowed mode)
-          - Ad-hoc signed (reduces warnings)
-          - Standard macOS .app bundle
-          
-          ### 🐧 Linux
-          - Download `vibesurf-linux-x64`
-          - Make executable: `chmod +x vibesurf-linux-x64`
-          - Run: `./vibesurf-linux-x64`
-          
-          ---
-          
-          **Note**: All builds include automatic platform detection and appropriate configurations.

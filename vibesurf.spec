@@ -185,34 +185,68 @@ a = Analysis(
 # Remove duplicate files to reduce size
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-# Create executable - icon configuration depends on platform
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
-    name='vibesurf',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,  # Compress to reduce file size
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=console_mode,
-    disable_windowed_traceback=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    # For macOS, icon is set in BUNDLE; for others, set in EXE
-    icon=None if current_platform == "Darwin" else (str(icon_file) if icon_file else None),
-)
+# Create executable - use onedir mode for macOS .app bundles, onefile for others
+if current_platform == "Darwin":
+    # macOS: Use onedir mode for proper .app bundle support
+    exe = EXE(
+        pyz,
+        a.scripts,
+        [],
+        exclude_binaries=True,  # This enables onedir mode
+        name='vibesurf',
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        console=console_mode,
+        disable_windowed_traceback=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+        icon=None,  # Icon set in BUNDLE for macOS
+    )
+    
+    # Create COLLECT for onedir distribution
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        name='vibesurf'
+    )
+    print("Using onedir mode for macOS (recommended by PyInstaller)")
+else:
+    # Windows/Linux: Use onefile mode
+    exe = EXE(
+        pyz,
+        a.scripts,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        [],
+        name='vibesurf',
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,  # Compress to reduce file size
+        upx_exclude=[],
+        runtime_tmpdir=None,
+        console=console_mode,
+        disable_windowed_traceback=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+        icon=str(icon_file) if icon_file else None,
+    )
+    print(f"Using onefile mode for {current_platform}")
 
-# For macOS, create a proper .app bundle
+# For macOS, create a proper .app bundle using onedir mode
 if current_platform == "Darwin":
     app = BUNDLE(
-        exe,
+        coll,  # Use COLLECT object for onedir mode
         name='VibeSurf.app',
         icon=str(icon_file) if icon_file else None,  # macOS icon set here
         bundle_identifier='com.vibesurf.app',
@@ -236,7 +270,7 @@ if current_platform == "Darwin":
         codesign_identity=None,  # Set this to your Developer ID if you have one
         entitlements_file=None,
     )
-    print("Created macOS .app bundle: VibeSurf.app")
+    print("Created macOS .app bundle: VibeSurf.app (onedir mode)")
     print(f"Bundle icon: {icon_file}")
 else:
     print(f"Executable icon: {icon_file}")
