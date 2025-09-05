@@ -208,8 +208,9 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.PYPI_API_TOKEN }}
+        skip-existing: true  # Skip if version already exists on PyPI
         # Use the following line if you want to use trusted publishing instead
-        # skip-existing: true
+        # trusted-publishing: true
 
   publish-executables:
     needs: [test, build-executables]
