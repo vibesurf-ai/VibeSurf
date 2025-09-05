@@ -2,6 +2,7 @@
 
 import os
 import sys
+import platform
 from pathlib import Path
 
 # Ensure using current environment's Python
@@ -22,17 +23,80 @@ except ImportError:
     cli_path = vibe_surf_path / 'cli.py'
     print(f"Using development path: {vibe_surf_path}")
 
+# Dynamically find browser_use installation location for prompt templates
+try:
+    import browser_use
+    browser_use_path = Path(browser_use.__file__).parent
+    print(f"browser_use package location: {browser_use_path}")
+except ImportError:
+    print("WARNING: browser_use not found, system prompts may not work in executable")
+    browser_use_path = None
+
 # Check if CLI file exists
 if not cli_path.exists():
     print(f"ERROR: CLI file not found at {cli_path}")
     print("Please ensure vibe_surf is properly installed or run from project directory")
     sys.exit(1)
 
+# Platform detection and configuration
+current_platform = platform.system()
+print(f"Building for platform: {current_platform}")
+
+# Configure icon and console mode based on platform
+if current_platform == "Darwin":  # macOS
+    icon_file = vibe_surf_path / 'chrome_extension' / 'icons' / 'logo.icns'
+    console_mode = False  # Windowed mode for macOS (equivalent to -w flag)
+    print(f"macOS detected - using ICNS icon and windowed mode")
+elif current_platform == "Windows":
+    # Windows can use ICO or PNG, but prefer ICO if available
+    ico_file = vibe_surf_path / 'chrome_extension' / 'icons' / 'logo.ico'
+    if ico_file.exists():
+        icon_file = ico_file
+        print(f"Windows detected - using ICO icon")
+    else:
+        icon_file = vibe_surf_path / 'chrome_extension' / 'icons' / 'logo.png'
+        print(f"Windows detected - using PNG icon (ICO not found)")
+    console_mode = True
+else:  # Linux and other Unix-like systems
+    icon_file = vibe_surf_path / 'chrome_extension' / 'icons' / 'logo.png'
+    console_mode = True
+    print(f"Unix-like system detected - using PNG icon")
+
+# Verify icon file exists
+if not icon_file.exists():
+    print(f"WARNING: Icon file not found at {icon_file}")
+    icon_file = None
+else:
+    print(f"Using icon: {icon_file}")
+
 # Data files collection - include all necessary static files
 datas = [
     (str(vibe_surf_path / 'chrome_extension'), 'vibe_surf/chrome_extension'),
     (str(vibe_surf_path / 'backend'), 'vibe_surf/backend'),
 ]
+
+# Add browser_use prompt template files if available
+if browser_use_path:
+    browser_use_agent_path = browser_use_path / 'agent'
+    # Include the markdown system prompt files
+    prompt_files = [
+        'system_prompt.md',
+        'system_prompt_no_thinking.md',
+        'system_prompt_flash.md'
+    ]
+    for prompt_file in prompt_files:
+        prompt_file_path = browser_use_agent_path / prompt_file
+        if prompt_file_path.exists():
+            datas.append((str(prompt_file_path), f'browser_use/agent'))
+            print(f"Added browser_use prompt file: {prompt_file}")
+        else:
+            print(f"WARNING: browser_use prompt file not found: {prompt_file_path}")
+    
+    # Include JavaScript files for DOM operations
+    browser_use_dom_path = browser_use_path / 'dom'
+    if browser_use_dom_path.exists():
+        datas.append((str(browser_use_dom_path), 'browser_use/dom'))
+        print(f"Added browser_use DOM directory: {browser_use_dom_path}")
 
 # Hidden imports - all dynamic imports that PyInstaller might miss
 hiddenimports = [
@@ -136,10 +200,10 @@ exe = EXE(
     upx=True,  # Compress to reduce file size
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=console_mode,
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=str(vibe_surf_path / 'chrome_extension' / 'icons' / 'logo.png'),
+    icon=str(icon_file) if icon_file else None,
 )
