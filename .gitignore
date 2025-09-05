@@ -21,3 +21,4 @@ workspace
 *.db
 vibe_surf/_version.py
 .build-env
+.DS_Store
