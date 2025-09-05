@@ -233,11 +233,16 @@ jobs:
         
         # Show final result
         echo "=== Final executable/archive ==="
-        if [[ "$RUNNER_OS" == "macOS" ]] && [ -d "dist/VibeSurf.app" ]; then
-          # For macOS with .app bundle, check the DMG file
-          ls -lh dist/${{ matrix.asset_name }}.dmg
+        if [[ "$RUNNER_OS" == "macOS" ]]; then
+          # For macOS, check the DMG file (after .app bundle cleanup)
+          if [ -f "dist/${{ matrix.asset_name }}.dmg" ]; then
+            ls -lh dist/${{ matrix.asset_name }}.dmg
+          else
+            # Fallback: check for executable if DMG creation failed
+            ls -lh dist/${{ matrix.asset_name }}
+          fi
         else
-          # For other platforms or fallback macOS executable
+          # For other platforms, check the executable
           ls -lh dist/${{ matrix.asset_name }}
         fi
 
