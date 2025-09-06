@@ -1,0 +1,429 @@
+/* Input and Control Styles - VibeSurf Extension */
+
+/* Control Panel */
+.control-panel {
+  padding: var(--spacing-md);
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.control-btn:hover {
+  border-color: var(--border-hover);
+  background-color: var(--bg-hover);
+}
+
+.control-btn:active {
+  transform: scale(0.98);
+}
+
+.cancel-btn {
+  color: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
+.cancel-btn:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+.resume-btn {
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.resume-btn:hover {
+  background-color: rgba(40, 167, 69, 0.1);
+}
+
+.terminate-btn {
+  color: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
+.terminate-btn:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+/* Control Panel Error State */
+.control-panel.error-state {
+  background-color: rgba(220, 53, 69, 0.05);
+  border-left: 4px solid var(--danger-color);
+  border-color: rgba(220, 53, 69, 0.2);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
+}
+
+.control-panel.error-state::before {
+  content: '⚠️ Error occurred - task controls remain available';
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--danger-color);
+  margin-bottom: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: rgba(220, 53, 69, 0.1);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(220, 53, 69, 0.2);
+  font-weight: var(--font-weight-medium);
+}
+
+.control-panel.error-state .control-btn {
+  border-color: rgba(220, 53, 69, 0.3);
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+.control-panel.error-state .control-btn:hover {
+  background-color: var(--bg-primary);
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+}
+
+/* Input Section */
+.input-section {
+  background-color: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+  padding: var(--spacing-md);
+}
+
+.input-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.input-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.textarea-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.input-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: calc(var(--spacing-xs) / 2);
+}
+
+.llm-select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-primary);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+  min-width: 120px;
+}
+
+.llm-select.compact {
+  max-width: 100px;
+  font-size: var(--font-size-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.llm-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+}
+
+.task-input {
+  width: 100%;
+  padding: var(--spacing-md);
+  padding-right: 80px; /* Make space for buttons */
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-primary);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  transition: all var(--transition-fast);
+  min-height: 44px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.task-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+}
+
+.task-input::placeholder {
+  color: var(--text-muted);
+}
+
+.input-actions {
+  position: absolute;
+  right: var(--spacing-sm);
+  bottom: var(--spacing-sm);
+  display: flex;
+  gap: var(--spacing-xs);
+  z-index: 1;
+}
+
+.send-btn {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.send-btn:hover {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.send-btn:disabled {
+  background-color: var(--border-color);
+  border-color: var(--border-color);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.5;
+}
+
+/* Task Running Disabled State */
+.task-running-disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  position: relative;
+}
+
+.task-running-disabled::after {
+  content: '🔒';
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  font-size: 12px;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Specific styles for different elements when disabled */
+button.task-running-disabled {
+  background-color: #f0f0f0 !important;
+  border-color: #ddd !important;
+  color: #999 !important;
+}
+
+input.task-running-disabled,
+textarea.task-running-disabled,
+select.task-running-disabled {
+  background-color: #f9f9f9 !important;
+  border-color: #ddd !important;
+  color: #999 !important;
+}
+
+/* Task status indicator in control panel */
+.control-panel .task-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 6px;
+  font-size: 12px;
+  color: #856404;
+  margin-bottom: 8px;
+}
+
+.control-panel .task-status-indicator::before {
+  content: '⚠️';
+  font-size: 14px;
+}
+
+/* Enhanced warning modal styles */
+.modal-overlay.warning-modal {
+  z-index: 15000;
+}
+
+.warning-modal .modal-content {
+  max-width: 500px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.warning-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 20px 0;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 16px;
+}
+
+.warning-icon {
+  font-size: 24px;
+}
+
+.warning-header h3 {
+  margin: 0;
+  color: #dc3545;
+  font-size: 18px;
+}
+
+.warning-body {
+  padding: 0 20px 16px;
+}
+
+.warning-body p {
+  margin: 0 0 12px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.warning-details {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 12px;
+  font-family: monospace;
+  font-size: 12px;
+  color: #495057;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.warning-actions {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px 20px;
+  justify-content: flex-end;
+}
+
+.warning-actions .btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.warning-actions .btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.warning-actions .btn-danger:hover {
+  background: #c82333;
+}
+
+.warning-actions .btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.warning-actions .btn-secondary:hover {
+  background: #545b62;
+}
+
+.warning-actions .btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.warning-actions .btn-primary:hover {
+  background: #0056b3;
+}
+
+/* File Upload Styles */
+.uploaded-files-container {
+  margin-top: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  max-height: 120px;
+  overflow-y: auto;
+  display: none; /* Hidden by default */
+}
+
+.uploaded-files-container .files-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.uploaded-files-container .file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.uploaded-files-container .file-name {
+  flex: 1;
+  color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: var(--spacing-sm);
+}
+
+.uploaded-files-container .file-remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background-color: var(--danger-color);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.uploaded-files-container .file-remove-btn:hover {
+  background-color: #c82333;
+  transform: scale(1.1);
+}
+
+.uploaded-files-container .file-remove-btn:active {
+  transform: scale(0.95);
+}
+
+.uploaded-files-container .error-message {
+  padding: var(--spacing-sm);
+  background-color: rgba(220, 53, 69, 0.1);
+  border: 1px solid var(--danger-color);
+  border-radius: var(--radius-sm);
+  color: var(--danger-color);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}

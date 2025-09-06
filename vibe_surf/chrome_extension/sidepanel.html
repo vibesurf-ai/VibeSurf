@@ -4,10 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VibeSurf Extension</title>
-    <link rel="stylesheet" href="styles/main.css">
+    <!-- Core Styles -->
+    <link rel="stylesheet" href="styles/variables.css">
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/layout.css">
+    
+    <!-- Feature Styles -->
+    <link rel="stylesheet" href="styles/activity.css">
+    <link rel="stylesheet" href="styles/input.css">
+    <link rel="stylesheet" href="styles/history-modal.css">
     <link rel="stylesheet" href="styles/components.css">
     <link rel="stylesheet" href="styles/animations.css">
-    <link rel="stylesheet" href="styles/settings.css">
+    <!-- Settings Styles (Modular) -->
+    <link rel="stylesheet" href="styles/settings-modal.css">
+    <link rel="stylesheet" href="styles/settings-profiles.css">
+    <link rel="stylesheet" href="styles/settings-forms.css">
+    <link rel="stylesheet" href="styles/settings-environment.css">
+    <link rel="stylesheet" href="styles/settings-utilities.css">
+    <link rel="stylesheet" href="styles/settings-responsive.css">
+    
+    <!-- Responsive Styles -->
+    <link rel="stylesheet" href="styles/responsive.css">
 </head>
 <body>
     <div id="app" class="vibesurf-container">
@@ -93,9 +110,9 @@
             <div id="control-panel" class="control-panel hidden">
                 <button id="cancel-btn" class="control-btn cancel-btn">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M6 6H4C3.45 6 3 5.55 3 5V4C3 3.45 3.45 3 4 3H6V6ZM10 6H14V3H10V6ZM18 6H20C20.55 6 21 5.55 21 5V4C21 3.45 20.55 3 20 3H18V6ZM6 8V20C6 20.55 6.45 21 7 21H17C17.55 21 18 20.55 18 20V8H6Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     </svg>
-                    Cancel
+                    Pause
                 </button>
                 <button id="resume-btn" class="control-btn resume-btn hidden">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -341,6 +358,12 @@
     <script src="scripts/markdown-it.min.js"></script>
     <script src="scripts/api-client.js"></script>
     <script src="scripts/session-manager.js"></script>
+    <!-- Specialized UI Managers -->
+    <script src="scripts/modal-manager.js"></script>
+    <script src="scripts/settings-manager.js"></script>
+    <script src="scripts/history-manager.js"></script>
+    <script src="scripts/file-manager.js"></script>
+    <!-- Core UI Manager -->
     <script src="scripts/ui-manager.js"></script>
     <script src="scripts/main.js"></script>
 </body>

@@ -422,6 +422,8 @@ async def initialize_vibesurf_components():
                 user_data_dir=browser_user_data,
                 headless=False,
                 keep_alive=True,
+                auto_download_pdfs=False,
+                highlight_elements=True,
                 custom_extensions=[envs["VIBESURF_EXTENSION"]],
                 window_size={"width": primary_monitor.width, "height": primary_monitor.height}
             )

@@ -7,7 +7,7 @@ class VibeSurfSessionManager {
     this.currentSession = null;
     this.activityLogs = [];
     this.pollingInterval = null;
-    this.pollingFrequency = 1000; // 1 second
+    this.pollingFrequency = 300; // 300ms for faster response
     this.isPolling = false;
     this.eventListeners = new Map();
     
@@ -201,8 +201,18 @@ class VibeSurfSessionManager {
     }
 
     try {
-      console.log('[SessionManager] 🔄 Syncing activity logs before task submission...');
-      await this.syncActivityLogsFromServer();
+      // Stop any existing polling before starting new task
+      this.stopActivityPolling();
+      
+      // Reset activity logs for new task to ensure proper index synchronization
+      this.activityLogs = [];
+      
+      // Sync with server logs to get the correct starting state
+      try {
+        await this.syncActivityLogsFromServer();
+      } catch (error) {
+        this.activityLogs = [];
+      }
 
       const taskPayload = {
         session_id: this.currentSession.id,
@@ -220,11 +230,11 @@ class VibeSurfSessionManager {
         submittedAt: new Date().toISOString()
       };
 
-      // Start activity polling
-      this.startActivityPolling();
-
       // Store updated session
       await this.storeSessionData();
+
+      // Start polling after task submission and sync
+      this.startActivityPolling();
 
       this.emit('taskSubmitted', {
         sessionId: this.currentSession.id,
@@ -273,6 +283,13 @@ class VibeSurfSessionManager {
         await this.storeSessionData();
       }
 
+      // Sync activity logs before resuming polling to ensure index consistency
+      try {
+        await this.syncActivityLogsFromServer();
+      } catch (error) {
+        // Continue with existing logs if sync fails
+      }
+
       // Restart polling when task is resumed
       this.startActivityPolling();
 
@@ -298,6 +315,13 @@ class VibeSurfSessionManager {
 
       // Stop polling when task is stopped
       this.stopActivityPolling();
+      
+      // Sync final activity logs to capture any termination messages
+      try {
+        await this.syncActivityLogsFromServer();
+      } catch (error) {
+        // Continue if sync fails
+      }
 
       this.emit('taskStopped', { sessionId: this.currentSession?.id, response });
       
@@ -358,8 +382,7 @@ class VibeSurfSessionManager {
 
       if (response && activityLog) {
         const prevActivityLog = this.activityLogs.length > 0 ? this.activityLogs[this.activityLogs.length - 1] : null;
-        
-        // 检查是否为新的、不重复的activity log
+
         const isNewLog = !prevActivityLog || !this.areLogsEqual(prevActivityLog, activityLog);
         
         if (isNewLog) {

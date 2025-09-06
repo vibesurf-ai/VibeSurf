@@ -174,6 +174,10 @@ class VibeSurfBackground {
             result = await this.showNotification(message.data);
             break;
             
+          case 'COPY_TO_CLIPBOARD':
+            result = await this.copyToClipboard(message.text);
+            break;
+            
           case 'HEALTH_CHECK':
             result = { status: 'healthy', timestamp: Date.now() };
             break;
@@ -533,6 +537,86 @@ class VibeSurfBackground {
         success: false,
         error: error.message || 'Unknown error opening file'
       };
+    }
+  }
+
+  async copyToClipboard(text) {
+    console.log('[VibeSurf] Handling clipboard request, text length:', text?.length);
+    
+    try {
+      // For Chrome extensions running in service worker context,
+      // clipboard access is limited. We need to inject script into active tab.
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      if (!tab) {
+        throw new Error('No active tab found');
+      }
+      
+      // Check if we can inject script into this tab
+      if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') ||
+          tab.url.startsWith('edge://') || tab.url.startsWith('moz-extension://')) {
+        throw new Error('Cannot access clipboard from this type of page');
+      }
+      
+      // Inject script to handle clipboard operation
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (textToCopy) => {
+          try {
+            // Method 1: Try modern clipboard API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              return navigator.clipboard.writeText(textToCopy).then(() => {
+                return { success: true, method: 'modern' };
+              }).catch((error) => {
+                console.warn('Modern clipboard API failed:', error);
+                // Fall back to execCommand
+                return fallbackCopy();
+              });
+            } else {
+              // Method 2: Fall back to execCommand
+              return Promise.resolve(fallbackCopy());
+            }
+            
+            function fallbackCopy() {
+              try {
+                const textArea = document.createElement('textarea');
+                textArea.value = textToCopy;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                textArea.setSelectionRange(0, textArea.value.length);
+                
+                const success = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                return { success: success, method: 'execCommand' };
+              } catch (error) {
+                return { success: false, error: error.message };
+              }
+            }
+          } catch (error) {
+            return { success: false, error: error.message };
+          }
+        },
+        args: [text]
+      });
+      
+      const result = await results[0].result;
+      console.log('[VibeSurf] Clipboard operation result:', result);
+      
+      if (result.success) {
+        return { success: true, method: result.method };
+      } else {
+        throw new Error(result.error || 'Clipboard operation failed');
+      }
+      
+    } catch (error) {
+      console.error('[VibeSurf] Clipboard operation failed:', error);
+      return { success: false, error: error.message };
     }
   }
 

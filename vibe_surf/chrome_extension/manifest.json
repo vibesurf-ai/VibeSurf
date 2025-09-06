@@ -14,7 +14,9 @@
     "notifications",
     "sidePanel",
     "contextMenus",
-    "tabs"
+    "tabs",
+    "clipboardWrite",
+    "scripting"
   ],
   "host_permissions": [
     "http://localhost:*/*",

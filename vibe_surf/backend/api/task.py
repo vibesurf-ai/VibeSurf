@@ -21,7 +21,8 @@ from ..shared_state import (
     execute_task_background,
     is_task_running,
     get_active_task_info,
-    clear_active_task
+    clear_active_task,
+    browser_manager
 )
 
 logger = logging.getLogger(__name__)

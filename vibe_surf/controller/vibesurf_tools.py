@@ -363,8 +363,6 @@ Provide the extracted information in a clear, structured format."""
             if not os.path.exists(file_name):
                 # if not exists, assume it is external_file
                 external_file = True
-            else:
-                external_file = False
             result = await file_system.read_file(file_name, external_file=external_file)
 
             MAX_MEMORY_SIZE = 1000

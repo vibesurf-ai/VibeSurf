@@ -1,0 +1,141 @@
+/* Settings Modal Structure and Tab Navigation */
+
+/* Settings Modal Container */
+.settings-modal-content {
+  width: 92vw;
+  max-width: 1000px;
+  min-height: 75vh;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+/* Settings Header */
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 32px;
+  border-bottom: 2px solid var(--border-color);
+  background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
+}
+
+.settings-header h3 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+/* Settings Title with Logo */
+.settings-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.settings-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* Tab Navigation */
+.settings-tabs {
+  display: flex;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+}
+
+.settings-tab {
+  flex: 1;
+  padding: 16px 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  white-space: nowrap;
+  min-width: 150px;
+}
+
+.settings-tab::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--primary-color);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.settings-tab:hover {
+  color: var(--text-primary);
+  background: rgba(0, 122, 204, 0.05);
+}
+
+.settings-tab.active {
+  color: var(--primary-color);
+  background: var(--bg-primary);
+}
+
+.settings-tab.active::before {
+  transform: scaleX(1);
+}
+
+/* Tab Content Container */
+.settings-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-tab-content {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+  display: none;
+}
+
+.settings-tab-content.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-tab-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.settings-tab-content::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.settings-tab-content::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.settings-tab-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}

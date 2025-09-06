@@ -1,0 +1,454 @@
+/* Responsive Styles - VibeSurf Extension */
+
+/* Small Screen Adjustments */
+@media (max-width: 320px) {
+  .header {
+    padding: var(--spacing-md);
+  }
+  
+  .activity-log {
+    padding: var(--spacing-md);
+  }
+  
+  .input-section {
+    padding: var(--spacing-md);
+  }
+}
+
+/* Tablet and Medium Screen Adjustments */
+@media (max-width: 768px) {
+  .history-modal-content {
+    width: 96vw !important;
+    max-height: 92vh !important;
+    border-radius: 12px !important;
+    margin: 16px !important;
+  }
+  
+  .history-content {
+    padding: 24px !important;
+    padding-top: 20px !important;
+  }
+  
+  .section-header {
+    padding-bottom: 20px !important;
+    margin-bottom: 24px !important;
+  }
+  
+  .section-header h4 {
+    font-size: 20px !important;
+  }
+  
+  .search-filter-bar {
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+  
+  .search-input, .filter-select {
+    padding: 12px 16px !important;
+    font-size: 14px !important;
+  }
+  
+  .recent-task-item {
+    padding: 20px !important;
+    gap: 16px !important;
+    margin-bottom: 16px !important;
+  }
+  
+  .task-status-icon {
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 18px !important;
+  }
+  
+  .task-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+  
+  .session-item {
+    padding: 16px !important;
+    gap: 16px !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .session-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+  
+  .pagination-controls {
+    flex-direction: column !important;
+    gap: 16px !important;
+    text-align: center !important;
+    padding: 20px 0 !important;
+  }
+  
+  .page-btn {
+    padding: 10px 16px !important;
+    font-size: 13px !important;
+  }
+  
+  .view-more-btn {
+    padding: 16px !important;
+    font-size: 14px !important;
+  }
+}
+
+/* Mobile Screen Adjustments */
+@media (max-width: 480px) {
+  .history-modal-content {
+    width: 98vw !important;
+    max-height: 95vh !important;
+    border-radius: 8px !important;
+    margin: 8px !important;
+  }
+  
+  .history-content {
+    padding: 20px !important;
+    padding-top: 16px !important;
+  }
+  
+  .section-header h4 {
+    font-size: 18px !important;
+  }
+  
+  .back-btn {
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+  }
+  
+  .recent-task-item {
+    padding: 16px !important;
+    gap: 12px !important;
+    border-radius: 12px !important;
+  }
+  
+  .task-status-icon {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 16px !important;
+    border-radius: 10px !important;
+  }
+  
+  .session-id-badge {
+    font-size: 10px !important;
+    padding: 4px 8px !important;
+  }
+  
+  .task-timestamp, .session-time {
+    font-size: 11px !important;
+  }
+  
+  .task-description {
+    font-size: 14px !important;
+    -webkit-line-clamp: 3 !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .task-meta, .session-details {
+    font-size: 12px !important;
+    gap: 8px !important;
+  }
+  
+  .task-status-text {
+    padding: 3px 8px !important;
+    font-size: 11px !important;
+  }
+  
+  .session-item {
+    padding: 14px !important;
+    gap: 12px !important;
+    border-radius: 10px !important;
+  }
+  
+  .session-id {
+    font-size: 13px !important;
+  }
+  
+  .empty-state {
+    padding: 40px 20px !important;
+    min-height: 240px !important;
+  }
+  
+  .empty-state-icon {
+    font-size: 56px !important;
+    margin-bottom: 20px !important;
+  }
+  
+  .empty-state-title {
+    font-size: 18px !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .empty-state-description {
+    font-size: 14px !important;
+    max-width: 280px !important;
+  }
+  
+  .task-item-content {
+    min-width: 0;
+  }
+  
+  .task-description {
+    -webkit-line-clamp: 3;
+  }
+}
+
+/* Extra Small Mobile Screens */
+@media (max-width: 360px) {
+  .history-content {
+    padding: 16px !important;
+  }
+  
+  .recent-task-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+  
+  .task-status-icon {
+    align-self: flex-end !important;
+    margin-bottom: 8px !important;
+  }
+  
+  .task-header {
+    width: 100% !important;
+  }
+  
+  .session-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+  
+  .session-header {
+    width: 100% !important;
+  }
+}
+
+/* Accessibility Enhancements */
+@media (prefers-reduced-motion: reduce) {
+  .recent-task-item,
+  .session-item,
+  .view-more-btn,
+  .back-btn,
+  .page-btn,
+  .task-suggestion,
+  .icon-btn,
+  .action-btn,
+  .control-btn {
+    transition: none !important;
+  }
+  
+  .recent-task-item:hover,
+  .session-item:hover,
+  .task-suggestion:hover {
+    transform: none !important;
+  }
+  
+  .loading-skeleton {
+    animation: none !important;
+    background: var(--bg-tertiary) !important;
+  }
+  
+  .history-modal .status-dot.running,
+  .history-modal .status-dot.active,
+  .status-dot.active {
+    animation: none !important;
+  }
+  
+  .history-modal .status-dot.running::before,
+  .history-modal .status-dot.active::before {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  :root {
+    --border-color: #000000;
+    --text-muted: #333333;
+    --bg-secondary: #f0f0f0;
+    --bg-tertiary: #e0e0e0;
+  }
+  
+  .recent-task-item,
+  .session-item,
+  .message-bubble,
+  .control-btn,
+  .action-btn {
+    border-width: 2px !important;
+  }
+  
+  .task-status-icon,
+  .task-status-text {
+    border-width: 2px !important;
+  }
+  
+  .history-modal .status-dot,
+  .status-dot {
+    border: 2px solid currentColor !important;
+  }
+  
+  .message-bubble {
+    box-shadow: none !important;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .header-right,
+  .control-panel,
+  .input-section,
+  .action-btn,
+  .icon-btn {
+    display: none !important;
+  }
+  
+  .vibesurf-container {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  
+  .activity-log {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  
+  .message-bubble {
+    border: 1px solid #000 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  
+  .activity-item {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* Large Screen Optimizations */
+@media (min-width: 1200px) {
+  .vibesurf-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .message-container {
+    max-width: 85%;
+  }
+  
+  .history-modal-content {
+    max-width: 1000px;
+  }
+  
+  .quick-tasks {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 600px;
+  }
+}
+
+/* Ultra-wide Screen Adjustments */
+@media (min-width: 1600px) {
+  .message-container {
+    max-width: 70%;
+  }
+  
+  .quick-tasks {
+    grid-template-columns: repeat(3, 1fr);
+    max-width: 800px;
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .icon-btn,
+  .action-btn,
+  .control-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .task-suggestion {
+    padding: var(--spacing-xl);
+  }
+  
+  .copy-btn {
+    min-height: 32px;
+    min-width: 32px;
+  }
+  
+  .recent-task-item,
+  .session-item {
+    padding: var(--spacing-xl);
+  }
+}
+
+/* Landscape Mobile Adjustments */
+@media (max-height: 500px) and (orientation: landscape) {
+  .header {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    min-height: 48px;
+  }
+  
+  .input-section {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .welcome-message {
+    padding: var(--spacing-md) var(--spacing-lg);
+  }
+  
+  .quick-tasks {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+  }
+  
+  .task-suggestion {
+    padding: var(--spacing-md);
+  }
+}
+
+/* Reduced Data Mode */
+@media (prefers-reduced-data: reduce) {
+  .loading-skeleton {
+    background: var(--bg-tertiary) !important;
+    animation: none !important;
+  }
+  
+  .task-status-icon::before,
+  .recent-task-item::before,
+  .session-item::before {
+    display: none !important;
+  }
+  
+  .view-more-btn::before {
+    display: none !important;
+  }
+}
+
+/* Focus Visible Support */
+@media (prefers-reduced-motion: no-preference) {
+  .recent-task-item:focus-visible,
+  .session-item:focus-visible,
+  .view-more-btn:focus-visible,
+  .back-btn:focus-visible,
+  .task-suggestion:focus-visible,
+  .icon-btn:focus-visible,
+  .action-btn:focus-visible,
+  .control-btn:focus-visible {
+    outline: 3px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+}
