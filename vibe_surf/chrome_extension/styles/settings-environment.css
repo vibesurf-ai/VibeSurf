@@ -1,0 +1,165 @@
+/* Environment Variables Management */
+
+/* Environment Variables Tab */
+.env-variables-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.env-var-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.env-var-key,
+.env-var-value {
+  flex: 1;
+}
+
+.readonly-input {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-muted) !important;
+  cursor: not-allowed !important;
+  opacity: 0.7;
+}
+
+.readonly-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: var(--border-color) !important;
+}
+
+.env-var-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.env-var-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.env-var-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.env-var-btn.delete:hover {
+  background: rgba(220, 53, 69, 0.1);
+  color: var(--danger-color);
+}
+
+.add-env-var-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.add-env-var-btn:hover {
+  border-color: var(--primary-color);
+  background: rgba(0, 122, 204, 0.05);
+  color: var(--primary-color);
+}
+
+/* Environment Variables Action Center */
+.env-var-actions-center {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color);
+}
+
+.save-env-vars-btn-modern {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 32px;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 122, 204, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.save-env-vars-btn-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.save-env-vars-btn-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 122, 204, 0.3);
+  background: linear-gradient(135deg, var(--primary-hover), var(--primary-color));
+}
+
+.save-env-vars-btn-modern:hover::before {
+  left: 100%;
+}
+
+.save-env-vars-btn-modern:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(0, 122, 204, 0.2);
+}
+
+.save-env-vars-btn-modern .btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.save-env-vars-btn-modern .btn-text {
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.save-env-vars-btn-modern:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: 0 4px 12px rgba(0, 122, 204, 0.1) !important;
+}
+
+.save-env-vars-btn-modern:disabled::before {
+  display: none;
+}

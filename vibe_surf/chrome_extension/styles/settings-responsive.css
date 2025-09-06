@@ -1,0 +1,144 @@
+/* Responsive Design for Settings */
+
+/* Tablet and Small Desktop */
+@media (max-width: 768px) {
+  .settings-modal-content {
+    width: 95vw;
+    max-height: 95vh;
+    border-radius: 12px;
+  }
+  
+  .settings-header {
+    padding: 20px 24px;
+  }
+  
+  .settings-header h3 {
+    font-size: 20px;
+  }
+  
+  .settings-tab {
+    padding: 14px 20px;
+    font-size: 14px;
+    min-width: 120px;
+  }
+  
+  .settings-tab-content {
+    padding: 24px;
+  }
+  
+  .profile-card {
+    padding: 16px;
+  }
+  
+  .profile-name {
+    font-size: 16px;
+  }
+  
+  .profile-meta {
+    grid-template-columns: 1fr;
+  }
+  
+  .profile-actions {
+    flex-direction: column;
+  }
+  
+  .profile-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .profile-form-container {
+    width: 95vw;
+  }
+  
+  .profile-form-header {
+    padding: 20px 24px;
+  }
+  
+  .profile-form-content {
+    padding: 24px;
+  }
+  
+  .profile-form-actions {
+    padding: 20px 24px;
+    flex-direction: column;
+  }
+  
+  .form-btn {
+    width: 100%;
+  }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .settings-header {
+    padding: 16px 20px;
+  }
+  
+  .settings-header h3 {
+    font-size: 18px;
+  }
+  
+  .settings-tab {
+    padding: 12px 16px;
+    font-size: 13px;
+    min-width: 100px;
+  }
+  
+  .settings-tab-content {
+    padding: 20px;
+  }
+  
+  .profile-card {
+    padding: 12px;
+  }
+  
+  .profile-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .profile-badges {
+    align-self: flex-end;
+  }
+  
+  .env-var-item {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .env-var-actions {
+    align-self: flex-end;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .profile-card,
+  .form-input,
+  .form-select,
+  .form-textarea {
+    border-width: 2px;
+  }
+  
+  .settings-tab::before {
+    height: 4px;
+  }
+}
+
+/* Dark mode support (for future enhancement) */
+@media (prefers-color-scheme: dark) {
+  .profile-form-modal {
+    backdrop-filter: blur(12px);
+  }
+}
