@@ -402,6 +402,7 @@ def main():
         console.print("[dim]A powerful browser automation tool for vibe surfing 🏄‍♂️[/dim]")
         import vibe_surf
         console.print(f"[dim]Version: {vibe_surf.__version__}[/dim]\n")
+        console.print(f"[dim]Author: WarmShao and Community Contributors [/dim]\n")
         
         # Check for existing browser path from configuration
         browser_path = get_browser_execution_path()
