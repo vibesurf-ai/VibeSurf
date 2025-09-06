@@ -857,6 +857,9 @@ class VibeSurfUIManager {
       
       this.elements.activityLog.appendChild(activityItem);
       activityItem.classList.add('fade-in');
+      
+      // Bind copy button functionality
+      this.bindCopyButtonEvent(activityItem, activityData);
     }
   }
 
@@ -890,11 +893,151 @@ class VibeSurfUIManager {
           <div class="message-content">
             ${this.formatActivityContent(agentMsg)}
           </div>
+          <button class="copy-message-btn" title="Copy message">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
+            </svg>
+          </button>
         </div>
       </div>
     `;
     
     return item;
+  }
+
+  bindCopyButtonEvent(activityItem, activityData) {
+    const copyBtn = activityItem.querySelector('.copy-message-btn');
+    
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        await this.copyMessageToClipboard(activityData);
+      });
+    }
+  }
+
+  async copyMessageToClipboard(activityData) {
+    try {
+      // Extract only the message content (no agent info or timestamps)
+      const agentMsg = activityData.agent_msg || activityData.message || activityData.action_description || 'No description';
+      
+      // Convert to plain text
+      let messageText = '';
+      if (typeof agentMsg === 'object') {
+        messageText = JSON.stringify(agentMsg, null, 2);
+      } else {
+        messageText = String(agentMsg);
+        // Strip HTML tags for plain text copy
+        messageText = messageText.replace(/<[^>]*>/g, '');
+        // Decode HTML entities
+        messageText = messageText
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
+          .replace(/<br\s*\/?>/gi, '\n')  // Convert <br> tags to newlines
+          .replace(/\s+/g, ' ')           // Normalize whitespace
+          .trim();                        // Remove leading/trailing whitespace
+      }
+      
+      // Check clipboard API availability
+      console.log('[UIManager] navigator.clipboard available:', !!navigator.clipboard);
+      console.log('[UIManager] writeText method available:', !!(navigator.clipboard && navigator.clipboard.writeText));
+      console.log('[UIManager] Document has focus:', document.hasFocus());
+      
+      // Try multiple clipboard methods
+      let copySuccess = false;
+      let lastError = null;
+      
+      // Method 1: Chrome extension messaging approach
+      try {
+        console.log('[UIManager] Trying Chrome extension messaging approach...');
+        await new Promise((resolve, reject) => {
+          chrome.runtime.sendMessage({
+            type: 'COPY_TO_CLIPBOARD',
+            text: messageText
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else if (response && response.success) {
+              resolve();
+            } else {
+              reject(new Error('Extension messaging copy failed'));
+            }
+          });
+        });
+        copySuccess = true;
+        console.log('[UIManager] Copied using Chrome extension messaging');
+      } catch (extensionError) {
+        console.warn('[UIManager] Chrome extension messaging failed:', extensionError);
+        lastError = extensionError;
+      }
+      
+      // Method 2: Modern clipboard API (if extension method failed)
+      if (!copySuccess && navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          console.log('[UIManager] Trying modern clipboard API...');
+          await navigator.clipboard.writeText(messageText);
+          copySuccess = true;
+          console.log('[UIManager] Copied using modern clipboard API');
+        } catch (clipboardError) {
+          console.warn('[UIManager] Modern clipboard API failed:', clipboardError);
+          lastError = clipboardError;
+        }
+      }
+      
+      // Method 3: Fallback using execCommand
+      if (!copySuccess) {
+        try {
+          console.log('[UIManager] Trying execCommand fallback...');
+          const textArea = document.createElement('textarea');
+          textArea.value = messageText;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-999999px';
+          textArea.style.top = '-999999px';
+          textArea.style.opacity = '0';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          textArea.setSelectionRange(0, textArea.value.length);
+          
+          const success = document.execCommand('copy');
+          document.body.removeChild(textArea);
+          
+          if (success) {
+            copySuccess = true;
+            console.log('[UIManager] Copied using execCommand fallback');
+          } else {
+            console.warn('[UIManager] execCommand returned false');
+          }
+        } catch (execError) {
+          console.warn('[UIManager] execCommand fallback failed:', execError);
+          lastError = execError;
+        }
+      }
+      
+      if (copySuccess) {
+        // Show visual feedback
+        this.showCopyFeedback();
+        console.log('[UIManager] Copy operation completed successfully');
+      } else {
+        throw new Error(`All clipboard methods failed. Last error: ${lastError?.message || 'Unknown error'}`);
+      }
+      
+    } catch (error) {
+      console.error('[UIManager] Failed to copy message:', error);
+      this.showNotification('Copy Fail: ' + error.message, 'error');
+    }
+  }
+
+  showCopyFeedback() {
+    // Show a brief success notification
+    this.showNotification('Message copied to clipboard!', 'success');
   }
 
   getStatusIcon(status) {
@@ -913,7 +1056,7 @@ class VibeSurfUIManager {
       case 'running':
         return '🔄';
       case 'request':
-        return '💡';
+        return '';
       default:
         return '💡';
     }

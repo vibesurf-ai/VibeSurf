@@ -189,6 +189,58 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* Copy Message Button */
+.copy-message-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+
+.copy-message-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+  transform: scale(1.05);
+}
+
+.copy-message-btn:active {
+  transform: scale(0.95);
+}
+
+.copy-message-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Show copy button on message bubble hover */
+.message-bubble:hover .copy-message-btn {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* User bubble copy button styling */
+.user-bubble .copy-message-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.user-bubble .copy-message-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 .user-bubble {
   background-color: var(--primary-color);
   color: white;
