@@ -473,7 +473,12 @@ async def _supervisor_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
     browser_tabs_md = format_browser_tabs(browser_tabs)
     if browser_tabs_md:
         supervisor_message_history.append(UserMessage(
-            content=f"Available Browser Tabs:\n{browser_tabs_md}"))
+            content=f"Available Browser Tabs:\n{browser_tabs_md}\n"))
+    active_browser_tab = await state.browser_manager.get_activate_tab()
+    if active_browser_tab:
+        active_tab_md = f"Page Title: {active_browser_tab.title}, Page Url: {active_browser_tab.url}, Page ID: {active_browser_tab.target_id}"
+        supervisor_message_history.append(UserMessage(
+            content=f"Current Active Browser Tab:\n{active_tab_md}\n"))
 
     # Reset prev_browser_results
     state.prev_browser_results = []
@@ -536,22 +541,27 @@ async def _supervisor_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
             if tasks_to_execute:
                 tasks_to_execute_new = []
                 todo_indices = []  # Track which todo items are being executed
-                
                 for task_item in tasks_to_execute:
                     if isinstance(task_item, list):
                         # Format: [page_index, todo_index]
                         page_index, todo_index = task_item
-                        if todo_index < len(state.todo_list):
-                            task_description = state.todo_list[todo_index].task
-                            tasks_to_execute_new.append([browser_tabs[page_index].target_id, task_description])
-                            todo_indices.append(todo_index)
+                        if isinstance(todo_index, int):
+                            if todo_index < len(state.todo_list):
+                                task_description = state.todo_list[todo_index].task
+                                tasks_to_execute_new.append([browser_tabs[page_index].target_id, task_description])
+                                todo_indices.append(todo_index)
+                        elif isinstance(todo_index, str):
+                            tasks_to_execute_new.append([browser_tabs[page_index].target_id, todo_index])
                     else:
                         # Format: todo_index
                         todo_index = task_item
-                        if todo_index < len(state.todo_list):
-                            task_description = state.todo_list[todo_index].task
-                            tasks_to_execute_new.append(task_description)
-                            todo_indices.append(todo_index)
+                        if isinstance(todo_index, int):
+                            if todo_index < len(state.todo_list):
+                                task_description = state.todo_list[todo_index].task
+                                tasks_to_execute_new.append(task_description)
+                                todo_indices.append(todo_index)
+                        elif isinstance(todo_index, str):
+                            tasks_to_execute_new.append(todo_index)
                 
                 state.execution_mode = ExecutionMode(
                     mode=task_type,
@@ -795,7 +805,7 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                 browser_session=agent_browser_sessions[i],
                 controller=state.vibesurf_controller,
                 task_id=f"{state.task_id}-{i + 1}",
-                file_system_path=state.task_dir,
+                file_system_path=os.path.join(state.task_dir, f"{state.task_id}-{i + 1}"),
                 register_new_step_callback=step_callback,
                 extend_system_message="Please make sure the language of your output in JSON value should remain the same as the user's request or task.",
             )
@@ -867,17 +877,17 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> List[BrowserTask
     for i, task in enumerate(state.pending_tasks):
         if isinstance(task, list):
             target_id, task_description = task
+            await state.browser_manager.main_browser_session.get_or_create_cdp_session(target_id, focus=True)
         else:
             task_description = task
+            await state.browser_manager.get_activate_tab()
         logger.info(f"🔄 Executing task ({i + 1}/{len(state.pending_tasks)}): {task_description}")
 
         agent_id = f"agent-single-{state.task_id[-4:]}-{i}"
 
         # Log agent activity
         log_agent_activity(state, f"browser_use_agent-{state.task_id[-4:]}", "working", f"{task_description}")
-
         try:
-            await state.browser_manager._get_active_target()
             if state.upload_files:
                 upload_files_md = format_upload_files_list(state.upload_files)
                 bu_task = task_description + f"\nAvailable user uploaded files:\n{upload_files_md}\n"
@@ -893,7 +903,7 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> List[BrowserTask
                 browser_session=state.browser_manager.main_browser_session,
                 controller=state.vibesurf_controller,
                 task_id=f"{state.task_id}-{i}",
-                file_system_path=state.task_dir,
+                file_system_path=os.path.join(state.task_dir, f"{state.task_id}-{i}"),
                 register_new_step_callback=step_callback,
                 extend_system_message="Please make sure the language of your output in JSON values should remain the same as the user's request or task."
             )

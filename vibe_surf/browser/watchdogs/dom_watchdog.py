@@ -73,49 +73,49 @@ class CustomDOMWatchdog(DOMWatchdog):
 
         try:
             # Fast path for empty pages
-            if not_a_meaningful_website:
-                self.logger.debug(f'⚡ Skipping BuildDOMTree for empty target: {page_url}')
-                self.logger.info(f'📸 Not taking screenshot for empty page: {page_url} (non-http/https URL)')
-
-                # Create minimal DOM state
-                content = SerializedDOMState(_root=None, selector_map={})
-
-                # Skip screenshot for empty pages
-                screenshot_b64 = None
-
-                # Try to get page info from CDP, fall back to defaults if unavailable
-                try:
-                    page_info = await self._get_page_info()
-                except Exception as e:
-                    self.logger.debug(f'Failed to get page info from CDP for empty page: {e}, using fallback')
-                    # Use default viewport dimensions
-                    viewport = self.browser_session.browser_profile.viewport or {'width': 1280, 'height': 720}
-                    page_info = PageInfo(
-                        viewport_width=viewport['width'],
-                        viewport_height=viewport['height'],
-                        page_width=viewport['width'],
-                        page_height=viewport['height'],
-                        scroll_x=0,
-                        scroll_y=0,
-                        pixels_above=0,
-                        pixels_below=0,
-                        pixels_left=0,
-                        pixels_right=0,
-                    )
-
-                return BrowserStateSummary(
-                    dom_state=content,
-                    url=page_url,
-                    title='Empty Tab',
-                    tabs=tabs_info,
-                    screenshot=screenshot_b64,
-                    page_info=page_info,
-                    pixels_above=0,
-                    pixels_below=0,
-                    browser_errors=[],
-                    is_pdf_viewer=False,
-                    recent_events=self._get_recent_events_str() if include_recent_events else None,
-                )
+            # if not_a_meaningful_website:
+            #     self.logger.debug(f'⚡ Skipping BuildDOMTree for empty target: {page_url}')
+            #     self.logger.info(f'📸 Not taking screenshot for empty page: {page_url} (non-http/https URL)')
+            #
+            #     # Create minimal DOM state
+            #     content = SerializedDOMState(_root=None, selector_map={})
+            #
+            #     # Skip screenshot for empty pages
+            #     screenshot_b64 = None
+            #
+            #     # Try to get page info from CDP, fall back to defaults if unavailable
+            #     try:
+            #         page_info = await self._get_page_info()
+            #     except Exception as e:
+            #         self.logger.debug(f'Failed to get page info from CDP for empty page: {e}, using fallback')
+            #         # Use default viewport dimensions
+            #         viewport = self.browser_session.browser_profile.viewport or {'width': 1280, 'height': 720}
+            #         page_info = PageInfo(
+            #             viewport_width=viewport['width'],
+            #             viewport_height=viewport['height'],
+            #             page_width=viewport['width'],
+            #             page_height=viewport['height'],
+            #             scroll_x=0,
+            #             scroll_y=0,
+            #             pixels_above=0,
+            #             pixels_below=0,
+            #             pixels_left=0,
+            #             pixels_right=0,
+            #         )
+            #
+            #     return BrowserStateSummary(
+            #         dom_state=content,
+            #         url=page_url,
+            #         title='Empty Tab',
+            #         tabs=tabs_info,
+            #         screenshot=screenshot_b64,
+            #         page_info=page_info,
+            #         pixels_above=0,
+            #         pixels_below=0,
+            #         browser_errors=[],
+            #         is_pdf_viewer=False,
+            #         recent_events=self._get_recent_events_str() if include_recent_events else None,
+            #     )
 
             # Execute DOM building and screenshot capture in parallel
             dom_task = None

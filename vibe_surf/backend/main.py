@@ -57,7 +57,7 @@ async def monitor_browser_connection():
     """Background task to monitor browser connection"""
     while True:
         try:
-            await asyncio.sleep(1)  # Check every 1 second
+            await asyncio.sleep(2)  # Check every 1 second
             
             if shared_state.browser_manager:
                 is_connected = await shared_state.browser_manager.check_browser_connected()

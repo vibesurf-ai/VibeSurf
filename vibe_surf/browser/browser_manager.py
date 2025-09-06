@@ -62,7 +62,7 @@ class BrowserManager:
             agent_session._cdp_client_root = await self._get_root_cdp_client()
             logger.info(f"🚀 Starting agent session for {agent_id} to initialize watchdogs...")
             await agent_session.start()
-            
+
             self._agent_sessions[agent_id] = agent_session
         await self.assign_target_to_agent(agent_id, target_id)
         return agent_session
@@ -89,7 +89,7 @@ class BrowserManager:
         # Get or create available target
         if target_id is None:
             new_target = await self.main_browser_session.cdp_client.send.Target.createTarget(
-                params={'url': ''})
+                params={'url': 'about:blank'})
             target_id = new_target["targetId"]
 
         await agent_session.connect_agent(target_id=target_id)
@@ -180,133 +180,82 @@ class BrowserManager:
         import aiohttp
 
         if not self.main_browser_session:
+            logger.info("No Main browser session available.")
             return False
 
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                        f'{self.main_browser_session.cdp_url}/json/version',
-                        timeout=2
-                ) as resp:
-                    return resp.status == 200
-        except:
-            return False
-
-    async def _is_target_focused(self, target_id: str) -> bool:
-        """Check if a given target has focus using multiple detection methods."""
-        client = self.main_browser_session.cdp_client
-        session_id = None
-
-        try:
-            # Use document.visibilityState and document.hasFocus()
-            attach_result = await client.send.Target.attachToTarget(
-                params={"targetId": target_id, "flatten": True}
-            )
-            session_id = attach_result["sessionId"]
-
-            # Check both visibility and focus
-            combined_script = """
-            ({
-                hasFocus: document.hasFocus(),
-                visibilityState: document.visibilityState,
-                hidden: document.hidden,
-                activeElement: document.activeElement ? document.activeElement.tagName : null,
-                timestamp: Date.now()
-            })
-            """
-
-            eval_result = await client.send.Runtime.evaluate(
-                params={
-                    "expression": combined_script,
-                    "returnByValue": True
-                },
-                session_id=session_id
-            )
-
-            # Detach immediately after checking
-            await client.send.Target.detachFromTarget(
-                params={"sessionId": session_id}
-            )
-            session_id = None
-
-            if "result" in eval_result and "value" in eval_result["result"]:
-                focus_data = eval_result["result"]["value"]
-                has_focus = focus_data.get("hasFocus", False)
-                visibility_state = focus_data.get("visibilityState", "")
-                is_hidden = focus_data.get("hidden", True)
-
-                # A target is considered focused if:
-                # 1. Document has focus OR
-                # 2. Document is visible (not hidden)
-                is_focused = has_focus or (visibility_state == "visible" and not is_hidden)
-                return is_focused
-            else:
-                return False
-
-        except Exception:
-            if session_id:
-                try:
-                    await client.send.Target.detachFromTarget(
-                        params={"sessionId": session_id}
-                    )
-                except Exception:
-                    pass  # Ignore cleanup errors
-            return False
+        for _ in range(5):
+            try:
+                targets = await self.main_browser_session.cdp_client.send.Target.getTargets()
+                await asyncio.sleep(1)
+                return len(targets) > 0
+            except Exception as e:
+                logger.error(f"Connect failed: {e}")
+        return False
 
     async def _get_active_target(self) -> str:
         """Get current focused target, or an available target, or create a new one."""
-        client = self.main_browser_session.cdp_client
-        targets_info = await client.send.Target.getTargets()
-        page_targets = [t for t in targets_info["targetInfos"] if t["type"] == "page"]
-
+        tab_infos = await self.get_all_tabs()
         # 1. Check for a focused page among ALL pages (not just unassigned)
-        for target in page_targets:
-            target_id = target["targetId"]
+        for tab_info in tab_infos:
+            target_id = tab_info.target_id
             try:
-                is_focused = await self._is_target_focused(target_id)
-                if is_focused:
-                    return target_id
+                simple_check = """
+                            ({
+                                hasFocus: document.hasFocus(),
+                                isVisible: document.visibilityState === 'visible',
+                                notHidden: !document.hidden
+                            })
+                            """
+                cdb_session = await self.main_browser_session.get_or_create_cdp_session(target_id, focus=False,
+                                                                                        new_socket=None)
+                eval_result = await cdb_session.cdp_client.send.Runtime.evaluate(
+                    params={
+                        "expression": simple_check,
+                        "returnByValue": True
+                    },
+                    session_id=cdb_session.session_id
+                )
+                if "result" in eval_result and "value" in eval_result["result"]:
+                    data = eval_result["result"]["value"]
+                    is_visible = data.get("isVisible", False)
+                    not_hidden = data.get("notHidden", False)
+                    if is_visible and not_hidden:
+                        return target_id
             except Exception as e:
+                logger.warning(f"Get active target {e}")
                 continue  # Skip invalid targets
 
         # 2. If no pages are available, create a new one
-        if page_targets:
-            target_id = page_targets[-1]["targetId"]
+        if tab_infos:
+            target_id = tab_infos[0].target_id
         else:
-            new_target = await client.send.Target.createTarget(params={'url': ''})
-            target_id = new_target["targetId"]
-        await self.main_browser_session.get_or_create_cdp_session(target_id, focus=False)
+            target_id = await self.main_browser_session.navigate_to_url(url="about:blank", new_tab=True)
         return target_id
 
-    async def _get_activate_tab_info(self) -> Optional[TabInfo]:
+    async def get_activate_tab(self) -> Optional[TabInfo]:
         """Get tab information for the currently active target."""
         try:
             # Get the active target ID
             active_target_id = await self._get_active_target()
-
+            if active_target_id is None:
+                return None
             # Get target information from CDP
-            client = self.main_browser_session.cdp_client
-            targets_info = await client.send.Target.getTargets()
+            tab_infos = await self.get_all_tabs()
 
             # Find the active target in the targets list
-            for target in targets_info["targetInfos"]:
-                if target["targetId"] == active_target_id and target["type"] == "page":
-                    # Get additional target info for title if needed
-                    try:
-                        target_info = await client.send.Target.getTargetInfo(
-                            params={'targetId': active_target_id}
-                        )
-                        target_details = target_info.get('targetInfo', target)
-                    except Exception:
-                        target_details = target
-
+            for tab_info in tab_infos:
+                if tab_info.target_id == active_target_id:
+                    await self.main_browser_session.get_or_create_cdp_session(active_target_id, focus=True)
                     # Create TabInfo object
                     return TabInfo(
-                        url=target_details.get('url', ''),
-                        title=target_details.get('title', ''),
+                        url=tab_info.url,
+                        title=tab_info.title,
                         target_id=active_target_id
                     )
-
             return None
         except Exception:
             return None
+
+    async def get_all_tabs(self) -> list[TabInfo]:
+        tabs = await self.main_browser_session.get_tabs()
+        return tabs
