@@ -39,8 +39,24 @@ uv pip install vibesurf -U
 
 ### Step 3: Launch
 ```bash
-vibesurf
+uv run vibesurf
 ```
+
+## 🗺️ Roadmap
+
+### 🤖 Agent Enhancements
+
+- **VibeSurf Agent Refactoring**: Remove LangGraph framework dependency to make the agent more flexible and powerful
+- **Advanced Coding Agent**: Design a powerful coding agent capable of handling and analyzing complex data, generating charts and visualizations. Combined with VibeSurf agent, this will create a "local Manus" experience
+- **Enhanced Report Writer Agent**: Optimize the report writer to generate more visually appealing reports with rich graphics and illustrations
+- **Global Memory System**: Implement global memory capabilities to make VibeSurf understand and adapt to user preferences better
+
+### 🧩 Extension Features
+
+- **Enhanced Tab Management**: Add @specific tab handling with `/research` and `/deep_research` specialized task commands
+- **Smart Text Processing**: Implement word/paragraph translation, summarization, and explanation features for selected content
+- **Local Credential Management**: Add secure credential configuration system to keep your privacy data stored locally
+
 
 ## 🎬 Demo
 
