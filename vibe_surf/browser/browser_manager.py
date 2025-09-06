@@ -176,6 +176,22 @@ class BrowserManager:
         """Async context manager exit."""
         await self.close()
 
+    async def check_browser_connected(self):
+        import aiohttp
+
+        if not self.main_browser_session:
+            return False
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                        f'{self.main_browser_session.cdp_url}/json/version',
+                        timeout=1
+                ) as resp:
+                    return resp.status == 200
+        except:
+            return False
+
     async def _is_target_focused(self, target_id: str) -> bool:
         """Check if a given target has focus using multiple detection methods."""
         client = self.main_browser_session.cdp_client

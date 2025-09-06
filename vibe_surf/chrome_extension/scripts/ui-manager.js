@@ -1056,7 +1056,7 @@ class VibeSurfUIManager {
       case 'running':
         return '🔄';
       case 'request':
-        return '';
+        return '💡';
       default:
         return '💡';
     }

@@ -18,6 +18,7 @@ from .api.task import router as agents_router
 from .api.files import router as files_router
 from .api.activity import router as activity_router
 from .api.config import router as config_router
+from .api.browser import router as browser_router
 
 # Import shared state
 from . import shared_state
@@ -46,6 +47,7 @@ app.include_router(agents_router, prefix="/api", tags=["tasks"])
 app.include_router(files_router, prefix="/api", tags=["files"])
 app.include_router(activity_router, prefix="/api", tags=["activity"])
 app.include_router(config_router, prefix="/api", tags=["config"])
+app.include_router(browser_router, prefix="/api", tags=["browser"])
 
 @app.on_event("startup")
 async def startup_event():
@@ -77,6 +79,12 @@ async def shutdown_event():
 @app.get("/health")
 async def health_check():
     """API health check"""
+    from .shared_state import browser_manager
+    if browser_manager:
+        is_connected = await browser_manager.check_browser_connected()
+        if not is_connected:
+            logger.error("No Available Browser, Exiting...")
+            exit(1)
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
