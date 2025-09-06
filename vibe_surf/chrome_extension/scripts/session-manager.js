@@ -7,7 +7,7 @@ class VibeSurfSessionManager {
     this.currentSession = null;
     this.activityLogs = [];
     this.pollingInterval = null;
-    this.pollingFrequency = 1000; // 1 second
+    this.pollingFrequency = 300; // 300ms for faster response
     this.isPolling = false;
     this.eventListeners = new Map();
     
@@ -201,8 +201,8 @@ class VibeSurfSessionManager {
     }
 
     try {
-      console.log('[SessionManager] 🔄 Syncing activity logs before task submission...');
-      await this.syncActivityLogsFromServer();
+      // Start polling immediately for faster response
+      this.startActivityPolling();
 
       const taskPayload = {
         session_id: this.currentSession.id,
@@ -219,9 +219,6 @@ class VibeSurfSessionManager {
         status: 'submitted',
         submittedAt: new Date().toISOString()
       };
-
-      // Start activity polling
-      this.startActivityPolling();
 
       // Store updated session
       await this.storeSessionData();
@@ -358,8 +355,7 @@ class VibeSurfSessionManager {
 
       if (response && activityLog) {
         const prevActivityLog = this.activityLogs.length > 0 ? this.activityLogs[this.activityLogs.length - 1] : null;
-        
-        // 检查是否为新的、不重复的activity log
+
         const isNewLog = !prevActivityLog || !this.areLogsEqual(prevActivityLog, activityLog);
         
         if (isNewLog) {

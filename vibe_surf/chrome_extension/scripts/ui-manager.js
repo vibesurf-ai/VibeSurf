@@ -569,6 +569,9 @@ class VibeSurfUIManager {
     }
     
     try {
+      // Immediately clear welcome message and show user request
+      this.clearWelcomeMessage();
+      
       const taskData = {
         task_description: taskDescription,
         llm_profile_name: llmProfile
@@ -747,6 +750,15 @@ class VibeSurfUIManager {
   clearActivityLog() {
     if (this.elements.activityLog) {
       this.elements.activityLog.innerHTML = '';
+    }
+  }
+
+  clearWelcomeMessage() {
+    if (this.elements.activityLog) {
+      const welcomeMsg = this.elements.activityLog.querySelector('.welcome-message');
+      if (welcomeMsg) {
+        welcomeMsg.remove();
+      }
     }
   }
 
@@ -969,22 +981,11 @@ class VibeSurfUIManager {
         const preProcessedFileLinkRegex = /<a href="(file:\/\/[^"]+)"[^>]*class="file-link-markdown"[^>]*>([^<]*)<\/a>/g;
         processedContent = processedContent.replace(preProcessedFileLinkRegex, (match, fileUrl, linkText) => {
           try {
-            // Decode and fix the file URL
-            let decodedUrl = decodeURIComponent(fileUrl);
-            let cleanPath = decodedUrl.replace(/^file:\/\/\//, '').replace(/^file:\/\//, '');
-            cleanPath = cleanPath.replace(/\\/g, '/');
+            // Keep original URL but properly escape HTML attributes
+            // Don't decode/encode to preserve original spaces and special characters
+            const escapedUrl = fileUrl.replace(/"/g, '&quot;');
             
-            // Ensure path starts with / for Unix paths or has drive letter for Windows
-            if (!cleanPath.startsWith('/') && !cleanPath.match(/^[A-Za-z]:/)) {
-              cleanPath = '/' + cleanPath;
-            }
-            
-            // Recreate proper file URL - always use triple slash for proper format
-            let fixedUrl = cleanPath.match(/^[A-Za-z]:/) ?
-              `file:///${cleanPath}` :
-              `file://${cleanPath}`;
-            
-            return `<a href="#" class="file-link" data-file-path="${fixedUrl}" title="Click to open file">${linkText}</a>`;
+            return `<a href="#" class="file-link" data-file-path="${escapedUrl}" title="Click to open file: ${linkText}">${linkText}</a>`;
           } catch (error) {
             console.error('[UIManager] Error processing pre-processed file:// link:', error);
             return match;
