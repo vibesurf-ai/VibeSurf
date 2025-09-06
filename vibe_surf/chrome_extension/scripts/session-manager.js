@@ -201,8 +201,18 @@ class VibeSurfSessionManager {
     }
 
     try {
-      // Start polling immediately for faster response
-      this.startActivityPolling();
+      // Stop any existing polling before starting new task
+      this.stopActivityPolling();
+      
+      // Reset activity logs for new task to ensure proper index synchronization
+      this.activityLogs = [];
+      
+      // Sync with server logs to get the correct starting state
+      try {
+        await this.syncActivityLogsFromServer();
+      } catch (error) {
+        this.activityLogs = [];
+      }
 
       const taskPayload = {
         session_id: this.currentSession.id,
@@ -222,6 +232,9 @@ class VibeSurfSessionManager {
 
       // Store updated session
       await this.storeSessionData();
+
+      // Start polling after task submission and sync
+      this.startActivityPolling();
 
       this.emit('taskSubmitted', {
         sessionId: this.currentSession.id,
@@ -270,6 +283,13 @@ class VibeSurfSessionManager {
         await this.storeSessionData();
       }
 
+      // Sync activity logs before resuming polling to ensure index consistency
+      try {
+        await this.syncActivityLogsFromServer();
+      } catch (error) {
+        // Continue with existing logs if sync fails
+      }
+
       // Restart polling when task is resumed
       this.startActivityPolling();
 
@@ -295,6 +315,13 @@ class VibeSurfSessionManager {
 
       // Stop polling when task is stopped
       this.stopActivityPolling();
+      
+      // Sync final activity logs to capture any termination messages
+      try {
+        await this.syncActivityLogsFromServer();
+      } catch (error) {
+        // Continue if sync fails
+      }
 
       this.emit('taskStopped', { sessionId: this.currentSession?.id, response });
       

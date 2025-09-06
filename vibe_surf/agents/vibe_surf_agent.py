@@ -562,7 +562,7 @@ async def _supervisor_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                                 todo_indices.append(todo_index)
                         elif isinstance(todo_index, str):
                             tasks_to_execute_new.append(todo_index)
-                
+                logger.info(f"tasks_to_execute: {tasks_to_execute}")
                 state.execution_mode = ExecutionMode(
                     mode=task_type,
                     reason=reasoning
