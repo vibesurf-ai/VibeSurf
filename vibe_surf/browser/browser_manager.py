@@ -186,7 +186,7 @@ class BrowserManager:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
                         f'{self.main_browser_session.cdp_url}/json/version',
-                        timeout=1
+                        timeout=2
                 ) as resp:
                     return resp.status == 200
         except:

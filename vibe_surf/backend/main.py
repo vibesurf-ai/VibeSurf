@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 import argparse
 import os
+import asyncio
 from datetime import datetime
 
 # Import routers
@@ -49,17 +50,84 @@ app.include_router(activity_router, prefix="/api", tags=["activity"])
 app.include_router(config_router, prefix="/api", tags=["config"])
 app.include_router(browser_router, prefix="/api", tags=["browser"])
 
+# Global variable to control browser monitoring task
+browser_monitor_task = None
+
+async def monitor_browser_connection():
+    """Background task to monitor browser connection"""
+    while True:
+        try:
+            await asyncio.sleep(1)  # Check every 1 second
+            
+            if shared_state.browser_manager:
+                is_connected = await shared_state.browser_manager.check_browser_connected()
+                if not is_connected:
+                    logger.error("No Available Browser, Exiting...")
+                    
+                    # Schedule a graceful shutdown using os.kill in a separate thread
+                    import threading
+                    import signal
+                    import os
+                    
+                    def trigger_shutdown():
+                        try:
+                            # Give a brief moment for any cleanup
+                            import time
+                            time.sleep(0.5)
+                            # Send SIGTERM to current process for graceful shutdown
+                            os.kill(os.getpid(), signal.SIGTERM)
+                        except Exception as e:
+                            logger.error(f"Error during shutdown trigger: {e}")
+                            # Fallback to SIGKILL if SIGTERM doesn't work
+                            try:
+                                os.kill(os.getpid(), signal.SIGKILL)
+                            except:
+                                pass
+                    
+                    # Start shutdown in a separate thread to avoid blocking the async loop
+                    shutdown_thread = threading.Thread(target=trigger_shutdown)
+                    shutdown_thread.daemon = True
+                    shutdown_thread.start()
+                    
+                    # Exit the monitoring loop
+                    break
+                    
+        except asyncio.CancelledError:
+            logger.info("Browser monitor task cancelled")
+            break
+        except Exception as e:
+            logger.warning(f"Browser monitor error: {e}")
+            # Continue monitoring even if there's an error
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and VibeSurf components on startup"""
+    global browser_monitor_task
+    
     # Initialize VibeSurf components and update shared state
     await shared_state.initialize_vibesurf_components()
+
+    # Start browser monitoring task
+    browser_monitor_task = asyncio.create_task(monitor_browser_connection())
+    logger.info("🔍 Started browser connection monitor")
 
     logger.info("🚀 VibeSurf Backend API started with single-task execution model")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown"""
+    global browser_monitor_task
+    
+    logger.info("🛑 Starting graceful shutdown...")
+    
+    # Cancel browser monitor task
+    if browser_monitor_task and not browser_monitor_task.done():
+        browser_monitor_task.cancel()
+        try:
+            await asyncio.wait_for(browser_monitor_task, timeout=2.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            pass
+        logger.info("✅ Browser monitor task stopped")
     
     # Cleanup VibeSurf components
     if shared_state.browser_manager:
@@ -72,19 +140,18 @@ async def shutdown_event():
     
     # Close database
     if shared_state.db_manager:
-        await shared_state.db_manager.close()
+        try:
+            await shared_state.db_manager.close()
+            logger.info("✅ Database manager closed")
+        except Exception as e:
+            logger.error(f"❌ Error closing database manager: {e}")
+    
     logger.info("🛑 VibeSurf Backend API stopped")
 
 # Health check endpoint
 @app.get("/health")
 async def health_check():
     """API health check"""
-    from .shared_state import browser_manager
-    if browser_manager:
-        is_connected = await browser_manager.check_browser_connected()
-        if not is_connected:
-            logger.error("No Available Browser, Exiting...")
-            exit(1)
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
