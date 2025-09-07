@@ -22,7 +22,9 @@ import numpy as np
 from typing import Optional, Tuple, List, Any
 import io
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 # List of common font file names (Prioritize preferred ones first)

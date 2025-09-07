@@ -25,7 +25,9 @@ from ..shared_state import (
     browser_manager
 )
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -80,12 +82,12 @@ async def submit_task(
         mcp_server_config = task_request.mcp_server_config
         if not mcp_server_config and controller and hasattr(controller, 'mcp_server_config'):
             mcp_server_config = controller.mcp_server_config
-        
+
         # Ensure we have a valid MCP server config (never None)
         if mcp_server_config is None:
             mcp_server_config = {"mcpServers": {}}
             logger.info("Using default empty MCP server configuration")
-        
+
         # DEBUG: Log the type and content of mcp_server_config
         logger.info(f"mcp_server_config type: {type(mcp_server_config)}, value: {mcp_server_config}")
 
@@ -140,13 +142,13 @@ async def _ensure_llm_initialized(llm_profile):
     """Ensure LLM is initialized with the specified profile"""
     from ..utils.llm_factory import create_llm_from_profile
     from ..shared_state import vibesurf_agent
-    
+
     if not vibesurf_agent:
         raise HTTPException(status_code=503, detail="VibeSurf agent not initialized")
-    
+
     # Always create new LLM instance to ensure we're using the right profile
     new_llm = create_llm_from_profile(llm_profile)
-    
+
     # Update vibesurf agent's LLM
     vibesurf_agent.llm = new_llm
     logger.info(f"LLM updated for profile: {llm_profile['profile_name']}")

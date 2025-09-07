@@ -10,7 +10,8 @@ from browser_use.mcp.client import MCPClient
 from mcp import ClientSession, StdioServerParameters, types
 from mcp.client.stdio import stdio_client
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+logger = get_logger(__name__)
 
 
 class VibeSurfMCPClient(MCPClient):

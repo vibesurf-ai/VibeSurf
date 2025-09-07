@@ -16,7 +16,9 @@ from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 if TYPE_CHECKING:
     from browser_use.browser.session import BrowserSession
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class BrowserManager:

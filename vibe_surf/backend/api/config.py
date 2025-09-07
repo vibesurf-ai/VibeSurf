@@ -18,7 +18,10 @@ from .models import (
 )
 
 router = APIRouter(prefix="/config", tags=["config"])
-logger = logging.getLogger(__name__)
+
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 def _profile_to_response_dict(profile) -> dict:
     """Convert SQLAlchemy LLMProfile to dict for Pydantic validation - safe extraction"""

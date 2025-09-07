@@ -11,7 +11,9 @@ from vibe_surf.agents.prompts.vibe_surf_prompt import (
     REPORT_FORMAT_PROMPT
 )
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class ReportWriterAgent:

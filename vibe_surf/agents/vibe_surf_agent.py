@@ -32,7 +32,9 @@ from vibe_surf.agents.prompts.vibe_surf_prompt import (
 from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.controller.vibesurf_tools import VibeSurfController
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class TodoItem(BaseModel):

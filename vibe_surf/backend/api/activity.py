@@ -14,7 +14,9 @@ from ..database import get_db_session
 from ..database.queries import TaskQueries
 from .models import ActivityQueryRequest, SessionActivityQueryRequest
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/activity", tags=["activity"])
 

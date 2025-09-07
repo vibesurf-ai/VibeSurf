@@ -11,7 +11,9 @@ import logging
 # Import global variables from shared_state
 from ..shared_state import browser_manager
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/browser", tags=["browser"])
 

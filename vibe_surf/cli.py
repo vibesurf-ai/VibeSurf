@@ -41,15 +41,8 @@ VIBESURF_LOGO = """
 console = Console()
 
 # Add logger import for the workspace directory logging
-try:
-    import logging
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.INFO)
-except ImportError:
-    class SimpleLogger:
-        def info(self, msg):
-            console.print(f"[dim]{msg}[/dim]")
-    logger = SimpleLogger()
+from vibe_surf.logger import get_logger
+logger = get_logger(__name__)
 
 
 def find_chrome_browser() -> Optional[str]:
@@ -348,19 +341,8 @@ def start_backend(port: int) -> None:
 def get_browser_execution_path() -> Optional[str]:
     """Get browser execution path from envs.json or environment variables."""
     # 1. Load environment variables
-    env_workspace_dir = os.getenv("VIBESURF_WORKSPACE", "")
-    if not env_workspace_dir or not env_workspace_dir.strip():
-        # Set default workspace directory based on OS
-        if platform.system() == "Windows":
-            default_workspace = os.path.join(os.environ.get("APPDATA", ""), "VibeSurf")
-        elif platform.system() == "Darwin":  # macOS
-            default_workspace = os.path.join(os.path.expanduser("~"), "Library", "Application Support", "VibeSurf")
-        else:  # Linux and others
-            default_workspace = os.path.join(os.path.expanduser("~"), ".vibesurf")
-        workspace_dir = default_workspace
-    else:
-        workspace_dir = env_workspace_dir
-    workspace_dir = os.path.abspath(workspace_dir)
+    from .common import get_workspace_dir
+    workspace_dir = get_workspace_dir()
     os.makedirs(workspace_dir, exist_ok=True)
     logger.info("WorkSpace directory: {}".format(workspace_dir))
 

@@ -43,7 +43,9 @@ from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.controller.views import HoverAction, ExtractionAction, FileExtractionAction
 from vibe_surf.controller.mcp_client import VibeSurfMCPClient
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 Context = TypeVar('Context')
 

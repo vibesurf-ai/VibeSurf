@@ -312,23 +312,11 @@ async def initialize_vibesurf_components():
     """Initialize VibeSurf components from environment variables and default LLM profile"""
     global vibesurf_agent, browser_manager, controller, llm, db_manager
     global workspace_dir, browser_execution_path, browser_user_data, envs
+    from vibe_surf import common
 
     try:
         # Load environment variables
-        env_workspace_dir = os.getenv("VIBESURF_WORKSPACE", "")
-        if not env_workspace_dir or not env_workspace_dir.strip():
-            # Set default workspace directory based on OS
-            if platform.system() == "Windows":
-                default_workspace = os.path.join(os.environ.get("APPDATA", ""), "VibeSurf")
-            elif platform.system() == "Darwin":  # macOS
-                default_workspace = os.path.join(os.path.expanduser("~"), "Library", "Application Support", "VibeSurf")
-            else:  # Linux and others
-                default_workspace = os.path.join(os.path.expanduser("~"), ".vibesurf")
-            workspace_dir = default_workspace
-        else:
-            workspace_dir = env_workspace_dir
-        workspace_dir = os.path.abspath(workspace_dir)
-        os.makedirs(workspace_dir, exist_ok=True)
+        workspace_dir = common.get_workspace_dir()
         logger.info("WorkSpace directory: {}".format(workspace_dir))
 
         # Load environment configuration from envs.json
