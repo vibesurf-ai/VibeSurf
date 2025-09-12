@@ -1,9 +1,35 @@
 import asyncio
 from pathlib import Path
 from browser_use.filesystem.file_system import FileSystem, FileSystemError, INVALID_FILENAME_ERROR_MESSAGE
+from browser_use.filesystem.file_system import BaseFile, MarkdownFile, TxtFile, JsonFile, CsvFile, PdfFile
 
 
 class CustomFileSystem(FileSystem):
+    def __init__(self, base_dir: str | Path, create_default_files: bool = True):
+        # Handle the Path conversion before calling super().__init__
+        self.base_dir = Path(base_dir) if isinstance(base_dir, str) else base_dir
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create and use a dedicated subfolder for all operations
+        self.data_dir = self.base_dir
+
+        self.data_dir.mkdir(exist_ok=True)
+
+        self._file_types: dict[str, type[BaseFile]] = {
+            'md': MarkdownFile,
+            'txt': TxtFile,
+            'json': JsonFile,
+            'csv': CsvFile,
+            'pdf': PdfFile,
+        }
+
+        self.files = {}
+        if create_default_files:
+            self.default_files = ['todo.md']
+            self._create_default_files()
+
+        self.extracted_content_count = 0
+
     async def read_file(self, full_filename: str, external_file: bool = False) -> str:
         """Read file content using file-specific read method and return appropriate message to LLM"""
         try:

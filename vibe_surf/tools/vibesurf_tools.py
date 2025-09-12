@@ -38,9 +38,9 @@ Context = TypeVar('Context')
 T = TypeVar('T', bound=BaseModel)
 
 
-class VibeSurfTools(Generic[Context]):
+class VibeSurfTools:
     def __init__(self, exclude_actions: list[str] = []):
-        self.registry = Registry[Context](exclude_actions)
+        self.registry = Registry(exclude_actions)
         self._register_file_actions()
         self.mcp_server_config = None
         self.mcp_clients = {}
