@@ -245,13 +245,13 @@ class LLMConfigResponse(BaseModel):
     available_providers: List[str] = []
 
 class ControllerConfigRequest(BaseModel):
-    """Request model for updating controller configuration"""
+    """Request model for updating tools configuration"""
     exclude_actions: Optional[List[str]] = Field(default=None, description="Actions to exclude from execution")
     max_actions_per_task: Optional[int] = Field(default=None, gt=0, description="Maximum actions per task")
     display_files_in_done_text: Optional[bool] = Field(default=None, description="Whether to display files in done text")
 
 class ControllerConfigResponse(BaseModel):
-    """Response model for controller configuration"""
+    """Response model for tools configuration"""
     exclude_actions: List[str] = []
     max_actions_per_task: int = 100
     display_files_in_done_text: bool = True

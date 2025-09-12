@@ -1,7 +1,7 @@
 """
 Configuration API endpoints for VibeSurf Backend
 
-Handles LLM Profile and controller configuration management.
+Handles LLM Profile and tools configuration management.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -657,7 +657,7 @@ async def get_configuration_status(db: AsyncSession = Depends(get_db_session)):
                 "default_profile": default_profile.profile_name if default_profile else None,
                 "has_default": default_profile is not None
             },
-            "controller": {
+            "tools": {
                 "initialized": shared_state.controller is not None
             },
             "browser_manager": {

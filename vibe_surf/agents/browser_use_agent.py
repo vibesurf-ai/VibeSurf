@@ -74,7 +74,7 @@ from browser_use.utils import (
 )
 
 from browser_use.agent.service import Agent, AgentHookFunc
-from vibe_surf.controller.file_system import CustomFileSystem
+from vibe_surf.tools.file_system import CustomFileSystem
 
 Context = TypeVar('Context')
 

@@ -58,7 +58,7 @@ class McpServerConfig(BaseModel):
     mcpServers: Dict[str, McpServerParams] = Field(default_factory=dict)
 
 class ControllerConfiguration(BaseModel):
-    """Schema for Task.mcp_server_config JSON field (legacy controller config)"""
+    """Schema for Task.mcp_server_config JSON field (legacy tools config)"""
     
     # Action control
     exclude_actions: List[str] = Field(default_factory=list)

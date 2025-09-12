@@ -30,7 +30,7 @@ from vibe_surf.agents.prompts.vibe_surf_prompt import (
     SUPERVISOR_AGENT_SYSTEM_PROMPT,
 )
 from vibe_surf.browser.browser_manager import BrowserManager
-from vibe_surf.controller.browser_use_tools import BrowserUseTools
+from vibe_surf.tools.browser_use_tools import BrowserUseTools
 
 from vibe_surf.logger import get_logger
 
@@ -111,7 +111,7 @@ class VibeSurfState:
     current_step: str = "task_analysis"
     is_simple_response: bool = False
 
-    # Supervisor Agent - Core controller with message history
+    # Supervisor Agent - Core tools with message history
     supervisor_message_history: List[BaseMessage] = field(default_factory=list)
     supervisor_action: Optional[str] = None
 
@@ -454,7 +454,7 @@ def format_browser_tabs(tabs: Optional[List[TabInfo]] = None) -> str:
 
 
 async def _supervisor_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
-    """Implementation of supervisor agent node - core workflow controller"""
+    """Implementation of supervisor agent node - core workflow tools"""
     logger.info("🎯 Supervisor Agent: Managing workflow and task coordination...")
 
     supervisor_message_history = state.supervisor_message_history
@@ -990,7 +990,7 @@ def should_continue(state: VibeSurfState) -> str:
 
 
 def create_vibe_surf_workflow() -> StateGraph:
-    """Create the simplified LangGraph workflow with supervisor agent as core controller"""
+    """Create the simplified LangGraph workflow with supervisor agent as core tools"""
 
     workflow = StateGraph(VibeSurfState)
 

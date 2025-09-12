@@ -12,7 +12,7 @@ load_dotenv()
 
 async def test_controller_with_mcp():
     import os
-    from vibe_surf.controller.browser_use_tools import VibeSurfController
+    from vibe_surf.tools.browser_use_tools import VibeSurfController
 
     mcp_server_config = {
         "mcpServers": {
@@ -71,7 +71,7 @@ async def test_controller_with_mcp():
     #     pid = int(result.split("\n")[0].split("PID")[-1].strip())
     #     pdb.set_trace()
     #     action_name = "mcp.desktop-commander.read_process_output"
-    #     action_info = controller.registry.registry.actions[action_name]
+    #     action_info = tools.registry.registry.actions[action_name]
     #     param_model = action_info.param_model
     #     print(param_model.model_json_schema())
     #     params = {"pid": pid}
@@ -80,7 +80,7 @@ async def test_controller_with_mcp():
     #     output_result = ""
     #     while True:
     #         time.sleep(1)
-    #         result = await controller.act(action_model)
+    #         result = await tools.act(action_model)
     #         result = result.extracted_content
     #         if result:
     #             output_result = result

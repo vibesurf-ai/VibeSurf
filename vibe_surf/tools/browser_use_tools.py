@@ -39,8 +39,9 @@ from browser_use.browser.views import BrowserError
 from browser_use.mcp.client import MCPClient
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.controller.views import HoverAction, ExtractionAction, FileExtractionAction
-from vibe_surf.controller.mcp_client import CustomMCPClient
+from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction
+from vibe_surf.tools.mcp_client import CustomMCPClient
+from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
@@ -55,17 +56,132 @@ class BrowserUseTools(Tools):
                  exclude_actions: list[str] = [],
                  output_model: type[T] | None = None,
                  display_files_in_done_text: bool = True,
-                 mcp_server_config: Optional[Dict[str, Any]] = None
                  ):
         super().__init__(exclude_actions=exclude_actions, output_model=output_model,
                          display_files_in_done_text=display_files_in_done_text)
         self._register_browser_actions()
         self._register_file_actions()
-        self.mcp_server_config = mcp_server_config
-        self.mcp_clients = {}
 
     def _register_browser_actions(self):
         """Register custom browser actions"""
+
+        @self.registry.action('Upload file to interactive element with file path', param_model=UploadFileAction)
+        async def upload_file_to_element(
+                params: UploadFileAction, browser_session: BrowserSession
+        ):
+
+            # For local browsers, ensure the file exists on the local filesystem
+            if browser_session.is_local:
+                if not os.path.exists(params.path):
+                    msg = f'File {params.path} does not exist'
+                    return ActionResult(error=msg)
+
+            # Get the selector map to find the node
+            selector_map = await browser_session.get_selector_map()
+            if params.index not in selector_map:
+                msg = f'Element with index {params.index} does not exist.'
+                return ActionResult(error=msg)
+
+            node = selector_map[params.index]
+
+            # Helper function to find file input near the selected element
+            def find_file_input_near_element(
+                    node: EnhancedDOMTreeNode, max_height: int = 3, max_descendant_depth: int = 3
+            ) -> EnhancedDOMTreeNode | None:
+                """Find the closest file input to the selected element."""
+
+                def find_file_input_in_descendants(n: EnhancedDOMTreeNode, depth: int) -> EnhancedDOMTreeNode | None:
+                    if depth < 0:
+                        return None
+                    if browser_session.is_file_input(n):
+                        return n
+                    for child in n.children_nodes or []:
+                        result = find_file_input_in_descendants(child, depth - 1)
+                        if result:
+                            return result
+                    return None
+
+                current = node
+                for _ in range(max_height + 1):
+                    # Check the current node itself
+                    if browser_session.is_file_input(current):
+                        return current
+                    # Check all descendants of the current node
+                    result = find_file_input_in_descendants(current, max_descendant_depth)
+                    if result:
+                        return result
+                    # Check all siblings and their descendants
+                    if current.parent_node:
+                        for sibling in current.parent_node.children_nodes or []:
+                            if sibling is current:
+                                continue
+                            if browser_session.is_file_input(sibling):
+                                return sibling
+                            result = find_file_input_in_descendants(sibling, max_descendant_depth)
+                            if result:
+                                return result
+                    current = current.parent_node
+                    if not current:
+                        break
+                return None
+
+            # Try to find a file input element near the selected element
+            file_input_node = find_file_input_near_element(node)
+
+            # If not found near the selected element, fallback to finding the closest file input to current scroll position
+            if file_input_node is None:
+                logger.info(
+                    f'No file upload element found near index {params.index}, searching for closest file input to scroll position'
+                )
+
+                # Get current scroll position
+                cdp_session = await browser_session.get_or_create_cdp_session()
+                try:
+                    scroll_info = await cdp_session.cdp_client.send.Runtime.evaluate(
+                        params={'expression': 'window.scrollY || window.pageYOffset || 0'},
+                        session_id=cdp_session.session_id
+                    )
+                    current_scroll_y = scroll_info.get('result', {}).get('value', 0)
+                except Exception:
+                    current_scroll_y = 0
+
+                # Find all file inputs in the selector map and pick the closest one to scroll position
+                closest_file_input = None
+                min_distance = float('inf')
+
+                for idx, element in selector_map.items():
+                    if browser_session.is_file_input(element):
+                        # Get element's Y position
+                        if element.absolute_position:
+                            element_y = element.absolute_position.y
+                            distance = abs(element_y - current_scroll_y)
+                            if distance < min_distance:
+                                min_distance = distance
+                                closest_file_input = element
+
+                if closest_file_input:
+                    file_input_node = closest_file_input
+                    logger.info(f'Found file input closest to scroll position (distance: {min_distance}px)')
+                else:
+                    msg = 'No file upload element found on the page'
+                    logger.error(msg)
+                    raise BrowserError(msg)
+                # TODO: figure out why this fails sometimes + add fallback hail mary, just look for any file input on page
+
+            # Dispatch upload file event with the file input node
+            try:
+                event = browser_session.event_bus.dispatch(UploadFileEvent(node=file_input_node, file_path=params.path))
+                await event
+                await event.event_result(raise_if_any=True, raise_if_none=False)
+                msg = f'Successfully uploaded file to index {params.index}'
+                logger.info(f'📁 {msg}')
+                return ActionResult(
+                    extracted_content=msg,
+                    long_term_memory=f'Uploaded file {params.path} to element {params.index}',
+                )
+            except Exception as e:
+                logger.error(f'Failed to upload file: {e}')
+                raise BrowserError(f'Failed to upload file: {e}')
 
         @self.registry.action(
             'Hover over an element',
@@ -361,6 +477,14 @@ Provide the extracted information in a clear, structured format."""
 
     def _register_file_actions(self):
         @self.registry.action(
+            'Replace old_str with new_str in file_name. old_str must exactly match the string to replace in original text. Recommended tool to mark completed items in todo.md or change specific contents in a file.'
+        )
+        async def replace_file_str(file_name: str, old_str: str, new_str: str, file_system: FileSystem):
+            result = await file_system.replace_file_str(file_name, old_str, new_str)
+            logger.info(f'💾 {result}')
+            return ActionResult(extracted_content=result, long_term_memory=result)
+
+        @self.registry.action(
             'Read file_name from file system. If this is a file not in current workspace dir, please provide an absolute path.')
         async def read_file(file_name: str, file_system: FileSystem):
             if not os.path.exists(file_name):
@@ -501,7 +625,8 @@ Provide the extracted information in a clear, structured format."""
         @self.registry.action(
             'Copy a file to the FileSystem. Set external_src=True to copy from external file system to FileSystem, False to copy within FileSystem.'
         )
-        async def copy_file(src_filename: str, dst_filename: str, file_system: FileSystem, external_src: bool = False):
+        async def copy_file(src_filename: str, dst_filename: str, file_system: CustomFileSystem,
+                            external_src: bool = False):
             result = await file_system.copy_file(src_filename, dst_filename, external_src)
             logger.info(f'📁 {result}')
             return ActionResult(
@@ -513,7 +638,7 @@ Provide the extracted information in a clear, structured format."""
         @self.registry.action(
             'Rename a file within the FileSystem from old_filename to new_filename.'
         )
-        async def rename_file(old_filename: str, new_filename: str, file_system: FileSystem):
+        async def rename_file(old_filename: str, new_filename: str, file_system: CustomFileSystem):
             result = await file_system.rename_file(old_filename, new_filename)
             logger.info(f'📁 {result}')
             return ActionResult(
@@ -525,7 +650,7 @@ Provide the extracted information in a clear, structured format."""
         @self.registry.action(
             'Move a file within the FileSystem from old_filename to new_filename.'
         )
-        async def move_file(old_filename: str, new_filename: str, file_system: FileSystem):
+        async def move_file(old_filename: str, new_filename: str, file_system: CustomFileSystem):
             result = await file_system.move_file(old_filename, new_filename)
             logger.info(f'📁 {result}')
             return ActionResult(
@@ -533,86 +658,3 @@ Provide the extracted information in a clear, structured format."""
                 include_in_memory=True,
                 long_term_memory=result,
             )
-
-    async def register_mcp_clients(self, mcp_server_config: Optional[Dict[str, Any]] = None):
-        self.mcp_server_config = mcp_server_config or self.mcp_server_config
-        if self.mcp_server_config:
-            await self.unregister_mcp_clients()
-            await self.register_mcp_tools()
-
-    async def register_mcp_tools(self):
-        """
-        Register the MCP tools used by this controller.
-        """
-        if not self.mcp_server_config:
-            return
-
-        # Handle both formats: with or without "mcpServers" key
-        mcp_servers = self.mcp_server_config.get('mcpServers', self.mcp_server_config)
-
-        if not mcp_servers:
-            return
-
-        for server_name, server_config in mcp_servers.items():
-            try:
-                logger.info(f'Connecting to MCP server: {server_name}')
-
-                # Create MCP client
-                client = CustomMCPClient(
-                    server_name=server_name,
-                    command=server_config['command'],
-                    args=server_config['args'],
-                    env=server_config.get('env', None)
-                )
-
-                # Connect to the MCP server
-                await client.connect(timeout=200)
-
-                # Register tools to controller with prefix
-                prefix = f"mcp.{server_name}."
-                await client.register_to_tools(
-                    tools=self,
-                    prefix=prefix
-                )
-
-                # Store client for later cleanup
-                self.mcp_clients[server_name] = client
-
-                logger.info(f'Successfully registered MCP server: {server_name} with prefix: {prefix}')
-
-            except Exception as e:
-                logger.error(f'Failed to register MCP server {server_name}: {str(e)}')
-                # Continue with other servers even if one fails
-
-    async def unregister_mcp_clients(self):
-        """
-        Unregister and disconnect all MCP clients.
-        """
-        # Disconnect all MCP clients
-        for server_name, client in self.mcp_clients.items():
-            try:
-                logger.info(f'Disconnecting MCP server: {server_name}')
-                await client.disconnect()
-            except Exception as e:
-                logger.error(f'Failed to disconnect MCP server {server_name}: {str(e)}')
-
-        # Remove MCP tools from registry
-        try:
-            # Get all registered actions
-            actions_to_remove = []
-            for action_name in list(self.registry.registry.actions.keys()):
-                if action_name.startswith('mcp.'):
-                    actions_to_remove.append(action_name)
-
-            # Remove MCP actions from registry
-            for action_name in actions_to_remove:
-                if action_name in self.registry.registry.actions:
-                    del self.registry.registry.actions[action_name]
-                    logger.info(f'Removed MCP action: {action_name}')
-
-        except Exception as e:
-            logger.error(f'Failed to remove MCP actions from registry: {str(e)}')
-
-        # Clear the clients dictionary
-        self.mcp_clients.clear()
-        logger.info('All MCP clients unregistered and disconnected')

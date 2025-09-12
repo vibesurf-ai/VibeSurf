@@ -14,7 +14,7 @@ from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.controller.browser_use_tools import VibeSurfController
+from vibe_surf.tools.browser_use_tools import VibeSurfController
 from vibe_surf.llm.openai_compatible import ChatOpenAICompatible
 from vibe_surf.agents.browser_use_agent import BrowserUseAgent
 from vibe_surf.agents.vibe_surf_agent import VibeSurfAgent
@@ -86,7 +86,7 @@ async def run_multi_bu_agents():
     await main_browser_session.start()
     browser_manager = BrowserManager(main_browser_session=main_browser_session)
     controller = VibeSurfController()
-    # await controller.register_mcp_clients(mcp_server_config)
+    # await tools.register_mcp_clients(mcp_server_config)
     llm = ChatOpenAICompatible(model='gemini-2.5-flash', base_url=os.getenv("OPENAI_ENDPOINT"),
                                api_key=os.getenv("OPENAI_API_KEY"))
     agent_browser_sessions = await asyncio.gather(

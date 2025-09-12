@@ -15,7 +15,7 @@ from pathlib import Path
 
 # VibeSurf components
 from vibe_surf.agents.vibe_surf_agent import VibeSurfAgent
-from vibe_surf.controller.browser_use_tools import VibeSurfController
+from vibe_surf.tools.browser_use_tools import VibeSurfController
 from vibe_surf.browser.browser_manager import BrowserManager
 from browser_use.llm.base import BaseChatModel
 from browser_use.llm.openai.chat import ChatOpenAI
@@ -53,7 +53,7 @@ def get_all_components():
     return {
         "vibesurf_agent": vibesurf_agent,
         "browser_manager": browser_manager,
-        "controller": controller,
+        "tools": controller,
         "llm": llm,
         "db_manager": db_manager,
         "workspace_dir": workspace_dir,
@@ -74,8 +74,8 @@ def set_components(**kwargs):
         vibesurf_agent = kwargs["vibesurf_agent"]
     if "browser_manager" in kwargs:
         browser_manager = kwargs["browser_manager"]
-    if "controller" in kwargs:
-        controller = kwargs["controller"]
+    if "tools" in kwargs:
+        controller = kwargs["tools"]
     if "llm" in kwargs:
         llm = kwargs["llm"]
     if "db_manager" in kwargs:
@@ -223,7 +223,7 @@ def clear_active_task():
 
 
 async def _check_and_update_mcp_servers(db_session):
-    """Check if MCP server configuration has changed and update controller if needed"""
+    """Check if MCP server configuration has changed and update tools if needed"""
     global controller, active_mcp_server
 
     try:
@@ -238,14 +238,14 @@ async def _check_and_update_mcp_servers(db_session):
 
         # Compare with shared state
         if current_active_servers != active_mcp_server:
-            logger.info(f"MCP server configuration changed. Updating controller...")
+            logger.info(f"MCP server configuration changed. Updating tools...")
             logger.info(f"Old config: {active_mcp_server}")
             logger.info(f"New config: {current_active_servers}")
 
             # Update shared state
             active_mcp_server = current_active_servers.copy()
 
-            # Create new MCP server config for controller
+            # Create new MCP server config for tools
             mcp_server_config = await _build_mcp_server_config(active_profiles)
 
             # Unregister old MCP clients and register new ones
@@ -426,7 +426,7 @@ async def initialize_vibesurf_components():
         # Load active MCP servers from database
         mcp_server_config = await _load_active_mcp_servers()
 
-        # Initialize vibesurf controller with MCP server config
+        # Initialize vibesurf tools with MCP server config
         controller = VibeSurfController(mcp_server_config=mcp_server_config)
 
         # Register MCP clients if there are any active MCP servers
