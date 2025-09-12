@@ -14,7 +14,7 @@ from vibe_surf.logger import get_logger
 logger = get_logger(__name__)
 
 
-class VibeSurfMCPClient(MCPClient):
+class CustomMCPClient(MCPClient):
     async def connect(self, timeout: int = 200) -> None:
         """Connect to the MCP server and discover available tools."""
         if self._connected:

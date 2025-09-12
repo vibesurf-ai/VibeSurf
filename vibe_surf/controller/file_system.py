@@ -1,3 +1,5 @@
+import asyncio
+from pathlib import Path
 from browser_use.filesystem.file_system import FileSystem, FileSystemError, INVALID_FILENAME_ERROR_MESSAGE
 
 
@@ -51,3 +53,113 @@ class CustomFileSystem(FileSystem):
             return str(e)
         except Exception:
             return f"Error: Could not read file '{full_filename}'."
+
+    async def copy_file(self, src_filename: str, dst_filename: str, external_src_file: bool = False) -> str:
+        """Copy a file to the FileSystem from src (can be external) to dst filename"""
+        import shutil
+        from concurrent.futures import ThreadPoolExecutor
+
+        # Check if destination file already exists
+        if self.get_file(dst_filename):
+            return f"Error: Destination file '{dst_filename}' already exists."
+
+        try:
+            src_path = src_filename if external_src_file else (self.data_dir / src_filename)
+            dst_path = self.data_dir / dst_filename
+
+            # Check if source file exists
+            if not src_path.exists() if hasattr(src_path, 'exists') else not Path(src_path).exists():
+                return f"Error: Source file '{src_filename}' not found."
+
+            # Use shutil to copy file
+            with ThreadPoolExecutor() as executor:
+                await asyncio.get_event_loop().run_in_executor(executor, shutil.copy2, str(src_path), str(dst_path))
+
+            # Read the copied file content and create file object for internal tracking
+            content = dst_path.read_text(encoding='utf-8')
+            dst_name, dst_extension = self._parse_filename(dst_filename)
+            file_class = self._get_file_type_class(dst_extension)
+
+            if file_class:
+                dst_file = file_class(name=dst_name, content=content)
+                self.files[dst_filename] = dst_file
+
+            source_type = "external file" if external_src_file else "file"
+            return f"{source_type.capitalize()} '{src_filename}' copied to '{dst_filename}' successfully."
+
+        except FileNotFoundError:
+            return f"Error: Source file '{src_filename}' not found."
+        except PermissionError:
+            return f"Error: Permission denied to access files."
+        except Exception as e:
+            return f"Error: Could not copy file '{src_filename}' to '{dst_filename}'. {str(e)}"
+
+    async def rename_file(self, old_filename: str, new_filename: str) -> str:
+        """Rename a file within the FileSystem from old_filename to new_filename"""
+        import shutil
+        from concurrent.futures import ThreadPoolExecutor
+
+        # Check if old file exists
+        if not self.get_file(old_filename):
+            return f"Error: File '{old_filename}' not found."
+
+        # Check if new filename already exists
+        if self.get_file(new_filename):
+            return f"Error: File '{new_filename}' already exists."
+
+        try:
+            old_path = self.data_dir / old_filename
+            new_path = self.data_dir / new_filename
+
+            # Use shutil to move/rename file
+            with ThreadPoolExecutor() as executor:
+                await asyncio.get_event_loop().run_in_executor(executor, shutil.move, str(old_path), str(new_path))
+
+            # Update internal file tracking
+            old_file = self.files[old_filename]
+            del self.files[old_filename]
+
+            # Update file object name if needed
+            new_name, new_extension = self._parse_filename(new_filename)
+            old_file.name = new_name
+            self.files[new_filename] = old_file
+
+            return f"File '{old_filename}' renamed to '{new_filename}' successfully."
+
+        except Exception as e:
+            return f"Error: Could not rename file '{old_filename}' to '{new_filename}'. {str(e)}"
+
+    async def move_file(self, old_filename: str, new_filename: str) -> str:
+        """Move a file within the FileSystem from old_filename to new_filename"""
+        import shutil
+        from concurrent.futures import ThreadPoolExecutor
+
+        # Check if old file exists
+        if not self.get_file(old_filename):
+            return f"Error: File '{old_filename}' not found."
+
+        # Check if new filename already exists
+        if self.get_file(new_filename):
+            return f"Error: File '{new_filename}' already exists."
+
+        try:
+            old_path = self.data_dir / old_filename
+            new_path = self.data_dir / new_filename
+
+            # Use shutil to move file
+            with ThreadPoolExecutor() as executor:
+                await asyncio.get_event_loop().run_in_executor(executor, shutil.move, str(old_path), str(new_path))
+
+            # Update internal file tracking
+            old_file = self.files[old_filename]
+            del self.files[old_filename]
+
+            # Update file object name if needed
+            new_name, new_extension = self._parse_filename(new_filename)
+            old_file.name = new_name
+            self.files[new_filename] = old_file
+
+            return f"File '{old_filename}' moved to '{new_filename}' successfully."
+
+        except Exception as e:
+            return f"Error: Could not move file '{old_filename}' to '{new_filename}'. {str(e)}"

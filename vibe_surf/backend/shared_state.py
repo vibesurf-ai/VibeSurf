@@ -15,7 +15,7 @@ from pathlib import Path
 
 # VibeSurf components
 from vibe_surf.agents.vibe_surf_agent import VibeSurfAgent
-from vibe_surf.controller.vibesurf_tools import VibeSurfController
+from vibe_surf.controller.browser_use_tools import VibeSurfController
 from vibe_surf.browser.browser_manager import BrowserManager
 from browser_use.llm.base import BaseChatModel
 from browser_use.llm.openai.chat import ChatOpenAI

@@ -30,7 +30,7 @@ from vibe_surf.agents.prompts.vibe_surf_prompt import (
     SUPERVISOR_AGENT_SYSTEM_PROMPT,
 )
 from vibe_surf.browser.browser_manager import BrowserManager
-from vibe_surf.controller.vibesurf_tools import VibeSurfController
+from vibe_surf.controller.browser_use_tools import BrowserUseTools
 
 from vibe_surf.logger import get_logger
 
@@ -140,7 +140,7 @@ class VibeSurfState:
 
     # Integration components
     browser_manager: Optional[BrowserManager] = None
-    vibesurf_controller: Optional[VibeSurfController] = None
+    vibesurf_controller: Optional[BrowserUseTools] = None
     llm: Optional[BaseChatModel] = None
     vibesurf_agent: Optional[Any] = None
 
