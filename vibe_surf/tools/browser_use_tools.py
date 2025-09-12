@@ -71,10 +71,9 @@ class BrowserUseTools(Tools):
         ):
 
             # For local browsers, ensure the file exists on the local filesystem
-            if browser_session.is_local:
-                if not os.path.exists(params.path):
-                    msg = f'File {params.path} does not exist'
-                    return ActionResult(error=msg)
+            if not os.path.exists(params.path):
+                msg = f'File {params.path} does not exist'
+                return ActionResult(error=msg)
 
             # Get the selector map to find the node
             selector_map = await browser_session.get_selector_map()

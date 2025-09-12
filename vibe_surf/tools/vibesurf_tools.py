@@ -11,30 +11,12 @@ import mimetypes
 
 from typing import Optional, Type, Callable, Dict, Any, Union, Awaitable, TypeVar
 from pydantic import BaseModel
-from browser_use.tools.service import Controller, Tools
+from browser_use.tools.service import Controller, Tools, handle_browser_error
 import logging
 from browser_use.agent.views import ActionModel, ActionResult
 from browser_use.utils import time_execution_sync
 from browser_use.filesystem.file_system import FileSystem
 from browser_use.browser import BrowserSession
-from browser_use.browser.events import UploadFileEvent
-from browser_use.observability import observe_debug
-from browser_use.tools.views import (
-    ClickElementAction,
-    CloseTabAction,
-    DoneAction,
-    GetDropdownOptionsAction,
-    GoToUrlAction,
-    InputTextAction,
-    NoParamsAction,
-    ScrollAction,
-    SearchGoogleAction,
-    SelectDropdownOptionAction,
-    SendKeysAction,
-    StructuredOutputAction,
-    SwitchTabAction,
-    UploadFileAction,
-)
 from browser_use.llm.base import BaseChatModel
 from browser_use.llm.messages import UserMessage, ContentPartTextParam, ContentPartImageParam, ImageURL
 from browser_use.dom.service import EnhancedDOMTreeNode
@@ -45,6 +27,8 @@ from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
+from vibe_surf.browser.browser_manager import BrowserManager
+
 from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
@@ -60,6 +44,9 @@ class VibeSurfTools(Generic[Context]):
         self._register_file_actions()
         self.mcp_server_config = None
         self.mcp_clients = {}
+
+    def _register_browser_use_agent(self):
+        pass
 
     def _register_file_actions(self):
         @self.registry.action(
@@ -327,3 +314,51 @@ class VibeSurfTools(Generic[Context]):
         # Clear the clients dictionary
         self.mcp_clients.clear()
         logger.info('All MCP clients unregistered and disconnected')
+
+    @time_execution_sync('--act')
+    async def act(
+            self,
+            action: ActionModel,
+            browser_manager: BrowserManager,
+            llm: BaseChatModel | None = None,
+            file_system: CustomFileSystem | None = None,
+    ) -> ActionResult:
+        """Execute an action"""
+
+        for action_name, params in action.model_dump(exclude_unset=True).items():
+            if params is not None:
+                try:
+                    if action_name not in self.registry.registry.actions:
+                        raise ValueError(f'Action {action_name} not found')
+                    action = self.registry.registry.actions[action_name]
+                    special_context = {
+                        'browser_manager': browser_manager,
+                        'llm': llm,
+                        'file_system': file_system,
+                    }
+                    try:
+                        validated_params = action.param_model(**params)
+                    except Exception as e:
+                        raise ValueError(f'Invalid parameters {params} for action {action_name}: {type(e)}: {e}') from e
+
+                    result = await action.function(params=validated_params, **special_context)
+                except BrowserError as e:
+                    logger.error(f'❌ Action {action_name} failed with BrowserError: {str(e)}')
+                    result = handle_browser_error(e)
+                except TimeoutError as e:
+                    logger.error(f'❌ Action {action_name} failed with TimeoutError: {str(e)}')
+                    result = ActionResult(error=f'{action_name} was not executed due to timeout.')
+                except Exception as e:
+                    # Log the original exception with traceback for observability
+                    logger.error(f"Action '{action_name}' failed with error: {str(e)}")
+                    result = ActionResult(error=str(e))
+
+                if isinstance(result, str):
+                    return ActionResult(extracted_content=result)
+                elif isinstance(result, ActionResult):
+                    return result
+                elif result is None:
+                    return ActionResult()
+                else:
+                    raise ValueError(f'Invalid action result type: {type(result)} of {result}')
+        return ActionResult()
