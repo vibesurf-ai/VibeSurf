@@ -476,13 +476,6 @@ Provide the extracted information in a clear, structured format."""
                 raise RuntimeError(str(e))
 
     def _register_file_actions(self):
-        @self.registry.action(
-            'Replace old_str with new_str in file_name. old_str must exactly match the string to replace in original text. Recommended tool to mark completed items in todo.md or change specific contents in a file.'
-        )
-        async def replace_file_str(file_name: str, old_str: str, new_str: str, file_system: FileSystem):
-            result = await file_system.replace_file_str(file_name, old_str, new_str)
-            logger.info(f'💾 {result}')
-            return ActionResult(extracted_content=result, long_term_memory=result)
 
         @self.registry.action(
             'Read file_name from file system. If this is a file not in current workspace dir, please provide an absolute path.')

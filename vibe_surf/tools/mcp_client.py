@@ -15,43 +15,6 @@ logger = get_logger(__name__)
 
 
 class CustomMCPClient(MCPClient):
-    async def register_to_tools(
-            self,
-            tools,
-            tool_filter: list[str] | None = None,
-            prefix: str | None = None,
-    ) -> None:
-        """Register MCP tools as actions in the browser-use tools.
-
-        Args:
-            tools: Browser-use tools to register actions to
-            tool_filter: Optional list of tool names to register (None = all tools)
-            prefix: Optional prefix to add to action names (e.g., "playwright_")
-        """
-        if not self._connected:
-            await self.connect()
-
-        registry = tools.registry
-
-        for tool_name, tool in self._tools.items():
-            # Skip if not in filter
-            if tool_filter and tool_name not in tool_filter:
-                continue
-
-            # Apply prefix if specified
-            action_name = f'{prefix}{tool_name}' if prefix else tool_name
-
-            # Skip if already registered
-            if action_name in self._registered_actions:
-                continue
-
-            # Register the tool as an action
-            self._register_tool_as_action(registry, action_name, tool)
-            self._registered_actions.add(action_name)
-
-        logger.info(
-            f"✅ Registered {len(self._registered_actions)} MCP tools from '{self.server_name}' as browser-use actions")
-
     async def connect(self, timeout: int = 200) -> None:
         """Connect to the MCP server and discover available tools."""
         if self._connected:
