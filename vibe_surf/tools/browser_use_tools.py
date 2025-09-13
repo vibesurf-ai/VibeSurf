@@ -5,6 +5,7 @@ import json
 import enum
 import base64
 import mimetypes
+import datetime
 
 from typing import Optional, Type, Callable, Dict, Any, Union, Awaitable, TypeVar
 from pydantic import BaseModel
@@ -473,6 +474,43 @@ Provide the extracted information in a clear, structured format."""
             except Exception as e:
                 logger.debug(f'Error extracting content: {e}')
                 raise RuntimeError(str(e))
+
+        @self.registry.action(
+            'Take a screenshot of the current page and save it to the file system'
+        )
+        async def take_screenshot(browser_session: BrowserSession, file_system: FileSystem):
+            try:
+                # Take screenshot using browser session
+                screenshot = await browser_session.take_screenshot()
+                
+                # Generate timestamp for filename
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                
+                # Get file system directory path (Path type)
+                fs_dir = file_system.get_dir()
+                
+                # Create screenshots directory if it doesn't exist
+                screenshots_dir = fs_dir / "screenshots"
+                screenshots_dir.mkdir(exist_ok=True)
+                
+                # Save screenshot to file system
+                filename = f"{timestamp}.png"
+                filepath = screenshots_dir / filename
+                
+                with open(filepath, "wb") as f:
+                    f.write(base64.b64decode(screenshot))
+                
+                msg = f'📸 Screenshot saved to {filepath}'
+                logger.info(msg)
+                return ActionResult(
+                    extracted_content=msg,
+                    include_in_memory=True,
+                    long_term_memory=f'Screenshot saved to {filepath}',
+                )
+            except Exception as e:
+                error_msg = f'❌ Failed to take screenshot: {str(e)}'
+                logger.error(error_msg)
+                return ActionResult(error=error_msg)
 
     def _register_file_actions(self):
 
