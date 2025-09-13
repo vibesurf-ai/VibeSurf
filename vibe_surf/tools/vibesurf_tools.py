@@ -42,6 +42,7 @@ class VibeSurfTools:
     def __init__(self, exclude_actions: list[str] = []):
         self.registry = Registry(exclude_actions)
         self._register_file_actions()
+        self._register_browser_use_agent()
         self.mcp_server_config = None
         self.mcp_clients = {}
 
@@ -91,13 +92,13 @@ class VibeSurfTools:
             )
 
         @self.registry.action(
-            'Extract content from a file. Support image files, pdf and more.',
+            'Extract content from a file. Support image files, pdf, markdown, txt, json, csv.',
             param_model=FileExtractionAction,
         )
         async def extract_content_from_file(
                 params: FileExtractionAction,
                 page_extraction_llm: BaseChatModel,
-                file_system: FileSystem,
+                file_system: CustomFileSystem,
         ):
             try:
                 # Get file path

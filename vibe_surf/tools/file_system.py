@@ -1,7 +1,31 @@
 import asyncio
 from pathlib import Path
-from browser_use.filesystem.file_system import FileSystem, FileSystemError, INVALID_FILENAME_ERROR_MESSAGE
+from browser_use.filesystem.file_system import FileSystem, FileSystemError, INVALID_FILENAME_ERROR_MESSAGE, FileSystemState
 from browser_use.filesystem.file_system import BaseFile, MarkdownFile, TxtFile, JsonFile, CsvFile, PdfFile
+
+
+class PythonFile(BaseFile):
+    """Plain text file implementation"""
+
+    @property
+    def extension(self) -> str:
+        return 'py'
+
+
+class HtmlFile(BaseFile):
+    """Plain text file implementation"""
+
+    @property
+    def extension(self) -> str:
+        return 'html'
+
+
+class JSFile(BaseFile):
+    """Plain text file implementation"""
+
+    @property
+    def extension(self) -> str:
+        return 'js'
 
 
 class CustomFileSystem(FileSystem):
@@ -21,6 +45,9 @@ class CustomFileSystem(FileSystem):
             'json': JsonFile,
             'csv': CsvFile,
             'pdf': PdfFile,
+            'py': PythonFile,
+            'html': HtmlFile,
+            'js': JSFile,
         }
 
         self.files = {}
@@ -38,7 +65,7 @@ class CustomFileSystem(FileSystem):
                 _, extension = self._parse_filename(full_filename)
             except Exception:
                 return f'Error: Invalid filename format {full_filename}. Must be alphanumeric with a supported extension.'
-            if extension in ['md', 'txt', 'json', 'csv']:
+            if extension != 'pdf' and extension in self._file_types.keys():
                 import anyio
 
                 async with await anyio.open_file(full_filename, 'r', encoding="utf-8") as f:
@@ -174,3 +201,42 @@ class CustomFileSystem(FileSystem):
 
         except Exception as e:
             return f"Error: Could not move file '{old_filename}' to '{new_filename}'. {str(e)}"
+
+    @classmethod
+    def from_state(cls, state: FileSystemState) -> 'FileSystem':
+        """Restore file system from serializable state at the exact same location"""
+        # Create file system without default files
+        fs = cls(base_dir=Path(state.base_dir), create_default_files=False)
+        fs.extracted_content_count = state.extracted_content_count
+
+        # Restore all files
+        for full_filename, file_data in state.files.items():
+            file_type = file_data['type']
+            file_info = file_data['data']
+
+            # Create the appropriate file object based on type
+            if file_type == 'MarkdownFile':
+                file_obj = MarkdownFile(**file_info)
+            elif file_type == 'TxtFile':
+                file_obj = TxtFile(**file_info)
+            elif file_type == 'JsonFile':
+                file_obj = JsonFile(**file_info)
+            elif file_type == 'CsvFile':
+                file_obj = CsvFile(**file_info)
+            elif file_type == 'PdfFile':
+                file_obj = PdfFile(**file_info)
+            elif file_type == 'JSFile':
+                file_obj = JSFile(**file_info)
+            elif file_type == 'PythonFile':
+                file_obj = PythonFile(**file_info)
+            elif file_type == 'HtmlFile':
+                file_obj = HtmlFile(**file_info)
+            else:
+                # Skip unknown file types
+                continue
+
+            # Add to files dict and sync to disk
+            fs.files[full_filename] = file_obj
+            file_obj.sync_to_disk_sync(fs.data_dir)
+
+        return fs
