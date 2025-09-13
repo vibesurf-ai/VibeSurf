@@ -24,7 +24,8 @@ from browser_use.browser.views import BrowserError
 from browser_use.mcp.client import MCPClient
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, BrowserUseAgentExecution, ReportWriterTask, TodoGenerateAction, TodoModifyAction, DoneAction
+from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, BrowserUseAgentExecution, \
+    ReportWriterTask, TodoGenerateAction, TodoModifyAction, DoneAction
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.browser.browser_manager import BrowserManager
@@ -39,14 +40,14 @@ T = TypeVar('T', bound=BaseModel)
 
 
 class VibeSurfTools:
-    def __init__(self, exclude_actions: list[str] = []):
+    def __init__(self, exclude_actions: list[str] = [], mcp_server_config: Optional[Dict[str, Any]] = None):
         self.registry = Registry(exclude_actions)
         self._register_file_actions()
         self._register_browser_use_agent()
         self._register_report_writer_agent()
         self._register_todo_actions()
         self._register_done_action()
-        self.mcp_server_config = None
+        self.mcp_server_config = mcp_server_config
         self.mcp_clients = {}
 
     def _register_browser_use_agent(self):
@@ -124,19 +125,19 @@ class VibeSurfTools:
                         formatted_items.append(clean_item)
                     else:
                         formatted_items.append(f'- [ ] {clean_item}')
-                
+
                 # Create content for todo.md
                 content = '\n'.join(formatted_items) + '\n'
-                
+
                 # Write to todo.md file
                 result = await file_system.write_file('todo.md', content)
-                
+
                 logger.info(f'📝 Generated todo.md with {len(todo_items)} items')
                 return ActionResult(
                     extracted_content=f'Todo file generated successfully with {len(todo_items)} items:\n{content}',
                     long_term_memory=f'Generated todo.md with {len(todo_items)} items',
                 )
-                
+
             except Exception as e:
                 logger.error(f'❌ Failed to generate todo file: {e}')
                 raise RuntimeError(f'Failed to generate todo file: {str(e)}')
@@ -149,14 +150,14 @@ class VibeSurfTools:
             try:
                 # Read todo.md file
                 result = await file_system.read_file('todo.md')
-                
+
                 logger.info(f'📖 Read todo.md file')
                 return ActionResult(
                     extracted_content=result,
                     long_term_memory='Read current todo list',
                     include_in_memory=True,
                 )
-                
+
             except Exception as e:
                 logger.error(f'❌ Failed to read todo file: {e}')
                 return ActionResult(
@@ -173,7 +174,7 @@ class VibeSurfTools:
             try:
                 # First read current content
                 current_content = await file_system.read_file('todo.md')
-                
+
                 # Extract just the content part (remove the "Read from file..." prefix)
                 if '<content>' in current_content and '</content>' in current_content:
                     start = current_content.find('<content>') + len('<content>')
@@ -181,15 +182,15 @@ class VibeSurfTools:
                     content = current_content[start:end].strip()
                 else:
                     content = current_content.strip()
-                
+
                 modified_content = content
                 changes_made = []
-                
+
                 # Process each modification
                 for modification in params.modifications:
                     action = modification.action
                     item = modification.item.strip()
-                    
+
                     if action == 'add':
                         # Add new item
                         if item:
@@ -198,7 +199,7 @@ class VibeSurfTools:
                                 item = f'- [ ] {item}'
                             modified_content += f'\n{item}'
                             changes_made.append(f'Added: {item}')
-                    
+
                     elif action == 'remove':
                         # Remove item
                         if item:
@@ -215,7 +216,7 @@ class VibeSurfTools:
                             modified_content = '\n'.join(new_lines)
                             if not removed:
                                 changes_made.append(f'Item not found for removal: {item}')
-                    
+
                     elif action == 'complete':
                         # Mark item as complete: - [ ] → - [x]
                         if item:
@@ -230,7 +231,7 @@ class VibeSurfTools:
                             modified_content = '\n'.join(lines)
                             if not completed:
                                 changes_made.append(f'Item not found for completion: {item}')
-                    
+
                     elif action == 'uncomplete':
                         # Mark item as uncomplete: - [x] → - [ ]
                         if item:
@@ -245,20 +246,20 @@ class VibeSurfTools:
                             modified_content = '\n'.join(lines)
                             if not uncompleted:
                                 changes_made.append(f'Item not found for uncompletion: {item}')
-                    
-                
+
                 # If we made any add/remove/complete/uncomplete changes, write the updated content
-                if any(change.startswith(('Added:', 'Removed:', 'Completed:', 'Uncompleted:')) for change in changes_made):
+                if any(change.startswith(('Added:', 'Removed:', 'Completed:', 'Uncompleted:')) for change in
+                       changes_made):
                     await file_system.write_file('todo.md', modified_content + '\n')
-                
+
                 changes_summary = '\n'.join(changes_made) if changes_made else 'No changes made'
-                
+
                 logger.info(f'✏️ Modified todo.md: {len(changes_made)} changes')
                 return ActionResult(
                     extracted_content=f'Todo modifications completed:\n{changes_summary}\n\nUpdated content:\n{modified_content}',
                     long_term_memory=f'Modified todo list: {len(changes_made)} changes made',
                 )
-                
+
             except Exception as e:
                 logger.error(f'❌ Failed to modify todo file: {e}')
                 raise RuntimeError(f'Failed to modify todo file: {str(e)}')
@@ -289,23 +290,23 @@ class VibeSurfTools:
             try:
                 response = params.response.strip()
                 follow_tasks = params.suggestion_follow_tasks or []
-                
+
                 # Format the completion response
                 completion_content = f"Task Completed:\n\n{response}"
-                
+
                 # Add follow-up task suggestions if provided
                 if follow_tasks:
                     completion_content += "\n\n## Suggested Follow-up Tasks:\n"
                     for i, task in enumerate(follow_tasks[:3], 1):  # Limit to 3 tasks max
                         completion_content += f"{i}. {task.strip()}\n"
-                
+
                 logger.info(f'✅ Task completed with {len(follow_tasks)} follow-up suggestions')
                 return ActionResult(
                     extracted_content=completion_content,
                     long_term_memory=f'Task completed successfully. {len(follow_tasks)} follow-up tasks suggested.',
                     include_in_memory=True,
                 )
-                
+
             except Exception as e:
                 logger.error(f'❌ Failed to complete task: {e}')
                 raise RuntimeError(f'Failed to complete task: {str(e)}')

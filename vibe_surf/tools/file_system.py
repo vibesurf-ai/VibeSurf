@@ -1,6 +1,10 @@
 import asyncio
+import pdb
+import re
+import os
 from pathlib import Path
-from browser_use.filesystem.file_system import FileSystem, FileSystemError, INVALID_FILENAME_ERROR_MESSAGE, FileSystemState
+from browser_use.filesystem.file_system import FileSystem, FileSystemError, INVALID_FILENAME_ERROR_MESSAGE, \
+    FileSystemState
 from browser_use.filesystem.file_system import BaseFile, MarkdownFile, TxtFile, JsonFile, CsvFile, PdfFile
 
 
@@ -104,7 +108,7 @@ class CustomFileSystem(FileSystem):
         try:
             src_path = src_filename if external_src_file else (self.data_dir / src_filename)
             dst_path = self.data_dir / dst_filename
-
+            dst_path.parent.mkdir(parents=True, exist_ok=True)
             # Check if source file exists
             if not src_path.exists() if hasattr(src_path, 'exists') else not Path(src_path).exists():
                 return f"Error: Source file '{src_filename}' not found."
@@ -183,7 +187,7 @@ class CustomFileSystem(FileSystem):
         try:
             old_path = self.data_dir / old_filename
             new_path = self.data_dir / new_filename
-
+            new_path.parent.mkdir(parents=True, exist_ok=True)
             # Use shutil to move file
             with ThreadPoolExecutor() as executor:
                 await asyncio.get_event_loop().run_in_executor(executor, shutil.move, str(old_path), str(new_path))
@@ -201,6 +205,76 @@ class CustomFileSystem(FileSystem):
 
         except Exception as e:
             return f"Error: Could not move file '{old_filename}' to '{new_filename}'. {str(e)}"
+
+    def get_absolute_path(self, full_filename: str) -> str:
+        if not self.get_file(full_filename):
+            return f"Error: File '{full_filename}' not found."
+        full_path = self.data_dir.absolute() / full_filename
+        return str(full_path)
+
+    def _is_valid_filename(self, file_name: str) -> bool:
+        """Check if filename matches the required pattern: name.extension"""
+        # Build extensions pattern from _file_types
+        file_name = os.path.basename(file_name)
+        extensions = '|'.join(self._file_types.keys())
+        pattern = rf'^[a-zA-Z0-9_\-]+\.({extensions})$'
+        return bool(re.match(pattern, file_name))
+
+    async def write_file(self, full_filename: str, content: str) -> str:
+        """Write content to file using file-specific write method"""
+        if not self._is_valid_filename(full_filename):
+            return INVALID_FILENAME_ERROR_MESSAGE
+
+        try:
+            full_path = self.data_dir / full_filename
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            name_without_ext, extension = self._parse_filename(full_filename)
+            file_class = self._get_file_type_class(extension)
+            if not file_class:
+                raise ValueError(f"Error: Invalid file extension '{extension}' for file '{full_filename}'.")
+
+            # Create or get existing file using full filename as key
+            if full_filename in self.files:
+                file_obj = self.files[full_filename]
+            else:
+                file_obj = file_class(name=name_without_ext)
+                self.files[full_filename] = file_obj  # Use full filename as key
+
+            # Use file-specific write method
+            await file_obj.write(content, self.data_dir)
+            return f'Data written to file {full_filename} successfully.'
+        except FileSystemError as e:
+            return str(e)
+        except Exception as e:
+            return f"Error: Could not write to file '{full_filename}'. {str(e)}"
+
+    async def create_file(self, full_filename: str) -> str:
+        """Create a file with empty content"""
+        if not self._is_valid_filename(full_filename):
+            return INVALID_FILENAME_ERROR_MESSAGE
+
+        try:
+            full_path = self.data_dir / full_filename
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            name_without_ext, extension = self._parse_filename(full_filename)
+            file_class = self._get_file_type_class(extension)
+            if not file_class:
+                raise ValueError(f"Error: Invalid file extension '{extension}' for file '{full_filename}'.")
+
+            # Create or get existing file using full filename as key
+            if full_filename in self.files:
+                file_obj = self.files[full_filename]
+            else:
+                file_obj = file_class(name=name_without_ext)
+                self.files[full_filename] = file_obj  # Use full filename as key
+
+            # Use file-specific write method
+            await file_obj.write('', self.data_dir)
+            return f'Create file {full_filename} successfully.'
+        except FileSystemError as e:
+            return str(e)
+        except Exception as e:
+            return f"Error: Could not write to file '{full_filename}'. {str(e)}"
 
     @classmethod
     def from_state(cls, state: FileSystemState) -> 'FileSystem':

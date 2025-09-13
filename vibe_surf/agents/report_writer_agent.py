@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 from browser_use.llm.base import BaseChatModel
 from browser_use.llm.messages import UserMessage
 
-from vibe_surf.agents.prompts.vibe_surf_prompt import (
+from vibe_surf.agents.prompts.report_writer_prompt import (
     REPORT_CONTENT_PROMPT,
     REPORT_FORMAT_PROMPT
 )

@@ -12,7 +12,7 @@ load_dotenv()
 
 async def test_controller_with_mcp():
     import os
-    from vibe_surf.tools.browser_use_tools import VibeSurfController
+    from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 
     mcp_server_config = {
         "mcpServers": {
@@ -43,7 +43,7 @@ async def test_controller_with_mcp():
         }
     }
 
-    controller = VibeSurfController(mcp_server_config=mcp_server_config)
+    controller = VibeSurfTools(mcp_server_config=mcp_server_config)
     await controller.register_mcp_clients()
     pdb.set_trace()
     # action_name = "mcp.desktop-commander.start_process"
@@ -90,12 +90,11 @@ async def test_controller_with_mcp():
 
 
 async def test_filesystem():
-    from browser_use.filesystem.file_system import FileSystem
+    from vibe_surf.tools.file_system import CustomFileSystem
 
     file_system_path = r"E:\AIBrowser\VibeSurf\tmp\vibesurf_workspace"
-    filesystem = FileSystem(file_system_path)
-    result = await filesystem.read_file(
-        "E:/AIBrowser/VibeSurf/tmp/vibesurf_workspace/068b3165-ddb7-7a49-8000-d4df8a16ae2d/upload_files/Ayers Application Form.md")
+    filesystem = CustomFileSystem(file_system_path)
+    result = await filesystem.create_file("reports/final_report.html")
     print(result)
 
 
