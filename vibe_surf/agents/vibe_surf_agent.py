@@ -25,9 +25,10 @@ from browser_use.browser.views import TabInfo
 
 from vibe_surf.agents.browser_use_agent import BrowserUseAgent
 from vibe_surf.agents.report_writer_agent import ReportWriterAgent
+from vibe_surf.agents.views import CustomAgentOutput
 
 from vibe_surf.agents.prompts.vibe_surf_prompt import (
-    SUPERVISOR_AGENT_SYSTEM_PROMPT,
+    VIBESURF_SYSTEM_PROMPT,
 )
 from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.tools.browser_use_tools import BrowserUseTools
@@ -48,13 +49,6 @@ class BrowserTaskResult(BaseModel):
     error: Optional[str] = None
     screenshots: List[str] = Field(default_factory=list)
     extracted_data: Optional[str] = None
-
-
-class ReportRequirement(BaseModel):
-    """Indicates if and what type of report is needed"""
-    needs_report: bool = False
-    report_type: Literal["summary", "detailed", "none"] = "none"
-    reason: str = Field(description="LLM reasoning for report decision")
 
 
 class ControlResult(BaseModel):
@@ -92,15 +86,11 @@ class VibeSurfState:
     original_task: str = ""
     upload_files: List[str] = field(default_factory=list)
     session_id: str = field(default_factory=lambda: uuid7str())
-    task_id: str = field(default_factory=lambda: uuid7str())
 
     # Workflow state
     current_step: str = "vibesurf_agent"
     is_complete: bool = False
 
-    # Supervisor Agent message history (session-specific)
-    message_history: List[BaseMessage] = field(default_factory=list)
-    
     # Current action and parameters from LLM
     current_action: Optional[str] = None
     action_params: Optional[Dict[str, Any]] = None
@@ -110,38 +100,17 @@ class VibeSurfState:
     browser_results: List[BrowserTaskResult] = field(default_factory=list)
 
     # Response outputs
-    simple_response: Optional[str] = None
     generated_report_path: Optional[str] = None
-    final_summary: Optional[str] = None
+    final_response: Optional[str] = None
 
-    # File organization
-    workspace_dir: str = "./workspace"
-    session_dir: Optional[str] = None
-    task_dir: Optional[str] = None
-
-    # Integration components
-    browser_manager: Optional[BrowserManager] = None
-    tools: Optional[VibeSurfTools] = None
-    llm: Optional[BaseChatModel] = None
+    # vibesurf_agent
     vibesurf_agent: Optional[Any] = None
-    file_system: Optional[CustomFileSystem] = None
 
     # Control state management
     paused: bool = False
     stopped: bool = False
     should_pause: bool = False
     should_stop: bool = False
-    
-    # Activity logs (session-specific)
-    activity_logs: List[Dict[str, str]] = field(default_factory=list)
-
-
-def format_upload_files_list(upload_files: Optional[List[str]] = None) -> str:
-    """Format uploaded file list for LLM prompt"""
-    if upload_files is None:
-        return ""
-    return "\n".join(
-        [f"{i + 1}. [{os.path.basename(file_path)}]({file_path})" for i, file_path in enumerate(upload_files)])
 
 
 def format_browser_results(browser_results: List[BrowserTaskResult]) -> str:
@@ -170,106 +139,53 @@ def log_agent_activity(state: VibeSurfState, agent_name: str, agent_status: str,
 
 def create_browser_agent_step_callback(state: VibeSurfState, agent_name: str):
     """Create a step callback function for browser-use agent to log each step"""
-    
+
     def step_callback(browser_state_summary, agent_output, step_num: int) -> None:
         """Callback function to log browser agent step information"""
         try:
             # Format step information as markdown
             step_msg = f"## Step {step_num}\n\n"
-            
+
             # Add thinking if present
             if agent_output.thinking:
                 step_msg += f"**💡 Thinking:**\n{agent_output.thinking}\n\n"
-            
+
             # Add evaluation if present
             if agent_output.evaluation_previous_goal:
                 step_msg += f"**👍 Evaluation:**\n{agent_output.evaluation_previous_goal}\n\n"
-            
+
             # Add memory if present
             # if agent_output.memory:
             #     step_msg += f"**🧠 Memory:** {agent_output.memory}\n\n"
-            
+
             # Add next goal if present
             if agent_output.next_goal:
                 step_msg += f"**🎯 Next Goal:**\n{agent_output.next_goal}\n\n"
-            
+
             # Add action summary
             if agent_output.action and len(agent_output.action) > 0:
                 action_count = len(agent_output.action)
                 step_msg += f"**⚡ Actions:**\n"
-                
+
                 # Add brief action details
                 for i, action in enumerate(agent_output.action):  # Limit to first 3 actions to avoid too much detail
                     action_data = action.model_dump(exclude_unset=True)
                     action_name = next(iter(action_data.keys())) if action_data else 'unknown'
-                    action_params = json.dumps(action_data[action_name], ensure_ascii=False) if action_name in action_data else ""
+                    action_params = json.dumps(action_data[action_name],
+                                               ensure_ascii=False) if action_name in action_data else ""
                     step_msg += f"- [x] {action_name}: {action_params}\n"
             else:
                 step_msg += f"**⚡ Actions:** No actions\n"
-            
+
             # Log the step activity
             log_agent_activity(state, agent_name, "working", step_msg.strip())
-            
+
         except Exception as e:
             logger.error(f"❌ Error in step callback for {agent_name}: {e}")
             # Log a simple fallback message
             log_agent_activity(state, agent_name, "step", f"Step {step_num} completed")
-    
+
     return step_callback
-
-
-def ensure_directories(state: VibeSurfState) -> None:
-    """Ensure proper directory structure"""
-    # Create session directory: workspace_dir/session_id/
-    state.session_dir = os.path.join(state.workspace_dir, state.session_id)
-    os.makedirs(state.session_dir, exist_ok=True)
-
-    # Create task directory: workspace_dir/session_id/task_id/
-    state.task_dir = os.path.join(state.session_dir, state.task_id)
-    os.makedirs(state.task_dir, exist_ok=True)
-
-    # Create subdirectories for different output types
-    os.makedirs(os.path.join(state.task_dir, "screenshots"), exist_ok=True)
-    os.makedirs(os.path.join(state.task_dir, "reports"), exist_ok=True)
-    os.makedirs(os.path.join(state.task_dir, "logs"), exist_ok=True)
-    os.makedirs(os.path.join(state.task_dir, "uploads"), exist_ok=True)
-
-
-async def process_upload_files(state: VibeSurfState, original_upload_files: List[str]) -> List[str]:
-    """Process and copy upload files to task uploads directory"""
-    if not original_upload_files:
-        return []
-    
-    processed_files = []
-    uploads_dir = os.path.join(state.task_dir, "uploads")
-    
-    for original_path in original_upload_files:
-        try:
-            # Get filename
-            filename = os.path.basename(original_path)
-            
-            # Create target path in uploads directory
-            target_path = os.path.join(uploads_dir, filename)
-            
-            # Copy file using file system
-            with open(original_path, 'rb') as src:
-                content = src.read()
-            
-            with open(target_path, 'wb') as dst:
-                dst.write(content)
-            
-            # Add relative path for prompt
-            relative_path = f"uploads/{filename}"
-            processed_files.append(relative_path)
-            
-            logger.info(f"📁 Copied upload file: {original_path} → {relative_path}")
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to copy upload file {original_path}: {e}")
-            # Keep original path as fallback
-            processed_files.append(original_path)
-    
-    return processed_files
 
 
 # Control-aware node wrapper
@@ -332,21 +248,16 @@ async def vibesurf_agent_node(state: VibeSurfState) -> VibeSurfState:
 def format_browser_tabs(tabs: Optional[List[TabInfo]] = None) -> str:
     if not tabs:
         return ""
-    return "\n".join([f"[{i}] Page Title: {item.title}, Page Url: {item.url}, Page ID: {item.target_id}" for i, item in enumerate(tabs)])
+    return "\n".join([f"[{i}] Page Title: {item.title}, Page Url: {item.url}, Page ID: {item.target_id}" for i, item in
+                      enumerate(tabs)])
 
 
 async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
     """Implementation using thinking + action pattern similar to report_writer_agent"""
     logger.info("🎯 VibeSurf Agent: Processing with thinking + action pattern...")
 
-    # Setup file organization
-    ensure_directories(state)
-
     # Create action model and agent output using VibeSurfTools
     ActionModel = state.tools.registry.create_action_model()
-    
-    # Create enhanced agent output with action field
-    from vibe_surf.agents.views import CustomAgentOutput
     AgentOutput = CustomAgentOutput.type_with_custom_actions(ActionModel)
 
     # Get current browser context
@@ -402,7 +313,8 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                 state.current_action = 'execute_browser_use_agent_tasks'
                 state.action_params = params
                 state.current_step = "browser_task_execution"
-                log_agent_activity(state, "vibesurf_agent", "result", f"Routing to browser task execution with {len(state.browser_tasks)} tasks")
+                log_agent_activity(state, "vibesurf_agent", "result",
+                                   f"Routing to browser task execution with {len(state.browser_tasks)} tasks")
                 return state
 
             elif action_name == 'execute_report_writer_agent':
@@ -419,15 +331,15 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                 params = action_data[action_name]
                 response_content = params.get('response', 'Task completed')
                 follow_tasks = params.get('suggestion_follow_tasks', [])
-                
+
                 # Format final response
                 final_response = f"{response_content}"
                 if follow_tasks:
                     final_response += "\n\n## Suggested Follow-up Tasks:\n"
                     for j, task in enumerate(follow_tasks[:3], 1):
                         final_response += f"{j}. {task}\n"
-                
-                state.final_summary = final_response
+
+                state.final_response = final_response
                 state.is_complete = True
                 log_agent_activity(state, "vibesurf_agent", "result", final_response)
                 return state
@@ -463,7 +375,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
 
     except Exception as e:
         logger.error(f"❌ VibeSurf agent failed: {e}")
-        state.final_summary = f"Task execution failed: {str(e)}"
+        state.final_response = f"Task execution failed: {str(e)}"
         state.is_complete = True
         log_agent_activity(state, "vibesurf_agent", "error", f"Agent failed: {str(e)}")
         return state
@@ -483,9 +395,6 @@ async def _browser_task_execution_node_impl(state: VibeSurfState) -> VibeSurfSta
     # Log agent activity
     log_agent_activity(state, "browser_task_executor", "working",
                        f"Executing {len(state.browser_tasks)} browser tasks")
-
-    # Setup file organization
-    ensure_directories(state)
 
     try:
         # Execute tasks using simplified tab-based approach
@@ -518,7 +427,7 @@ async def _browser_task_execution_node_impl(state: VibeSurfState) -> VibeSurfSta
             else:
                 task_description = str(task)
                 tab_id = None
-            
+
             error_results.append(BrowserTaskResult(
                 agent_id="error",
                 task=task_description,
@@ -641,11 +550,11 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                 bu_task = task_description + f"\nAvailable uploaded files:\n{upload_files_md}\n"
             else:
                 bu_task = task_description
-            
+
             # Create step callback for this agent
             agent_name = f"browser_use_agent-{i + 1}-{state.task_id[-4:]}"
             step_callback = create_browser_agent_step_callback(state, agent_name)
-            
+
             agent = BrowserUseAgent(
                 task=bu_task,
                 llm=state.llm,
@@ -750,7 +659,7 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> List[BrowserTask
             # Create step callback for this agent
             agent_name = f"browser_use_agent-{state.task_id[-4:]}"
             step_callback = create_browser_agent_step_callback(state, agent_name)
-            
+
             agent = BrowserUseAgent(
                 task=bu_task,
                 llm=state.llm,
@@ -893,16 +802,18 @@ class VibeSurfAgent:
             browser_manager: BrowserManager,
             tools: VibeSurfTools,
             workspace_dir: str = "./workspace",
+            thinking_mode: bool = True
     ):
         """Initialize VibeSurfAgent with required components"""
-        self.llm = llm
-        self.browser_manager = browser_manager
-        self.tools = tools
+        self.llm: BaseChatModel = llm
+        self.browser_manager: BrowserManager = browser_manager
+        self.tools: VibeSurfTools = tools
         self.workspace_dir = workspace_dir
         os.makedirs(self.workspace_dir, exist_ok=True)
-        
+        self.thinking_mode = thinking_mode
+
         self.cur_session_id = None
-        self.file_system = None
+        self.file_system: Optional[CustomFileSystem] = None
         self.message_history = []
         self.activity_logs = []
 
@@ -922,13 +833,13 @@ class VibeSurfAgent:
         """Load message history for a specific session, or return [] for new sessions"""
         if session_id is None:
             return []
-        
+
         session_message_history_path = os.path.join(self.workspace_dir, "sessions", session_id, "message_history.pkl")
-        
+
         if not os.path.exists(session_message_history_path):
             logger.info(f"No message history found for session {session_id}, creating new")
             return []
-        
+
         try:
             with open(session_message_history_path, "rb") as f:
                 message_history = pickle.load(f)
@@ -942,13 +853,13 @@ class VibeSurfAgent:
         """Save message history for a specific session"""
         if session_id is None:
             return
-        
+
         # Create session directory if it doesn't exist
         session_dir = os.path.join(self.workspace_dir, "sessions", session_id)
         os.makedirs(session_dir, exist_ok=True)
-        
+
         session_message_history_path = os.path.join(session_dir, "message_history.pkl")
-        
+
         try:
             with open(session_message_history_path, "wb") as f:
                 logger.info(f"Saving message history for session {session_id} to {session_message_history_path}")
@@ -960,13 +871,13 @@ class VibeSurfAgent:
         """Load activity logs for a specific session, or return [] for new sessions"""
         if session_id is None:
             return []
-        
+
         session_activity_logs_path = os.path.join(self.workspace_dir, "sessions", session_id, "activity_logs.pkl")
-        
+
         if not os.path.exists(session_activity_logs_path):
             logger.info(f"No activity logs found for session {session_id}, creating new")
             return []
-        
+
         try:
             with open(session_activity_logs_path, "rb") as f:
                 activity_logs = pickle.load(f)
@@ -980,13 +891,13 @@ class VibeSurfAgent:
         """Save activity logs for a specific session"""
         if session_id is None:
             return
-        
+
         # Create session directory if it doesn't exist
         session_dir = os.path.join(self.workspace_dir, "sessions", session_id)
         os.makedirs(session_dir, exist_ok=True)
-        
+
         session_activity_logs_path = os.path.join(session_dir, "activity_logs.pkl")
-        
+
         try:
             with open(session_activity_logs_path, "wb") as f:
                 logger.info(f"Saving activity logs for session {session_id} to {session_activity_logs_path}")
@@ -1328,12 +1239,38 @@ class VibeSurfAgent:
             except Exception as e:
                 logger.warning(f"⚠️ Failed to resume agent {agent_id}: {e}")
 
+    async def process_upload_files(self, upload_files: Optional[List[str]] = None):
+        new_upload_files = []
+        for ufile_path in upload_files:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            dst_filename = f"uploads/{timestamp}-{os.path.basename(ufile_path)}"
+            await self.file_system.copy_file(ufile_path, dst_filename, external_src_file=True)
+            new_upload_files.append(dst_filename)
+        return new_upload_files
+
+    def format_upload_files(self, upload_files: Optional[List[str]] = None, use_abspath: bool = False) -> str:
+        """Format uploaded file for LLM prompt"""
+        if upload_files is None:
+            return ""
+        if use_abspath:
+            file_urls = []
+            for i, file_path in enumerate(upload_files):
+                abs_file_path = self.file_system.get_absolute_path(file_path)
+                normalized_path = abs_file_path.replace(os.path.sep, '/')
+                file_url = f"{i + 1}. [{os.path.basename(file_path)}](file:///{normalized_path})"
+                file_urls.append(file_url)
+            return "\n".join(file_urls)
+        else:
+            return "\n".join(
+                [f"{i + 1}. {file_path}" for i, file_path in enumerate(upload_files)])
+
     async def run(
             self,
             task: str,
             upload_files: Optional[List[str]] = None,
             session_id: Optional[str] = None,
-    ) -> str:
+            thinking_mode: bool = True
+    ) -> str | None:
         """
         Main execution method that returns markdown summary with control capabilities
         
@@ -1345,61 +1282,51 @@ class VibeSurfAgent:
             str: Markdown summary of execution results
         """
         logger.info(f"🚀 Starting VibeSurfAgent execution for task: {task}")
-        agent_activity_logs = None
+        agent_activity_logs = []
         try:
+            self.thinking_mode = thinking_mode
             session_id = session_id or self.cur_session_id or uuid7str()
             if session_id != self.cur_session_id:
                 # Load session-specific data when switching sessions
                 self.cur_session_id = session_id
                 self.message_history = self.load_message_history(session_id)
                 self.activity_logs = self.load_activity_logs(session_id)
-
-            if not self.message_history:
-                self.message_history.append(SystemMessage(content=SUPERVISOR_AGENT_SYSTEM_PROMPT))
+                session_dir = os.path.join(self.workspace_dir, "sessions", self.cur_session_id)
+                os.makedirs(session_dir, exist_ok=True)
+                self.file_system = CustomFileSystem(session_dir)
 
             if upload_files and not isinstance(upload_files, list):
                 upload_files = [upload_files]
-            
+            upload_files = await self.process_upload_files(upload_files)
+
+            if not self.message_history:
+                self.message_history.append(SystemMessage(content=VIBESURF_SYSTEM_PROMPT))
+
+            # Format processed upload files for prompt
+            upload_files_md = self.format_upload_files(upload_files)
+            user_request = f"* User's New Request:\n{task}\n"
+            if upload_files:
+                user_request += f"* User Uploaded Files:\n{upload_files_md}\n"
+            self.message_history.append(
+                UserMessage(content=user_request)
+            )
+            logger.info(user_request)
+
+            abs_upload_files_md = self.format_upload_files(upload_files, use_abspath=True)
+            activity_entry = {
+                "agent_name": 'user',
+                "agent_status": 'request',  # working, result, error
+                "agent_msg": f"{task}\nUpload Files:\n{abs_upload_files_md}\n" if upload_files else f"{task}"
+            }
+            self.activity_logs.append(activity_entry)
+
             # Initialize state first (needed for file processing)
             initial_state = VibeSurfState(
                 original_task=task,
                 upload_files=upload_files or [],
-                workspace_dir=self.workspace_dir,
-                browser_manager=self.browser_manager,
-                activity_logs=self.activity_logs,
-                message_history=self.message_history,
-                llm=self.llm,
                 session_id=session_id,
-                tools=self.tools,
-                vibesurf_agent=self,  # Reference to VibeSurfAgent for control coordination
-                file_system=self.file_system  # Shared file system instance
+                vibesurf_agent=self,
             )
-            
-            # Setup directories and process upload files
-            ensure_directories(initial_state)
-            if upload_files:
-                initial_state.upload_files = await process_upload_files(initial_state, upload_files)
-            
-            # Format processed upload files for prompt
-            upload_files_md = format_upload_files_list(initial_state.upload_files)
-            user_request = f"* User's New Request:\n{task}\n"
-            if initial_state.upload_files:
-                user_request += f"* User Uploaded Files:\n{upload_files_md}\n"
-            self.message_history.append(
-                UserMessage(
-                    content=user_request)
-            )
-            logger.info(user_request)
-
-            activity_entry = {
-                "agent_name": 'user',
-                "agent_status": 'request',  # working, result, error
-                "agent_msg": f"{task}\nUpload Files:\n{upload_files_md}\n" if initial_state.upload_files else f"{task}"
-            }
-            self.activity_logs.append(activity_entry)
-            
-            # Update state with activity logs
-            initial_state.activity_logs = agent_activity_logs
 
             # Set current state for control operations
             async with self._control_lock:
@@ -1473,44 +1400,41 @@ class VibeSurfAgent:
         List[Dict]]:
         if session_id is None:
             session_id = self.cur_session_id
-        
-        logger.debug(f"📊 GET_ACTIVITY_LOGS DEBUG - Session: {session_id}, Message Index: {message_index}, Current Session: {self.cur_session_id}")
-        
+
         # Ensure session_id exists in activity_logs
         if session_id not in self.activity_logs:
-            logger.warning(f"⚠️ Session {session_id} not found in activity_logs. Available sessions: {list(self.activity_logs.keys())}")
+            logger.warning(
+                f"⚠️ Session {session_id} not found in activity_logs. Available sessions: {list(self.activity_logs.keys())}")
             return None
-            
+
         session_logs = self.activity_logs[session_id]
         logger.debug(f"📋 Session {session_id} has {len(session_logs)} activity logs")
-        
+
         if message_index is None:
             logger.debug(f"📤 Returning all {len(session_logs)} activity logs for session {session_id}")
             return session_logs
         else:
             if message_index >= len(session_logs):
-                logger.debug(f"⚠️ Message index {message_index} out of range for session {session_id} (max index: {len(session_logs) - 1})")
+                logger.debug(
+                    f"⚠️ Message index {message_index} out of range for session {session_id} (max index: {len(session_logs) - 1})")
                 return None
             else:
                 activity_log = session_logs[message_index]
-                logger.debug(f"📤 Returning activity log at index {message_index}: {activity_log.get('agent_name', 'unknown')} - {activity_log.get('agent_status', 'unknown')}")
+                logger.debug(
+                    f"📤 Returning activity log at index {message_index}: {activity_log.get('agent_name', 'unknown')} - {activity_log.get('agent_status', 'unknown')}")
                 return activity_log
 
     async def _get_result(self, state) -> str:
         """Get the final result from execution with simplified workflow support"""
         # Handle both dict and dataclass state types due to LangGraph serialization
-        simple_response = state.get('simple_response') if isinstance(state, dict) else getattr(state, 'simple_response',
-                                                                                               None)
-        final_summary = state.get('final_summary') if isinstance(state, dict) else getattr(state, 'final_summary', None)
+        final_response = state.get('final_response') if isinstance(state, dict) else getattr(state, 'final_response',
+                                                                                             None)
         original_task = state.get('original_task') if isinstance(state, dict) else getattr(state, 'original_task',
                                                                                            'Unknown task')
-
-        # Fallback for cases where state doesn't support logging
-        if simple_response:
-            return f"# Response\n\n{simple_response}"
-        elif final_summary:
-            return final_summary
+        if final_response:
+            return final_response
         else:
             return f"# Task Execution Completed\n\n**Task:** {original_task}\n\nTask execution completed but no detailed result available."
+
 
 workflow = create_vibe_surf_workflow()

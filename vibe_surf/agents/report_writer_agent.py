@@ -293,7 +293,7 @@ The report file '{report_filename}' has been created and is ready for you to wri
                 else:
                     absolute_path = file_path
                 normalized_path = absolute_path.replace(os.path.sep, '/')
-                file_url = f"file://{normalized_path}"
+                file_url = f"file:///{normalized_path}"
 
                 # Return the updated attribute
                 quote = '"' if '"' in full_match else "'"
