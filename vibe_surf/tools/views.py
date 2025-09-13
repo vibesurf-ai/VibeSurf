@@ -75,9 +75,31 @@ class TodoGenerateAction(BaseModel):
     )
 
 
+class TodoModification(BaseModel):
+    """Single todo modification operation"""
+    action: str = Field(
+        description='Type of modification: "add", "remove", "complete", or "uncomplete"',
+    )
+    item: str = Field(
+        description='Text of the todo item to operate on',
+    )
+
+
 class TodoModifyAction(BaseModel):
     """Parameters for modifying todo items"""
-    modifications: list[dict] = Field(
-        description='List of modifications to apply. Each dict should have "action" key with values "add"/"remove"/"complete"/"uncomplete" and "item" key for the todo item text',
+    modifications: list[TodoModification] = Field(
+        description='List of todo modifications to apply',
         min_length=1,
+    )
+
+
+class DoneAction(BaseModel):
+    """Parameters for task completion output"""
+    response: str = Field(
+        description='Task completion response - can be simple response for basic tasks or comprehensive markdown summary for complex tasks with key findings, results, and file links',
+    )
+    suggestion_follow_tasks: list[str] | None = Field(
+        default=None,
+        description='Optional list of 1-3 suggested follow-up tasks with brief descriptions',
+        max_length=3,
     )

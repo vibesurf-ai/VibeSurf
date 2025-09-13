@@ -24,7 +24,7 @@ from browser_use.browser.views import BrowserError
 from browser_use.mcp.client import MCPClient
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, BrowserUseAgentExecution, ReportWriterTask, TodoGenerateAction, TodoModifyAction
+from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, BrowserUseAgentExecution, ReportWriterTask, TodoGenerateAction, TodoModifyAction, DoneAction
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.browser.browser_manager import BrowserManager
@@ -45,6 +45,7 @@ class VibeSurfTools:
         self._register_browser_use_agent()
         self._register_report_writer_agent()
         self._register_todo_actions()
+        self._register_done_action()
         self.mcp_server_config = None
         self.mcp_clients = {}
 
@@ -186,11 +187,11 @@ class VibeSurfTools:
                 
                 # Process each modification
                 for modification in params.modifications:
-                    action = modification.get('action')
+                    action = modification.action
+                    item = modification.item.strip()
                     
                     if action == 'add':
                         # Add new item
-                        item = modification.get('item', '').strip()
                         if item:
                             # Format as checkbox if not already formatted
                             if not item.startswith('- ['):
@@ -200,7 +201,6 @@ class VibeSurfTools:
                     
                     elif action == 'remove':
                         # Remove item
-                        item = modification.get('item', '').strip()
                         if item:
                             # Try to find and remove the item (with some flexibility)
                             lines = modified_content.split('\n')
@@ -218,7 +218,6 @@ class VibeSurfTools:
                     
                     elif action == 'complete':
                         # Mark item as complete: - [ ] → - [x]
-                        item = modification.get('item', '').strip()
                         if item:
                             lines = modified_content.split('\n')
                             completed = False
@@ -234,7 +233,6 @@ class VibeSurfTools:
                     
                     elif action == 'uncomplete':
                         # Mark item as uncomplete: - [x] → - [ ]
-                        item = modification.get('item', '').strip()
                         if item:
                             lines = modified_content.split('\n')
                             uncompleted = False
@@ -264,6 +262,53 @@ class VibeSurfTools:
             except Exception as e:
                 logger.error(f'❌ Failed to modify todo file: {e}')
                 raise RuntimeError(f'Failed to modify todo file: {str(e)}')
+
+    def _register_done_action(self):
+        @self.registry.action(
+            'Complete task and output final response. Use for simple responses or comprehensive markdown summaries with optional follow-up task suggestions.',
+            param_model=DoneAction,
+        )
+        async def task_done(
+                params: DoneAction,
+                browser_manager: BrowserManager,
+                llm: BaseChatModel,
+                file_system: CustomFileSystem,
+        ):
+            """
+            Complete task execution and provide final response.
+            
+            Args:
+                params: DoneAction containing response and optional follow-up tasks
+                browser_manager: Browser manager instance
+                llm: Language model instance
+                file_system: File system instance
+                
+            Returns:
+                ActionResult with task completion response
+            """
+            try:
+                response = params.response.strip()
+                follow_tasks = params.suggestion_follow_tasks or []
+                
+                # Format the completion response
+                completion_content = f"Task Completed:\n\n{response}"
+                
+                # Add follow-up task suggestions if provided
+                if follow_tasks:
+                    completion_content += "\n\n## Suggested Follow-up Tasks:\n"
+                    for i, task in enumerate(follow_tasks[:3], 1):  # Limit to 3 tasks max
+                        completion_content += f"{i}. {task.strip()}\n"
+                
+                logger.info(f'✅ Task completed with {len(follow_tasks)} follow-up suggestions')
+                return ActionResult(
+                    extracted_content=completion_content,
+                    long_term_memory=f'Task completed successfully. {len(follow_tasks)} follow-up tasks suggested.',
+                    include_in_memory=True,
+                )
+                
+            except Exception as e:
+                logger.error(f'❌ Failed to complete task: {e}')
+                raise RuntimeError(f'Failed to complete task: {str(e)}')
 
     def _register_file_actions(self):
         @self.registry.action(
