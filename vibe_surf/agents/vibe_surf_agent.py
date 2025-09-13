@@ -100,7 +100,7 @@ class VibeSurfStatus(BaseModel):
 
 @dataclass
 class VibeSurfState:
-    """Main LangGraph state for VibeSurfAgent workflow with simplified architecture"""
+    """Simplified LangGraph state for VibeSurfAgent workflow"""
 
     # Core task information
     original_task: str = ""
@@ -109,30 +109,24 @@ class VibeSurfState:
     task_id: str = field(default_factory=lambda: uuid7str())
 
     # Workflow state
-    current_step: str = "task_analysis"
-    is_simple_response: bool = False
+    current_step: str = "vibesurf_agent"
+    is_complete: bool = False
 
-    # Supervisor Agent - Core tools with message history
-    supervisor_message_history: List[BaseMessage] = field(default_factory=list)
-    supervisor_action: Optional[str] = None
+    # Supervisor Agent message history (session-specific)
+    message_history: List[BaseMessage] = field(default_factory=list)
+    
+    # Current action and parameters from LLM
+    current_action: Optional[str] = None
+    action_params: Optional[Dict[str, Any]] = None
 
-    # Todo list management
-    todo_list: List[TodoItem] = field(default_factory=list)
-    completed_todos: List[TodoItem] = field(default_factory=list)
-    current_task_index: int = 0
-
-    # Task execution
-    execution_mode: Optional[ExecutionMode] = None
-    pending_tasks: List[str] = field(default_factory=list)
-    pending_todo_indices: List[int] = field(default_factory=list)  # Track which todo indices are being executed
-    browser_results: List[BrowserTaskResult] = field(default_factory=list)  # record all browser result
-    prev_browser_results: List[BrowserTaskResult] = field(default_factory=list)  # record previous browser result
+    # Browser task execution
+    browser_tasks: List[Dict[str, Any]] = field(default_factory=list)
+    browser_results: List[BrowserTaskResult] = field(default_factory=list)
 
     # Response outputs
     simple_response: Optional[str] = None
     generated_report_path: Optional[str] = None
     final_summary: Optional[str] = None
-    is_complete: bool = False
 
     # File organization
     workspace_dir: str = "./workspace"
@@ -141,7 +135,7 @@ class VibeSurfState:
 
     # Integration components
     browser_manager: Optional[BrowserManager] = None
-    vibesurf_controller: Optional[BrowserUseTools] = None
+    tools: Optional[VibeSurfTools] = None
     llm: Optional[BaseChatModel] = None
     vibesurf_agent: Optional[Any] = None
 
@@ -150,18 +144,9 @@ class VibeSurfState:
     stopped: bool = False
     should_pause: bool = False
     should_stop: bool = False
-
-    # Agent control tracking
-    agent_control_states: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    paused_agents: set = field(default_factory=set)
-
-    # Control metadata
-    control_timestamps: Dict[str, datetime] = field(default_factory=dict)
-    control_reasons: Dict[str, str] = field(default_factory=dict)
-    last_control_action: Optional[str] = None
-
-    # Agent activity log
-    agent_activity_logs: List[Dict[str, str]] = field(default_factory=list)
+    
+    # Activity logs (session-specific)
+    activity_logs: List[Dict[str, str]] = field(default_factory=list)
 
 
 # Utility functions for parsing LLM JSON responses
@@ -321,7 +306,7 @@ def log_agent_activity(state: VibeSurfState, agent_name: str, agent_status: str,
         "agent_status": agent_status,  # working, result, error
         "agent_msg": agent_msg
     }
-    state.agent_activity_logs.append(activity_entry)
+    state.activity_logs.append(activity_entry)
     logger.info(f"📝 Logged activity: {agent_name} - {agent_status}:\n{agent_msg}")
 
 
@@ -407,7 +392,7 @@ async def control_aware_node(node_func, state: VibeSurfState, node_name: str) ->
             logger.info(f"⏸️ Node {node_name} pausing workflow")
             state.paused = True
             state.should_pause = False
-            state.control_timestamps["paused"] = datetime.now()
+            # Note: control_timestamps removed in simplified state
 
         logger.debug(f"⏸️ Node {node_name} waiting - workflow paused")
         await asyncio.sleep(0.5)  # Check every 500ms
@@ -417,7 +402,7 @@ async def control_aware_node(node_func, state: VibeSurfState, node_name: str) ->
             logger.info(f"🛑 Node {node_name} stopped while paused")
             state.stopped = True
             state.should_stop = False
-            state.control_timestamps["stopped"] = datetime.now()
+            # Note: control_timestamps removed in simplified state
             return state
 
     # Check for stop signal
@@ -425,12 +410,12 @@ async def control_aware_node(node_func, state: VibeSurfState, node_name: str) ->
         logger.info(f"🛑 Node {node_name} stopping workflow")
         state.stopped = True
         state.should_stop = False
-        state.control_timestamps["stopped"] = datetime.now()
+        # Note: control_timestamps removed in simplified state
         return state
 
     # Execute the actual node
     logger.debug(f"▶️ Executing node: {node_name}")
-    state.last_control_action = f"executing_{node_name}"
+    # Note: last_control_action removed in simplified state
 
     try:
         return await node_func(state)
@@ -441,11 +426,11 @@ async def control_aware_node(node_func, state: VibeSurfState, node_name: str) ->
 
 # LangGraph Nodes
 
-async def supervisor_agent_node(state: VibeSurfState) -> VibeSurfState:
+async def vibesurf_agent_node(state: VibeSurfState) -> VibeSurfState:
     """
-    Core supervisor agent node - manages todos, assigns tasks, and coordinates workflow
+    Main VibeSurf agent node using thinking + action pattern like report_writer_agent
     """
-    return await control_aware_node(_supervisor_agent_node_impl, state, "supervisor_agent")
+    return await control_aware_node(_vibesurf_agent_node_impl, state, "vibesurf_agent")
 
 
 def format_browser_tabs(tabs: Optional[List[TabInfo]] = None) -> str:
@@ -454,171 +439,141 @@ def format_browser_tabs(tabs: Optional[List[TabInfo]] = None) -> str:
     return "\n".join([f"[{i}] Page Title: {item.title}, Page Url: {item.url}, Page ID: {item.target_id}" for i, item in enumerate(tabs)])
 
 
-async def _supervisor_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
-    """Implementation of supervisor agent node - core workflow tools"""
-    logger.info("🎯 Supervisor Agent: Managing workflow and task coordination...")
+async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
+    """Implementation using thinking + action pattern similar to report_writer_agent"""
+    logger.info("🎯 VibeSurf Agent: Processing with thinking + action pattern...")
 
-    supervisor_message_history = state.supervisor_message_history
+    # Setup file organization
+    ensure_directories(state)
 
-    # Build supervisor user prompt with current context
-    if state.prev_browser_results:
-        browser_results_md = format_browser_results(state.prev_browser_results)
-        supervisor_message_history.append(AssistantMessage(
-            content=f"Previous Browser Execution Results: \n{browser_results_md}"))
-    elif state.generated_report_path:
-        supervisor_message_history.append(AssistantMessage(content=f"Generated Report Path: {state.generated_report_path}"))
+    # Create action model and agent output using VibeSurfTools
+    ActionModel = state.tools.registry.create_action_model()
+    
+    # Create enhanced agent output with action field
+    from vibe_surf.agents.views import CustomAgentOutput
+    AgentOutput = CustomAgentOutput.type_with_custom_actions(ActionModel)
 
-    if state.todo_list:
-        supervisor_message_history.append(UserMessage(
-            content=f"Completed Todos:\n{format_completed_todos(state.completed_todos)}\nCurrent Todos:\n{format_todo_list(state.todo_list)}"))
-
+    # Get current browser context
     browser_tabs = await state.browser_manager.main_browser_session.get_tabs()
     browser_tabs_md = format_browser_tabs(browser_tabs)
-    if browser_tabs_md:
-        supervisor_message_history.append(UserMessage(
-            content=f"Available Browser Tabs:\n{browser_tabs_md}\n"))
     active_browser_tab = await state.browser_manager.get_activate_tab()
+    active_tab_md = ""
     if active_browser_tab:
         active_tab_md = f"Page Title: {active_browser_tab.title}, Page Url: {active_browser_tab.url}, Page ID: {active_browser_tab.target_id}"
-        supervisor_message_history.append(UserMessage(
-            content=f"Current Active Browser Tab:\n{active_tab_md}\n"))
 
-    # Reset prev_browser_results
-    state.prev_browser_results = []
+    # Format context information
+    context_info = []
+    if browser_tabs_md:
+        context_info.append(f"Available Browser Tabs:\n{browser_tabs_md}")
+    if active_tab_md:
+        context_info.append(f"Current Active Browser Tab:\n{active_tab_md}")
+    if state.browser_results:
+        results_md = format_browser_results(state.browser_results)
+        context_info.append(f"Previous Browser Results:\n{results_md}")
+    if state.generated_report_path:
+        context_info.append(f"Generated Report Path: {state.generated_report_path}")
+
+    context_str = "\n\n".join(context_info) if context_info else "No additional context available."
+
+    # Add context to message history
+    if context_info:
+        state.message_history.append(UserMessage(content=context_str))
+
     try:
-        response = await state.llm.ainvoke(supervisor_message_history)
-        # add result to message history
-        supervisor_message_history.append(AssistantMessage(content=response.completion))
+        # Get LLM response with action output format
+        response = await state.llm.ainvoke(state.message_history, output_format=AgentOutput)
+        parsed = response.completion
+        actions = parsed.action
 
-        supervisor_result = parse_supervisor_response(response.completion)
+        # Add assistant message to history
+        state.message_history.append(AssistantMessage(content=response.completion))
 
-        action = supervisor_result["action"]
-        reasoning = supervisor_result["reasoning"]
-        # Log agent activity
-        log_agent_activity(state, "supervisor_agent", "thinking", f"{reasoning}")
+        # Log thinking if present
+        if hasattr(parsed, 'thinking') and parsed.thinking:
+            log_agent_activity(state, "vibesurf_agent", "thinking", parsed.thinking)
 
-        state.supervisor_action = action
+        # Process actions
+        for i, action in enumerate(actions):
+            action_data = action.model_dump(exclude_unset=True)
+            action_name = next(iter(action_data.keys())) if action_data else 'unknown'
+            logger.info(f"🛠️ Processing action {i + 1}/{len(actions)}: {action_name}")
 
-        logger.info(f"🎯 Supervisor decision: {action} - {reasoning}")
-
-        # Handle different actions
-        if action == "generate_todos":
-            # Generate initial todos
-            todo_items = supervisor_result.get("todo_items", [])
-            if todo_items:
-                state.todo_list = [TodoItem(task=task) for task in todo_items]
-                todo_todo_list_md = format_todo_list_markdown(state.todo_list)
-                supervisor_message_history.append(
-                    UserMessage(content=f"Successfully generated todo list:\n{todo_todo_list_md}"))
-                log_agent_activity(state, "supervisor_agent", "result", f"Todo List:\n\n{todo_todo_list_md}")
-            # Continue in supervisor to assign tasks
-            state.current_step = "supervisor_agent"
-
-        elif action == "update_todos":
-            # Replace all remaining todos with the new list
-            todo_items = supervisor_result.get("todo_items", [])
-            if todo_items:
-                # Clear current todo list and replace with new items
-                state.todo_list = [TodoItem(task=task) for task in todo_items]
-                todo_todo_list_md = format_todo_list_markdown(state.completed_todos + state.todo_list)
-                supervisor_message_history.append(
-                    UserMessage(content=f"Successfully Updated todo list:\n{todo_todo_list_md}"))
-                log_agent_activity(state, "supervisor_agent", "result", f"Todo List:\n\n{todo_todo_list_md}")
-            else:
-                # If no todo_items provided, clear the list
-                state.todo_list = []
-                todo_todo_list_md = format_todo_list_markdown(state.completed_todos + state.todo_list)
-                supervisor_message_history.append(
-                    UserMessage(content=f"Cleared todo list - all tasks completed:\n{todo_todo_list_md}"))
-                log_agent_activity(state, "supervisor_agent", "result",
-                                   f"Cleared todo list - all tasks completed\n{todo_todo_list_md}")
-
-            # Continue in supervisor to assign tasks
-            state.current_step = "supervisor_agent"
-
-        elif action == "assign_browser_task":
-            # Assign browser tasks
-            task_type = supervisor_result.get("task_type", "single")
-            tasks_to_execute = supervisor_result.get("tasks_to_execute", [])
-
-            if tasks_to_execute:
-                tasks_to_execute_new = []
-                todo_indices = []  # Track which todo items are being executed
-                for task_item in tasks_to_execute:
-                    if isinstance(task_item, list):
-                        # Format: [page_index, todo_index]
-                        page_index, todo_index = task_item
-                        if isinstance(todo_index, int):
-                            if todo_index < len(state.todo_list):
-                                task_description = state.todo_list[todo_index].task
-                                tasks_to_execute_new.append([browser_tabs[page_index].target_id, task_description])
-                                todo_indices.append(todo_index)
-                        elif isinstance(todo_index, str):
-                            tasks_to_execute_new.append([browser_tabs[page_index].target_id, todo_index])
-                    else:
-                        # Format: todo_index
-                        todo_index = task_item
-                        if isinstance(todo_index, int):
-                            if todo_index < len(state.todo_list):
-                                task_description = state.todo_list[todo_index].task
-                                tasks_to_execute_new.append(task_description)
-                                todo_indices.append(todo_index)
-                        elif isinstance(todo_index, str):
-                            tasks_to_execute_new.append(todo_index)
-                logger.info(f"tasks_to_execute: {tasks_to_execute}")
-                state.execution_mode = ExecutionMode(
-                    mode=task_type,
-                    reason=reasoning
-                )
-                state.pending_tasks = tasks_to_execute_new
-                state.pending_todo_indices = todo_indices  # Store which todo indices are being executed
+            # Check for special routing actions
+            if action_name == 'execute_browser_use_agent_tasks':
+                # Route to browser task execution node
+                params = action_data[action_name]
+                state.browser_tasks = params.get('tasks', [])
+                state.current_action = 'execute_browser_use_agent_tasks'
+                state.action_params = params
                 state.current_step = "browser_task_execution"
+                log_agent_activity(state, "vibesurf_agent", "result", f"Routing to browser task execution with {len(state.browser_tasks)} tasks")
+                return state
 
-                log_agent_activity(state, "supervisor_agent", "result",
-                                   f"Assigned {len(tasks_to_execute)} browser tasks ({task_type} mode)")
-            else:
-                # No tasks to execute, continue in supervisor
-                state.current_step = "supervisor_agent"
-                supervisor_message_history.append(
-                    UserMessage(content=f"No tasks to execute. Please provide browser tasks to execute."))
+            elif action_name == 'execute_report_writer_agent':
+                # Route to report task execution node
+                params = action_data[action_name]
+                state.current_action = 'execute_report_writer_agent'
+                state.action_params = params
+                state.current_step = "report_task_execution"
+                log_agent_activity(state, "vibesurf_agent", "result", "Routing to report generation")
+                return state
 
-        elif action == "assign_report_task":
-            # Assign report generation task
-            state.current_step = "report_task_execution"
-            log_agent_activity(state, "supervisor_agent", "result", "Assigned report generation task")
-
-        elif action == "simple_response":
-            # Use provided content or generate if not provided
-            state.current_step = "simple_response"
-            state.simple_response = supervisor_result["simple_response_content"]
-            state.is_complete = True
-            log_agent_activity(state, "supervisor_agent", "result", state.simple_response)
-        elif action == "summary_generation":
-            # Handle summary generation directly in supervisor
-            summary_content = supervisor_result.get("summary_content")
-
-            if summary_content:
-                # Use LLM-provided summary content
-                state.final_summary = summary_content
+            elif action_name == 'task_done':
+                # Handle response/completion - direct to END
+                params = action_data[action_name]
+                response_content = params.get('response', 'Task completed')
+                follow_tasks = params.get('suggestion_follow_tasks', [])
+                
+                # Format final response
+                final_response = f"{response_content}"
+                if follow_tasks:
+                    final_response += "\n\n## Suggested Follow-up Tasks:\n"
+                    for j, task in enumerate(follow_tasks[:3], 1):
+                        final_response += f"{j}. {task}\n"
+                
+                state.final_summary = final_response
                 state.is_complete = True
-                state.current_step = "summary_generation"
-                log_agent_activity(state, "supervisor_agent", "result", f"{summary_content}")
+                log_agent_activity(state, "vibesurf_agent", "result", final_response)
+                return state
+
             else:
-                # Generate summary using the same logic as the old summary generation node
-                state.current_step = "supervisor_agent"
-                supervisor_message_history.append(
-                    UserMessage(content=f"The summary content is empty. Please provide summary content if you think all requirements have been accomplished."))
-        else:
-            # Unknown action, default to complete workflow
-            state.current_step = "summary_generation"
-            log_agent_activity(state, "supervisor_agent", "error", f"Unknown action: {action}")
+                # Execute regular action using tools
+                # Create file system for session-specific actions
+                from vibe_surf.tools.file_system import CustomFileSystem
+                file_system = CustomFileSystem(data_dir=state.task_dir)
+
+                # For todo-related actions, read todo.md and log activity
+                if action_name in ['generate_todos', 'read_todos', 'modify_todos']:
+                    try:
+                        # Try to read existing todo.md
+                        todo_content = await file_system.read_file('todo.md')
+                        log_agent_activity(state, "vibesurf_agent", "working", f"Reading todo.md for {action_name}:\n{todo_content}")
+                    except Exception as e:
+                        log_agent_activity(state, "vibesurf_agent", "working", f"No existing todo.md found for {action_name}: {str(e)}")
+
+                result = await state.tools.act(
+                    action=action,
+                    browser_manager=state.browser_manager,
+                    llm=state.llm,
+                    file_system=file_system,
+                )
+
+                # Add result to message history
+                if result.extracted_content:
+                    state.message_history.append(UserMessage(content=f'Action result:\n{result.extracted_content}'))
+                    log_agent_activity(state, "vibesurf_agent", "result", result.extracted_content)
+
+                if result.error:
+                    state.message_history.append(UserMessage(content=f'Action error:\n{result.error}'))
+                    log_agent_activity(state, "vibesurf_agent", "error", result.error)
 
         return state
 
     except Exception as e:
-        logger.error(f"❌ Supervisor agent failed: {e}")
-        state.current_step = "summary_generation"
-        log_agent_activity(state, "supervisor_agent", "error", f"Supervisor failed: {str(e)}")
+        logger.error(f"❌ VibeSurf agent failed: {e}")
+        state.final_summary = f"Task execution failed: {str(e)}"
+        state.is_complete = True
+        log_agent_activity(state, "vibesurf_agent", "error", f"Agent failed: {str(e)}")
         return state
 
 
@@ -630,50 +585,25 @@ async def browser_task_execution_node(state: VibeSurfState) -> VibeSurfState:
 
 
 async def _browser_task_execution_node_impl(state: VibeSurfState) -> VibeSurfState:
-    """Implementation of browser task execution node"""
-    logger.info("🚀 Executing browser tasks assigned by supervisor...")
+    """Implementation of browser task execution node - simplified tab-based approach"""
+    logger.info("🚀 Executing browser tasks assigned by vibesurf agent...")
 
     # Log agent activity
     log_agent_activity(state, "browser_task_executor", "working",
-                       f"Executing {len(state.pending_tasks)} browser tasks in {state.execution_mode.mode if state.execution_mode else 'single'} mode")
+                       f"Executing {len(state.browser_tasks)} browser tasks")
 
     # Setup file organization
     ensure_directories(state)
 
     try:
-        if state.execution_mode and state.execution_mode.mode == "parallel":
-            # Execute tasks in parallel
-            results = await execute_parallel_browser_tasks(state)
-        else:
-            # Execute tasks in single mode
-            results = await execute_single_browser_tasks(state)
+        # Execute tasks using simplified tab-based approach
+        results = await execute_tab_based_browser_tasks(state)
 
         # Update browser results
-        state.prev_browser_results = copy.deepcopy(results)
         state.browser_results.extend(results)
 
-        # Mark corresponding todos as completed using indices
-        for i, todo_index in enumerate(state.pending_todo_indices):
-            if todo_index < len(state.todo_list) and state.todo_list[todo_index].status != "completed":
-                todo = state.todo_list[todo_index]
-                todo.status = "completed"
-                if i < len(results):
-                    todo.result = results[i].result if results[i].success else None
-                    todo.error = results[i].error if not results[i].success else None
-                state.completed_todos.append(todo)
-
-        # Remove completed todos from the todo list
-        # Sort indices in reverse order to avoid index shifting issues
-        for todo_index in sorted(state.pending_todo_indices, reverse=True):
-            if todo_index < len(state.todo_list):
-                state.todo_list.pop(todo_index)
-
-        # Clear pending tasks and indices
-        state.pending_tasks = []
-        state.pending_todo_indices = []
-
-        # Return to supervisor for next decision
-        state.current_step = "supervisor_agent"
+        # Return to vibesurf agent for next decision
+        state.current_step = "vibesurf_agent"
 
         # Log result
         successful_tasks = sum(1 for result in results if result.success)
@@ -686,14 +616,17 @@ async def _browser_task_execution_node_impl(state: VibeSurfState) -> VibeSurfSta
     except Exception as e:
         logger.error(f"❌ Browser task execution failed: {e}")
 
-        # Create error results for pending tasks
+        # Create error results for browser tasks
         error_results = []
-        for i, task in enumerate(state.pending_tasks):
+        for i, task in enumerate(state.browser_tasks):
             # Get the actual task description for the error result
-            if isinstance(task, list):
-                task_description = task[1]  # [target_id, task_description]
+            if isinstance(task, dict):
+                task_description = task.get('description', 'Unknown task')
+                tab_id = task.get('tab_id')
             else:
-                task_description = task
+                task_description = str(task)
+                tab_id = None
+            
             error_results.append(BrowserTaskResult(
                 agent_id="error",
                 task=task_description,
@@ -702,9 +635,7 @@ async def _browser_task_execution_node_impl(state: VibeSurfState) -> VibeSurfSta
             ))
 
         state.browser_results.extend(error_results)
-        state.pending_tasks = []
-        state.pending_todo_indices = []
-        state.current_step = "supervisor_agent"
+        state.current_step = "vibesurf_agent"
 
         log_agent_activity(state, "browser_task_executor", "error", f"Browser execution failed: {str(e)}")
         return state
@@ -742,8 +673,8 @@ async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfStat
 
         state.generated_report_path = report_path
 
-        # Return to supervisor for next decision
-        state.current_step = "supervisor_agent"
+        # Return to vibesurf agent for next decision
+        state.current_step = "vibesurf_agent"
 
         log_agent_activity(state, "report_task_executor", "result",
                            f"HTML report generated successfully at: `{report_path}`")
@@ -753,9 +684,24 @@ async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfStat
 
     except Exception as e:
         logger.error(f"❌ Report generation failed: {e}")
-        state.current_step = "supervisor_agent"
+        state.current_step = "vibesurf_agent"
         log_agent_activity(state, "report_task_executor", "error", f"Report generation failed: {str(e)}")
         return state
+
+
+async def execute_tab_based_browser_tasks(state: VibeSurfState) -> List[BrowserTaskResult]:
+    """Execute browser tasks - parallel execution for multiple tasks, single for single task"""
+    task_count = len(state.browser_tasks)
+    logger.info(f"🔄 Executing {task_count} browser tasks...")
+
+    if task_count <= 1:
+        # Single task execution
+        logger.info("📝 Using single execution for single task")
+        return await execute_single_browser_tasks(state)
+    else:
+        # Multiple tasks execution - parallel approach
+        logger.info(f"🚀 Using parallel execution for {task_count} tasks")
+        return await execute_parallel_browser_tasks(state)
 
 
 async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTaskResult]:
@@ -764,15 +710,18 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
 
     # Register agents with browser manager
     agents = []
-    pending_tasks = state.pending_tasks
+    pending_tasks = state.browser_tasks
     bu_agent_ids = []
     register_sessions = []
     for i, task in enumerate(pending_tasks):
         agent_id = f"agent-{i + 1}-{state.task_id[-4:]}"
         if isinstance(task, list):
             target_id, task_description = task
+        elif isinstance(task, dict):
+            task_description = task.get('description', 'Unknown task')
+            target_id = task.get('tab_id')
         else:
-            task_description = task
+            task_description = str(task)
             target_id = None
         register_sessions.append(
             state.browser_manager.register_agent(agent_id, target_id=target_id)
@@ -784,8 +733,11 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
         agent_id = f"agent-{i + 1}-{state.task_id[-4:]}"
         if isinstance(task, list):
             target_id, task_description = task
+        elif isinstance(task, dict):
+            task_description = task.get('description', 'Unknown task')
+            target_id = task.get('tab_id')
         else:
-            task_description = task
+            task_description = str(task)
         try:
             # Log agent creation
             log_agent_activity(state, f"browser_use_agent-{i + 1}-{state.task_id[-4:]}", "working",
@@ -806,7 +758,7 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                 task=bu_task,
                 llm=state.llm,
                 browser_session=agent_browser_sessions[i],
-                controller=state.vibesurf_controller,
+                controller=state.vibesurf_agent,
                 task_id=f"{state.task_id}-{i + 1}",
                 file_system_path=os.path.join(state.task_dir, f"{state.task_id}-{i + 1}"),
                 register_new_step_callback=step_callback,
@@ -877,14 +829,21 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> List[BrowserTask
     logger.info("🔄 Executing pending tasks in single mode...")
 
     results = []
-    for i, task in enumerate(state.pending_tasks):
+    for i, task in enumerate(state.browser_tasks):
         if isinstance(task, list):
             target_id, task_description = task
             await state.browser_manager.main_browser_session.get_or_create_cdp_session(target_id, focus=True)
+        elif isinstance(task, dict):
+            task_description = task.get('description', 'Unknown task')
+            tab_id = task.get('tab_id')
+            if tab_id:
+                await state.browser_manager.main_browser_session.get_or_create_cdp_session(tab_id, focus=True)
+            else:
+                await state.browser_manager.get_activate_tab()
         else:
-            task_description = task
+            task_description = str(task)
             await state.browser_manager.get_activate_tab()
-        logger.info(f"🔄 Executing task ({i + 1}/{len(state.pending_tasks)}): {task_description}")
+        logger.info(f"🔄 Executing task ({i + 1}/{len(state.browser_tasks)}): {task_description}")
 
         agent_id = f"agent-single-{state.task_id[-4:]}-{i}"
 
@@ -904,7 +863,7 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> List[BrowserTask
                 task=bu_task,
                 llm=state.llm,
                 browser_session=state.browser_manager.main_browser_session,
-                controller=state.vibesurf_controller,
+                controller=state.vibesurf_agent,
                 task_id=f"{state.task_id}-{i}",
                 file_system_path=os.path.join(state.task_dir, f"{state.task_id}-{i}"),
                 register_new_step_callback=step_callback,
@@ -956,30 +915,28 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> List[BrowserTask
     return results
 
 
-def route_after_supervisor_agent(state: VibeSurfState) -> str:
-    """Route based on supervisor agent decisions"""
+def route_after_vibesurf_agent(state: VibeSurfState) -> str:
+    """Route based on vibesurf agent decisions"""
     if state.current_step == "browser_task_execution":
         return "browser_task_execution"
     elif state.current_step == "report_task_execution":
         return "report_task_execution"
-    elif state.current_step == "summary_generation":
-        return "summary_generation"  # Summary generated, go to END
-    elif state.current_step == "simple_response":
-        return "simple_response"
-    elif state.current_step == "supervisor_agent":
-        return "supervisor_agent"  # Continue in supervisor loop
+    elif state.current_step == "vibesurf_agent":
+        return "vibesurf_agent"  # Continue in vibesurf agent loop
+    elif state.is_complete:
+        return "END"  # task_done sets is_complete=True, go directly to END
     else:
         return "END"  # Default fallback - complete workflow
 
 
 def route_after_browser_task_execution(state: VibeSurfState) -> str:
-    """Route back to supervisor after browser task completion"""
-    return "supervisor_agent"
+    """Route back to vibesurf agent after browser task completion"""
+    return "vibesurf_agent"
 
 
 def route_after_report_task_execution(state: VibeSurfState) -> str:
-    """Route back to supervisor after report task completion"""
-    return "supervisor_agent"
+    """Route back to vibesurf agent after report task completion"""
+    return "vibesurf_agent"
 
 
 def should_continue(state: VibeSurfState) -> str:
@@ -996,33 +953,31 @@ def create_vibe_surf_workflow() -> StateGraph:
     workflow = StateGraph(VibeSurfState)
 
     # Add nodes for simplified architecture
-    workflow.add_node("supervisor_agent", supervisor_agent_node)
+    workflow.add_node("vibesurf_agent", vibesurf_agent_node)
     workflow.add_node("browser_task_execution", browser_task_execution_node)
     workflow.add_node("report_task_execution", report_task_execution_node)
 
     # Set entry point
-    workflow.set_entry_point("supervisor_agent")
+    workflow.set_entry_point("vibesurf_agent")
 
-    # Supervisor agent routes to different execution nodes or END
+    # VibeSurf agent routes to different execution nodes or END
     workflow.add_conditional_edges(
-        "supervisor_agent",
-        route_after_supervisor_agent,
+        "vibesurf_agent",
+        route_after_vibesurf_agent,
         {
             "browser_task_execution": "browser_task_execution",
             "report_task_execution": "report_task_execution",
-            "summary_generation": END,
-            "supervisor_agent": "supervisor_agent",
-            "simple_response": END,
+            "vibesurf_agent": "vibesurf_agent",
             "END": END
         }
     )
 
-    # Execution nodes return to supervisor
+    # Execution nodes return to vibesurf agent
     workflow.add_conditional_edges(
         "browser_task_execution",
         route_after_browser_task_execution,
         {
-            "supervisor_agent": "supervisor_agent"
+            "vibesurf_agent": "vibesurf_agent"
         }
     )
 
@@ -1030,7 +985,7 @@ def create_vibe_surf_workflow() -> StateGraph:
         "report_task_execution",
         route_after_report_task_execution,
         {
-            "supervisor_agent": "supervisor_agent"
+            "vibesurf_agent": "vibesurf_agent"
         }
     )
 
@@ -1054,8 +1009,8 @@ class VibeSurfAgent:
         self.workspace_dir = workspace_dir
         os.makedirs(self.workspace_dir, exist_ok=True)
         self.cur_session_id = None
-        self.message_history = self.load_message_history()
-        self.activity_logs = self.load_activity_logs()
+        self.message_history = defaultdict(list)  # Will be loaded per session
+        self.activity_logs = defaultdict(list)   # Will be loaded per session
 
         # Create LangGraph workflow
         self.workflow = create_vibe_surf_workflow()
@@ -1069,45 +1024,89 @@ class VibeSurfAgent:
 
         logger.info("🌊 VibeSurfAgent initialized with LangGraph workflow and control capabilities")
 
-    def load_message_history(self, message_history_path: Optional[str] = None):
-        if message_history_path is None:
-            message_history_path = os.path.join(self.workspace_dir, "message_history.pkl")
-        if not os.path.exists(message_history_path):
+    def load_message_history(self, session_id: Optional[str] = None):
+        """Load message history for a specific session, or return defaultdict for new sessions"""
+        if session_id is None:
             return defaultdict(list)
-        with open(message_history_path, "rb") as f:
-            message_history = pickle.load(f)
-            logger.info(f"Loading message history from {message_history_path}")
-            for session_id in message_history:
-                logger.info(f"{session_id} has {len(message_history[session_id])} messages.")
-        return message_history
-
-    def save_message_history(self, message_history_path: Optional[str] = None):
-        if message_history_path is None:
-            message_history_path = os.path.join(self.workspace_dir, "message_history.pkl")
-
-        with open(message_history_path, "wb") as f:
-            logger.info(f"Saving message history with {len(self.message_history)} sessions to {message_history_path}")
-            pickle.dump(self.message_history, f)
-
-    def load_activity_logs(self, activity_logs_path: Optional[str] = None):
-        if activity_logs_path is None:
-            activity_logs_path = os.path.join(self.workspace_dir, "activity_logs.pkl")
-        if not os.path.exists(activity_logs_path):
+        
+        session_message_history_path = os.path.join(self.workspace_dir, "sessions", session_id, "message_history.pkl")
+        
+        if not os.path.exists(session_message_history_path):
+            logger.info(f"No message history found for session {session_id}, creating new")
             return defaultdict(list)
-        with open(activity_logs_path, "rb") as f:
-            activity_logs = pickle.load(f)
-            logger.info(f"Loading activity logs from {activity_logs_path}")
-            for session_id in activity_logs:
-                logger.info(f"{session_id} has {len(activity_logs[session_id])} activity logs.")
-        return activity_logs
+        
+        try:
+            with open(session_message_history_path, "rb") as f:
+                message_history = pickle.load(f)
+                logger.info(f"Loading message history for session {session_id} from {session_message_history_path}")
+                if session_id in message_history:
+                    logger.info(f"Session {session_id} has {len(message_history[session_id])} messages.")
+                return message_history
+        except Exception as e:
+            logger.error(f"Failed to load message history for session {session_id}: {e}")
+            return defaultdict(list)
 
-    def save_activity_logs(self, activity_logs_path: Optional[str] = None):
-        if activity_logs_path is None:
-            activity_logs_path = os.path.join(self.workspace_dir, "activity_logs.pkl")
+    def save_message_history(self, session_id: Optional[str] = None):
+        """Save message history for a specific session"""
+        if session_id is None or session_id not in self.message_history:
+            return
+        
+        # Create session directory if it doesn't exist
+        session_dir = os.path.join(self.workspace_dir, "sessions", session_id)
+        os.makedirs(session_dir, exist_ok=True)
+        
+        session_message_history_path = os.path.join(session_dir, "message_history.pkl")
+        
+        try:
+            with open(session_message_history_path, "wb") as f:
+                # Only save the specific session's data
+                session_data = {session_id: self.message_history[session_id]}
+                logger.info(f"Saving message history for session {session_id} to {session_message_history_path}")
+                pickle.dump(session_data, f)
+        except Exception as e:
+            logger.error(f"Failed to save message history for session {session_id}: {e}")
 
-        with open(activity_logs_path, "wb") as f:
-            logger.info(f"Saving activity logs with {len(self.activity_logs)} sessions to {activity_logs_path}")
-            pickle.dump(self.activity_logs, f)
+    def load_activity_logs(self, session_id: Optional[str] = None):
+        """Load activity logs for a specific session, or return defaultdict for new sessions"""
+        if session_id is None:
+            return defaultdict(list)
+        
+        session_activity_logs_path = os.path.join(self.workspace_dir, "sessions", session_id, "activity_logs.pkl")
+        
+        if not os.path.exists(session_activity_logs_path):
+            logger.info(f"No activity logs found for session {session_id}, creating new")
+            return defaultdict(list)
+        
+        try:
+            with open(session_activity_logs_path, "rb") as f:
+                activity_logs = pickle.load(f)
+                logger.info(f"Loading activity logs for session {session_id} from {session_activity_logs_path}")
+                if session_id in activity_logs:
+                    logger.info(f"Session {session_id} has {len(activity_logs[session_id])} activity logs.")
+                return activity_logs
+        except Exception as e:
+            logger.error(f"Failed to load activity logs for session {session_id}: {e}")
+            return defaultdict(list)
+
+    def save_activity_logs(self, session_id: Optional[str] = None):
+        """Save activity logs for a specific session"""
+        if session_id is None or session_id not in self.activity_logs:
+            return
+        
+        # Create session directory if it doesn't exist
+        session_dir = os.path.join(self.workspace_dir, "sessions", session_id)
+        os.makedirs(session_dir, exist_ok=True)
+        
+        session_activity_logs_path = os.path.join(session_dir, "activity_logs.pkl")
+        
+        try:
+            with open(session_activity_logs_path, "wb") as f:
+                # Only save the specific session's data
+                session_data = {session_id: self.activity_logs[session_id]}
+                logger.info(f"Saving activity logs for session {session_id} to {session_activity_logs_path}")
+                pickle.dump(session_data, f)
+        except Exception as e:
+            logger.error(f"Failed to save activity logs for session {session_id}: {e}")
 
     async def stop(self, reason: str = None) -> ControlResult:
         """
@@ -1125,16 +1124,14 @@ class VibeSurfAgent:
                 logger.info(f"🛑 Stopping agent execution: {reason}")
 
                 if self.cur_session_id in self.message_history:
-                    supervisor_message_history = self.message_history[self.cur_session_id]
-                    supervisor_message_history.append(UserMessage(
+                    session_message_history = self.message_history[self.cur_session_id]
+                    session_message_history.append(UserMessage(
                         content=f"🛑 Stopping agent execution: {reason}"))
 
                 if self._current_state:
                     self._current_state.should_stop = True
                     self._current_state.stopped = True
-                    self._current_state.control_timestamps["stopped"] = datetime.now()
-                    self._current_state.control_reasons["stopped"] = reason
-                    self._current_state.last_control_action = "stop"
+                    # Note: control_timestamps, control_reasons, last_control_action removed in simplified state
 
                 # Stop all running agents with timeout
                 try:
@@ -1190,15 +1187,13 @@ class VibeSurfAgent:
                 logger.info(f"⏸️ Pausing agent execution: {reason}")
 
                 if self.cur_session_id in self.message_history:
-                    supervisor_message_history = self.message_history[self.cur_session_id]
-                    supervisor_message_history.append(UserMessage(
+                    session_message_history = self.message_history[self.cur_session_id]
+                    session_message_history.append(UserMessage(
                         content=f"⏸️ Pausing agent execution: {reason}"))
 
                 if self._current_state:
                     self._current_state.should_pause = True
-                    self._current_state.control_timestamps["pause_requested"] = datetime.now()
-                    self._current_state.control_reasons["paused"] = reason
-                    self._current_state.last_control_action = "pause"
+                    # Note: control_timestamps, control_reasons, last_control_action removed in simplified state
 
                 # Pause all running agents
                 await self._pause_all_agents(reason)
@@ -1235,16 +1230,14 @@ class VibeSurfAgent:
                 logger.info(f"▶️ Resuming agent execution: {reason}")
 
                 if self.cur_session_id in self.message_history:
-                    supervisor_message_history = self.message_history[self.cur_session_id]
-                    supervisor_message_history.append(UserMessage(
+                    session_message_history = self.message_history[self.cur_session_id]
+                    session_message_history.append(UserMessage(
                         content=f"▶️ Resuming agent execution: {reason}"))
 
                 if self._current_state:
                     self._current_state.paused = False
                     self._current_state.should_pause = False
-                    self._current_state.control_timestamps["resumed"] = datetime.now()
-                    self._current_state.control_reasons["resumed"] = reason
-                    self._current_state.last_control_action = "resume"
+                    # Note: control_timestamps, control_reasons, last_control_action removed in simplified state
 
                 # Resume all paused agents
                 await self._resume_all_agents(reason)
@@ -1281,14 +1274,7 @@ class VibeSurfAgent:
                 reason = reason or f"Manual pause requested for agent {agent_id}"
                 logger.info(f"⏸️ Pausing agent {agent_id}: {reason}")
 
-                # Update state tracking
-                if self._current_state:
-                    self._current_state.paused_agents.add(agent_id)
-                    if agent_id not in self._current_state.agent_control_states:
-                        self._current_state.agent_control_states[agent_id] = {}
-                    self._current_state.agent_control_states[agent_id]["paused"] = True
-                    self._current_state.agent_control_states[agent_id]["pause_reason"] = reason
-                    self._current_state.agent_control_states[agent_id]["pause_timestamp"] = datetime.now()
+                # Note: paused_agents, agent_control_states removed in simplified state
 
                 # Pause the specific agent if it's running
                 agent = self._running_agents.get(agent_id)
@@ -1330,14 +1316,7 @@ class VibeSurfAgent:
                 reason = reason or f"Manual resume requested for agent {agent_id}"
                 logger.info(f"▶️ Resuming agent {agent_id}: {reason}")
 
-                # Update state tracking
-                if self._current_state:
-                    self._current_state.paused_agents.discard(agent_id)
-                    if agent_id not in self._current_state.agent_control_states:
-                        self._current_state.agent_control_states[agent_id] = {}
-                    self._current_state.agent_control_states[agent_id]["paused"] = False
-                    self._current_state.agent_control_states[agent_id]["resume_reason"] = reason
-                    self._current_state.agent_control_states[agent_id]["resume_timestamp"] = datetime.now()
+                # Note: paused_agents, agent_control_states removed in simplified state
 
                 # Resume the specific agent if it's running
                 agent = self._running_agents.get(agent_id)
@@ -1393,13 +1372,11 @@ class VibeSurfAgent:
                 error_message = None
                 pause_reason = None
 
-                # Check if agent is paused
-                if self._current_state and agent_id in self._current_state.paused_agents:
-                    status = "paused"
-                    agent_state = self._current_state.agent_control_states.get(agent_id, {})
-                    pause_reason = agent_state.get("pause_reason")
-                elif self._current_state and self._current_state.stopped:
+                # Simplified status checking since paused_agents removed
+                if self._current_state and self._current_state.stopped:
                     status = "stopped"
+                elif self._current_state and self._current_state.paused:
+                    status = "paused"
 
                 # Get current action if available
                 if agent and hasattr(agent, 'state'):
@@ -1424,11 +1401,9 @@ class VibeSurfAgent:
             if self._current_state:
                 progress = {
                     "current_step": self._current_state.current_step,
-                    "completed_todos": len(self._current_state.completed_todos),
-                    "total_todos": len(self._current_state.todo_list),
-                    "current_task_index": self._current_state.current_task_index,
                     "is_complete": self._current_state.is_complete,
-                    "last_control_action": self._current_state.last_control_action
+                    "browser_tasks_count": len(self._current_state.browser_tasks),
+                    "browser_results_count": len(self._current_state.browser_results)
                 }
 
             return VibeSurfStatus(
@@ -1464,8 +1439,7 @@ class VibeSurfAgent:
                 if hasattr(agent, 'pause'):
                     await agent.pause()
                     logger.info(f"⏸️ Paused agent {agent_id}")
-                    if self._current_state:
-                        self._current_state.paused_agents.add(agent_id)
+                    # Note: paused_agents removed in simplified state
             except Exception as e:
                 logger.warning(f"⚠️ Failed to pause agent {agent_id}: {e}")
 
@@ -1476,8 +1450,7 @@ class VibeSurfAgent:
                 if hasattr(agent, 'resume'):
                     await agent.resume()
                     logger.info(f"▶️ Resumed agent {agent_id}")
-                    if self._current_state:
-                        self._current_state.paused_agents.discard(agent_id)
+                    # Note: paused_agents removed in simplified state
             except Exception as e:
                 logger.warning(f"⚠️ Failed to resume agent {agent_id}: {e}")
 
@@ -1502,21 +1475,24 @@ class VibeSurfAgent:
         try:
             session_id = session_id or self.cur_session_id or uuid7str()
             if session_id != self.cur_session_id:
+                # Load session-specific data when switching sessions
                 self.cur_session_id = session_id
+                self.message_history = self.load_message_history(session_id)
+                self.activity_logs = self.load_activity_logs(session_id)
 
             if self.cur_session_id not in self.message_history:
-                logger.info(f"{self.cur_session_id} not found in message_history, create a new one.")
+                logger.info(f"{self.cur_session_id} not found in message_history, creating new session")
                 self.message_history[self.cur_session_id] = []
-            supervisor_message_history = self.message_history[self.cur_session_id]
-            if not supervisor_message_history:
-                supervisor_message_history.append(SystemMessage(content=SUPERVISOR_AGENT_SYSTEM_PROMPT))
+            session_message_history = self.message_history[self.cur_session_id]
+            if not session_message_history:
+                session_message_history.append(SystemMessage(content=SUPERVISOR_AGENT_SYSTEM_PROMPT))
             if upload_files and not isinstance(upload_files, list):
                 upload_files = [upload_files]
             upload_files_md = format_upload_files_list(upload_files)
             user_request = f"* User's New Request:\n{task}\n"
             if upload_files:
                 user_request += f"* User Uploaded Files:\n{upload_files_md}\n"
-            supervisor_message_history.append(
+            session_message_history.append(
                 UserMessage(
                     content=user_request)
             )
@@ -1538,11 +1514,11 @@ class VibeSurfAgent:
                 upload_files=upload_files or [],
                 workspace_dir=self.workspace_dir,
                 browser_manager=self.browser_manager,
-                vibesurf_controller=self.controller,
-                agent_activity_logs=agent_activity_logs,
-                supervisor_message_history=supervisor_message_history,
+                activity_logs=agent_activity_logs,
+                message_history=session_message_history,
                 llm=self.llm,
                 session_id=session_id,
+                tools=self.tools,
                 vibesurf_agent=self  # Reference to VibeSurfAgent for control coordination
             )
 
@@ -1605,9 +1581,10 @@ class VibeSurfAgent:
                     "agent_msg": "Finish Task."
                 }
                 agent_activity_logs.append(activity_entry)
-            # Reset state
-            self.save_message_history()
-            self.save_activity_logs()
+            # Save session-specific data
+            if self.cur_session_id:
+                self.save_message_history(self.cur_session_id)
+                self.save_activity_logs(self.cur_session_id)
             async with self._control_lock:
                 self._current_state = None
                 self._execution_task = None
