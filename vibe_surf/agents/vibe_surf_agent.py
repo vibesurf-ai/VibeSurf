@@ -32,25 +32,11 @@ from vibe_surf.agents.prompts.vibe_surf_prompt import (
 from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.tools.browser_use_tools import BrowserUseTools
 from vibe_surf.tools.vibesurf_tools import VibeSurfTools
+from vibe_surf.tools.file_system import CustomFileSystem
 
 from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
-
-
-class TodoItem(BaseModel):
-    """Individual todo item with simple string-based task description"""
-    task: str = Field(description="Simple task description")
-    status: Literal["pending", "in_progress", "completed"] = "pending"
-    assigned_agent_id: Optional[str] = None
-    result: Optional[str] = None
-    error: Optional[str] = None
-
-
-class ExecutionMode(BaseModel):
-    """Execution mode configuration"""
-    mode: Literal["single", "parallel"] = "single"
-    reason: str = Field(description="LLM reasoning for mode selection")
 
 
 class BrowserTaskResult(BaseModel):
@@ -138,6 +124,7 @@ class VibeSurfState:
     tools: Optional[VibeSurfTools] = None
     llm: Optional[BaseChatModel] = None
     vibesurf_agent: Optional[Any] = None
+    file_system: Optional[CustomFileSystem] = None
 
     # Control state management
     paused: bool = False
@@ -149,125 +136,12 @@ class VibeSurfState:
     activity_logs: List[Dict[str, str]] = field(default_factory=list)
 
 
-# Utility functions for parsing LLM JSON responses
-def parse_json_response(response_text: str, fallback_data: Dict) -> Dict:
-    """Parse JSON response with repair capability"""
-    try:
-        # Try to find JSON in the response
-        json_start = response_text.find('{')
-        json_end = response_text.rfind('}') + 1
-
-        if json_start >= 0 and json_end > json_start:
-            json_text = response_text[json_start:json_end]
-            try:
-                return json.loads(json_text)
-            except json.JSONDecodeError:
-                # Try to repair JSON
-                repaired_json = repair_json(json_text)
-                return json.loads(repaired_json)
-
-        # If no JSON found, return fallback
-        return fallback_data
-    except Exception as e:
-        logger.warning(f"JSON parsing failed: {e}, using fallback")
-        return fallback_data
-
-
-def parse_task_analysis_response(response_text: str) -> Dict:
-    """Parse task analysis JSON response for simple response detection"""
-    fallback = {
-        "is_simple_response": False,
-        "reasoning": "Failed to parse response, defaulting to complex task",
-        "simple_response_content": None
-    }
-    return parse_json_response(response_text, fallback)
-
-
-def parse_supervisor_response(response_text: str) -> Dict:
-    """Parse supervisor agent JSON response"""
-    fallback = {
-        "action": "summary_generation",
-        "reasoning": "Failed to parse response, defaulting to summary generation",
-        "todo_items": [],
-        "task_type": "single",
-        "tasks_to_execute": [],
-        "summary_content": None
-    }
-    result = parse_json_response(response_text, fallback)
-
-    # Ensure todo_items is always a list for actions that modify todos
-    if result.get("action") in ["generate_todos", "update_todos"]:
-        if "todo_items" not in result or not isinstance(result["todo_items"], list):
-            result["todo_items"] = []
-
-    return result
-
-
-def parse_todo_generation_response(response_text: str) -> List[str]:
-    """Parse todo generation JSON response"""
-    fallback = {
-        "todo_items": ["Complete the original task"]
-    }
-    result = parse_json_response(response_text, fallback)
-    return result.get("todo_items", fallback["todo_items"])[:5]  # Max 5 items
-
-
-def parse_execution_planning_response(response_text: str) -> ExecutionMode:
-    """Parse execution planning JSON response"""
-    fallback = {
-        "execution_mode": "single",
-        "reasoning": "Default single mode"
-    }
-    result = parse_json_response(response_text, fallback)
-
-    return ExecutionMode(
-        mode=result.get("execution_mode", "single"),
-        reason=result.get("reasoning", "Default execution mode")
-    )
-
-
-def parse_todo_update_response(response_text: str) -> Dict:
-    """Parse todo update JSON response"""
-    fallback = {
-        "additional_tasks": [],
-        "next_action": "summary_generation",
-        "reasoning": "Default action"
-    }
-    return parse_json_response(response_text, fallback)
-
-
-def parse_report_decision_response(response_text: str) -> ReportRequirement:
-    """Parse report decision JSON response"""
-    fallback = {
-        "needs_report": False,
-        "report_type": "none",
-        "reasoning": "Default no report"
-    }
-    result = parse_json_response(response_text, fallback)
-
-    return ReportRequirement(
-        needs_report=result.get("needs_report", False),
-        report_type=result.get("report_type", "none"),
-        reason=result.get("reasoning", "Default report decision")
-    )
-
-
 def format_upload_files_list(upload_files: Optional[List[str]] = None) -> str:
     """Format uploaded file list for LLM prompt"""
     if upload_files is None:
         return ""
     return "\n".join(
-        [f"{i + 1}. [{os.path.basename(file_path)}](file:///{file_path})" for i, file_path in enumerate(upload_files)])
-
-
-def format_todo_list(todo_list: List[TodoItem]) -> str:
-    """Format todo list for LLM prompt"""
-    return "\n".join([f"{i + 1}. {item.task}" for i, item in enumerate(todo_list)])
-
-
-def format_completed_todos(completed_todos: List[TodoItem]) -> str:
-    """Format completed todos for LLM prompt"""
-    return "\n".join([f"✅ {item.task} - {item.result or 'Completed'}" for item in completed_todos])
+        [f"{i + 1}. [{os.path.basename(file_path)}]({file_path})" for i, file_path in enumerate(upload_files)])
 
 
 def format_browser_results(browser_results: List[BrowserTaskResult]) -> str:
@@ -281,22 +155,6 @@ def format_browser_results(browser_results: List[BrowserTaskResult]) -> str:
         if result.error:
             result_text.append(f"  Error: {result.error}")
     return "\n".join(result_text)
-
-
-def format_todo_list_markdown(todo_list: List[TodoItem]) -> str:
-    """Format todo list as markdown"""
-    if not todo_list:
-        return "No todo items"
-
-    markdown_lines = []
-    for i, item in enumerate(todo_list):
-        if item.status == "completed":
-            status_symbol = "- [x] "
-        else:
-            status_symbol = "- [ ] "
-        markdown_lines.append(f"{status_symbol}{item.task}")
-
-    return "\n".join(markdown_lines)
 
 
 def log_agent_activity(state: VibeSurfState, agent_name: str, agent_status: str, agent_msg: str) -> None:
@@ -374,6 +232,44 @@ def ensure_directories(state: VibeSurfState) -> None:
     os.makedirs(os.path.join(state.task_dir, "screenshots"), exist_ok=True)
     os.makedirs(os.path.join(state.task_dir, "reports"), exist_ok=True)
     os.makedirs(os.path.join(state.task_dir, "logs"), exist_ok=True)
+    os.makedirs(os.path.join(state.task_dir, "uploads"), exist_ok=True)
+
+
+async def process_upload_files(state: VibeSurfState, original_upload_files: List[str]) -> List[str]:
+    """Process and copy upload files to task uploads directory"""
+    if not original_upload_files:
+        return []
+    
+    processed_files = []
+    uploads_dir = os.path.join(state.task_dir, "uploads")
+    
+    for original_path in original_upload_files:
+        try:
+            # Get filename
+            filename = os.path.basename(original_path)
+            
+            # Create target path in uploads directory
+            target_path = os.path.join(uploads_dir, filename)
+            
+            # Copy file using file system
+            with open(original_path, 'rb') as src:
+                content = src.read()
+            
+            with open(target_path, 'wb') as dst:
+                dst.write(content)
+            
+            # Add relative path for prompt
+            relative_path = f"uploads/{filename}"
+            processed_files.append(relative_path)
+            
+            logger.info(f"📁 Copied upload file: {original_path} → {relative_path}")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to copy upload file {original_path}: {e}")
+            # Keep original path as fallback
+            processed_files.append(original_path)
+    
+    return processed_files
 
 
 # Control-aware node wrapper
@@ -537,25 +433,21 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                 return state
 
             else:
-                # Execute regular action using tools
-                # Create file system for session-specific actions
-                from vibe_surf.tools.file_system import CustomFileSystem
-                file_system = CustomFileSystem(data_dir=state.task_dir)
-
+                # Execute regular action using tools with shared file system
                 # For todo-related actions, read todo.md and log activity
                 if action_name in ['generate_todos', 'read_todos', 'modify_todos']:
                     try:
                         # Try to read existing todo.md
-                        todo_content = await file_system.read_file('todo.md')
-                        log_agent_activity(state, "vibesurf_agent", "working", f"Reading todo.md for {action_name}:\n{todo_content}")
+                        todo_content = await state.file_system.read_file('todo.md')
+                        log_agent_activity(state, "vibesurf_agent", "working", f"{todo_content}")
                     except Exception as e:
-                        log_agent_activity(state, "vibesurf_agent", "working", f"No existing todo.md found for {action_name}: {str(e)}")
+                        pass
 
                 result = await state.tools.act(
                     action=action,
                     browser_manager=state.browser_manager,
                     llm=state.llm,
-                    file_system=file_system,
+                    file_system=state.file_system,
                 )
 
                 # Add result to message history
@@ -1008,6 +900,10 @@ class VibeSurfAgent:
         self.tools = tools
         self.workspace_dir = workspace_dir
         os.makedirs(self.workspace_dir, exist_ok=True)
+        
+        # Initialize shared file system for this agent
+        self.file_system = CustomFileSystem(self.workspace_dir)
+        
         self.cur_session_id = None
         self.message_history = defaultdict(list)  # Will be loaded per session
         self.activity_logs = defaultdict(list)   # Will be loaded per session
@@ -1480,19 +1376,37 @@ class VibeSurfAgent:
                 self.message_history = self.load_message_history(session_id)
                 self.activity_logs = self.load_activity_logs(session_id)
 
-            if self.cur_session_id not in self.message_history:
-                logger.info(f"{self.cur_session_id} not found in message_history, creating new session")
-                self.message_history[self.cur_session_id] = []
-            session_message_history = self.message_history[self.cur_session_id]
-            if not session_message_history:
-                session_message_history.append(SystemMessage(content=SUPERVISOR_AGENT_SYSTEM_PROMPT))
+            if not self.message_history:
+                self.message_history.append(SystemMessage(content=SUPERVISOR_AGENT_SYSTEM_PROMPT))
             if upload_files and not isinstance(upload_files, list):
                 upload_files = [upload_files]
-            upload_files_md = format_upload_files_list(upload_files)
-            user_request = f"* User's New Request:\n{task}\n"
+            
+            # Initialize state first (needed for file processing)
+            initial_state = VibeSurfState(
+                original_task=task,
+                upload_files=upload_files or [],
+                workspace_dir=self.workspace_dir,
+                browser_manager=self.browser_manager,
+                activity_logs=[],  # Will be set after processing
+                message_history=self.message_history,
+                llm=self.llm,
+                session_id=session_id,
+                tools=self.tools,
+                vibesurf_agent=self,  # Reference to VibeSurfAgent for control coordination
+                file_system=self.file_system  # Shared file system instance
+            )
+            
+            # Setup directories and process upload files
+            ensure_directories(initial_state)
             if upload_files:
+                initial_state.upload_files = await process_upload_files(initial_state, upload_files)
+            
+            # Format processed upload files for prompt
+            upload_files_md = format_upload_files_list(initial_state.upload_files)
+            user_request = f"* User's New Request:\n{task}\n"
+            if initial_state.upload_files:
                 user_request += f"* User Uploaded Files:\n{upload_files_md}\n"
-            session_message_history.append(
+            self.message_history.append(
                 UserMessage(
                     content=user_request)
             )
@@ -1504,23 +1418,12 @@ class VibeSurfAgent:
             activity_entry = {
                 "agent_name": 'user',
                 "agent_status": 'request',  # working, result, error
-                "agent_msg": f"{task}\nUpload Files:\n{upload_files_md}\n" if upload_files else f"{task}"
+                "agent_msg": f"{task}\nUpload Files:\n{upload_files_md}\n" if initial_state.upload_files else f"{task}"
             }
             agent_activity_logs.append(activity_entry)
-
-            # Initialize state
-            initial_state = VibeSurfState(
-                original_task=task,
-                upload_files=upload_files or [],
-                workspace_dir=self.workspace_dir,
-                browser_manager=self.browser_manager,
-                activity_logs=agent_activity_logs,
-                message_history=session_message_history,
-                llm=self.llm,
-                session_id=session_id,
-                tools=self.tools,
-                vibesurf_agent=self  # Reference to VibeSurfAgent for control coordination
-            )
+            
+            # Update state with activity logs
+            initial_state.activity_logs = agent_activity_logs
 
             # Set current state for control operations
             async with self._control_lock:
