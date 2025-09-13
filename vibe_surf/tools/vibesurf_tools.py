@@ -61,9 +61,6 @@ class VibeSurfTools:
         )
         async def execute_browser_use_agent_tasks(
                 params: BrowserUseAgentExecution,
-                browser_manager: BrowserManager,
-                llm: BaseChatModel,
-                file_system: CustomFileSystem,
         ):
             """
             Execute browser_use agent tasks in parallel for improved efficiency.
@@ -89,9 +86,6 @@ class VibeSurfTools:
         )
         async def execute_report_writer_agent(
                 params: ReportWriterTask,
-                browser_manager: BrowserManager,
-                llm: BaseChatModel,
-                file_system: CustomFileSystem,
         ):
             """
             Execute report writer agent to generate HTML reports.
@@ -271,21 +265,10 @@ class VibeSurfTools:
         )
         async def task_done(
                 params: DoneAction,
-                browser_manager: BrowserManager,
-                llm: BaseChatModel,
-                file_system: CustomFileSystem,
         ):
             """
             Complete task execution and provide final response.
-            
-            Args:
-                params: DoneAction containing response and optional follow-up tasks
-                browser_manager: Browser manager instance
-                llm: Language model instance
-                file_system: File system instance
-                
-            Returns:
-                ActionResult with task completion response
+
             """
             try:
                 response = params.response.strip()
@@ -359,7 +342,7 @@ class VibeSurfTools:
         )
         async def extract_content_from_file(
                 params: FileExtractionAction,
-                llm: BaseChatModel,
+                page_extraction_llm: BaseChatModel,
                 file_system: CustomFileSystem,
         ):
             try:
@@ -401,7 +384,7 @@ class VibeSurfTools:
                         # Create user message and invoke LLM
                         user_message = UserMessage(content=content_parts, cache=True)
                         response = await asyncio.wait_for(
-                            llm.ainvoke([user_message]),
+                            page_extraction_llm.ainvoke([user_message]),
                             timeout=120.0,
                         )
 
@@ -427,7 +410,7 @@ class VibeSurfTools:
         Provide the extracted information in a clear, structured format."""
 
                         response = await asyncio.wait_for(
-                            llm.ainvoke([UserMessage(content=prompt)]),
+                            page_extraction_llm.ainvoke([UserMessage(content=prompt)]),
                             timeout=120.0,
                         )
 
@@ -596,7 +579,7 @@ class VibeSurfTools:
                     action = self.registry.registry.actions[action_name]
                     special_context = {
                         'browser_manager': browser_manager,
-                        'llm': llm,
+                        'page_extraction_llm': llm,
                         'file_system': file_system,
                     }
                     try:

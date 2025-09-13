@@ -20,6 +20,7 @@ from browser_use.filesystem.file_system import FileSystem
 from browser_use.agent.views import AgentSettings
 from pydantic import BaseModel, Field, ConfigDict, create_model
 from browser_use.agent.views import AgentSettings, DEFAULT_INCLUDE_ATTRIBUTES
+from browser_use.tools.registry.views import ActionModel
 
 
 class VibeSurfAgentOutput(BaseModel):
@@ -69,3 +70,61 @@ class VibeSurfAgentSettings(BaseModel):
     include_tool_call_examples: bool = False
     llm_timeout: int = 60  # Timeout in seconds for LLM calls
     step_timeout: int = 180  # Timeout in seconds for each step
+
+
+class CustomAgentOutput(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='forbid')
+
+    thinking: str | None = None
+    action: list[ActionModel] = Field(
+        ...,
+        description='List of actions to execute',
+        json_schema_extra={'min_items': 1},  # Ensure at least one action is provided
+    )
+
+    @classmethod
+    def model_json_schema(cls, **kwargs):
+        schema = super().model_json_schema(**kwargs)
+        schema['required'] = ['action']
+        return schema
+
+    @staticmethod
+    def type_with_custom_actions(custom_actions: type[ActionModel]) -> type['CustomAgentOutput']:
+        """Extend actions with custom actions"""
+
+        model_ = create_model(
+            'AgentOutput',
+            __base__=CustomAgentOutput,
+            action=(
+                list[custom_actions],  # type: ignore
+                Field(..., description='List of actions to execute', json_schema_extra={'min_items': 1}),
+            ),
+            __module__=CustomAgentOutput.__module__,
+        )
+        model_.__doc__ = 'AgentOutput model with custom actions'
+        return model_
+
+    @staticmethod
+    def type_with_custom_actions_no_thinking(custom_actions: type[ActionModel]) -> type['CustomAgentOutput']:
+        """Extend actions with custom actions and exclude thinking field"""
+
+        class AgentOutputNoThinking(CustomAgentOutput):
+            @classmethod
+            def model_json_schema(cls, **kwargs):
+                schema = super().model_json_schema(**kwargs)
+                del schema['properties']['thinking']
+                schema['required'] = ['action']
+                return schema
+
+        model = create_model(
+            'AgentOutput',
+            __base__=AgentOutputNoThinking,
+            action=(
+                list[custom_actions],  # type: ignore
+                Field(..., description='List of actions to execute', json_schema_extra={'min_items': 1}),
+            ),
+            __module__=AgentOutputNoThinking.__module__,
+        )
+
+        model.__doc__ = 'AgentOutput model with custom actions'
+        return model

@@ -96,6 +96,8 @@ async def test_filesystem():
     filesystem = CustomFileSystem(file_system_path)
     result = await filesystem.create_file("reports/final_report.html")
     print(result)
+    result = filesystem.get_absolute_path("reports/final_report.html")
+    print(result)
 
 
 if __name__ == '__main__':

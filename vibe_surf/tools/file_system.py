@@ -35,7 +35,7 @@ class JSFile(BaseFile):
 class CustomFileSystem(FileSystem):
     def __init__(self, base_dir: str | Path, create_default_files: bool = True):
         # Handle the Path conversion before calling super().__init__
-        self.base_dir = Path(base_dir) if isinstance(base_dir, str) else base_dir
+        self.base_dir = Path(base_dir).absolute() if isinstance(base_dir, str) else base_dir
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
         # Create and use a dedicated subfolder for all operations

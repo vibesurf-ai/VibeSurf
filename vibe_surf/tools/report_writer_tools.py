@@ -11,7 +11,7 @@ class ReportWriterTools(VibeSurfTools):
 
     def _register_done_action(self):
         @self.registry.action(
-            description="Finish writing report",
+            description="Finish writing report.",
         )
         async def task_done(
                 file_system: CustomFileSystem,
