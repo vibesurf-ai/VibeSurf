@@ -31,6 +31,7 @@ from vibe_surf.agents.prompts.vibe_surf_prompt import (
 )
 from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.tools.browser_use_tools import BrowserUseTools
+from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 
 from vibe_surf.logger import get_logger
 
@@ -1043,13 +1044,13 @@ class VibeSurfAgent:
             self,
             llm: BaseChatModel,
             browser_manager: BrowserManager,
-            controller: VibeSurfController,
+            tools: VibeSurfTools,
             workspace_dir: str = "./workspace",
     ):
         """Initialize VibeSurfAgent with required components"""
         self.llm = llm
         self.browser_manager = browser_manager
-        self.controller = controller
+        self.tools = tools
         self.workspace_dir = workspace_dir
         os.makedirs(self.workspace_dir, exist_ok=True)
         self.cur_session_id = None

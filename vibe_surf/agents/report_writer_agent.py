@@ -284,7 +284,7 @@ The report file '{report_filename}' has been created and is ready for you to wri
                 file_path = match.group(1)
 
                 # Check if it's already a URL or absolute path
-                if file_path.startswith(('http://', 'https://', 'file://', '/', '#', 'mailto:', 'tel:')):
+                if file_path.startswith(('http://', 'https://', 'file://', '#', 'mailto:', 'tel:')):
                     return full_match  # Return unchanged
 
                 # Convert to absolute path
@@ -292,8 +292,8 @@ The report file '{report_filename}' has been created and is ready for you to wri
                     absolute_path = os.path.abspath(os.path.join(self.workspace_dir, file_path))
                 else:
                     absolute_path = file_path
-
-                file_url = f"file://{absolute_path}"
+                normalized_path = absolute_path.replace(os.path.sep, '/')
+                file_url = f"file://{normalized_path}"
 
                 # Return the updated attribute
                 quote = '"' if '"' in full_match else "'"
