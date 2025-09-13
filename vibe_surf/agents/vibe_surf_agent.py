@@ -885,7 +885,7 @@ def create_vibe_surf_workflow() -> StateGraph:
 
 
 class VibeSurfAgent:
-    """Main LangGraph-based VibeSurfAgent with comprehensive control capabilities"""
+    """Main LangGraph-based VibeSurf Agent"""
 
     def __init__(
             self,
@@ -901,12 +901,10 @@ class VibeSurfAgent:
         self.workspace_dir = workspace_dir
         os.makedirs(self.workspace_dir, exist_ok=True)
         
-        # Initialize shared file system for this agent
-        self.file_system = CustomFileSystem(self.workspace_dir)
-        
         self.cur_session_id = None
-        self.message_history = defaultdict(list)  # Will be loaded per session
-        self.activity_logs = defaultdict(list)   # Will be loaded per session
+        self.file_system = None
+        self.message_history = []
+        self.activity_logs = []
 
         # Create LangGraph workflow
         self.workflow = create_vibe_surf_workflow()
@@ -918,33 +916,31 @@ class VibeSurfAgent:
         self._running_agents: Dict[str, Any] = {}  # Track running BrowserUseAgent instances
         self._execution_task: Optional[asyncio.Task] = None
 
-        logger.info("🌊 VibeSurfAgent initialized with LangGraph workflow and control capabilities")
+        logger.info("🌊 VibeSurf Agent initialized with LangGraph workflow")
 
-    def load_message_history(self, session_id: Optional[str] = None):
-        """Load message history for a specific session, or return defaultdict for new sessions"""
+    def load_message_history(self, session_id: Optional[str] = None) -> list:
+        """Load message history for a specific session, or return [] for new sessions"""
         if session_id is None:
-            return defaultdict(list)
+            return []
         
         session_message_history_path = os.path.join(self.workspace_dir, "sessions", session_id, "message_history.pkl")
         
         if not os.path.exists(session_message_history_path):
             logger.info(f"No message history found for session {session_id}, creating new")
-            return defaultdict(list)
+            return []
         
         try:
             with open(session_message_history_path, "rb") as f:
                 message_history = pickle.load(f)
                 logger.info(f"Loading message history for session {session_id} from {session_message_history_path}")
-                if session_id in message_history:
-                    logger.info(f"Session {session_id} has {len(message_history[session_id])} messages.")
                 return message_history
         except Exception as e:
             logger.error(f"Failed to load message history for session {session_id}: {e}")
-            return defaultdict(list)
+            return []
 
     def save_message_history(self, session_id: Optional[str] = None):
         """Save message history for a specific session"""
-        if session_id is None or session_id not in self.message_history:
+        if session_id is None:
             return
         
         # Create session directory if it doesn't exist
@@ -955,38 +951,34 @@ class VibeSurfAgent:
         
         try:
             with open(session_message_history_path, "wb") as f:
-                # Only save the specific session's data
-                session_data = {session_id: self.message_history[session_id]}
                 logger.info(f"Saving message history for session {session_id} to {session_message_history_path}")
-                pickle.dump(session_data, f)
+                pickle.dump(self.message_history, f)
         except Exception as e:
             logger.error(f"Failed to save message history for session {session_id}: {e}")
 
-    def load_activity_logs(self, session_id: Optional[str] = None):
-        """Load activity logs for a specific session, or return defaultdict for new sessions"""
+    def load_activity_logs(self, session_id: Optional[str] = None) -> list:
+        """Load activity logs for a specific session, or return [] for new sessions"""
         if session_id is None:
-            return defaultdict(list)
+            return []
         
         session_activity_logs_path = os.path.join(self.workspace_dir, "sessions", session_id, "activity_logs.pkl")
         
         if not os.path.exists(session_activity_logs_path):
             logger.info(f"No activity logs found for session {session_id}, creating new")
-            return defaultdict(list)
+            return []
         
         try:
             with open(session_activity_logs_path, "rb") as f:
                 activity_logs = pickle.load(f)
                 logger.info(f"Loading activity logs for session {session_id} from {session_activity_logs_path}")
-                if session_id in activity_logs:
-                    logger.info(f"Session {session_id} has {len(activity_logs[session_id])} activity logs.")
                 return activity_logs
         except Exception as e:
             logger.error(f"Failed to load activity logs for session {session_id}: {e}")
-            return defaultdict(list)
+            return []
 
     def save_activity_logs(self, session_id: Optional[str] = None):
         """Save activity logs for a specific session"""
-        if session_id is None or session_id not in self.activity_logs:
+        if session_id is None:
             return
         
         # Create session directory if it doesn't exist
@@ -997,10 +989,8 @@ class VibeSurfAgent:
         
         try:
             with open(session_activity_logs_path, "wb") as f:
-                # Only save the specific session's data
-                session_data = {session_id: self.activity_logs[session_id]}
                 logger.info(f"Saving activity logs for session {session_id} to {session_activity_logs_path}")
-                pickle.dump(session_data, f)
+                pickle.dump(self.activity_logs, f)
         except Exception as e:
             logger.error(f"Failed to save activity logs for session {session_id}: {e}")
 
@@ -1019,15 +1009,12 @@ class VibeSurfAgent:
                 reason = reason or "Manual stop requested"
                 logger.info(f"🛑 Stopping agent execution: {reason}")
 
-                if self.cur_session_id in self.message_history:
-                    session_message_history = self.message_history[self.cur_session_id]
-                    session_message_history.append(UserMessage(
-                        content=f"🛑 Stopping agent execution: {reason}"))
+                self.message_history.append(UserMessage(
+                    content=f"🛑 Stopping agent execution: {reason}"))
 
                 if self._current_state:
                     self._current_state.should_stop = True
                     self._current_state.stopped = True
-                    # Note: control_timestamps, control_reasons, last_control_action removed in simplified state
 
                 # Stop all running agents with timeout
                 try:
@@ -1082,14 +1069,11 @@ class VibeSurfAgent:
                 reason = reason or "Manual pause requested"
                 logger.info(f"⏸️ Pausing agent execution: {reason}")
 
-                if self.cur_session_id in self.message_history:
-                    session_message_history = self.message_history[self.cur_session_id]
-                    session_message_history.append(UserMessage(
-                        content=f"⏸️ Pausing agent execution: {reason}"))
+                self.message_history.append(UserMessage(
+                    content=f"⏸️ Pausing agent execution: {reason}"))
 
                 if self._current_state:
                     self._current_state.should_pause = True
-                    # Note: control_timestamps, control_reasons, last_control_action removed in simplified state
 
                 # Pause all running agents
                 await self._pause_all_agents(reason)
@@ -1125,10 +1109,8 @@ class VibeSurfAgent:
                 reason = reason or "Manual resume requested"
                 logger.info(f"▶️ Resuming agent execution: {reason}")
 
-                if self.cur_session_id in self.message_history:
-                    session_message_history = self.message_history[self.cur_session_id]
-                    session_message_history.append(UserMessage(
-                        content=f"▶️ Resuming agent execution: {reason}"))
+                self.message_history.append(UserMessage(
+                    content=f"▶️ Resuming agent execution: {reason}"))
 
                 if self._current_state:
                     self._current_state.paused = False
@@ -1170,8 +1152,6 @@ class VibeSurfAgent:
                 reason = reason or f"Manual pause requested for agent {agent_id}"
                 logger.info(f"⏸️ Pausing agent {agent_id}: {reason}")
 
-                # Note: paused_agents, agent_control_states removed in simplified state
-
                 # Pause the specific agent if it's running
                 agent = self._running_agents.get(agent_id)
                 if agent:
@@ -1211,8 +1191,6 @@ class VibeSurfAgent:
             try:
                 reason = reason or f"Manual resume requested for agent {agent_id}"
                 logger.info(f"▶️ Resuming agent {agent_id}: {reason}")
-
-                # Note: paused_agents, agent_control_states removed in simplified state
 
                 # Resume the specific agent if it's running
                 agent = self._running_agents.get(agent_id)
@@ -1254,7 +1232,7 @@ class VibeSurfAgent:
             elif self._current_state.paused or self._current_state.should_pause:
                 overall_status = "paused"
             elif self._current_state.is_complete:
-                overall_status = "idle"
+                overall_status = "completed"
             else:
                 overall_status = "running"
 
@@ -1366,7 +1344,7 @@ class VibeSurfAgent:
         Returns:
             str: Markdown summary of execution results
         """
-        logger.info(f"🚀 Starting VibeSurfAgent execution for task: {task[:100]}...")
+        logger.info(f"🚀 Starting VibeSurfAgent execution for task: {task}")
         agent_activity_logs = None
         try:
             session_id = session_id or self.cur_session_id or uuid7str()
@@ -1378,6 +1356,7 @@ class VibeSurfAgent:
 
             if not self.message_history:
                 self.message_history.append(SystemMessage(content=SUPERVISOR_AGENT_SYSTEM_PROMPT))
+
             if upload_files and not isinstance(upload_files, list):
                 upload_files = [upload_files]
             
@@ -1387,7 +1366,7 @@ class VibeSurfAgent:
                 upload_files=upload_files or [],
                 workspace_dir=self.workspace_dir,
                 browser_manager=self.browser_manager,
-                activity_logs=[],  # Will be set after processing
+                activity_logs=self.activity_logs,
                 message_history=self.message_history,
                 llm=self.llm,
                 session_id=session_id,
@@ -1412,15 +1391,12 @@ class VibeSurfAgent:
             )
             logger.info(user_request)
 
-            if self.cur_session_id not in self.activity_logs:
-                self.activity_logs[self.cur_session_id] = []
-            agent_activity_logs = self.activity_logs[self.cur_session_id]
             activity_entry = {
                 "agent_name": 'user',
                 "agent_status": 'request',  # working, result, error
                 "agent_msg": f"{task}\nUpload Files:\n{upload_files_md}\n" if initial_state.upload_files else f"{task}"
             }
-            agent_activity_logs.append(activity_entry)
+            self.activity_logs.append(activity_entry)
             
             # Update state with activity logs
             initial_state.activity_logs = agent_activity_logs
