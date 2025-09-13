@@ -24,7 +24,7 @@ from browser_use.browser.views import BrowserError
 from browser_use.mcp.client import MCPClient
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction
+from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, BrowserUseAgentExecution, ReportWriterTask, TodoGenerateAction, TodoModifyAction
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.browser.browser_manager import BrowserManager
@@ -43,11 +43,227 @@ class VibeSurfTools:
         self.registry = Registry(exclude_actions)
         self._register_file_actions()
         self._register_browser_use_agent()
+        self._register_report_writer_agent()
+        self._register_todo_actions()
         self.mcp_server_config = None
         self.mcp_clients = {}
 
     def _register_browser_use_agent(self):
-        pass
+        @self.registry.action(
+            'Execute browser_use agent tasks. Supports both single task execution (list length=1) and '
+            'parallel execution of multiple tasks for improved efficiency. '
+            'Accepts a list of tasks where each task can specify a tab_id (optional), '
+            'task description (focusing on goals and expected returns), and necessary_files (optional). '
+            'Browser_use agent has strong planning and execution capabilities, only needs task descriptions and desired outcomes.',
+            param_model=BrowserUseAgentExecution,
+        )
+        async def execute_browser_use_agent_tasks(
+                params: BrowserUseAgentExecution,
+                browser_manager: BrowserManager,
+                llm: BaseChatModel,
+                file_system: CustomFileSystem,
+        ):
+            """
+            Execute browser_use agent tasks in parallel for improved efficiency.
+            
+            Args:
+                params: BrowserUseAgentExecution containing list of tasks to execute
+                browser_manager: Browser manager instance
+                llm: Language model instance
+                file_system: File system instance
+                
+            Returns:
+                ActionResult with execution results
+            """
+            # TODO: Implement parallel execution of browser_use agent tasks
+            # This is a placeholder implementation
+            pass
+
+    def _register_report_writer_agent(self):
+        @self.registry.action(
+            'Execute report writer agent to generate HTML reports. '
+            'Task should describe report requirements, goals, insights observed, and any hints or tips for generating the report.',
+            param_model=ReportWriterTask,
+        )
+        async def execute_report_writer_agent(
+                params: ReportWriterTask,
+                browser_manager: BrowserManager,
+                llm: BaseChatModel,
+                file_system: CustomFileSystem,
+        ):
+            """
+            Execute report writer agent to generate HTML reports.
+            
+            Args:
+                params: ReportWriterTask containing task description with requirements and insights
+                browser_manager: Browser manager instance
+                llm: Language model instance
+                file_system: File system instance
+                
+            Returns:
+                ActionResult with generated report path
+            """
+            # TODO: Implement report writer agent execution
+            # This is a placeholder implementation
+            pass
+
+    def _register_todo_actions(self):
+        @self.registry.action(
+            'Generate a new todo.md file with the provided todo items in markdown checkbox format.'
+        )
+        async def generate_todos(todo_items: list[str], file_system: CustomFileSystem):
+            """Generate a new todo.md file with todo items in markdown format"""
+            try:
+                # Format todo items as markdown checkboxes
+                formatted_items = []
+                for item in todo_items:
+                    # Clean item and ensure it doesn't already have checkbox format
+                    clean_item = item.strip()
+                    if clean_item.startswith('- ['):
+                        formatted_items.append(clean_item)
+                    else:
+                        formatted_items.append(f'- [ ] {clean_item}')
+                
+                # Create content for todo.md
+                content = '\n'.join(formatted_items) + '\n'
+                
+                # Write to todo.md file
+                result = await file_system.write_file('todo.md', content)
+                
+                logger.info(f'📝 Generated todo.md with {len(todo_items)} items')
+                return ActionResult(
+                    extracted_content=f'Todo file generated successfully with {len(todo_items)} items:\n{content}',
+                    long_term_memory=f'Generated todo.md with {len(todo_items)} items',
+                )
+                
+            except Exception as e:
+                logger.error(f'❌ Failed to generate todo file: {e}')
+                raise RuntimeError(f'Failed to generate todo file: {str(e)}')
+
+        @self.registry.action(
+            'Read the current todo.md file content.'
+        )
+        async def read_todos(file_system: CustomFileSystem):
+            """Read the current todo.md file content"""
+            try:
+                # Read todo.md file
+                result = await file_system.read_file('todo.md')
+                
+                logger.info(f'📖 Read todo.md file')
+                return ActionResult(
+                    extracted_content=result,
+                    long_term_memory='Read current todo list',
+                    include_in_memory=True,
+                )
+                
+            except Exception as e:
+                logger.error(f'❌ Failed to read todo file: {e}')
+                return ActionResult(
+                    extracted_content='Error: todo.md file not found or could not be read',
+                    long_term_memory='Failed to read todo file',
+                )
+
+        @self.registry.action(
+            'Modify existing todo items in todo.md file. Supports add, remove, complete, and uncomplete operations.',
+            param_model=TodoModifyAction,
+        )
+        async def modify_todos(params: TodoModifyAction, file_system: CustomFileSystem):
+            """Modify existing todo items using various operations"""
+            try:
+                # First read current content
+                current_content = await file_system.read_file('todo.md')
+                
+                # Extract just the content part (remove the "Read from file..." prefix)
+                if '<content>' in current_content and '</content>' in current_content:
+                    start = current_content.find('<content>') + len('<content>')
+                    end = current_content.find('</content>')
+                    content = current_content[start:end].strip()
+                else:
+                    content = current_content.strip()
+                
+                modified_content = content
+                changes_made = []
+                
+                # Process each modification
+                for modification in params.modifications:
+                    action = modification.get('action')
+                    
+                    if action == 'add':
+                        # Add new item
+                        item = modification.get('item', '').strip()
+                        if item:
+                            # Format as checkbox if not already formatted
+                            if not item.startswith('- ['):
+                                item = f'- [ ] {item}'
+                            modified_content += f'\n{item}'
+                            changes_made.append(f'Added: {item}')
+                    
+                    elif action == 'remove':
+                        # Remove item
+                        item = modification.get('item', '').strip()
+                        if item:
+                            # Try to find and remove the item (with some flexibility)
+                            lines = modified_content.split('\n')
+                            new_lines = []
+                            removed = False
+                            for line in lines:
+                                if item in line or line.strip().endswith(item):
+                                    removed = True
+                                    changes_made.append(f'Removed: {line.strip()}')
+                                else:
+                                    new_lines.append(line)
+                            modified_content = '\n'.join(new_lines)
+                            if not removed:
+                                changes_made.append(f'Item not found for removal: {item}')
+                    
+                    elif action == 'complete':
+                        # Mark item as complete: - [ ] → - [x]
+                        item = modification.get('item', '').strip()
+                        if item:
+                            lines = modified_content.split('\n')
+                            completed = False
+                            for i, line in enumerate(lines):
+                                if item in line and '- [ ]' in line:
+                                    lines[i] = line.replace('- [ ]', '- [x]')
+                                    completed = True
+                                    changes_made.append(f'Completed: {line.strip()} → {lines[i].strip()}')
+                                    break
+                            modified_content = '\n'.join(lines)
+                            if not completed:
+                                changes_made.append(f'Item not found for completion: {item}')
+                    
+                    elif action == 'uncomplete':
+                        # Mark item as uncomplete: - [x] → - [ ]
+                        item = modification.get('item', '').strip()
+                        if item:
+                            lines = modified_content.split('\n')
+                            uncompleted = False
+                            for i, line in enumerate(lines):
+                                if item in line and '- [x]' in line:
+                                    lines[i] = line.replace('- [x]', '- [ ]')
+                                    uncompleted = True
+                                    changes_made.append(f'Uncompleted: {line.strip()} → {lines[i].strip()}')
+                                    break
+                            modified_content = '\n'.join(lines)
+                            if not uncompleted:
+                                changes_made.append(f'Item not found for uncompletion: {item}')
+                    
+                
+                # If we made any add/remove/complete/uncomplete changes, write the updated content
+                if any(change.startswith(('Added:', 'Removed:', 'Completed:', 'Uncompleted:')) for change in changes_made):
+                    await file_system.write_file('todo.md', modified_content + '\n')
+                
+                changes_summary = '\n'.join(changes_made) if changes_made else 'No changes made'
+                
+                logger.info(f'✏️ Modified todo.md: {len(changes_made)} changes')
+                return ActionResult(
+                    extracted_content=f'Todo modifications completed:\n{changes_summary}\n\nUpdated content:\n{modified_content}',
+                    long_term_memory=f'Modified todo list: {len(changes_made)} changes made',
+                )
+                
+            except Exception as e:
+                logger.error(f'❌ Failed to modify todo file: {e}')
+                raise RuntimeError(f'Failed to modify todo file: {str(e)}')
 
     def _register_file_actions(self):
         @self.registry.action(
@@ -97,7 +313,7 @@ class VibeSurfTools:
         )
         async def extract_content_from_file(
                 params: FileExtractionAction,
-                page_extraction_llm: BaseChatModel,
+                llm: BaseChatModel,
                 file_system: CustomFileSystem,
         ):
             try:
@@ -139,7 +355,7 @@ class VibeSurfTools:
                         # Create user message and invoke LLM
                         user_message = UserMessage(content=content_parts, cache=True)
                         response = await asyncio.wait_for(
-                            page_extraction_llm.ainvoke([user_message]),
+                            llm.ainvoke([user_message]),
                             timeout=120.0,
                         )
 
@@ -165,7 +381,7 @@ class VibeSurfTools:
         Provide the extracted information in a clear, structured format."""
 
                         response = await asyncio.wait_for(
-                            page_extraction_llm.ainvoke([UserMessage(content=prompt)]),
+                            llm.ainvoke([UserMessage(content=prompt)]),
                             timeout=120.0,
                         )
 
