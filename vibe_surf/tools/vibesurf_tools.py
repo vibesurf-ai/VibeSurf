@@ -8,7 +8,7 @@ import json
 import enum
 import base64
 import mimetypes
-
+from datetime import datetime
 from typing import Optional, Type, Callable, Dict, Any, Union, Awaitable, TypeVar
 from pydantic import BaseModel
 from browser_use.tools.service import Controller, Tools, handle_browser_error
@@ -124,6 +124,10 @@ class VibeSurfTools:
                 content = '\n'.join(formatted_items) + '\n'
 
                 # Write to todo.md file
+                todo_path = file_system.get_dir() / 'todo.md'
+                if todo_path.exists():
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    await file_system.move_file('todo.md', f'todo-{timestamp}.md')
                 result = await file_system.write_file('todo.md', content)
 
                 logger.info(f'📝 Generated todo.md with {len(todo_items)} items')
