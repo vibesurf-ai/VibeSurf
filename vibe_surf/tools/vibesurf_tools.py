@@ -478,6 +478,30 @@ class VibeSurfTools:
                 long_term_memory=result,
             )
 
+        @self.registry.action(
+            'List contents of a directory within the FileSystem. Use empty string "" or "." to list the root data_dir, or provide relative path for subdirectory.'
+        )
+        async def list_directory(directory_path: str, file_system: CustomFileSystem):
+            result = await file_system.list_directory(directory_path)
+            logger.info(f'📁 {result}')
+            return ActionResult(
+                extracted_content=result,
+                include_in_memory=True,
+                long_term_memory=result,
+            )
+
+        @self.registry.action(
+            'Create a directory within the FileSystem.'
+        )
+        async def create_directory(directory_path: str, file_system: CustomFileSystem):
+            result = await file_system.create_directory(directory_path)
+            logger.info(f'📁 {result}')
+            return ActionResult(
+                extracted_content=result,
+                include_in_memory=True,
+                long_term_memory=result,
+            )
+
     async def register_mcp_clients(self, mcp_server_config: Optional[Dict[str, Any]] = None):
         self.mcp_server_config = mcp_server_config or self.mcp_server_config
         if self.mcp_server_config:

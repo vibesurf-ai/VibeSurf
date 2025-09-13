@@ -276,6 +276,92 @@ class CustomFileSystem(FileSystem):
         except Exception as e:
             return f"Error: Could not write to file '{full_filename}'. {str(e)}"
 
+    async def list_directory(self, directory_path: str = "") -> str:
+        """List contents of a directory within the file system (data_dir only)"""
+        try:
+            # Construct the full path within data_dir
+            if directory_path and directory_path.strip() != ".":
+                # Remove leading slash if present and ensure relative path
+                directory_path = directory_path.lstrip('/')
+                full_path = self.data_dir / directory_path
+            else:
+                full_path = self.data_dir
+
+            # Ensure the path is within data_dir for security
+            try:
+                full_path = full_path.resolve()
+                self.data_dir.resolve()
+                if not str(full_path).startswith(str(self.data_dir.resolve())):
+                    return f"Error: Access denied. Path '{directory_path}' is outside the file system."
+            except Exception:
+                return f"Error: Invalid directory path '{directory_path}'."
+
+            # Check if directory exists
+            if not full_path.exists():
+                return f"Error: Directory '{directory_path or '.'}' does not exist."
+            
+            if not full_path.is_dir():
+                return f"Error: '{directory_path or '.'}' is not a directory."
+
+            # List directory contents
+            items = []
+            for item in sorted(full_path.iterdir()):
+                relative_path = item.relative_to(self.data_dir)
+                if item.is_dir():
+                    items.append(f"📁 {relative_path}/")
+                else:
+                    file_size = item.stat().st_size
+                    if file_size < 1024:
+                        size_str = f"{file_size}B"
+                    elif file_size < 1024 * 1024:
+                        size_str = f"{file_size // 1024}KB"
+                    else:
+                        size_str = f"{file_size // (1024 * 1024)}MB"
+                    items.append(f"📄 {relative_path} ({size_str})")
+
+            if not items:
+                return f"Directory '{directory_path or '.'}' is empty."
+
+            directory_display = directory_path or "."
+            return f"Contents of directory '{directory_display}':\n" + "\n".join(items)
+
+        except Exception as e:
+            return f"Error: Could not list directory '{directory_path or '.'}': {str(e)}"
+
+    async def create_directory(self, directory_path: str) -> str:
+        """Create a directory within the file system (data_dir only)"""
+        try:
+            if not directory_path or not directory_path.strip():
+                return "Error: Directory path cannot be empty."
+
+            # Remove leading slash if present and ensure relative path
+            directory_path = directory_path.strip().lstrip('/')
+            full_path = self.data_dir / directory_path
+
+            # Ensure the path is within data_dir for security
+            try:
+                full_path = full_path.resolve()
+                self.data_dir.resolve()
+                if not str(full_path).startswith(str(self.data_dir.resolve())):
+                    return f"Error: Access denied. Cannot create directory '{directory_path}' outside the file system."
+            except Exception:
+                return f"Error: Invalid directory path '{directory_path}'."
+
+            # Check if directory already exists
+            if full_path.exists():
+                if full_path.is_dir():
+                    return f"Directory '{directory_path}' already exists."
+                else:
+                    return f"Error: '{directory_path}' already exists as a file."
+
+            # Create directory (including parent directories)
+            full_path.mkdir(parents=True, exist_ok=True)
+
+            return f"Directory '{directory_path}' created successfully."
+
+        except Exception as e:
+            return f"Error: Could not create directory '{directory_path}': {str(e)}"
+
     @classmethod
     def from_state(cls, state: FileSystemState) -> 'FileSystem':
         """Restore file system from serializable state at the exact same location"""
