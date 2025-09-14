@@ -127,13 +127,13 @@ class CustomFileSystem(FileSystem):
                 await asyncio.get_event_loop().run_in_executor(executor, shutil.copy2, str(src_path), str(dst_path))
 
             # Read the copied file content and create file object for internal tracking
-            content = self.read_file(dst_filename)
-            dst_name, dst_extension = self._parse_filename(dst_filename)
-            file_class = self._get_file_type_class(dst_extension)
-
-            if file_class:
-                dst_file = file_class(name=dst_name, content=content)
-                self.files[dst_filename] = dst_file
+            # content = self.read_file(dst_filename)
+            # dst_name, dst_extension = self._parse_filename(dst_filename)
+            # file_class = self._get_file_type_class(dst_extension)
+            #
+            # if file_class:
+            #     dst_file = file_class(name=dst_name, content=content)
+            #     self.files[dst_filename] = dst_file
 
             source_type = "external file" if external_src_file else "file"
             return f"{source_type.capitalize()} '{src_filename}' copied to '{dst_filename}' successfully."
@@ -165,13 +165,13 @@ class CustomFileSystem(FileSystem):
                 await asyncio.get_event_loop().run_in_executor(executor, shutil.move, str(old_path), str(new_path))
 
             # Update internal file tracking
-            old_file = self.files[old_filename]
-            del self.files[old_filename]
-
-            # Update file object name if needed
-            new_name, new_extension = self._parse_filename(new_file_path)
-            old_file.name = new_name
-            self.files[new_file_path] = old_file
+            # old_file = self.files[old_filename]
+            # del self.files[old_filename]
+            #
+            # # Update file object name if needed
+            # new_name, new_extension = self._parse_filename(new_file_path)
+            # old_file.name = new_name
+            # self.files[new_file_path] = old_file
 
             return f"File '{old_filename}' renamed to '{new_file_path}' successfully."
 
@@ -202,13 +202,13 @@ class CustomFileSystem(FileSystem):
                 await asyncio.get_event_loop().run_in_executor(executor, shutil.move, str(old_path), str(new_path))
 
             # Update internal file tracking
-            old_file = self.files[old_filename]
-            del self.files[old_filename]
-
-            # Update file object name if needed
-            new_name, new_extension = self._parse_filename(new_filename)
-            old_file.name = new_name
-            self.files[new_filename] = old_file
+            # old_file = self.files[old_filename]
+            # del self.files[old_filename]
+            #
+            # # Update file object name if needed
+            # new_name, new_extension = self._parse_filename(new_filename)
+            # old_file.name = new_name
+            # self.files[new_filename] = old_file
 
             return f"File '{old_filename}' moved to '{new_filename}' successfully."
 

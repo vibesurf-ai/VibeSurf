@@ -541,14 +541,15 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
 
         try:
             available_file_paths = []
-            for task_file in task_files:
-                upload_workdir = bu_agent_workdir / "uploads"
-                upload_workdir.mkdir(parents=True, exist_ok=True)
-                task_file_path = state.vibesurf_agent.file_system.get_absolute_path(task_file)
-                if os.path.exists(task_file_path):
-                    logger.info(f"Copy {task_file_path} to {upload_workdir}")
-                    shutil.copy(task_file_path, str(upload_workdir))
-                    available_file_paths.append(os.path.join("uploads", os.path.basename(task_file_path)))
+            if task_files:
+                for task_file in task_files:
+                    upload_workdir = bu_agent_workdir / "uploads"
+                    upload_workdir.mkdir(parents=True, exist_ok=True)
+                    task_file_path = state.vibesurf_agent.file_system.get_absolute_path(task_file)
+                    if os.path.exists(task_file_path):
+                        logger.info(f"Copy {task_file_path} to {upload_workdir}")
+                        shutil.copy(task_file_path, str(upload_workdir))
+                        available_file_paths.append(os.path.join("uploads", os.path.basename(task_file_path)))
 
             # Create BrowserUseAgent for each task
             if available_file_paths:
@@ -577,6 +578,8 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                 logger.debug(f"🔗 Registered parallel agent {agent_id} for control coordination")
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             logger.error(f"❌ Failed to create agent {agent_id}: {e}")
             log_agent_activity(state, agent_name, "error",
                                f"Failed to create agent: {str(e)}")
@@ -675,14 +678,15 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
                 prefix=f"mcp.{mcp_server_name}."
             )
         available_file_paths = []
-        for task_file in task_files:
-            upload_workdir = bu_agent_workdir / "uploads"
-            upload_workdir.mkdir(parents=True, exist_ok=True)
-            task_file_path = state.vibesurf_agent.file_system.get_absolute_path(task_file)
-            if os.path.exists(task_file_path):
-                logger.info(f"Copy {task_file_path} to {upload_workdir}")
-                shutil.copy(task_file_path, str(upload_workdir))
-                available_file_paths.append(os.path.join("uploads", os.path.basename(task_file_path)))
+        if task_files:
+            for task_file in task_files:
+                upload_workdir = bu_agent_workdir / "uploads"
+                upload_workdir.mkdir(parents=True, exist_ok=True)
+                task_file_path = state.vibesurf_agent.file_system.get_absolute_path(task_file)
+                if os.path.exists(task_file_path):
+                    logger.info(f"Copy {task_file_path} to {upload_workdir}")
+                    shutil.copy(task_file_path, str(upload_workdir))
+                    available_file_paths.append(os.path.join("uploads", os.path.basename(task_file_path)))
 
         # Create BrowserUseAgent for each task
         if available_file_paths:

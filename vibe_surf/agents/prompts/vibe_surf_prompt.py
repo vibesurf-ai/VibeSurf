@@ -74,4 +74,5 @@ EXTEND_BU_SYSTEM_PROMPT = """
 * Please make sure the language of your output in JSON value should remain the same as the user's request or task. 
 * Regarding file operations, please note that you need the full relative path (including subfolders), not just the file name.
 * Especially when a file operation reports an error, please reflect whether the file path is not written correctly, such as the subfolder is not written.
+* If you are operating on files in the filesystem, be sure to use relative paths (relative to the workspace dir) instead of absolute paths.
 """

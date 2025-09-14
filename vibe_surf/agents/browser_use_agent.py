@@ -134,7 +134,7 @@ class BrowserUseAgent(Agent):
             vision_detail_level: Literal['auto', 'low', 'high'] = 'auto',
             llm_timeout: int = 90,
             step_timeout: int = 120,
-            directly_open_url: bool = True,
+            directly_open_url: bool = False,
             include_recent_events: bool = False,
             allow_parallel_action_types: list[str] = ["extract_structured_data", "extract_content_from_file"],
             _url_shortening_limit: int = 25,
