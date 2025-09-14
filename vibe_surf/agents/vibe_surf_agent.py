@@ -1344,6 +1344,8 @@ class VibeSurfAgent:
                 logger.warning(f"⚠️ Failed to resume agent {agent_id}: {e}")
 
     async def process_upload_files(self, upload_files: Optional[List[str]] = None):
+        if not upload_files:
+            return []
         new_upload_files = []
         for ufile_path in upload_files:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -1409,9 +1411,9 @@ class VibeSurfAgent:
                 self.message_history.append(SystemMessage(content=VIBESURF_SYSTEM_PROMPT))
 
             # Format processed upload files for prompt
-            upload_files_md = self.format_upload_files(upload_files)
             user_request = f"* User's New Request:\n{task}\n"
             if upload_files:
+                upload_files_md = self.format_upload_files(upload_files)
                 user_request += f"* User Uploaded Files:\n{upload_files_md}\n"
             self.message_history.append(
                 UserMessage(content=user_request)
@@ -1476,6 +1478,8 @@ class VibeSurfAgent:
                 agent_activity_logs.append(activity_entry)
             return f"# Task Execution Cancelled\n\n**Task:** {task}\n\nExecution was stopped by user request."
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             logger.error(f"❌ VibeSurfAgent execution failed: {e}")
             # Add error activity log
             if agent_activity_logs:
@@ -1489,6 +1493,7 @@ class VibeSurfAgent:
         finally:
             token_summary = await self.token_cost_service.get_usage_summary()
             token_summary_md = token_summary.model_dump_json(indent=2, exclude_none=True, exclude_unset=True)
+            logger.debug(token_summary_md)
             activity_entry = {
                 "agent_name": "VibeSurfAgent",
                 "agent_status": "result",  # working, result, error

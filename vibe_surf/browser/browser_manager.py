@@ -174,8 +174,6 @@ class BrowserManager:
             except Exception as e:
                 logger.warning(f"Error during agent {agent_id} cleanup: {e}")
 
-        # Note: We don't close the root browser session here as it's managed externally
-
     async def __aenter__(self) -> "BrowserManager":
         """Async context manager entry."""
         return self
