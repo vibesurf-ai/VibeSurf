@@ -147,9 +147,9 @@ async def test_vibe_surf_agent():
     # Use SwarmBrowserSession instead of BrowserSession to disable DVD animation
     main_browser_session = AgentBrowserSession(browser_profile=browser_profile)
     await main_browser_session.start()
-    bu_tools = BrowserUseTools()
+    vs_tools = VibeSurfTools()
     browser_manager = BrowserManager(main_browser_session=main_browser_session)
-    llm = ChatOpenAICompatible(model='gemini-2.5-flash',
+    llm = ChatOpenAICompatible(model='gemini-2.5-pro',
                                base_url=os.getenv("OPENAI_ENDPOINT"),
                                api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -158,7 +158,7 @@ async def test_vibe_surf_agent():
     agent = VibeSurfAgent(
         llm=llm,
         browser_manager=browser_manager,
-        tools=bu_tools,
+        tools=vs_tools,
         workspace_dir=os.path.abspath("./tmp/vibesurf_tests"),
         calculate_token_cost=True
     )
@@ -191,7 +191,7 @@ async def test_vibe_surf_agent():
 
         # Test 4: Browser parallel task
         print("🧪 Testing browser parallel tasks...")
-        browser_task = "Search for Dify, n8n, browser-use and get latest news"
+        browser_task = "Search for Dify, n8n, browser-use anhd click into their own homepage, take screenshot and save"
         result4 = await agent.run(browser_task)
         print(f"✅ Browser task result:")
         pprint.pprint(result4)
@@ -216,35 +216,31 @@ async def test_vibe_surf_agent_control():
         browser_exec_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
     else:
         browser_exec_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    
-    browser_profile = BrowserProfile(
+    browser_profile = AgentBrowserProfile(
         executable_path=browser_exec_path,
-        user_data_dir=os.path.abspath('./tmp/chrome/profiles/control_test'),
-        headless=False,  # Keep visible for control testing
+        user_data_dir=os.path.abspath('./tmp/chrome/profiles/default'),
+        headless=False,
         keep_alive=True
     )
-    
-    # Initialize components
+    # Use SwarmBrowserSession instead of BrowserSession to disable DVD animation
     main_browser_session = AgentBrowserSession(browser_profile=browser_profile)
     await main_browser_session.start()
-    
+    vs_tools = VibeSurfTools()
     browser_manager = BrowserManager(main_browser_session=main_browser_session)
-    controller = VibeSurfController()
+    llm = ChatOpenAICompatible(model='gemini-2.5-pro',
+                               base_url=os.getenv("OPENAI_ENDPOINT"),
+                               api_key=os.getenv("OPENAI_API_KEY"))
     
-    llm = ChatOpenAICompatible(
-        model='gemini-2.5-flash',
-        base_url=os.getenv("OPENAI_ENDPOINT"),
-        api_key=os.getenv("OPENAI_API_KEY")
-    )
-    
+
     # Create VibeSurfAgent
     agent = VibeSurfAgent(
         llm=llm,
         browser_manager=browser_manager,
-        controller=controller,
-        workspace_dir="./tmp/swarm_surf_control_test"
+        tools=vs_tools,
+        workspace_dir=os.path.abspath("./tmp/vibesurf_tests"),
+        calculate_token_cost=True
     )
-    
+
     try:
         print("🧪 Testing VibeSurfAgent control functionality...")
         

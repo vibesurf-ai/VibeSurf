@@ -115,6 +115,6 @@ class VibeSurfDoneAction(BaseModel):
     )
     suggestion_follow_tasks: list[str] | None = Field(
         default=None,
-        description='Optional list of 1-3 suggested follow-up tasks with brief descriptions',
+        description='Optional list of 1-3 suggested follow-up tasks. Each task can only be described in one sentence, and each task must be strongly related to or extended from the original task.',
         max_length=3,
     )

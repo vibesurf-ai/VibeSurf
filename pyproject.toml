@@ -41,6 +41,8 @@ dependencies = [
     "browser-use==0.7.7",
     "markdown-pdf>=1.9",
     "nanoid>=2.0.0",
+    "markdownify>=1.2.0",
+    "pathvalidate>=3.3.1",
 ]
 
 [project.urls]

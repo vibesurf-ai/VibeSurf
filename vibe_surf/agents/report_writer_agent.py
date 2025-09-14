@@ -118,7 +118,9 @@ Please analyze the task, determine if you need to read any additional files, the
                     self.step_callback(parsed, iteration)
 
                 # Add assistant message to history
-                message_history.append(AssistantMessage(content=response.completion))
+                message_history.append(AssistantMessage(
+                    content=json.dumps(response.completion.model_dump(exclude_none=True, exclude_unset=True),
+                                       ensure_ascii=False)))
 
                 # Execute actions
                 results = []

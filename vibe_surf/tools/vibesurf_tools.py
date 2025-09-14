@@ -287,13 +287,13 @@ class VibeSurfTools:
 
         @self.registry.action(
             'Read file content from file system. If this is a file not in current file system, please provide an absolute path.')
-        async def read_file(file_name: str, file_system: FileSystem):
-            if not os.path.exists(file_name):
+        async def read_file(file_path: str, file_system: FileSystem):
+            if not os.path.exists(file_path):
                 # if not exists, assume it is external_file
                 external_file = True
             else:
                 external_file = False
-            result = await file_system.read_file(file_name, external_file=external_file)
+            result = await file_system.read_file(file_path, external_file=external_file)
 
             MAX_MEMORY_SIZE = 1000
             if len(result) > MAX_MEMORY_SIZE:
@@ -424,11 +424,33 @@ class VibeSurfTools:
                 raise RuntimeError(str(e))
 
         @self.registry.action(
+            'Write or append content to file_path in file system. Allowed extensions are .md, .txt, .json, .csv, .pdf. For .pdf files, write the content in markdown format and it will automatically be converted to a properly formatted PDF document.'
+        )
+        async def write_file(
+                file_path: str,
+                content: str,
+                file_system: FileSystem,
+                append: bool = False,
+                trailing_newline: bool = True,
+                leading_newline: bool = False,
+        ):
+            if trailing_newline:
+                content += '\n'
+            if leading_newline:
+                content = '\n' + content
+            if append:
+                result = await file_system.append_file(file_path, content)
+            else:
+                result = await file_system.write_file(file_path, content)
+            logger.info(f'💾 {result}')
+            return ActionResult(extracted_content=result, long_term_memory=result)
+
+        @self.registry.action(
             'Copy a file to the FileSystem. Set external_src=True to copy from external file(absolute path)to FileSystem, False to copy within FileSystem.'
         )
-        async def copy_file(src_filename: str, dst_filename: str, file_system: CustomFileSystem,
+        async def copy_file(src_file_path: str, dst_file_path: str, file_system: CustomFileSystem,
                             external_src: bool = False):
-            result = await file_system.copy_file(src_filename, dst_filename, external_src)
+            result = await file_system.copy_file(src_file_path, dst_file_path, external_src)
             logger.info(f'📁 {result}')
             return ActionResult(
                 extracted_content=result,
@@ -437,10 +459,10 @@ class VibeSurfTools:
             )
 
         @self.registry.action(
-            'Rename a file within the FileSystem from old_filename to new_filename.'
+            'Rename a file to new_filename. src_file_path is a relative path to the FileSystem.'
         )
-        async def rename_file(old_filename: str, new_filename: str, file_system: CustomFileSystem):
-            result = await file_system.rename_file(old_filename, new_filename)
+        async def rename_file(src_file_path: str, new_filename: str, file_system: CustomFileSystem):
+            result = await file_system.rename_file(src_file_path, new_filename)
             logger.info(f'📁 {result}')
             return ActionResult(
                 extracted_content=result,
@@ -451,8 +473,8 @@ class VibeSurfTools:
         @self.registry.action(
             'Move a file within the FileSystem from old_filename to new_filename.'
         )
-        async def move_file(old_filename: str, new_filename: str, file_system: CustomFileSystem):
-            result = await file_system.move_file(old_filename, new_filename)
+        async def move_file(old_file_path: str, new_file_path: str, file_system: CustomFileSystem):
+            result = await file_system.move_file(old_file_path, new_file_path)
             logger.info(f'📁 {result}')
             return ActionResult(
                 extracted_content=result,
@@ -463,15 +485,15 @@ class VibeSurfTools:
         @self.registry.action(
             'Check file exist or not.'
         )
-        async def file_exist(filename: str, file_system: CustomFileSystem):
-            if os.path.exists(filename):
-                result = f"{filename} is a external file and it exists."
+        async def file_exist(file_path: str, file_system: CustomFileSystem):
+            if os.path.exists(file_path):
+                result = f"{file_path} is a external file and it exists."
             else:
-                is_file_exist = await file_system.file_exist(filename)
+                is_file_exist = await file_system.file_exist(file_path)
                 if is_file_exist:
-                    result = f"{filename} is in file system and it exists."
+                    result = f"{file_path} is in file system and it exists."
                 else:
-                    result = f"{filename} does not exists."
+                    result = f"{file_path} does not exists."
 
             logger.info(f'📁 {result}')
             return ActionResult(

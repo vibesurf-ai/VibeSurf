@@ -151,16 +151,14 @@ class CustomFileSystem(FileSystem):
         from concurrent.futures import ThreadPoolExecutor
 
         # Check if old file exists
-        if not self.get_file(old_filename):
-            return f"Error: File '{old_filename}' not found."
-
-        # Check if new filename already exists
-        if self.get_file(new_filename):
-            return f"Error: File '{new_filename}' already exists."
+        file_exist = await self.file_exist(old_filename)
+        if not file_exist:
+            return f"Error: Source File '{old_filename}' not found."
 
         try:
+            new_file_path = os.path.join(os.path.dirname(old_filename), new_filename)
             old_path = self.data_dir / old_filename
-            new_path = self.data_dir / new_filename
+            new_path = self.data_dir / new_file_path
 
             # Use shutil to move/rename file
             with ThreadPoolExecutor() as executor:
@@ -171,11 +169,11 @@ class CustomFileSystem(FileSystem):
             del self.files[old_filename]
 
             # Update file object name if needed
-            new_name, new_extension = self._parse_filename(new_filename)
+            new_name, new_extension = self._parse_filename(new_file_path)
             old_file.name = new_name
-            self.files[new_filename] = old_file
+            self.files[new_file_path] = old_file
 
-            return f"File '{old_filename}' renamed to '{new_filename}' successfully."
+            return f"File '{old_filename}' renamed to '{new_file_path}' successfully."
 
         except Exception as e:
             return f"Error: Could not rename file '{old_filename}' to '{new_filename}'. {str(e)}"
@@ -186,12 +184,14 @@ class CustomFileSystem(FileSystem):
         from concurrent.futures import ThreadPoolExecutor
 
         # Check if old file exists
-        if not self.get_file(old_filename):
-            return f"Error: File '{old_filename}' not found."
+        src_file_exist = await self.file_exist(old_filename)
+        if not src_file_exist:
+            return f"Error: Source File '{old_filename}' not found."
 
         # Check if new filename already exists
-        if self.get_file(new_filename):
-            return f"Error: File '{new_filename}' already exists."
+        dst_file_exist = await self.file_exist(new_filename)
+        if dst_file_exist:
+            return f"Error: Destination File '{new_filename}' already exists."
 
         try:
             old_path = self.data_dir / old_filename

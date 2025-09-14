@@ -68,3 +68,10 @@ Before executing any action:
 
 Execute with precision, leverage concurrent capabilities for efficiency, and deliver professional results that exceed expectations.
 """
+
+
+EXTEND_BU_SYSTEM_PROMPT = """
+* Please make sure the language of your output in JSON value should remain the same as the user's request or task. 
+* Regarding file operations, please note that you need the full relative path (including subfolders), not just the file name.
+* Especially when a file operation reports an error, please reflect whether the file path is not written correctly, such as the subfolder is not written.
+"""

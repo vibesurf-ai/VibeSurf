@@ -32,6 +32,7 @@ from vibe_surf.agents.views import CustomAgentOutput
 
 from vibe_surf.agents.prompts.vibe_surf_prompt import (
     VIBESURF_SYSTEM_PROMPT,
+    EXTEND_BU_SYSTEM_PROMPT
 )
 from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.tools.browser_use_tools import BrowserUseTools
@@ -173,11 +174,11 @@ def create_browser_agent_step_callback(state: VibeSurfState, agent_name: str):
                 step_msg += f"**⚡ Actions:**\n"
 
                 # Add brief action details
-                for i, action in enumerate(agent_output.action):  # Limit to first 3 actions to avoid too much detail
-                    action_data = action.model_dump(exclude_unset=True)
+                for i, action in enumerate(agent_output.action):
+                    action_data = action.model_dump(exclude_unset=True, exclude_none=True)
                     action_name = next(iter(action_data.keys())) if action_data else 'unknown'
                     action_params = json.dumps(action_data[action_name],
-                                               ensure_ascii=False, indent=2) if action_name in action_data else ""
+                                               ensure_ascii=False) if action_name in action_data else ""
                     step_msg += f"- [x] {action_name}: {action_params}\n"
             else:
                 step_msg += f"**⚡ Actions:** No actions\n"
@@ -213,10 +214,10 @@ def create_report_writer_step_callback(state: VibeSurfState, agent_name: str):
 
                 # Add brief action details
                 for i, action in enumerate(parsed_output.action):
-                    action_data = action.model_dump(exclude_unset=True)
+                    action_data = action.model_dump(exclude_unset=True, exclude_none=True)
                     action_name = next(iter(action_data.keys())) if action_data else 'unknown'
                     action_params = json.dumps(action_data[action_name],
-                                               ensure_ascii=False, indent=2) if action_name in action_data else ""
+                                               ensure_ascii=False) if action_name in action_data else ""
                     step_msg += f"- [x] {action_name}: {action_params}\n"
             else:
                 step_msg += f"**⚡ Actions:** No actions\n"
@@ -328,13 +329,14 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
         response = await vibesurf_agent.llm.ainvoke(vibesurf_agent.message_history, output_format=AgentOutput)
         parsed = response.completion
         actions = parsed.action
-        vibesurf_agent.message_history.append(AssistantMessage(content=response.completion))
+        vibesurf_agent.message_history.append(
+            AssistantMessage(content=json.dumps(response.completion.model_dump(exclude_none=True, exclude_unset=True),
+                                                ensure_ascii=False)))
 
         # Log thinking if present
         if hasattr(parsed, 'thinking') and parsed.thinking:
             log_agent_activity(state, "vibesurf_agent", "thinking", parsed.thinking)
 
-        # Process actions
         for i, action in enumerate(actions):
             action_data = action.model_dump(exclude_unset=True)
             action_name = next(iter(action_data.keys())) if action_data else 'unknown'
@@ -377,6 +379,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                 params = action_data[action_name]
                 response_content = params.get('response', 'Task completed!')
                 follow_tasks = params.get('suggestion_follow_tasks', [])
+                state.current_step = "END"
 
                 # Format final response
                 final_response = f"{response_content}"
@@ -415,7 +418,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                     llm=vibesurf_agent.llm,
                     file_system=vibesurf_agent.file_system,
                 )
-
+                state.current_step = "vibesurf_agent"
                 if result.extracted_content:
                     vibesurf_agent.message_history.append(
                         UserMessage(content=f'Action result:\n{result.extracted_content}'))
@@ -556,7 +559,6 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
             bu_tasks[i] = bu_task
             # Create step callback for this agent
             step_callback = create_browser_agent_step_callback(state, agent_name)
-
             agent = BrowserUseAgent(
                 task=bu_task,
                 llm=state.vibesurf_agent.llm,
@@ -565,7 +567,7 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                 task_id=f"{task_id}-{i + 1:03d}",
                 file_system_path=str(bu_agent_workdir),
                 register_new_step_callback=step_callback,
-                extend_system_message="Please make sure the language of your output in JSON value should remain the same as the user's request or task.",
+                extend_system_message=EXTEND_BU_SYSTEM_PROMPT,
             )
             agents.append(agent)
 
@@ -699,7 +701,7 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
             task_id=f"{task_id}-{1:03d}",
             file_system_path=bu_agent_workdir,
             register_new_step_callback=step_callback,
-            extend_system_message="Please make sure the language of your output in JSON value should remain the same as the user's request or task.",
+            extend_system_message=EXTEND_BU_SYSTEM_PROMPT,
         )
         if state.vibesurf_agent and hasattr(state.vibesurf_agent, '_running_agents'):
             state.vibesurf_agent._running_agents[agent_id] = agent

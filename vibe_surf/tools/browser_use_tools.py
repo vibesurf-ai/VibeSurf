@@ -6,7 +6,7 @@ import enum
 import base64
 import mimetypes
 import datetime
-
+from pathvalidate import sanitize_filename
 from typing import Optional, Type, Callable, Dict, Any, Union, Awaitable, TypeVar
 from pydantic import BaseModel
 from browser_use.tools.service import Tools
@@ -569,14 +569,14 @@ Provide the extracted information in a clear, structured format."""
 
                 # Save screenshot to file system
                 page_title = await browser_session.get_current_page_title()
-                page_title = page_title.replace(" ", '')
+                page_title = sanitize_filename(page_title)
                 filename = f"{page_title}-{timestamp}.png"
                 filepath = screenshots_dir / filename
 
                 with open(filepath, "wb") as f:
                     f.write(base64.b64decode(screenshot))
 
-                msg = f'📸 Screenshot saved to {filepath}'
+                msg = f'📸 Screenshot saved to {filepath.relative_to(fs_dir)}'
                 logger.info(msg)
                 return ActionResult(
                     extracted_content=msg,

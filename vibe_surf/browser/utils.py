@@ -603,7 +603,7 @@ def highlight_screenshot(screenshot_base64: str, elements: List[List[Any]]) -> s
 
         # --- Default if all corners overlap (Logic unchanged) ---
         if not found_non_overlapping_spot:
-            logger.debug(f"Could not avoid label overlap for index {highlight_index}. Defaulting to top-left.")
+            # logger.debug(f"Could not avoid label overlap for index {highlight_index}. Defaulting to top-left.")
             chosen_label_bg_box, potential_text_ref_pos = calculate_label_placement(
                 corner='top_left',  # Default corner from original code
                 outline_box=draw_box_outline,
@@ -620,7 +620,7 @@ def highlight_screenshot(screenshot_base64: str, elements: List[List[Any]]) -> s
                     potential_text_ref_pos[0] + w_padding // 2,
                     potential_text_ref_pos[1] + h_padding // 2)  # ** OFFSET FROM ORIGINAL CODE **
             else:
-                logger.debug(f"Default top-left placement failed for index {highlight_index}. Skipping label.")
+                # logger.debug(f"Default top-left placement failed for index {highlight_index}. Skipping label.")
                 chosen_label_bg_box = None
                 chosen_text_pos = None
 
