@@ -207,8 +207,6 @@ class CustomFileSystem(FileSystem):
             return f"Error: Could not move file '{old_filename}' to '{new_filename}'. {str(e)}"
 
     def get_absolute_path(self, full_filename: str) -> str:
-        if not self.get_file(full_filename):
-            return f"Error: File '{full_filename}' not found."
         full_path = self.data_dir.absolute() / full_filename
         return str(full_path)
 

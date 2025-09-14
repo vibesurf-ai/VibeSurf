@@ -46,7 +46,7 @@ class BrowserUseAgentTask(BaseModel):
     task: str = Field(
         description='Task description focusing on what needs to be done, goals, and expected returns. Browser_use agent has its own planning and execution capabilities',
     )
-    necessary_files: list[str] | None = Field(
+    task_files: list[str] | None = Field(
         default=None,
         description='Optional list of file paths that may be needed for executing this task',
     )

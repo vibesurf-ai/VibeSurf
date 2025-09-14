@@ -55,7 +55,7 @@ class VibeSurfTools:
             'Execute browser_use agent tasks. Supports both single task execution (list length=1) and '
             'parallel execution of multiple tasks for improved efficiency. '
             'Accepts a list of tasks where each task can specify a tab_id (optional), '
-            'task description (focusing on goals and expected returns), and necessary_files (optional). '
+            'task description (focusing on goals and expected returns), and task_files (optional). '
             'Browser_use agent has strong planning and execution capabilities, only needs task descriptions and desired outcomes.',
             param_model=BrowserUseAgentExecution,
         )

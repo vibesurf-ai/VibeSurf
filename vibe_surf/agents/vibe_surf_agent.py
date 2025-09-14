@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 import pickle
+import nanoid
+import shutil
 from typing import Any, Dict, List, Literal, Optional
 from uuid_extensions import uuid7str
 from collections import defaultdict
@@ -455,54 +457,63 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
     pending_tasks = state.browser_tasks
     bu_agent_ids = []
     register_sessions = []
-    for i, task in enumerate(pending_tasks):
-        agent_id = f"bu_agent-{i + 1}"
-        if isinstance(task, list):
-            target_id, task_description = task
-        elif isinstance(task, dict):
-            task_description = task.get('description', 'Unknown task')
-            target_id = task.get('tab_id')
-        else:
-            task_description = str(task)
-            target_id = None
+    task_id = nanoid.generate(size=5)
+    bu_agents_workdir = state.vibesurf_agent.file_system.get_dir() / "bu_agents"
+    bu_agents_workdir.mkdir(parents=True, exist_ok=True)
+
+    for i, task_info in enumerate(pending_tasks):
+        agent_id = f"bu_agent-{task_id}-{i + 1:03d}"
+        task_description = task_info.get('task', '')
+        if not task_description:
+            continue
+        target_id = task_info.get('target_id', None)
         register_sessions.append(
-            state.browser_manager.register_agent(agent_id, target_id=target_id)
+            state.vibesurf_agent.browser_manager.register_agent(agent_id, target_id=target_id)
         )
         bu_agent_ids.append(agent_id)
     agent_browser_sessions = await asyncio.gather(*register_sessions)
 
-    for i, task in enumerate(pending_tasks):
-        agent_id = f"agent-{i + 1}-{state.task_id[-4:]}"
-        if isinstance(task, list):
-            target_id, task_description = task
-        elif isinstance(task, dict):
-            task_description = task.get('description', 'Unknown task')
-            target_id = task.get('tab_id')
-        else:
-            task_description = str(task)
+    for i, task_info in enumerate(pending_tasks):
+        agent_id = f"bu_agent-{task_id}-{i + 1:03d}"
+        task_description = task_info.get('task', '')
+        if not task_description:
+            continue
+        task_files = task_info.get('task_files', [])
+        bu_agent_workdir = bu_agents_workdir / f"{task_id}-{i + 1:03d}"
+        bu_agent_workdir.mkdir(parents=True, exist_ok=True)
+
         try:
+            agent_name = f"browser_use_agent-{task_id}-{i + 1:03d}"
             # Log agent creation
-            log_agent_activity(state, f"browser_use_agent-{i + 1}-{state.task_id[-4:]}", "working",
-                               f"{task_description}")
+            log_agent_activity(state, agent_name, "working", f"{task_description}")
+
+            available_file_paths = []
+            for task_file in task_files:
+                upload_workdir = bu_agent_workdir / "uploads"
+                upload_workdir.mkdir(parents=True, exist_ok=True)
+                task_file_path = state.vibesurf_agent.file_system.get_absolute_path(task_file)
+                if os.path.exists(task_file_path):
+                    logger.info(f"Copy {task_file_path} to {upload_workdir}")
+                    shutil.copy(task_file_path, str(upload_workdir))
+                    available_file_paths.append(os.path.join("uploads", os.path.basename(task_file_path)))
 
             # Create BrowserUseAgent for each task
             if state.upload_files:
                 upload_files_md = format_upload_files_list(state.upload_files)
-                bu_task = task_description + f"\nAvailable uploaded files:\n{upload_files_md}\n"
+                bu_task = task_description + f"\nNessessary files for this task:\n{upload_files_md}\n"
             else:
                 bu_task = task_description
 
             # Create step callback for this agent
-            agent_name = f"browser_use_agent-{i + 1}-{state.task_id[-4:]}"
             step_callback = create_browser_agent_step_callback(state, agent_name)
 
             agent = BrowserUseAgent(
                 task=bu_task,
-                llm=state.llm,
+                llm=state.vibesurf_agent.llm,
                 browser_session=agent_browser_sessions[i],
                 controller=state.vibesurf_agent,
-                task_id=f"{state.task_id}-{i + 1}",
-                file_system_path=os.path.join(state.task_dir, f"{state.task_id}-{i + 1}"),
+                task_id=f"{task_id}-{i + 1:03d}",
+                file_system_path=str(bu_agent_workdir),
                 register_new_step_callback=step_callback,
                 extend_system_message="Please make sure the language of your output in JSON value should remain the same as the user's request or task.",
             )
@@ -566,7 +577,7 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                 logger.debug(f"🔗 Unregistered parallel agent {agent_id} from control coordination")
 
 
-async def execute_single_browser_tasks(state: VibeSurfState) -> List[BrowserTaskResult]:
+async def execute_single_browser_tasks(state: VibeSurfState) -> List[BrowserTaskResult] | None:
     """Execute pending tasks in single mode one by one"""
     logger.info("🔄 Executing pending tasks in single mode...")
 

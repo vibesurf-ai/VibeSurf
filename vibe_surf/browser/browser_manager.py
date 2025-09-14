@@ -82,11 +82,17 @@ class BrowserManager:
 
         # Validate target assignment
         if target_id:
-            target_id_owner = self.get_target_owner(target_id)
-            if target_id_owner and target_id_owner != agent_id:
-                logger.warning(
-                    f"Target id: {target_id} belongs to {target_id_owner}. You cannot assign it to {target_id_owner}.")
-                return False
+            try:
+                target_id = await self.main_browser_session.get_target_id_from_tab_id(target_id)
+            except Exception:
+                logger.warning(f"Target ID '{target_id}' not found.")
+                target_id = None
+            if target_id:
+                target_id_owner = self.get_target_owner(target_id)
+                if target_id_owner and target_id_owner != agent_id:
+                    logger.warning(
+                        f"Target id: {target_id} belongs to {target_id_owner}. You cannot assign it to {target_id_owner}.")
+                    return False
 
         # Get or create available target
         if target_id is None:

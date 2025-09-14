@@ -40,6 +40,7 @@ dependencies = [
     "getmac>=0.9.5",
     "browser-use==0.7.7",
     "markdown-pdf>=1.9",
+    "nanoid>=2.0.0",
 ]
 
 [project.urls]
@@ -59,7 +60,7 @@ packages = [
     "vibe_surf.agents.prompts",
     "vibe_surf.browser",
     "vibe_surf.browser.watchdogs",
-    "vibe_surf.controller",
+    "vibe_surf.tools",
     "vibe_surf.llm",
     "vibe_surf.backend"
 ]
