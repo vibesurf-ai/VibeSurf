@@ -137,6 +137,7 @@ class BrowserUseAgent(Agent):
             directly_open_url: bool = True,
             include_recent_events: bool = False,
             allow_parallel_action_types: list[str] = ["extract_structured_data", "extract_content_from_file"],
+            _url_shortening_limit: int = 25,
             **kwargs,
     ):
         if page_extraction_llm is None:
@@ -148,6 +149,7 @@ class BrowserUseAgent(Agent):
         self.task_id: str = self.id
         self.session_id: str = uuid7str()
         self.allow_parallel_action_types = allow_parallel_action_types
+        self._url_shortening_limit = _url_shortening_limit
 
         browser_profile = browser_profile or DEFAULT_BROWSER_PROFILE
 
@@ -251,6 +253,11 @@ class BrowserUseAgent(Agent):
         if 'deepseek' in self.llm.model.lower():
             self.logger.warning(
                 '⚠️ DeepSeek models do not support use_vision=True yet. Setting use_vision=False for now...')
+            self.settings.use_vision = False
+
+        if 'kimi-k2' in self.llm.model.lower():
+            self.logger.warning(
+                '⚠️ Kimi-k2 models do not support use_vision=True yet. Setting use_vision=False for now...')
             self.settings.use_vision = False
 
         # Handle users trying to use use_vision=True with XAI models

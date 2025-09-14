@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 class ReportWriterAgent:
     """Agent responsible for generating HTML reports using LLM-controlled flow"""
 
-    def __init__(self, llm: BaseChatModel, workspace_dir: str, step_callback=None):
+    def __init__(self, llm: BaseChatModel, workspace_dir: str, step_callback=None, thinking_mode: bool = True):
         """
         Initialize ReportWriterAgent
         
@@ -34,6 +34,7 @@ class ReportWriterAgent:
         self.llm = llm
         self.workspace_dir = os.path.abspath(workspace_dir)
         self.step_callback = step_callback
+        self.thinking_mode = thinking_mode
 
         # Initialize file system and tools
         self.file_system = CustomFileSystem(self.workspace_dir)
@@ -41,7 +42,10 @@ class ReportWriterAgent:
 
         # Setup action model and agent output
         self.ActionModel = self.tools.registry.create_action_model()
-        self.AgentOutput = CustomAgentOutput.type_with_custom_actions(self.ActionModel)
+        if self.thinking_mode:
+            self.AgentOutput = CustomAgentOutput.type_with_custom_actions(self.ActionModel)
+        else:
+            self.AgentOutput = CustomAgentOutput.type_with_custom_actions_no_thinking(self.ActionModel)
 
         logger.info("📄 ReportWriterAgent initialized with LLM-controlled flow")
 
@@ -74,14 +78,14 @@ class ReportWriterAgent:
 
             # Initialize message history
             message_history = []
-            
+
             max_iterations = 6  # Prevent infinite loops
 
             # Add system message with unified prompt
             message_history.append(SystemMessage(content=REPORT_WRITER_PROMPT))
 
             # Add initial user message with task details
-            user_message = f"""Please generate a report within {max_iterations} steps based on the following:
+            user_message = f"""Please generate a report within MAX {max_iterations} steps based on the following:
 
 **Report Task:**
 {report_task}

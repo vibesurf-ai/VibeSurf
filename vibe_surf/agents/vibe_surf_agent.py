@@ -24,6 +24,7 @@ from browser_use.browser.session import BrowserSession
 from browser_use.llm.base import BaseChatModel
 from browser_use.llm.messages import UserMessage, SystemMessage, BaseMessage, AssistantMessage
 from browser_use.browser.views import TabInfo
+from browser_use.tokens.service import TokenCost
 
 from vibe_surf.agents.browser_use_agent import BrowserUseAgent
 from vibe_surf.agents.report_writer_agent import ReportWriterAgent
@@ -771,6 +772,7 @@ async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfStat
             llm=state.vibesurf_agent.llm,
             workspace_dir=str(state.vibesurf_agent.file_system.get_dir()),
             step_callback=step_callback,
+            thinking_mode=state.vibesurf_agent.thinking_mode,
         )
         action_params = state.action_params
         report_task = action_params.get('task', [])
@@ -888,10 +890,14 @@ class VibeSurfAgent:
             browser_manager: BrowserManager,
             tools: VibeSurfTools,
             workspace_dir: str = "./workspace",
-            thinking_mode: bool = True
+            thinking_mode: bool = True,
+            calculate_token_cost: bool = False,
     ):
         """Initialize VibeSurfAgent with required components"""
         self.llm: BaseChatModel = llm
+        self.calculate_token_cost = calculate_token_cost
+        self.token_cost_service = TokenCost(include_cost=calculate_token_cost)
+        self.token_cost_service.register_llm(llm)
         self.browser_manager: BrowserManager = browser_manager
         self.tools: VibeSurfTools = tools
         self.workspace_dir = workspace_dir
@@ -1392,6 +1398,8 @@ class VibeSurfAgent:
                 session_dir = os.path.join(self.workspace_dir, "sessions", self.cur_session_id)
                 os.makedirs(session_dir, exist_ok=True)
                 self.file_system = CustomFileSystem(session_dir)
+                self.token_cost_service = TokenCost(include_cost=self.calculate_token_cost)
+                self.token_cost_service.register_llm(self.llm)
 
             if upload_files and not isinstance(upload_files, list):
                 upload_files = [upload_files]
@@ -1479,13 +1487,21 @@ class VibeSurfAgent:
                 agent_activity_logs.append(activity_entry)
             return f"# Task Execution Failed\n\n**Task:** {task}\n\n**Error:** {str(e)}\n\nPlease try again or contact support."
         finally:
-            if agent_activity_logs:
-                activity_entry = {
-                    "agent_name": "VibeSurfAgent",
-                    "agent_status": "done",  # working, result, error
-                    "agent_msg": "Finish Task."
-                }
-                agent_activity_logs.append(activity_entry)
+            token_summary = await self.token_cost_service.get_usage_summary()
+            token_summary_md = token_summary.model_dump_json(indent=2, exclude_none=True, exclude_unset=True)
+            activity_entry = {
+                "agent_name": "VibeSurfAgent",
+                "agent_status": "result",  # working, result, error
+                "agent_msg": f"Total Token Cost:\n\n{token_summary_md}"
+            }
+            agent_activity_logs.append(activity_entry)
+
+            activity_entry = {
+                "agent_name": "VibeSurfAgent",
+                "agent_status": "done",  # working, result, error
+                "agent_msg": "Finish Task."
+            }
+            agent_activity_logs.append(activity_entry)
             # Save session-specific data
             if self.cur_session_id:
                 self.save_message_history(self.cur_session_id)

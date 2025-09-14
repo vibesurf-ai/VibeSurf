@@ -14,7 +14,9 @@ from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.tools.browser_use_tools import VibeSurfController
+from vibe_surf.browser.agen_browser_profile import AgentBrowserProfile
+from vibe_surf.tools.browser_use_tools import BrowserUseTools
+from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 from vibe_surf.llm.openai_compatible import ChatOpenAICompatible
 from vibe_surf.agents.browser_use_agent import BrowserUseAgent
 from vibe_surf.agents.vibe_surf_agent import VibeSurfAgent
@@ -25,7 +27,7 @@ async def run_single_bu_agent():
         browser_exec_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
     else:
         browser_exec_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    browser_profile = BrowserProfile(
+    browser_profile = AgentBrowserProfile(
         executable_path=browser_exec_path,
         user_data_dir=os.path.abspath('./tmp/chrome/profiles/default'),
         headless=False,
@@ -34,24 +36,24 @@ async def run_single_bu_agent():
     # Use SwarmBrowserSession instead of BrowserSession to disable DVD animation
     main_browser_session = AgentBrowserSession(browser_profile=browser_profile)
     await main_browser_session.start()
-    controller = VibeSurfController()
+    bu_tools = BrowserUseTools()
 
-    llm = ChatOpenAICompatible(model='gemini-2.5-pro',
+    llm = ChatOpenAICompatible(model='gemini-2.5-flash',
                                base_url=os.getenv("OPENAI_ENDPOINT"),
                                api_key=os.getenv("OPENAI_API_KEY"))
-    # task = "Search Google for 'what is browser automation' and tell me the top 3 results"
-    task = r"""
-    1. 在新的tab 导航到 https://github.com/
-    2. 在新的tab 导航到 https://vibemotion.co/
-    3. 在新的tab 导航到 https://browser-use.com/
-    4. 分别总结所有tab的内容(在一步中使用parallel的extract操作, 不要分开三步)，然后保存到 tabs_summary.txt
-    """
+    task = "Search Google for 'Elon Mask' and tell me the top 3 results"
+    # task = r"""
+    # 1. 在新的tab 导航到 https://github.com/
+    # 2. 在新的tab 导航到 https://vibemotion.co/
+    # 3. 在新的tab 导航到 https://browser-use.com/
+    # 4. 分别总结所有tab的内容(在一步中使用parallel的extract操作, 不要分开三步)，然后保存到 tabs_summary.txt
+    # """
     agent = BrowserUseAgent(task=task,
                             llm=llm,
                             browser_session=main_browser_session,
-                            controller=controller,
+                            tools=bu_tools,
                             task_id=main_browser_session.id,
-                            file_system_path="./tmp/agent_workspace")
+                            file_system_path="./tmp/single_bu_tests")
     history = await agent.run()
     print(history.final_result())
     await main_browser_session.kill()
@@ -374,7 +376,7 @@ async def test_vibe_surf_agent_control():
 
 
 if __name__ == "__main__":
-    # asyncio.run(run_single_bu_agent())
-    asyncio.run(run_multi_bu_agents())
+    asyncio.run(run_single_bu_agent())
+    # asyncio.run(run_multi_bu_agents())
     # asyncio.run(test_vibe_surf_agent())
     # asyncio.run(test_vibe_surf_agent_control())
