@@ -174,7 +174,7 @@ def create_browser_agent_step_callback(state: VibeSurfState, agent_name: str):
                     action_data = action.model_dump(exclude_unset=True)
                     action_name = next(iter(action_data.keys())) if action_data else 'unknown'
                     action_params = json.dumps(action_data[action_name],
-                                               ensure_ascii=False) if action_name in action_data else ""
+                                               ensure_ascii=False, indent=2) if action_name in action_data else ""
                     step_msg += f"- [x] {action_name}: {action_params}\n"
             else:
                 step_msg += f"**⚡ Actions:** No actions\n"
@@ -306,7 +306,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                 state.current_action = 'execute_browser_use_agent'
                 state.action_params = params
                 state.current_step = "browser_task_execution"
-                log_agent_activity(state, "vibesurf_agent", "result",
+                log_agent_activity(state, "vibesurf_agent", "route",
                                    f"Routing to browser task execution with {len(state.browser_tasks)} tasks")
                 return state
 
@@ -316,7 +316,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                 state.current_action = 'execute_report_writer_agent'
                 state.action_params = params
                 state.current_step = "report_task_execution"
-                log_agent_activity(state, "vibesurf_agent", "result", "Routing to report generation")
+                log_agent_activity(state, "vibesurf_agent", "route", "Routing to report generation")
                 return state
 
             elif action_name == 'task_done':
@@ -330,41 +330,46 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                 log_agent_activity(state, "vibesurf_agent", "result", final_response)
 
                 if follow_tasks:
-                    log_agent_activity(state, "vibesurf_agent", "suggestion_follow_tasks",
+                    log_agent_activity(state, "vibesurf_agent", "suggestion_tasks",
                                        json.dumps(follow_tasks, indent=2, ensure_ascii=False))
                     final_response += "\n\n## Suggested Follow-up Tasks:\n"
                     for j, task in enumerate(follow_tasks[:3], 1):
                         final_response += f"{j}. {task}\n"
 
                 state.final_response = final_response
+                logger.debug(final_response)
                 state.is_complete = True
                 return state
 
             else:
-                # Execute regular action using tools with shared file system
-                # For todo-related actions, read todo.md and log activity
-                if action_name in ['generate_todos', 'read_todos', 'modify_todos']:
+                if "todos" in action_name:
                     try:
-                        # Try to read existing todo.md
-                        todo_content = await state.file_system.read_file('todo.md')
-                        log_agent_activity(state, "vibesurf_agent", "working", f"{todo_content}")
+                        todo_content = await vibesurf_agent.file_system.read_file('todo.md')
+                        action_msg = f"{action_name}:\n\n{todo_content}"
+                        logger.debug(action_msg)
+                        log_agent_activity(state, "vibesurf_agent", "working", action_msg)
                     except Exception as e:
                         pass
+                else:
+                    action_msg = f"**⚡ Actions:**\n"
+                    action_msg += f"{json.dumps(action_data, indent=2, ensure_ascii=False)}"
+                    logger.debug(action_msg)
+                    log_agent_activity(state, "vibesurf_agent", "working", action_msg)
 
-                result = await state.tools.act(
+                result = await vibesurf_agent.tools.act(
                     action=action,
-                    browser_manager=state.browser_manager,
-                    llm=state.llm,
-                    file_system=state.file_system,
+                    browser_manager=vibesurf_agent.browser_manager,
+                    llm=vibesurf_agent.llm,
+                    file_system=vibesurf_agent.file_system,
                 )
 
-                # Add result to message history
                 if result.extracted_content:
-                    state.message_history.append(UserMessage(content=f'Action result:\n{result.extracted_content}'))
+                    vibesurf_agent.message_history.append(
+                        UserMessage(content=f'Action result:\n{result.extracted_content}'))
                     log_agent_activity(state, "vibesurf_agent", "result", result.extracted_content)
 
                 if result.error:
-                    state.message_history.append(UserMessage(content=f'Action error:\n{result.error}'))
+                    vibesurf_agent.message_history.append(UserMessage(content=f'Action error:\n{result.error}'))
                     log_agent_activity(state, "vibesurf_agent", "error", result.error)
 
         return state
@@ -389,12 +394,28 @@ async def _browser_task_execution_node_impl(state: VibeSurfState) -> VibeSurfSta
     logger.info("🚀 Executing browser tasks assigned by vibesurf agent...")
 
     # Log agent activity
+    browser_tasks_md = []
+    for browser_task in state.browser_tasks:
+        bu_task = browser_task.get('task', "")
+        if bu_task:
+            browser_tasks_md.append(f"- [ ] {bu_task}")
+    browser_tasks_md = '\n'.join(browser_tasks_md)
+    agent_msg = f"Executing {len(state.browser_tasks)} browser tasks:\n\n{browser_tasks_md}"
     log_agent_activity(state, "browser_task_executor", "working",
-                       f"Executing {len(state.browser_tasks)} browser tasks")
+                       agent_msg)
+    logger.debug(agent_msg)
 
     try:
-        # Execute tasks using simplified tab-based approach
-        results = await execute_tab_based_browser_tasks(state)
+        task_count = len(state.browser_tasks)
+
+        if task_count <= 1:
+            # Single task execution
+            logger.info("📝 Using single execution for single task")
+            results = await execute_single_browser_tasks(state)
+        else:
+            # Multiple tasks execution - parallel approach
+            logger.info(f"🚀 Using parallel execution for {task_count} tasks")
+            results = await execute_parallel_browser_tasks(state)
 
         # Update browser results
         state.browser_results.extend(results)
@@ -413,95 +434,19 @@ async def _browser_task_execution_node_impl(state: VibeSurfState) -> VibeSurfSta
     except Exception as e:
         logger.error(f"❌ Browser task execution failed: {e}")
 
-        # Create error results for browser tasks
-        error_results = []
-        for i, task in enumerate(state.browser_tasks):
-            # Get the actual task description for the error result
-            if isinstance(task, dict):
-                task_description = task.get('description', 'Unknown task')
-                tab_id = task.get('tab_id')
-            else:
-                task_description = str(task)
-                tab_id = None
-
-            error_results.append(BrowserTaskResult(
-                agent_id="error",
-                task=task_description,
-                success=False,
-                error=str(e)
-            ))
-
-        state.browser_results.extend(error_results)
+        state.browser_results.append(BrowserTaskResult(
+            agent_id="unknown",
+            task='unknown',
+            success=False,
+            error=str(e)
+        ))
         state.current_step = "vibesurf_agent"
 
         log_agent_activity(state, "browser_task_executor", "error", f"Browser execution failed: {str(e)}")
         return state
 
 
-async def report_task_execution_node(state: VibeSurfState) -> VibeSurfState:
-    """
-    Execute HTML report generation task assigned by supervisor agent
-    """
-    return await control_aware_node(_report_task_execution_node_impl, state, "report_task_execution")
-
-
-async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfState:
-    """Implementation of report task execution node"""
-    logger.info("📄 Executing HTML report generation task...")
-
-    # Log agent activity
-    log_agent_activity(state, "report_task_executor", "working", "Generating HTML report")
-
-    try:
-        # Use ReportWriterAgent to generate HTML report
-        report_writer = ReportWriterAgent(
-            llm=state.llm,
-            workspace_dir=state.task_dir
-        )
-
-        report_data = {
-            "original_task": state.original_task,
-            "execution_results": state.browser_results,
-            "report_type": "detailed",  # Default to detailed report
-            "upload_files": state.upload_files
-        }
-
-        report_path = await report_writer.generate_report(report_data)
-
-        state.generated_report_path = report_path
-
-        # Return to vibesurf agent for next decision
-        state.current_step = "vibesurf_agent"
-
-        log_agent_activity(state, "report_task_executor", "result",
-                           f"HTML report generated successfully at: `{report_path}`")
-
-        logger.info(f"✅ Report generated: {report_path}")
-        return state
-
-    except Exception as e:
-        logger.error(f"❌ Report generation failed: {e}")
-        state.current_step = "vibesurf_agent"
-        log_agent_activity(state, "report_task_executor", "error", f"Report generation failed: {str(e)}")
-        return state
-
-
-async def execute_tab_based_browser_tasks(state: VibeSurfState) -> List[BrowserTaskResult]:
-    """Execute browser tasks - parallel execution for multiple tasks, single for single task"""
-    task_count = len(state.browser_tasks)
-    logger.info(f"🔄 Executing {task_count} browser tasks...")
-
-    if task_count <= 1:
-        # Single task execution
-        logger.info("📝 Using single execution for single task")
-        return await execute_single_browser_tasks(state)
-    else:
-        # Multiple tasks execution - parallel approach
-        logger.info(f"🚀 Using parallel execution for {task_count} tasks")
-        return await execute_parallel_browser_tasks(state)
-
-
-async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTaskResult]:
+async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTaskResult] | None:
     """Execute pending tasks in parallel using multiple browser agents"""
     logger.info("🔄 Executing pending tasks in parallel...")
 
@@ -511,7 +456,7 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
     bu_agent_ids = []
     register_sessions = []
     for i, task in enumerate(pending_tasks):
-        agent_id = f"agent-{i + 1}-{state.task_id[-4:]}"
+        agent_id = f"bu_agent-{i + 1}"
         if isinstance(task, list):
             target_id, task_description = task
         elif isinstance(task, dict):
@@ -710,6 +655,54 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> List[BrowserTask
             ))
 
     return results
+
+
+async def report_task_execution_node(state: VibeSurfState) -> VibeSurfState:
+    """
+    Execute HTML report generation task assigned by supervisor agent
+    """
+    return await control_aware_node(_report_task_execution_node_impl, state, "report_task_execution")
+
+
+async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfState:
+    """Implementation of report task execution node"""
+    logger.info("📄 Executing HTML report generation task...")
+
+    # Log agent activity
+    log_agent_activity(state, "report_task_executor", "working", "Generating HTML report")
+
+    try:
+        # Use ReportWriterAgent to generate HTML report
+        report_writer = ReportWriterAgent(
+            llm=state.vibesurf_agent.llm,
+            workspace_dir=state.current_workspace_dir
+        )
+
+        report_data = {
+            "original_task": state.original_task,
+            "execution_results": state.browser_results,
+            "report_type": "detailed",  # Default to detailed report
+            "upload_files": state.upload_files
+        }
+
+        report_path = await report_writer.generate_report(report_data)
+
+        state.generated_report_path = report_path
+
+        # Return to vibesurf agent for next decision
+        state.current_step = "vibesurf_agent"
+
+        log_agent_activity(state, "report_task_executor", "result",
+                           f"HTML report generated successfully at: `{report_path}`")
+
+        logger.info(f"✅ Report generated: {report_path}")
+        return state
+
+    except Exception as e:
+        logger.error(f"❌ Report generation failed: {e}")
+        state.current_step = "vibesurf_agent"
+        log_agent_activity(state, "report_task_executor", "error", f"Report generation failed: {str(e)}")
+        return state
 
 
 def route_after_vibesurf_agent(state: VibeSurfState) -> str:

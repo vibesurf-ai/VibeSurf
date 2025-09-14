@@ -9,7 +9,7 @@ import datetime
 
 from typing import Optional, Type, Callable, Dict, Any, Union, Awaitable, TypeVar
 from pydantic import BaseModel
-from browser_use.tools.service import Controller, Tools
+from browser_use.tools.service import Tools
 import logging
 from browser_use.agent.views import ActionModel, ActionResult
 from browser_use.utils import time_execution_sync
@@ -44,6 +44,7 @@ from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionA
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.logger import get_logger
+from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 
 logger = get_logger(__name__)
 
@@ -52,14 +53,14 @@ Context = TypeVar('Context')
 T = TypeVar('T', bound=BaseModel)
 
 
-class BrowserUseTools(Tools):
+class BrowserUseTools(Tools, VibeSurfTools):
     def __init__(self,
                  exclude_actions: list[str] = [],
                  output_model: type[T] | None = None,
                  display_files_in_done_text: bool = True,
                  ):
-        super().__init__(exclude_actions=exclude_actions, output_model=output_model,
-                         display_files_in_done_text=display_files_in_done_text)
+        Tools.__init__(self, exclude_actions=exclude_actions, output_model=output_model,
+                       display_files_in_done_text=display_files_in_done_text)
         self._register_browser_actions()
         self._register_file_actions()
 
@@ -478,28 +479,30 @@ Provide the extracted information in a clear, structured format."""
         @self.registry.action(
             'Take a screenshot of the current page and save it to the file system'
         )
-        async def take_screenshot(browser_session: BrowserSession, file_system: FileSystem):
+        async def take_screenshot(browser_session: AgentBrowserSession, file_system: FileSystem):
             try:
                 # Take screenshot using browser session
                 screenshot = await browser_session.take_screenshot()
-                
+
                 # Generate timestamp for filename
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                
+
                 # Get file system directory path (Path type)
                 fs_dir = file_system.get_dir()
-                
+
                 # Create screenshots directory if it doesn't exist
                 screenshots_dir = fs_dir / "screenshots"
                 screenshots_dir.mkdir(exist_ok=True)
-                
+
                 # Save screenshot to file system
-                filename = f"{timestamp}.png"
+                page_title = await browser_session.get_current_page_title()
+                page_title = page_title.replace(" ", '')
+                filename = f"{page_title}-{timestamp}.png"
                 filepath = screenshots_dir / filename
-                
+
                 with open(filepath, "wb") as f:
                     f.write(base64.b64decode(screenshot))
-                
+
                 msg = f'📸 Screenshot saved to {filepath}'
                 logger.info(msg)
                 return ActionResult(
@@ -511,180 +514,3 @@ Provide the extracted information in a clear, structured format."""
                 error_msg = f'❌ Failed to take screenshot: {str(e)}'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg)
-
-    def _register_file_actions(self):
-
-        @self.registry.action(
-            'Read file_name from file system. If this is a file not in current workspace dir, please provide an absolute path.')
-        async def read_file(file_name: str, file_system: FileSystem):
-            if not os.path.exists(file_name):
-                # if not exists, assume it is external_file
-                external_file = True
-            else:
-                external_file = False
-            result = await file_system.read_file(file_name, external_file=external_file)
-
-            MAX_MEMORY_SIZE = 1000
-            if len(result) > MAX_MEMORY_SIZE:
-                lines = result.splitlines()
-                display = ''
-                lines_count = 0
-                for line in lines:
-                    if len(display) + len(line) < MAX_MEMORY_SIZE:
-                        display += line + '\n'
-                        lines_count += 1
-                    else:
-                        break
-                remaining_lines = len(lines) - lines_count
-                memory = f'{display}{remaining_lines} more lines...' if remaining_lines > 0 else display
-            else:
-                memory = result
-            logger.info(f'💾 {memory}')
-            return ActionResult(
-                extracted_content=result,
-                include_in_memory=True,
-                long_term_memory=memory,
-                include_extracted_content_only_once=True,
-            )
-
-        @self.registry.action(
-            'Extract content from a file. Support image files, pdf and more.',
-            param_model=FileExtractionAction,
-        )
-        async def extract_content_from_file(
-                params: FileExtractionAction,
-                page_extraction_llm: BaseChatModel,
-                file_system: FileSystem,
-        ):
-            try:
-                # Get file path
-                file_path = params.file_path
-
-                # Check if file exists
-                if not os.path.exists(file_path):
-                    file_path = os.path.join(file_system.get_dir(), file_path)
-
-                # Determine if file is an image based on MIME type
-                mime_type, _ = mimetypes.guess_type(file_path)
-                is_image = mime_type and mime_type.startswith('image/')
-
-                if is_image:
-                    # Handle image files with LLM vision
-                    try:
-                        # Read image file and encode to base64
-                        with open(file_path, 'rb') as image_file:
-                            image_data = image_file.read()
-                            image_base64 = base64.b64encode(image_data).decode('utf-8')
-
-                        # Create content parts similar to the user's example
-                        content_parts: list[ContentPartTextParam | ContentPartImageParam] = [
-                            ContentPartTextParam(text=f"Query: {params.query}")
-                        ]
-
-                        # Add the image
-                        content_parts.append(
-                            ContentPartImageParam(
-                                image_url=ImageURL(
-                                    url=f'data:{mime_type};base64,{image_base64}',
-                                    media_type=mime_type,
-                                    detail='high',
-                                ),
-                            )
-                        )
-
-                        # Create user message and invoke LLM
-                        user_message = UserMessage(content=content_parts, cache=True)
-                        response = await asyncio.wait_for(
-                            page_extraction_llm.ainvoke([user_message]),
-                            timeout=120.0,
-                        )
-
-                        extracted_content = f'File: {file_path}\nQuery: {params.query}\nExtracted Content:\n{response.completion}'
-
-                    except Exception as e:
-                        raise Exception(f'Failed to process image file {file_path}: {str(e)}')
-
-                else:
-                    # Handle non-image files by reading content
-                    try:
-                        file_content = await file_system.read_file(file_path, external_file=True)
-
-                        # Create a simple prompt for text extraction
-                        prompt = f"""Extract the requested information from this file content.
-
-        Query: {params.query}
-
-        File: {file_path}
-        File Content:
-        {file_content}
-
-        Provide the extracted information in a clear, structured format."""
-
-                        response = await asyncio.wait_for(
-                            page_extraction_llm.ainvoke([UserMessage(content=prompt)]),
-                            timeout=120.0,
-                        )
-
-                        extracted_content = f'File: {file_path}\nQuery: {params.query}\nExtracted Content:\n{response.completion}'
-
-                    except Exception as e:
-                        raise Exception(f'Failed to read file {file_path}: {str(e)}')
-
-                # Handle memory storage
-                if len(extracted_content) < 1000:
-                    memory = extracted_content
-                    include_extracted_content_only_once = False
-                else:
-                    save_result = await file_system.save_extracted_content(extracted_content)
-                    memory = (
-                        f'Extracted content from file {file_path} for query: {params.query}\nContent saved to file system: {save_result}'
-                    )
-                    include_extracted_content_only_once = True
-
-                logger.info(f'📄 Extracted content from file: {file_path}')
-                return ActionResult(
-                    extracted_content=extracted_content,
-                    include_extracted_content_only_once=include_extracted_content_only_once,
-                    long_term_memory=memory,
-                )
-
-            except Exception as e:
-                logger.debug(f'Error extracting content from file: {e}')
-                raise RuntimeError(str(e))
-
-        @self.registry.action(
-            'Copy a file to the FileSystem. Set external_src=True to copy from external file system to FileSystem, False to copy within FileSystem.'
-        )
-        async def copy_file(src_filename: str, dst_filename: str, file_system: CustomFileSystem,
-                            external_src: bool = False):
-            result = await file_system.copy_file(src_filename, dst_filename, external_src)
-            logger.info(f'📁 {result}')
-            return ActionResult(
-                extracted_content=result,
-                include_in_memory=True,
-                long_term_memory=result,
-            )
-
-        @self.registry.action(
-            'Rename a file within the FileSystem from old_filename to new_filename.'
-        )
-        async def rename_file(old_filename: str, new_filename: str, file_system: CustomFileSystem):
-            result = await file_system.rename_file(old_filename, new_filename)
-            logger.info(f'📁 {result}')
-            return ActionResult(
-                extracted_content=result,
-                include_in_memory=True,
-                long_term_memory=result,
-            )
-
-        @self.registry.action(
-            'Move a file within the FileSystem from old_filename to new_filename.'
-        )
-        async def move_file(old_filename: str, new_filename: str, file_system: CustomFileSystem):
-            result = await file_system.move_file(old_filename, new_filename)
-            logger.info(f'📁 {result}')
-            return ActionResult(
-                extracted_content=result,
-                include_in_memory=True,
-                long_term_memory=result,
-            )
