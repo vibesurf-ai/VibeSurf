@@ -288,7 +288,11 @@ async def vibesurf_agent_node(state: VibeSurfState) -> VibeSurfState:
 
 async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
     """Implementation using thinking + action pattern similar to report_writer_agent"""
-    logger.info("🎯 VibeSurf Agent: Processing with thinking + action pattern...")
+
+    # logger.info("🎯 VibeSurf Agent: Processing with thinking + action pattern...")
+    # token_summary = await state.vibesurf_agent.token_cost_service.get_usage_summary()
+    # token_summary_md = token_summary.model_dump_json(indent=2, exclude_none=True, exclude_unset=True)
+    # logger.info(token_summary_md)
 
     # Create action model and agent output using VibeSurfTools
     vibesurf_agent = state.vibesurf_agent
@@ -399,13 +403,10 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
 
             else:
                 if "todos" in action_name:
-                    try:
-                        todo_content = await vibesurf_agent.file_system.read_file('todo.md')
-                        action_msg = f"{action_name}:\n\n{todo_content}"
-                        logger.debug(action_msg)
-                        log_agent_activity(state, "vibesurf_agent", "working", action_msg)
-                    except Exception as e:
-                        pass
+                    todo_content = await vibesurf_agent.file_system.read_file('todo.md')
+                    action_msg = f"{action_name}:\n\n{todo_content}"
+                    logger.debug(action_msg)
+                    log_agent_activity(state, "vibesurf_agent", "working", action_msg)
                 else:
                     action_msg = f"**⚡ Actions:**\n"
                     action_msg += f"{json.dumps(action_data, indent=2, ensure_ascii=False)}"
@@ -543,13 +544,13 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
             available_file_paths = []
             if task_files:
                 for task_file in task_files:
-                    upload_workdir = bu_agent_workdir / "uploads"
+                    upload_workdir = bu_agent_workdir / "upload_files"
                     upload_workdir.mkdir(parents=True, exist_ok=True)
                     task_file_path = state.vibesurf_agent.file_system.get_absolute_path(task_file)
                     if os.path.exists(task_file_path):
                         logger.info(f"Copy {task_file_path} to {upload_workdir}")
                         shutil.copy(task_file_path, str(upload_workdir))
-                        available_file_paths.append(os.path.join("uploads", os.path.basename(task_file_path)))
+                        available_file_paths.append(os.path.join("upload_files", os.path.basename(task_file_path)))
 
             # Create BrowserUseAgent for each task
             if available_file_paths:
@@ -680,13 +681,13 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
         available_file_paths = []
         if task_files:
             for task_file in task_files:
-                upload_workdir = bu_agent_workdir / "uploads"
+                upload_workdir = bu_agent_workdir / "upload_files"
                 upload_workdir.mkdir(parents=True, exist_ok=True)
                 task_file_path = state.vibesurf_agent.file_system.get_absolute_path(task_file)
                 if os.path.exists(task_file_path):
                     logger.info(f"Copy {task_file_path} to {upload_workdir}")
                     shutil.copy(task_file_path, str(upload_workdir))
-                    available_file_paths.append(os.path.join("uploads", os.path.basename(task_file_path)))
+                    available_file_paths.append(os.path.join("upload_files", os.path.basename(task_file_path)))
 
         # Create BrowserUseAgent for each task
         if available_file_paths:
@@ -897,13 +898,13 @@ class VibeSurfAgent:
             tools: VibeSurfTools,
             workspace_dir: str = "./workspace",
             thinking_mode: bool = True,
-            calculate_token_cost: bool = False,
+            calculate_token_cost: bool = True,
     ):
         """Initialize VibeSurfAgent with required components"""
         self.llm: BaseChatModel = llm
         self.calculate_token_cost = calculate_token_cost
         self.token_cost_service = TokenCost(include_cost=calculate_token_cost)
-        self.token_cost_service.register_llm(llm)
+        self.llm = self.token_cost_service.register_llm(llm)
         self.browser_manager: BrowserManager = browser_manager
         self.tools: VibeSurfTools = tools
         self.workspace_dir = workspace_dir
@@ -1354,9 +1355,8 @@ class VibeSurfAgent:
             return []
         new_upload_files = []
         for ufile_path in upload_files:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            dst_filename = f"uploads/{timestamp}-{os.path.basename(ufile_path)}"
-            await self.file_system.copy_file(ufile_path, dst_filename, external_src_file=True)
+            # timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            dst_filename = f"upload_files/{os.path.basename(ufile_path)}"
             new_upload_files.append(dst_filename)
         return new_upload_files
 
@@ -1406,7 +1406,7 @@ class VibeSurfAgent:
                 os.makedirs(session_dir, exist_ok=True)
                 self.file_system = CustomFileSystem(session_dir)
                 self.token_cost_service = TokenCost(include_cost=self.calculate_token_cost)
-                self.token_cost_service.register_llm(self.llm)
+                self.llm = self.token_cost_service.register_llm(self.llm)
 
             if upload_files and not isinstance(upload_files, list):
                 upload_files = [upload_files]

@@ -32,9 +32,9 @@ def get_upload_directory(session_id: Optional[str] = None) -> str:
     from ..shared_state import workspace_dir
     """Get the upload directory path for a session or global uploads"""
     if session_id:
-        upload_dir = os.path.join(workspace_dir, session_id, "upload_files")
+        upload_dir = os.path.join(workspace_dir, "sessions", session_id, "upload_files")
     else:
-        upload_dir = os.path.join(workspace_dir, "upload_files")
+        upload_dir = os.path.join(workspace_dir, "sessions", "upload_files")
 
     # Create directory if it doesn't exist
     os.makedirs(upload_dir, exist_ok=True)

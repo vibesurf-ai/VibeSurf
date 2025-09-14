@@ -230,7 +230,7 @@ class VibeSurfTools:
                             if not completed:
                                 changes_made.append(f'Item not found for completion: {item}')
 
-                    elif action == 'uncomplete':
+                    elif action == 'uncompleted':
                         # Mark item as uncomplete: - [x] → - [ ]
                         if item:
                             lines = modified_content.split('\n')
@@ -330,10 +330,10 @@ class VibeSurfTools:
             try:
                 # Get file path
                 file_path = params.file_path
-
+                full_file_path = file_path
                 # Check if file exists
-                if not os.path.exists(file_path):
-                    file_path = os.path.join(file_system.get_dir(), file_path)
+                if not os.path.exists(full_file_path):
+                    full_file_path = os.path.join(str(file_system.get_dir()), file_path)
 
                 # Determine if file is an image based on MIME type
                 mime_type, _ = mimetypes.guess_type(file_path)
@@ -343,7 +343,7 @@ class VibeSurfTools:
                     # Handle image files with LLM vision
                     try:
                         # Read image file and encode to base64
-                        with open(file_path, 'rb') as image_file:
+                        with open(full_file_path, 'rb') as image_file:
                             image_data = image_file.read()
                             image_base64 = base64.b64encode(image_data).decode('utf-8')
 
@@ -378,7 +378,7 @@ class VibeSurfTools:
                 else:
                     # Handle non-image files by reading content
                     try:
-                        file_content = await file_system.read_file(file_path, external_file=True)
+                        file_content = await file_system.read_file(full_file_path, external_file=True)
 
                         # Create a simple prompt for text extraction
                         prompt = f"""Extract the requested information from this file content.

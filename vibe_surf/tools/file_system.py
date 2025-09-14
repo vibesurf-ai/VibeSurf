@@ -317,7 +317,7 @@ class CustomFileSystem(FileSystem):
             # List directory contents
             items = []
             for item in sorted(full_path.iterdir()):
-                relative_path = item.relative_to(self.data_dir)
+                relative_path = item.relative_to(full_path)
                 if item.is_dir():
                     items.append(f"📁 {relative_path}/")
                 else:
