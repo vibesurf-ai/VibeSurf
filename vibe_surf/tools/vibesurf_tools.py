@@ -25,7 +25,7 @@ from browser_use.mcp.client import MCPClient
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, BrowserUseAgentExecution, \
-    ReportWriterTask, TodoGenerateAction, TodoModifyAction, DoneAction
+    ReportWriterTask, TodoGenerateAction, TodoModifyAction, VibeSurfDoneAction
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.browser.browser_manager import BrowserManager
@@ -59,7 +59,7 @@ class VibeSurfTools:
             'Browser_use agent has strong planning and execution capabilities, only needs task descriptions and desired outcomes.',
             param_model=BrowserUseAgentExecution,
         )
-        async def execute_browser_use_agent_tasks(
+        async def execute_browser_use_agent(
                 params: BrowserUseAgentExecution,
         ):
             """
@@ -127,7 +127,7 @@ class VibeSurfTools:
                 todo_path = file_system.get_dir() / 'todo.md'
                 if todo_path.exists():
                     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                    await file_system.move_file('todo.md', f'todo-{timestamp}.md')
+                    await file_system.move_file('todo.md', f'todos/todo-{timestamp}.md')
                 result = await file_system.write_file('todo.md', content)
 
                 logger.info(f'📝 Generated todo.md with {len(todo_items)} items')
@@ -265,38 +265,16 @@ class VibeSurfTools:
     def _register_done_action(self):
         @self.registry.action(
             'Complete task and output final response. Use for simple responses or comprehensive markdown summaries with optional follow-up task suggestions.',
-            param_model=DoneAction,
+            param_model=VibeSurfDoneAction,
         )
         async def task_done(
-                params: DoneAction,
+                params: VibeSurfDoneAction,
         ):
             """
             Complete task execution and provide final response.
 
             """
-            try:
-                response = params.response.strip()
-                follow_tasks = params.suggestion_follow_tasks or []
-
-                # Format the completion response
-                completion_content = f"Task Completed:\n\n{response}"
-
-                # Add follow-up task suggestions if provided
-                if follow_tasks:
-                    completion_content += "\n\n## Suggested Follow-up Tasks:\n"
-                    for i, task in enumerate(follow_tasks[:3], 1):  # Limit to 3 tasks max
-                        completion_content += f"{i}. {task.strip()}\n"
-
-                logger.info(f'✅ Task completed with {len(follow_tasks)} follow-up suggestions')
-                return ActionResult(
-                    extracted_content=completion_content,
-                    long_term_memory=f'Task completed successfully. {len(follow_tasks)} follow-up tasks suggested.',
-                    include_in_memory=True,
-                )
-
-            except Exception as e:
-                logger.error(f'❌ Failed to complete task: {e}')
-                raise RuntimeError(f'Failed to complete task: {str(e)}')
+            pass
 
     def _register_file_actions(self):
         @self.registry.action(

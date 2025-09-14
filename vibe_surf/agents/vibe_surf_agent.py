@@ -86,6 +86,7 @@ class VibeSurfState:
     original_task: str = ""
     upload_files: List[str] = field(default_factory=list)
     session_id: str = field(default_factory=lambda: uuid7str())
+    current_workspace_dir: str = "./workspace"
 
     # Workflow state
     current_step: str = "vibesurf_agent"
@@ -104,7 +105,7 @@ class VibeSurfState:
     final_response: Optional[str] = None
 
     # vibesurf_agent
-    vibesurf_agent: Optional[Any] = None
+    vibesurf_agent: Optional['VibeSurfAgent'] = None
 
     # Control state management
     paused: bool = False
@@ -131,9 +132,10 @@ def log_agent_activity(state: VibeSurfState, agent_name: str, agent_status: str,
     activity_entry = {
         "agent_name": agent_name,
         "agent_status": agent_status,  # working, result, error
-        "agent_msg": agent_msg
+        "agent_msg": agent_msg,
+        "timestamp": datetime.now().isoformat(),
     }
-    state.activity_logs.append(activity_entry)
+    state.vibesurf_agent.activity_logs.append(activity_entry)
     logger.info(f"📝 Logged activity: {agent_name} - {agent_status}:\n{agent_msg}")
 
 
@@ -204,7 +206,6 @@ async def control_aware_node(node_func, state: VibeSurfState, node_name: str) ->
             logger.info(f"⏸️ Node {node_name} pausing workflow")
             state.paused = True
             state.should_pause = False
-            # Note: control_timestamps removed in simplified state
 
         logger.debug(f"⏸️ Node {node_name} waiting - workflow paused")
         await asyncio.sleep(0.5)  # Check every 500ms
@@ -214,7 +215,6 @@ async def control_aware_node(node_func, state: VibeSurfState, node_name: str) ->
             logger.info(f"🛑 Node {node_name} stopped while paused")
             state.stopped = True
             state.should_stop = False
-            # Note: control_timestamps removed in simplified state
             return state
 
     # Check for stop signal
@@ -222,12 +222,10 @@ async def control_aware_node(node_func, state: VibeSurfState, node_name: str) ->
         logger.info(f"🛑 Node {node_name} stopping workflow")
         state.stopped = True
         state.should_stop = False
-        # Note: control_timestamps removed in simplified state
         return state
 
     # Execute the actual node
     logger.debug(f"▶️ Executing node: {node_name}")
-    # Note: last_control_action removed in simplified state
 
     try:
         return await node_func(state)
@@ -245,55 +243,50 @@ async def vibesurf_agent_node(state: VibeSurfState) -> VibeSurfState:
     return await control_aware_node(_vibesurf_agent_node_impl, state, "vibesurf_agent")
 
 
-def format_browser_tabs(tabs: Optional[List[TabInfo]] = None) -> str:
-    if not tabs:
-        return ""
-    return "\n".join([f"[{i}] Page Title: {item.title}, Page Url: {item.url}, Page ID: {item.target_id}" for i, item in
-                      enumerate(tabs)])
-
-
 async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
     """Implementation using thinking + action pattern similar to report_writer_agent"""
     logger.info("🎯 VibeSurf Agent: Processing with thinking + action pattern...")
 
     # Create action model and agent output using VibeSurfTools
-    ActionModel = state.tools.registry.create_action_model()
-    AgentOutput = CustomAgentOutput.type_with_custom_actions(ActionModel)
+    vibesurf_agent = state.vibesurf_agent
+    ActionModel = vibesurf_agent.tools.registry.create_action_model()
+    if vibesurf_agent.thinking_mode:
+        AgentOutput = CustomAgentOutput.type_with_custom_actions(ActionModel)
+    else:
+        AgentOutput = CustomAgentOutput.type_with_custom_actions_no_thinking(ActionModel)
 
     # Get current browser context
-    browser_tabs = await state.browser_manager.main_browser_session.get_tabs()
-    browser_tabs_md = format_browser_tabs(browser_tabs)
-    active_browser_tab = await state.browser_manager.get_activate_tab()
-    active_tab_md = ""
-    if active_browser_tab:
-        active_tab_md = f"Page Title: {active_browser_tab.title}, Page Url: {active_browser_tab.url}, Page ID: {active_browser_tab.target_id}"
+    browser_tabs = await vibesurf_agent.browser_manager.main_browser_session.get_tabs()
+    active_browser_tab = await vibesurf_agent.browser_manager.get_activate_tab()
 
     # Format context information
     context_info = []
-    if browser_tabs_md:
-        context_info.append(f"Available Browser Tabs:\n{browser_tabs_md}")
-    if active_tab_md:
-        context_info.append(f"Current Active Browser Tab:\n{active_tab_md}")
+    if browser_tabs:
+        browser_tabs_info = {}
+        for tab in browser_tabs:
+            browser_tabs_info[tab.target_id[-4:]] = {
+                "page_title": tab.title,
+                "page_url": tab.url,
+            }
+        context_info.append(
+            f"Current Available Browser Tabs:\n{json.dumps(browser_tabs_info, ensure_ascii=False, indent=2)}\n")
+    if active_browser_tab:
+        context_info.append(f"Current Active Browser Tab:{active_browser_tab.target_id[-4:]}\n")
     if state.browser_results:
         results_md = format_browser_results(state.browser_results)
-        context_info.append(f"Previous Browser Results:\n{results_md}")
+        context_info.append(f"Previous Browser Results:\n{results_md}\n")
     if state.generated_report_path:
-        context_info.append(f"Generated Report Path: {state.generated_report_path}")
+        context_info.append(f"Generated Report Path: {state.generated_report_path}\n")
 
-    context_str = "\n\n".join(context_info) if context_info else "No additional context available."
-
-    # Add context to message history
-    if context_info:
-        state.message_history.append(UserMessage(content=context_str))
+    context_str = "\n".join(context_info) if context_info else "No additional context available."
+    vibesurf_agent.message_history.append(UserMessage(content=context_str))
 
     try:
         # Get LLM response with action output format
-        response = await state.llm.ainvoke(state.message_history, output_format=AgentOutput)
+        response = await vibesurf_agent.llm.ainvoke(vibesurf_agent.message_history, output_format=AgentOutput)
         parsed = response.completion
         actions = parsed.action
-
-        # Add assistant message to history
-        state.message_history.append(AssistantMessage(content=response.completion))
+        vibesurf_agent.message_history.append(AssistantMessage(content=response.completion))
 
         # Log thinking if present
         if hasattr(parsed, 'thinking') and parsed.thinking:
@@ -303,14 +296,14 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
         for i, action in enumerate(actions):
             action_data = action.model_dump(exclude_unset=True)
             action_name = next(iter(action_data.keys())) if action_data else 'unknown'
-            logger.info(f"🛠️ Processing action {i + 1}/{len(actions)}: {action_name}")
+            logger.info(f"🛠️ Processing VibeSurf action {i + 1}/{len(actions)}: {action_name}")
 
             # Check for special routing actions
-            if action_name == 'execute_browser_use_agent_tasks':
+            if action_name == 'execute_browser_use_agent':
                 # Route to browser task execution node
                 params = action_data[action_name]
                 state.browser_tasks = params.get('tasks', [])
-                state.current_action = 'execute_browser_use_agent_tasks'
+                state.current_action = 'execute_browser_use_agent'
                 state.action_params = params
                 state.current_step = "browser_task_execution"
                 log_agent_activity(state, "vibesurf_agent", "result",
@@ -329,19 +322,22 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
             elif action_name == 'task_done':
                 # Handle response/completion - direct to END
                 params = action_data[action_name]
-                response_content = params.get('response', 'Task completed')
+                response_content = params.get('response', 'Task completed!')
                 follow_tasks = params.get('suggestion_follow_tasks', [])
 
                 # Format final response
                 final_response = f"{response_content}"
+                log_agent_activity(state, "vibesurf_agent", "result", final_response)
+
                 if follow_tasks:
+                    log_agent_activity(state, "vibesurf_agent", "suggestion_follow_tasks",
+                                       json.dumps(follow_tasks, indent=2, ensure_ascii=False))
                     final_response += "\n\n## Suggested Follow-up Tasks:\n"
                     for j, task in enumerate(follow_tasks[:3], 1):
                         final_response += f"{j}. {task}\n"
 
                 state.final_response = final_response
                 state.is_complete = True
-                log_agent_activity(state, "vibesurf_agent", "result", final_response)
                 return state
 
             else:
@@ -837,6 +833,12 @@ class VibeSurfAgent:
         session_message_history_path = os.path.join(self.workspace_dir, "sessions", session_id, "message_history.pkl")
 
         if not os.path.exists(session_message_history_path):
+            all_message_history_path = os.path.join(self.workspace_dir, "message_history.pkl")
+            if os.path.exists(all_message_history_path):
+                with open(all_message_history_path, "rb") as f:
+                    message_history_dict = pickle.load(f)
+                if session_id in message_history_dict:
+                    return message_history_dict[session_id]
             logger.info(f"No message history found for session {session_id}, creating new")
             return []
 
@@ -875,6 +877,13 @@ class VibeSurfAgent:
         session_activity_logs_path = os.path.join(self.workspace_dir, "sessions", session_id, "activity_logs.pkl")
 
         if not os.path.exists(session_activity_logs_path):
+            # Adaptive to the older version
+            all_activity_logs_path = os.path.join(self.workspace_dir, "activity_logs.pkl")
+            if os.path.exists(all_activity_logs_path):
+                with open(all_activity_logs_path, "rb") as f:
+                    activity_logs_dict = pickle.load(f)
+                if session_id in activity_logs_dict:
+                    return activity_logs_dict[session_id]
             logger.info(f"No activity logs found for session {session_id}, creating new")
             return []
 
@@ -929,7 +938,7 @@ class VibeSurfAgent:
 
                 # Stop all running agents with timeout
                 try:
-                    await asyncio.wait_for(self._stop_all_agents(reason), timeout=3.0)
+                    await asyncio.wait_for(self._stop_all_agents(), timeout=3.0)
                 except asyncio.TimeoutError:
                     logger.warning("⚠️ Agent stopping timed out, continuing with task cancellation")
 
@@ -987,7 +996,7 @@ class VibeSurfAgent:
                     self._current_state.should_pause = True
 
                 # Pause all running agents
-                await self._pause_all_agents(reason)
+                await self._pause_all_agents()
 
                 logger.info(f"✅ VibeSurf execution paused: {reason}")
                 return ControlResult(
@@ -1026,10 +1035,9 @@ class VibeSurfAgent:
                 if self._current_state:
                     self._current_state.paused = False
                     self._current_state.should_pause = False
-                    # Note: control_timestamps, control_reasons, last_control_action removed in simplified state
 
                 # Resume all paused agents
-                await self._resume_all_agents(reason)
+                await self._resume_all_agents()
 
                 logger.info(f"✅ VibeSurf execution resumed: {reason}")
                 return ControlResult(
@@ -1206,7 +1214,7 @@ class VibeSurfAgent:
                 progress={"error": str(e)}
             )
 
-    async def _stop_all_agents(self, reason: str) -> None:
+    async def _stop_all_agents(self) -> None:
         """Stop all running agents"""
         for agent_id, agent in self._running_agents.items():
             try:
@@ -1217,7 +1225,7 @@ class VibeSurfAgent:
             except Exception as e:
                 logger.warning(f"⚠️ Failed to stop agent {agent_id}: {e}")
 
-    async def _pause_all_agents(self, reason: str) -> None:
+    async def _pause_all_agents(self) -> None:
         """Pause all running agents"""
         for agent_id, agent in self._running_agents.items():
             try:
@@ -1228,7 +1236,7 @@ class VibeSurfAgent:
             except Exception as e:
                 logger.warning(f"⚠️ Failed to pause agent {agent_id}: {e}")
 
-    async def _resume_all_agents(self, reason: str) -> None:
+    async def _resume_all_agents(self) -> None:
         """Resume all paused agents"""
         for agent_id, agent in self._running_agents.items():
             try:
@@ -1325,6 +1333,7 @@ class VibeSurfAgent:
                 original_task=task,
                 upload_files=upload_files or [],
                 session_id=session_id,
+                current_workspace_dir=os.path.join(self.workspace_dir, "sessions", self.cur_session_id),
                 vibesurf_agent=self,
             )
 
@@ -1402,12 +1411,11 @@ class VibeSurfAgent:
             session_id = self.cur_session_id
 
         # Ensure session_id exists in activity_logs
-        if session_id not in self.activity_logs:
-            logger.warning(
-                f"⚠️ Session {session_id} not found in activity_logs. Available sessions: {list(self.activity_logs.keys())}")
-            return None
+        if session_id != self.cur_session_id:
+            session_logs = self.load_activity_logs(session_id)
+        else:
+            session_logs = self.activity_logs
 
-        session_logs = self.activity_logs[session_id]
         logger.debug(f"📋 Session {session_id} has {len(session_logs)} activity logs")
 
         if message_index is None:

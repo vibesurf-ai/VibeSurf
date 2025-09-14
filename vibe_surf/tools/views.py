@@ -59,6 +59,20 @@ class BrowserUseAgentExecution(BaseModel):
         min_length=1,
     )
 
+class BrowserUseFile(BaseModel):
+    file_path: str = Field(description='Path to the file')
+    file_description: str = Field(
+        description='Description of the file. Briefly describe what this file is and what key information it contains.',
+    )
+
+
+class BrowserUseDoneAction(BaseModel):
+    """Parameters for done browser_use agent tasks"""
+    text: str
+    files_to_return: list[BrowserUseFile] | None = Field(
+        description='List of files relative to user request or task.',
+    )
+
 
 class ReportWriterTask(BaseModel):
     """Parameters for report writer agent task"""
@@ -93,7 +107,7 @@ class TodoModifyAction(BaseModel):
     )
 
 
-class DoneAction(BaseModel):
+class VibeSurfDoneAction(BaseModel):
     """Parameters for task completion output"""
     response: str = Field(
         description='Task completion response - can be simple response for basic tasks or comprehensive markdown summary for complex tasks with key findings, results, and file links',
