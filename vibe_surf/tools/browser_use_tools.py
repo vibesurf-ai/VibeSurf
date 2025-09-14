@@ -142,11 +142,14 @@ class BrowserUseTools(Tools, VibeSurfTools):
 
         @self.registry.action('Upload file to interactive element with file path', param_model=UploadFileAction)
         async def upload_file_to_element(
-                params: UploadFileAction, browser_session: BrowserSession
+                params: UploadFileAction, browser_session: BrowserSession, file_system: FileSystem
         ):
 
             # For local browsers, ensure the file exists on the local filesystem
-            if not os.path.exists(params.path):
+            full_file_path = params.path
+            if not os.path.exists(full_file_path):
+                full_file_path = str(file_system.get_dir() / params.path)
+            if not os.path.exists(full_file_path):
                 msg = f'File {params.path} does not exist'
                 return ActionResult(error=msg)
 
@@ -244,7 +247,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
 
             # Dispatch upload file event with the file input node
             try:
-                event = browser_session.event_bus.dispatch(UploadFileEvent(node=file_input_node, file_path=params.path))
+                event = browser_session.event_bus.dispatch(UploadFileEvent(node=file_input_node, file_path=full_file_path))
                 await event
                 await event.event_result(raise_if_any=True, raise_if_none=False)
                 msg = f'Successfully uploaded file to index {params.index}'
@@ -550,9 +553,10 @@ Provide the extracted information in a clear, structured format."""
                 raise RuntimeError(str(e))
 
         @self.registry.action(
-            'Take a screenshot of the current page and save it to the file system'
+            'Take a screenshot of the current page and save it to the file system',
+            param_model=NoParamsAction
         )
-        async def take_screenshot(browser_session: AgentBrowserSession, file_system: FileSystem):
+        async def take_screenshot(_: NoParamsAction, browser_session: AgentBrowserSession, file_system: FileSystem):
             try:
                 # Take screenshot using browser session
                 screenshot = await browser_session.take_screenshot()
@@ -576,12 +580,12 @@ Provide the extracted information in a clear, structured format."""
                 with open(filepath, "wb") as f:
                     f.write(base64.b64decode(screenshot))
 
-                msg = f'📸 Screenshot saved to {filepath.relative_to(fs_dir)}'
+                msg = f'📸 Screenshot saved to path: {str(filepath.relative_to(fs_dir))}'
                 logger.info(msg)
                 return ActionResult(
                     extracted_content=msg,
                     include_in_memory=True,
-                    long_term_memory=f'Screenshot saved to {filepath}',
+                    long_term_memory=f'Screenshot saved to {str(filepath.relative_to(fs_dir))}',
                 )
             except Exception as e:
                 error_msg = f'❌ Failed to take screenshot: {str(e)}'

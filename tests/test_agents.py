@@ -149,7 +149,7 @@ async def test_vibe_surf_agent():
     await main_browser_session.start()
     vs_tools = VibeSurfTools()
     browser_manager = BrowserManager(main_browser_session=main_browser_session)
-    llm = ChatOpenAICompatible(model='gemini-2.5-pro',
+    llm = ChatOpenAICompatible(model='gemini-2.5-flash',
                                base_url=os.getenv("OPENAI_ENDPOINT"),
                                api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -191,7 +191,7 @@ async def test_vibe_surf_agent():
 
         # Test 4: Browser parallel task
         print("🧪 Testing browser parallel tasks...")
-        browser_task = "Search for Dify, n8n, browser-use anhd click into their own homepage, take screenshot and save"
+        browser_task = "Search for Dify, n8n, browser-use and click into their own homepage, take screenshot and save"
         result4 = await agent.run(browser_task)
         print(f"✅ Browser task result:")
         pprint.pprint(result4)

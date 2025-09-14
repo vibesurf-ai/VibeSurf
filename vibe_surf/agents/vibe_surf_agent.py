@@ -596,8 +596,8 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
             agent_name = f"browser_use_agent-{task_id}-{i + 1:03d}"
 
             important_files = []
-            if history and len(history[-1].result) > 0:
-                last_result = history[-1].result[-1]
+            if history and history.history and len(history.history[-1].result) > 0:
+                last_result = history.history[-1].result[-1]
                 important_files = last_result.get("attachments", [])
                 if important_files:
                     important_files = [os.path.join(bu_agent_workdir, file_name) for file_name in important_files]
@@ -713,8 +713,8 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
 
         history = await agent.run()
         important_files = []
-        if history and len(history[-1].result) > 0:
-            last_result = history[-1].result[-1]
+        if history and history.history and len(history.history[-1].result) > 0:
+            last_result = history.history[-1].result[-1]
             important_files = last_result.get("attachments", [])
             if important_files:
                 important_files = [os.path.join(bu_agent_workdir, file_name) for file_name in important_files]

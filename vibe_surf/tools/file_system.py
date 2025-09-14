@@ -73,7 +73,7 @@ class CustomFileSystem(FileSystem):
     async def read_file(self, full_filename: str, external_file: bool = False) -> str:
         """Read file content using file-specific read method and return appropriate message to LLM"""
         try:
-            full_filename = full_filename if external_file else (self.data_dir / full_filename)
+            full_filepath = full_filename if external_file else (self.data_dir / full_filename)
             try:
                 _, extension = self._parse_filename(full_filename)
             except Exception:
@@ -81,13 +81,13 @@ class CustomFileSystem(FileSystem):
             if extension != 'pdf' and extension in self._file_types.keys():
                 import anyio
 
-                async with await anyio.open_file(full_filename, 'r', encoding="utf-8") as f:
+                async with await anyio.open_file(full_filepath, 'r', encoding="utf-8") as f:
                     content = await f.read()
                     return f'Read from file {full_filename}.\n<content>\n{content}\n</content>'
             elif extension == 'pdf':
                 import pypdf
 
-                reader = pypdf.PdfReader(full_filename)
+                reader = pypdf.PdfReader(full_filepath)
                 num_pages = len(reader.pages)
                 MAX_PDF_PAGES = 10
                 extra_pages = num_pages - MAX_PDF_PAGES
@@ -97,7 +97,7 @@ class CustomFileSystem(FileSystem):
                 extra_pages_text = f'{extra_pages} more pages...' if extra_pages > 0 else ''
                 return f'Read from file {full_filename}.\n<content>\n{extracted_text}\n{extra_pages_text}</content>'
             else:
-                return f'Error: Cannot read file {full_filename} as {extension} extension is not supported.'
+                return f'Error: Cannot read content from file {full_filename}.'
         except FileNotFoundError:
             return f"Error: File '{full_filename}' not found."
         except PermissionError:
@@ -176,7 +176,7 @@ class CustomFileSystem(FileSystem):
             return f"File '{old_filename}' renamed to '{new_file_path}' successfully."
 
         except Exception as e:
-            return f"Error: Could not rename file '{old_filename}' to '{new_filename}'. {str(e)}"
+            return f"Error: Could not rename file '{old_filename}' to '{new_file_path}'. {str(e)}"
 
     async def move_file(self, old_filename: str, new_filename: str) -> str:
         """Move a file within the FileSystem from old_filename to new_filename"""

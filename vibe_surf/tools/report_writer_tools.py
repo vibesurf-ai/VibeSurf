@@ -1,6 +1,7 @@
 from browser_use.tools.registry.service import Registry
 from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 from vibe_surf.tools.file_system import CustomFileSystem
+from browser_use.tools.views import NoParamsAction
 
 
 class ReportWriterTools(VibeSurfTools):
@@ -12,8 +13,9 @@ class ReportWriterTools(VibeSurfTools):
     def _register_done_action(self):
         @self.registry.action(
             description="Finish writing report.",
+            param_model=NoParamsAction
         )
         async def task_done(
-                file_system: CustomFileSystem,
+                _: NoParamsAction,
         ):
             pass
