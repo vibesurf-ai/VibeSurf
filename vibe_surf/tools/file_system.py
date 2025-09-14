@@ -61,6 +61,15 @@ class CustomFileSystem(FileSystem):
 
         self.extracted_content_count = 0
 
+    async def display_file(self, full_filename: str) -> str | None:
+        """Display file content using file-specific display method"""
+        if not self.file_exist(full_filename):
+            return f"{full_filename} does not exist."
+
+        file_content = await self.read_file(full_filename)
+
+        return file_content
+
     async def read_file(self, full_filename: str, external_file: bool = False) -> str:
         """Read file content using file-specific read method and return appropriate message to LLM"""
         try:
@@ -246,6 +255,10 @@ class CustomFileSystem(FileSystem):
         except Exception as e:
             return f"Error: Could not write to file '{full_filename}'. {str(e)}"
 
+    async def file_exist(self, full_filename: str) -> bool:
+        full_file_path = self.data_dir / full_filename
+        return bool(full_file_path.exists())
+
     async def create_file(self, full_filename: str) -> str:
         """Create a file with empty content"""
         if not self._is_valid_filename(full_filename):
@@ -297,7 +310,7 @@ class CustomFileSystem(FileSystem):
             # Check if directory exists
             if not full_path.exists():
                 return f"Error: Directory '{directory_path or '.'}' does not exist."
-            
+
             if not full_path.is_dir():
                 return f"Error: '{directory_path or '.'}' is not a directory."
 

@@ -48,7 +48,7 @@ class VibeSurfTools:
         self._register_todo_actions()
         self._register_done_action()
         self.mcp_server_config = mcp_server_config
-        self.mcp_clients = {}
+        self.mcp_clients: Dict[str, MCPClient] = {}
 
     def _register_browser_use_agent(self):
         @self.registry.action(
@@ -453,6 +453,26 @@ class VibeSurfTools:
         )
         async def move_file(old_filename: str, new_filename: str, file_system: CustomFileSystem):
             result = await file_system.move_file(old_filename, new_filename)
+            logger.info(f'📁 {result}')
+            return ActionResult(
+                extracted_content=result,
+                include_in_memory=True,
+                long_term_memory=result,
+            )
+
+        @self.registry.action(
+            'Check file exist or not.'
+        )
+        async def file_exist(filename: str, file_system: CustomFileSystem):
+            if os.path.exists(filename):
+                result = f"{filename} is a external file and it exists."
+            else:
+                is_file_exist = await file_system.file_exist(filename)
+                if is_file_exist:
+                    result = f"{filename} is in file system and it exists."
+                else:
+                    result = f"{filename} does not exists."
+
             logger.info(f'📁 {result}')
             return ActionResult(
                 extracted_content=result,

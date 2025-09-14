@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-async def test_controller_with_mcp():
+async def test_tools_with_mcp():
     import os
     from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 
@@ -100,6 +100,24 @@ async def test_filesystem():
     print(result)
 
 
+async def test_bu_tools():
+    import os
+    from vibe_surf.tools.browser_use_tools import BrowserUseTools
+
+    tools = BrowserUseTools()
+    print(tools.registry.registry.actions.keys())
+
+
+async def test_vibesurf_tools():
+    import os
+    from vibe_surf.tools.vibesurf_tools import VibeSurfTools
+
+    tools = VibeSurfTools()
+    print(tools.registry.registry.actions.keys())
+
+
 if __name__ == '__main__':
-    # asyncio.run(test_controller_with_mcp())
-    asyncio.run(test_filesystem())
+    # asyncio.run(test_tools_with_mcp())
+    # asyncio.run(test_filesystem())
+    # asyncio.run(test_bu_tools())
+    asyncio.run(test_vibesurf_tools())

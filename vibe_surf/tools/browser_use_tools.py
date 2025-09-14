@@ -64,6 +64,79 @@ class BrowserUseTools(Tools, VibeSurfTools):
         self._register_browser_actions()
         self._register_file_actions()
 
+    def _register_done_action(self, output_model: type[T] | None, display_files_in_done_text: bool = True):
+        if output_model is not None:
+            self.display_files_in_done_text = display_files_in_done_text
+
+            @self.registry.action(
+                'Complete task - with return text and if the task is finished (success=True) or not yet completely finished (success=False), because last step is reached',
+                param_model=StructuredOutputAction[output_model],
+            )
+            async def done(params: StructuredOutputAction):
+                # Exclude success from the output JSON since it's an internal parameter
+                output_dict = params.data.model_dump()
+
+                # Enums are not serializable, convert to string
+                for key, value in output_dict.items():
+                    if isinstance(value, enum.Enum):
+                        output_dict[key] = value.value
+
+                return ActionResult(
+                    is_done=True,
+                    success=params.success,
+                    extracted_content=json.dumps(output_dict),
+                    long_term_memory=f'Task completed. Success Status: {params.success}',
+                )
+
+        else:
+
+            @self.registry.action(
+                'Complete task - provide a summary of results for the user. Set success=True if task completed successfully, false otherwise. Text should be your response to the user summarizing results. Include files in files_to_display if you would like to display to the user or there files are important for the task result.',
+                param_model=DoneAction,
+            )
+            async def done(params: DoneAction, file_system: CustomFileSystem):
+                user_message = params.text
+
+                len_text = len(params.text)
+                len_max_memory = 100
+                memory = f'Task completed: {params.success} - {params.text[:len_max_memory]}'
+                if len_text > len_max_memory:
+                    memory += f' - {len_text - len_max_memory} more characters'
+
+                attachments = []
+                if params.files_to_display:
+                    if self.display_files_in_done_text:
+                        file_msg = ''
+                        for file_name in params.files_to_display:
+                            if file_name == 'todo.md':
+                                continue
+                            file_content = await file_system.display_file(file_name)
+                            if file_content:
+                                file_msg += f'\n\n{file_name}:\n{file_content}'
+                                attachments.append(file_name)
+                        if file_msg:
+                            user_message += '\n\nAttachments:'
+                            user_message += file_msg
+                        else:
+                            logger.warning('Agent wanted to display files but none were found')
+                    else:
+                        for file_name in params.files_to_display:
+                            if file_name == 'todo.md':
+                                continue
+                            file_content = await file_system.display_file(file_name)
+                            if file_content:
+                                attachments.append(file_name)
+
+                attachments = [file_name for file_name in attachments]
+
+                return ActionResult(
+                    is_done=True,
+                    success=params.success,
+                    extracted_content=user_message,
+                    long_term_memory=memory,
+                    attachments=attachments,
+                )
+
     def _register_browser_actions(self):
         """Register custom browser actions"""
 

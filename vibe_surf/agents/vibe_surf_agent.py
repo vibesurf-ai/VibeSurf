@@ -45,12 +45,11 @@ logger = get_logger(__name__)
 class BrowserTaskResult(BaseModel):
     """Result from browser task execution"""
     agent_id: str
-    task: str
     success: bool
+    task: Optional[str] = None
     result: Optional[str] = None
     error: Optional[str] = None
-    screenshots: List[str] = Field(default_factory=list)
-    extracted_data: Optional[str] = None
+    workdir: str
 
 
 class ControlResult(BaseModel):
@@ -441,7 +440,8 @@ async def _browser_task_execution_node_impl(state: VibeSurfState) -> VibeSurfSta
             task='unknown',
             success=False,
             error=str(e)
-        ))
+            )
+        )
         state.current_step = "vibesurf_agent"
 
         log_agent_activity(state, "browser_task_executor", "error", f"Browser execution failed: {str(e)}")
@@ -473,6 +473,14 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
         bu_agent_ids.append(agent_id)
     agent_browser_sessions = await asyncio.gather(*register_sessions)
 
+    vibesurf_tools = state.vibesurf_agent.tools
+    bu_tools = BrowserUseTools()
+    for mcp_server_name, mcp_client in vibesurf_tools.mcp_clients.items():
+        await mcp_client.register_to_tools(
+            tools=bu_tools,
+            prefix=f"mcp.{mcp_server_name}."
+        )
+    bu_tasks = [None] * len(pending_tasks)
     for i, task_info in enumerate(pending_tasks):
         agent_id = f"bu_agent-{task_id}-{i + 1:03d}"
         task_description = task_info.get('task', '')
@@ -481,12 +489,11 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
         task_files = task_info.get('task_files', [])
         bu_agent_workdir = bu_agents_workdir / f"{task_id}-{i + 1:03d}"
         bu_agent_workdir.mkdir(parents=True, exist_ok=True)
+        agent_name = f"browser_use_agent-{task_id}-{i + 1:03d}"
+        # Log agent creation
+        log_agent_activity(state, agent_name, "working", f"{task_description}")
 
         try:
-            agent_name = f"browser_use_agent-{task_id}-{i + 1:03d}"
-            # Log agent creation
-            log_agent_activity(state, agent_name, "working", f"{task_description}")
-
             available_file_paths = []
             for task_file in task_files:
                 upload_workdir = bu_agent_workdir / "uploads"
@@ -498,12 +505,12 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                     available_file_paths.append(os.path.join("uploads", os.path.basename(task_file_path)))
 
             # Create BrowserUseAgent for each task
-            if state.upload_files:
-                upload_files_md = format_upload_files_list(state.upload_files)
-                bu_task = task_description + f"\nNessessary files for this task:\n{upload_files_md}\n"
+            if available_file_paths:
+                upload_files_md = '\n'.join(available_file_paths)
+                bu_task = task_description + f"\nNecessary files for this task:\n{upload_files_md}\n"
             else:
                 bu_task = task_description
-
+            bu_tasks[i] = bu_task
             # Create step callback for this agent
             step_callback = create_browser_agent_step_callback(state, agent_name)
 
@@ -511,7 +518,7 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                 task=bu_task,
                 llm=state.vibesurf_agent.llm,
                 browser_session=agent_browser_sessions[i],
-                controller=state.vibesurf_agent,
+                tools=bu_tools,
                 task_id=f"{task_id}-{i + 1:03d}",
                 file_system_path=str(bu_agent_workdir),
                 register_new_step_callback=step_callback,
@@ -526,7 +533,7 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
 
         except Exception as e:
             logger.error(f"❌ Failed to create agent {agent_id}: {e}")
-            log_agent_activity(state, f"browser_use_agent-{i + 1}-{state.task_id[-4:]}", "error",
+            log_agent_activity(state, agent_name, "error",
                                f"Failed to create agent: {str(e)}")
 
     # Execute all agents in parallel
@@ -536,34 +543,37 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
         # Process results
         results = []
         for i, (agent, history) in enumerate(zip(agents, histories)):
-            agent_id = f"agent-{i + 1}-{state.task_id[-4:]}"
+            task = bu_tasks[i]
+            bu_agent_workdir = f"bu_agents/{task_id}-{i + 1:03d}"
+            agent_name = f"browser_use_agent-{task_id}-{i + 1:03d}"
             if isinstance(history, Exception):
                 results.append(BrowserTaskResult(
-                    agent_id=f"agent-{i + 1}",
-                    task=pending_tasks[i],
+                    agent_id=f"{task_id}-{i + 1:03d}",
+                    task=task,
                     success=False,
-                    error=str(history)
+                    error=str(history),
+                    workdir=bu_agent_workdir
                 ))
                 # Log error
                 log_agent_activity(state, f"browser_use_agent-{i + 1}-{state.task_id[-4:]}", "error",
                                    f"Task failed: {str(history)}")
             else:
                 results.append(BrowserTaskResult(
-                    agent_id=f"agent-{i + 1}",
-                    task=pending_tasks[i],
+                    agent_id=f"{task_id}-{i + 1:03d}",
+                    task=task,
+                    workdir=bu_agent_workdir,
                     success=history.is_successful(),
                     result=history.final_result() if hasattr(history, 'final_result') else "Task completed",
                     error=str(history.errors()) if history.has_errors() and not history.is_successful() else ""
                 ))
                 # Log result
                 if history.is_successful():
-                    result_text = history.final_result() if hasattr(history, 'final_result') else "Task completed"
-                    log_agent_activity(state, f"browser_use_agent-{i + 1}-{state.task_id[-4:]}", "result",
+                    result_text = history.final_result()
+                    log_agent_activity(state, agent_name, "result",
                                        f"Task completed successfully: \n{result_text}")
                 else:
-                    error_text = str(history.errors()) if history.has_errors() else "Unknown error"
-                    log_agent_activity(state, f"browser_use_agent-{i + 1}-{state.task_id[-4:]}", "error",
-                                       f"Task failed: {error_text}")
+                    error_text = str(history.errors())
+                    log_agent_activity(state, agent_name, "error", f"Task failed: {error_text}")
 
         return results
 
@@ -571,7 +581,7 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
         # Remove agents from control tracking and cleanup browser sessions
         for i, agent_id in enumerate(bu_agent_ids):
             if not isinstance(pending_tasks[i], list):
-                await state.browser_manager.unregister_agent(agent_id, close_tabs=True)
+                await state.vibesurf_agent.browser_manager.unregister_agent(agent_id, close_tabs=True)
             if state.vibesurf_agent and hasattr(state.vibesurf_agent, '_running_agents'):
                 state.vibesurf_agent._running_agents.pop(agent_id, None)
                 logger.debug(f"🔗 Unregistered parallel agent {agent_id} from control coordination")
