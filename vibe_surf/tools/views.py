@@ -55,7 +55,8 @@ class BrowserUseAgentTask(BaseModel):
 class BrowserUseAgentExecution(BaseModel):
     """Parameters for executing browser_use agent tasks in parallel"""
     tasks: list[BrowserUseAgentTask] = Field(
-        description='List of tasks to execute concurrently using browser_use agents for improved efficiency',
+        description='List of tasks to execute concurrently using browser_use agents for improved efficiency. '
+                    'If only one task is provided, the agent can take over the entire browser and can also see and operate all tabs.',
         min_length=1,
     )
 
@@ -92,7 +93,7 @@ class TodoGenerateAction(BaseModel):
 class TodoModification(BaseModel):
     """Single todo modification operation"""
     action: str = Field(
-        description='Type of modification: "add", "remove", "complete", or "uncomplete"',
+        description='Type of modification: "add", "remove", "complete", or "uncompleted"',
     )
     item: str = Field(
         description='Text of the todo item to operate on',

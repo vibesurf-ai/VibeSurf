@@ -4,7 +4,7 @@ import time
 import re
 from datetime import datetime
 from typing import Any, Dict, List
-from pathlib import Path
+import json
 
 from browser_use.llm.base import BaseChatModel
 from browser_use.llm.messages import UserMessage, SystemMessage, AssistantMessage
@@ -60,7 +60,7 @@ class ReportWriterAgent:
         try:
             # Extract task and information
             report_task = report_data.get('report_task', 'Generate a comprehensive report')
-            information = report_data.get('information', 'No additional information provided')
+            report_information = report_data.get('report_information', 'No additional information provided')
 
             # Create report file with timestamp
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -77,13 +77,13 @@ class ReportWriterAgent:
             message_history.append(SystemMessage(content=REPORT_WRITER_PROMPT))
 
             # Add initial user message with task details
-            user_message = f"""Please generate a comprehensive report based on the following:
+            user_message = f"""Please generate a report based on the following:
 
 **Report Task:**
 {report_task}
 
 **Available Information:**
-{information}
+{json.dumps(report_information, indent=2, ensure_ascii=False)}
 
 **Report File:**
 {report_filename}
