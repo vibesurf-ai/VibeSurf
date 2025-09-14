@@ -192,6 +192,45 @@ def create_browser_agent_step_callback(state: VibeSurfState, agent_name: str):
     return step_callback
 
 
+def create_report_writer_step_callback(state: VibeSurfState, agent_name: str):
+    """Create a step callback function for report writer agent to log each step"""
+
+    def step_callback(parsed_output, step_num: int) -> None:
+        """Callback function to log report writer agent step information"""
+        try:
+            # Format step information as markdown
+            step_msg = f"## Step {step_num}\n\n"
+
+            # Add thinking if present
+            if hasattr(parsed_output, 'thinking') and parsed_output.thinking:
+                step_msg += f"**💡 Thinking:**\n{parsed_output.thinking}\n\n"
+
+            # Add action summary
+            if hasattr(parsed_output, 'action') and parsed_output.action and len(parsed_output.action) > 0:
+                action_count = len(parsed_output.action)
+                step_msg += f"**⚡ Actions:**\n"
+
+                # Add brief action details
+                for i, action in enumerate(parsed_output.action):
+                    action_data = action.model_dump(exclude_unset=True)
+                    action_name = next(iter(action_data.keys())) if action_data else 'unknown'
+                    action_params = json.dumps(action_data[action_name],
+                                               ensure_ascii=False, indent=2) if action_name in action_data else ""
+                    step_msg += f"- [x] {action_name}: {action_params}\n"
+            else:
+                step_msg += f"**⚡ Actions:** No actions\n"
+
+            # Log the step activity
+            log_agent_activity(state, agent_name, "working", step_msg.strip())
+
+        except Exception as e:
+            logger.error(f"❌ Error in step callback for {agent_name}: {e}")
+            # Log a simple fallback message
+            log_agent_activity(state, agent_name, "step", f"Step {step_num} completed")
+
+    return step_callback
+
+
 # Control-aware node wrapper
 async def control_aware_node(node_func, state: VibeSurfState, node_name: str) -> VibeSurfState:
     """
@@ -723,10 +762,15 @@ async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfStat
     log_agent_activity(state, "report_task_executor", "working", "Generating HTML report")
 
     try:
+        # Create step callback for report writer agent
+        agent_name = "report_writer_agent"
+        step_callback = create_report_writer_step_callback(state, agent_name)
+
         # Use ReportWriterAgent to generate HTML report
         report_writer = ReportWriterAgent(
             llm=state.vibesurf_agent.llm,
             workspace_dir=str(state.vibesurf_agent.file_system.get_dir()),
+            step_callback=step_callback,
         )
         action_params = state.action_params
         report_task = action_params.get('task', [])

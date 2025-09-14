@@ -22,16 +22,18 @@ logger = get_logger(__name__)
 class ReportWriterAgent:
     """Agent responsible for generating HTML reports using LLM-controlled flow"""
 
-    def __init__(self, llm: BaseChatModel, workspace_dir: str):
+    def __init__(self, llm: BaseChatModel, workspace_dir: str, step_callback=None):
         """
         Initialize ReportWriterAgent
         
         Args:
             llm: Language model for generating report content
             workspace_dir: Directory to save reports
+            step_callback: Optional callback function to log each step
         """
         self.llm = llm
         self.workspace_dir = os.path.abspath(workspace_dir)
+        self.step_callback = step_callback
 
         # Initialize file system and tools
         self.file_system = CustomFileSystem(self.workspace_dir)
@@ -72,12 +74,14 @@ class ReportWriterAgent:
 
             # Initialize message history
             message_history = []
+            
+            max_iterations = 6  # Prevent infinite loops
 
             # Add system message with unified prompt
             message_history.append(SystemMessage(content=REPORT_WRITER_PROMPT))
 
             # Add initial user message with task details
-            user_message = f"""Please generate a report based on the following:
+            user_message = f"""Please generate a report within {max_iterations} steps based on the following:
 
 **Report Task:**
 {report_task}
@@ -88,21 +92,26 @@ class ReportWriterAgent:
 **Report File:**
 {report_filename}
 
-The report file '{report_filename}' has been created and is ready for you to write content. Please analyze the task, determine if you need to read any additional files, then generate the complete report content and format it as professional HTML."""
+The report file '{report_filename}' has been created and is ready for you to write content. 
+Please analyze the task, determine if you need to read any additional files, then generate the complete report content and format it as professional HTML.
+"""
             message_history.append(UserMessage(content=user_message))
 
             # LLM-controlled loop
-            max_iterations = 10  # Prevent infinite loops
             iteration = 0
 
             while iteration < max_iterations:
                 iteration += 1
                 logger.info(f"🔄 LLM iteration {iteration}")
-
+                message_history.append(UserMessage(content=f"Current step: {iteration} / {max_iterations}"))
                 # Get LLM response
                 response = await self.llm.ainvoke(message_history, output_format=self.AgentOutput)
                 parsed = response.completion
                 actions = parsed.action
+
+                # Call step callback if provided to log thinking + action
+                if self.step_callback:
+                    self.step_callback(parsed, iteration)
 
                 # Add assistant message to history
                 message_history.append(AssistantMessage(content=response.completion))
