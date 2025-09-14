@@ -78,10 +78,10 @@ async def submit_task(
         task_id = uuid7str()
 
         # Get MCP server config for saving
-        from ..shared_state import controller, active_mcp_server
+        from ..shared_state import vibesurf_tools, active_mcp_server
         mcp_server_config = task_request.mcp_server_config
-        if not mcp_server_config and controller and hasattr(controller, 'mcp_server_config'):
-            mcp_server_config = controller.mcp_server_config
+        if not mcp_server_config and vibesurf_tools and hasattr(vibesurf_tools, 'mcp_server_config'):
+            mcp_server_config = vibesurf_tools.mcp_server_config
 
         # Ensure we have a valid MCP server config (never None)
         if mcp_server_config is None:

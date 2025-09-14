@@ -387,7 +387,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
 
                 if follow_tasks:
                     log_agent_activity(state, "vibesurf_agent", "suggestion_tasks",
-                                       json.dumps(follow_tasks, indent=2, ensure_ascii=False))
+                                       '\n'.join(follow_tasks))
                     final_response += "\n\n## Suggested Follow-up Tasks:\n"
                     for j, task in enumerate(follow_tasks[:3], 1):
                         final_response += f"{j}. {task}\n"
@@ -1394,7 +1394,6 @@ class VibeSurfAgent:
             str: Markdown summary of execution results
         """
         logger.info(f"🚀 Starting VibeSurfAgent execution for task: {task}")
-        agent_activity_logs = []
         try:
             self.thinking_mode = thinking_mode
             session_id = session_id or self.cur_session_id or uuid7str()
@@ -1475,44 +1474,44 @@ class VibeSurfAgent:
         except asyncio.CancelledError:
             logger.info("🛑 VibeSurfAgent execution was cancelled")
             # Add cancellation activity log
-            if agent_activity_logs:
+            if self.activity_logs:
                 activity_entry = {
                     "agent_name": "VibeSurfAgent",
                     "agent_status": "cancelled",
                     "agent_msg": "Task execution was cancelled by user request."
                 }
-                agent_activity_logs.append(activity_entry)
+                self.activity_logs.append(activity_entry)
             return f"# Task Execution Cancelled\n\n**Task:** {task}\n\nExecution was stopped by user request."
         except Exception as e:
             import traceback
             traceback.print_exc()
             logger.error(f"❌ VibeSurfAgent execution failed: {e}")
             # Add error activity log
-            if agent_activity_logs:
+            if self.activity_logs:
                 activity_entry = {
                     "agent_name": "VibeSurfAgent",
                     "agent_status": "error",
                     "agent_msg": f"Task execution failed: {str(e)}"
                 }
-                agent_activity_logs.append(activity_entry)
+                self.activity_logs.append(activity_entry)
             return f"# Task Execution Failed\n\n**Task:** {task}\n\n**Error:** {str(e)}\n\nPlease try again or contact support."
         finally:
             token_summary = await self.token_cost_service.get_usage_summary()
             token_summary_md = token_summary.model_dump_json(indent=2, exclude_none=True, exclude_unset=True)
             logger.debug(token_summary_md)
-            activity_entry = {
-                "agent_name": "VibeSurfAgent",
-                "agent_status": "result",  # working, result, error
-                "agent_msg": f"Total Token Cost:\n\n{token_summary_md}"
-            }
-            agent_activity_logs.append(activity_entry)
+            # activity_entry = {
+            #     "agent_name": "VibeSurfAgent",
+            #     "agent_status": "result",  # working, result, error
+            #     "agent_msg": f"Total Token Cost:\n\n```json\n{token_summary_md}\n```"
+            # }
+            # self.activity_logs.append(activity_entry)
 
             activity_entry = {
                 "agent_name": "VibeSurfAgent",
                 "agent_status": "done",  # working, result, error
                 "agent_msg": "Finish Task."
             }
-            agent_activity_logs.append(activity_entry)
+            self.activity_logs.append(activity_entry)
             # Save session-specific data
             if self.cur_session_id:
                 self.save_message_history(self.cur_session_id)

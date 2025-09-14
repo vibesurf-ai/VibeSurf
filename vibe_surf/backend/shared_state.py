@@ -15,7 +15,8 @@ from pathlib import Path
 
 # VibeSurf components
 from vibe_surf.agents.vibe_surf_agent import VibeSurfAgent
-from vibe_surf.tools.browser_use_tools import VibeSurfController
+from vibe_surf.tools.browser_use_tools import BrowserUseTools
+from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 from vibe_surf.browser.browser_manager import BrowserManager
 from browser_use.llm.base import BaseChatModel
 from browser_use.llm.openai.chat import ChatOpenAI
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Global VibeSurf components
 vibesurf_agent: Optional[VibeSurfAgent] = None
 browser_manager: Optional[BrowserManager] = None
-controller: Optional[VibeSurfController] = None
+vibesurf_tools: Optional[VibeSurfTools] = None
 llm: Optional[BaseChatModel] = None
 db_manager: Optional['DatabaseManager'] = None
 
@@ -53,7 +54,7 @@ def get_all_components():
     return {
         "vibesurf_agent": vibesurf_agent,
         "browser_manager": browser_manager,
-        "tools": controller,
+        "tools": vibesurf_tools,
         "llm": llm,
         "db_manager": db_manager,
         "workspace_dir": workspace_dir,
@@ -67,7 +68,7 @@ def get_all_components():
 
 def set_components(**kwargs):
     """Update global components"""
-    global vibesurf_agent, browser_manager, controller, llm, db_manager
+    global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager
     global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs
 
     if "vibesurf_agent" in kwargs:
@@ -75,7 +76,7 @@ def set_components(**kwargs):
     if "browser_manager" in kwargs:
         browser_manager = kwargs["browser_manager"]
     if "tools" in kwargs:
-        controller = kwargs["tools"]
+        vibesurf_tools = kwargs["tools"]
     if "llm" in kwargs:
         llm = kwargs["llm"]
     if "db_manager" in kwargs:
@@ -224,7 +225,7 @@ def clear_active_task():
 
 async def _check_and_update_mcp_servers(db_session):
     """Check if MCP server configuration has changed and update tools if needed"""
-    global controller, active_mcp_server
+    global vibesurf_tools, active_mcp_server
 
     try:
         if not db_session:
@@ -249,10 +250,10 @@ async def _check_and_update_mcp_servers(db_session):
             mcp_server_config = await _build_mcp_server_config(active_profiles)
 
             # Unregister old MCP clients and register new ones
-            if controller:
-                await controller.unregister_mcp_clients()
-                controller.mcp_server_config = mcp_server_config
-                await controller.register_mcp_clients()
+            if vibesurf_tools:
+                await vibesurf_tools.unregister_mcp_clients()
+                vibesurf_tools.mcp_server_config = mcp_server_config
+                await vibesurf_tools.register_mcp_clients()
                 logger.info("✅ Controller MCP configuration updated successfully")
 
     except Exception as e:
@@ -310,7 +311,7 @@ async def _load_active_mcp_servers():
 
 async def initialize_vibesurf_components():
     """Initialize VibeSurf components from environment variables and default LLM profile"""
-    global vibesurf_agent, browser_manager, controller, llm, db_manager
+    global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager
     global workspace_dir, browser_execution_path, browser_user_data, envs
     from vibe_surf import common
 
@@ -427,18 +428,18 @@ async def initialize_vibesurf_components():
         mcp_server_config = await _load_active_mcp_servers()
 
         # Initialize vibesurf tools with MCP server config
-        controller = VibeSurfController(mcp_server_config=mcp_server_config)
+        vibesurf_tools = VibeSurfTools(mcp_server_config=mcp_server_config)
 
         # Register MCP clients if there are any active MCP servers
         if mcp_server_config and mcp_server_config.get("mcpServers"):
-            await controller.register_mcp_clients()
+            await vibesurf_tools.register_mcp_clients()
             logger.info(f"✅ Registered {len(mcp_server_config['mcpServers'])} MCP servers")
 
         # Initialize VibeSurfAgent
         vibesurf_agent = VibeSurfAgent(
             llm=llm,
             browser_manager=browser_manager,
-            controller=controller,
+            tools=vibesurf_tools,
             workspace_dir=workspace_dir
         )
 

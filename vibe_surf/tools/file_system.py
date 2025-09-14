@@ -73,7 +73,7 @@ class CustomFileSystem(FileSystem):
     async def read_file(self, full_filename: str, external_file: bool = False) -> str:
         """Read file content using file-specific read method and return appropriate message to LLM"""
         try:
-            full_filepath = full_filename if external_file else (self.data_dir / full_filename)
+            full_filepath = full_filename if external_file else str(self.data_dir / full_filename)
             try:
                 _, extension = self._parse_filename(full_filename)
             except Exception:
@@ -99,7 +99,7 @@ class CustomFileSystem(FileSystem):
             else:
                 return f'Error: Cannot read content from file {full_filename}.'
         except FileNotFoundError:
-            return f"Error: File '{full_filename}' not found."
+            return f"Error: File '{full_filepath}' not found."
         except PermissionError:
             return f"Error: Permission denied to read file '{full_filename}'."
         except Exception as e:

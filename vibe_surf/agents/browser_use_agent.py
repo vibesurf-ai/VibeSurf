@@ -534,11 +534,13 @@ class BrowserUseAgent(Agent):
                 # Replace the polling with clean pause-wait
                 if self.state.paused:
                     self.logger.debug(f'⏸️ Step {step}: Agent paused, waiting to resume...')
-                    await self.wait_until_resumed()
+                    await self._external_pause_event.wait()
                     signal_handler.reset()
 
                 # Check if we should stop due to too many failures
-                if self.state.consecutive_failures >= self.settings.max_failures:
+                if (self.state.consecutive_failures) >= self.settings.max_failures + int(
+                        self.settings.final_response_after_failure
+                ):
                     self.logger.error(f'❌ Stopping due to {self.settings.max_failures} consecutive failures')
                     agent_run_error = f'Stopped due to {self.settings.max_failures} consecutive failures'
                     break

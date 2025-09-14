@@ -658,7 +658,7 @@ async def get_configuration_status(db: AsyncSession = Depends(get_db_session)):
                 "has_default": default_profile is not None
             },
             "tools": {
-                "initialized": shared_state.controller is not None
+                "initialized": shared_state.vibesurf_tools is not None
             },
             "browser_manager": {
                 "initialized": shared_state.browser_manager is not None
@@ -669,7 +669,7 @@ async def get_configuration_status(db: AsyncSession = Depends(get_db_session)):
             },
             "overall_status": "ready" if (
                     default_profile and
-                    shared_state.controller and
+                    shared_state.vibesurf_tools and
                     shared_state.browser_manager and
                     shared_state.vibesurf_agent
             ) else "partial"
