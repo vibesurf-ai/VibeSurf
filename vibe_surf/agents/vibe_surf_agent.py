@@ -84,7 +84,7 @@ class VibeSurfStatus(BaseModel):
 
 @dataclass
 class VibeSurfState:
-    """Simplified LangGraph state for VibeSurfAgent workflow"""
+    """LangGraph state for VibeSurfAgent workflow"""
 
     # Core task information
     original_task: str = ""
@@ -135,7 +135,7 @@ async def log_agent_activity(state: VibeSurfState, agent_name: str, agent_status
     """Log agent activity to the activity log"""
     token_summary = await state.vibesurf_agent.token_cost_service.get_usage_summary()
     token_summary_md = token_summary.model_dump_json(indent=2, exclude_none=True, exclude_unset=True)
-    logger.debug(token_summary_md)
+    logger.info(token_summary_md)
 
     activity_entry = {
         "agent_name": agent_name,
@@ -144,7 +144,7 @@ async def log_agent_activity(state: VibeSurfState, agent_name: str, agent_status
         "timestamp": datetime.now().isoformat(),
     }
     state.vibesurf_agent.activity_logs.append(activity_entry)
-    logger.info(f"📝 Logged activity: {agent_name} - {agent_status}:\n{agent_msg}")
+    logger.debug(f"📝 Logged activity: {agent_name} - {agent_status}:\n{agent_msg}")
 
 
 def create_browser_agent_step_callback(state: VibeSurfState, agent_name: str):
@@ -459,9 +459,10 @@ async def _browser_task_execution_node_impl(state: VibeSurfState) -> VibeSurfSta
         if task_count <= 1:
             # Single task execution
             logger.info("📝 Using single execution for single task")
-            results = await execute_single_browser_tasks(state)
+            result = await execute_single_browser_tasks(state)
+            results = [result]
             # Update browser results
-            state.browser_results.append(results)
+            state.browser_results.extend(results)
         else:
             # Multiple tasks execution - parallel approach
             logger.info(f"🚀 Using parallel execution for {task_count} tasks")
@@ -482,7 +483,8 @@ async def _browser_task_execution_node_impl(state: VibeSurfState) -> VibeSurfSta
 
     except Exception as e:
         logger.error(f"❌ Browser task execution failed: {e}")
-
+        import traceback
+        traceback.print_exc()
         state.browser_results.append(BrowserTaskResult(
             agent_id="unknown",
             agent_workdir="unknown",
@@ -601,7 +603,7 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
             important_files = []
             if history and history.history and len(history.history[-1].result) > 0:
                 last_result = history.history[-1].result[-1]
-                important_files = last_result.get("attachments", [])
+                important_files = last_result.attachments
                 if important_files:
                     important_files = [os.path.join(bu_agent_workdir, file_name) for file_name in important_files]
 
@@ -636,6 +638,10 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                     await log_agent_activity(state, agent_name, "error", f"Task failed: {error_text}")
 
         return results
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
 
     finally:
         # Remove agents from control tracking and cleanup browser sessions
@@ -718,7 +724,7 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
         important_files = []
         if history and history.history and len(history.history[-1].result) > 0:
             last_result = history.history[-1].result[-1]
-            important_files = last_result.get("attachments", [])
+            important_files = last_result.attachments
             if important_files:
                 important_files = [os.path.join(bu_agent_workdir, file_name) for file_name in important_files]
 
@@ -742,6 +748,9 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
         return result
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+
         bu_agent_workdir = f"bu_agents/{task_id}-{1:03d}"
         return BrowserTaskResult(
             agent_id=agent_id,
