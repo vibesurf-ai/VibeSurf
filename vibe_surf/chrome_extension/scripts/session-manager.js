@@ -389,7 +389,7 @@ class VibeSurfSessionManager {
           // New activity log received
           const newLog = { ...activityLog };
           
-          // Add timestamp if not present
+          // Add timestamp if not present - this should now be handled by UI
           if (!newLog.timestamp) {
             newLog.timestamp = new Date().toISOString();
           }
@@ -479,7 +479,7 @@ class VibeSurfSessionManager {
         if (missingLogs.length > 0) {
           
           for (const log of missingLogs) {
-            // Add timestamp if not present
+            // Add timestamp if not present - this should now be handled by UI
             if (!log.timestamp) {
               log.timestamp = new Date().toISOString();
             }
@@ -515,7 +515,7 @@ class VibeSurfSessionManager {
         // 完全同步：用服务器端的logs替换本地logs
         const previousCount = this.activityLogs.length;
         
-        // 添加timestamp给没有的logs
+        // Add timestamp to logs that don't have them
         const processedLogs = serverLogs.map(log => ({
           ...log,
           timestamp: log.timestamp || new Date().toISOString()

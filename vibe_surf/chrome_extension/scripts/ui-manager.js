@@ -870,7 +870,18 @@ class VibeSurfUIManager {
     const agentName = data.agent_name || 'system';
     const agentStatus = data.agent_status || data.status || 'info';
     const agentMsg = data.agent_msg || data.message || data.action_description || 'No description';
-    const timestamp = new Date(data.timestamp || Date.now()).toLocaleTimeString();
+    
+    // Use backend timestamp if available, otherwise generate frontend timestamp
+    let timestamp;
+    if (data.timestamp) {
+      timestamp = new Date(data.timestamp).toLocaleTimeString();
+    } else {
+      timestamp = new Date().toLocaleTimeString();
+    }
+    
+    // Extract token and cost information
+    const totalTokens = data.total_tokens;
+    const totalCost = data.total_cost;
     
     // Determine if this is a user message (should be on the right)
     const isUser = agentName.toLowerCase() === 'user';
@@ -878,12 +889,28 @@ class VibeSurfUIManager {
     // Set CSS classes based on agent type and status
     item.className = `activity-item ${isUser ? 'user-message' : 'agent-message'} ${agentStatus}`;
     
+    // Build metadata display (timestamp, tokens, cost)
+    let metadataHtml = `<span class="message-time">${timestamp}</span>`;
+    
+    if (totalTokens !== undefined || totalCost !== undefined) {
+      metadataHtml += '<span class="message-metrics">';
+      if (totalTokens !== undefined) {
+        metadataHtml += `<span class="metric-item">tokens: ${totalTokens}</span>`;
+      }
+      if (totalCost !== undefined) {
+        // Format cost to 4 decimal places
+        const formattedCost = typeof totalCost === 'number' ? totalCost.toFixed(4) : parseFloat(totalCost || 0).toFixed(4);
+        metadataHtml += `<span class="metric-item">cost: $${formattedCost}</span>`;
+      }
+      metadataHtml += '</span>';
+    }
+    
     // Create the message structure similar to chat interface
     item.innerHTML = `
       <div class="message-container ${isUser ? 'user-container' : 'agent-container'}">
         <div class="message-header">
           <span class="agent-name">${agentName}</span>
-          <span class="message-time">${timestamp}</span>
+          <div class="message-metadata">${metadataHtml}</div>
         </div>
         <div class="message-bubble ${isUser ? 'user-bubble' : 'agent-bubble'}">
           <div class="message-status">

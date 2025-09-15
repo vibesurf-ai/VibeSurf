@@ -142,6 +142,8 @@ async def log_agent_activity(state: VibeSurfState, agent_name: str, agent_status
         "agent_status": agent_status,  # working, result, error
         "agent_msg": agent_msg,
         "timestamp": datetime.now().isoformat(),
+        "total_tokens": token_summary.total_tokens,
+        "total_cost": token_summary.total_cost
     }
     state.vibesurf_agent.activity_logs.append(activity_entry)
     logger.debug(f"📝 Logged activity: {agent_name} - {agent_status}:\n{agent_msg}")
