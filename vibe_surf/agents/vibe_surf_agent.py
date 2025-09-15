@@ -762,10 +762,20 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
             bu_task = task_description
 
         step_callback = create_browser_agent_step_callback(state, agent_name)
+        main_browser_session = state.vibesurf_agent.browser_manager.main_browser_session
+        if task_info.get("tab_id", None):
+            tab_id = task_info.get("tab_id")
+            target_id = await main_browser_session.get_target_id_from_tab_id(tab_id)
+            await main_browser_session.get_or_create_cdp_session(target_id=target_id)
+        else:
+            new_target = await main_browser_session.cdp_client.send.Target.createTarget(
+                params={'url': 'about:blank'})
+            target_id = new_target["targetId"]
+            await main_browser_session.get_or_create_cdp_session(target_id=target_id)
         agent = BrowserUseAgent(
             task=bu_task,
             llm=state.vibesurf_agent.llm,
-            browser_session=state.vibesurf_agent.browser_manager.main_browser_session,
+            browser_session=main_browser_session,
             tools=bu_tools,
             task_id=f"{task_id}-{1:03d}",
             file_system_path=str(bu_agent_workdir),

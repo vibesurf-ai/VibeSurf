@@ -134,11 +134,28 @@
             <div class="input-container">
                 <div class="input-main">
                     <div class="textarea-container">
-                        <textarea 
-                            id="task-input" 
-                            class="task-input" 
+                        <textarea
+                            id="task-input"
+                            class="task-input"
                             placeholder="Describe your browsing task..."
                             rows="3"></textarea>
+                        <!-- Tab Selection Dropdown -->
+                        <div id="tab-selector-dropdown" class="tab-selector-dropdown hidden">
+                            <div class="tab-selector-header">
+                                <span class="tab-selector-title">Select Tabs</span>
+                            </div>
+                            <div class="tab-selector-content">
+                                <div class="tab-selector-controls">
+                                    <label class="tab-option select-all-option">
+                                        <input type="radio" id="select-all-tabs" name="tab-selection" class="tab-radio">
+                                        <span class="tab-name">Select All</span>
+                                    </label>
+                                </div>
+                                <div id="tab-options-list" class="tab-options-list">
+                                    <!-- Tab options will be populated here -->
+                                </div>
+                            </div>
+                        </div>
                         <div class="input-actions">
                             <button id="attach-file-btn" class="action-btn attach-btn" title="Attach Files">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

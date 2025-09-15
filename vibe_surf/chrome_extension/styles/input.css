@@ -427,3 +427,142 @@ select.task-running-disabled {
   font-size: var(--font-size-sm);
   text-align: center;
 }
+
+/* Tab Selection Dropdown */
+.tab-selector-dropdown {
+  position: fixed !important;
+  z-index: 1000;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 300px;
+  overflow: hidden;
+  display: none;
+}
+
+.tab-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tab-selector-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.tab-selector-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  font-size: 18px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.tab-selector-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tab-selector-content {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: var(--spacing-xs);
+}
+
+.tab-selector-controls {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--spacing-xs);
+}
+
+.select-all-option {
+  font-weight: var(--font-weight-medium);
+  color: var(--primary-color);
+}
+
+.tab-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tab-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast);
+}
+
+.tab-option:hover {
+  background: var(--bg-hover);
+}
+
+.tab-option.active-tab {
+  background: rgba(144, 238, 144, 0.3);
+  border: 1px solid rgba(144, 238, 144, 0.6);
+  box-shadow: 0 2px 4px rgba(144, 238, 144, 0.2);
+}
+
+.tab-option.active-tab .tab-name {
+  color: #2d5a2d;
+  font-weight: var(--font-weight-medium);
+}
+
+.tab-option.active-tab .tab-id {
+  color: #1a4d1a;
+  font-weight: var(--font-weight-medium);
+}
+
+.tab-radio {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.tab-name {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Remove footer and buttons for single-select auto-confirm */
+
+/* Tab selection indicator in textarea */
+.task-input.has-selected-tabs {
+  border-color: var(--primary-color);
+  background: rgba(0, 122, 204, 0.02);
+}
+
+/* Selected tabs display */
+.selected-tabs-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: var(--primary-color);
+  color: white;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  pointer-events: none;
+  z-index: 2;
+}

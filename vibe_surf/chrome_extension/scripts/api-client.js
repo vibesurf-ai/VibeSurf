@@ -420,6 +420,15 @@ class VibeSurfAPIClient {
     return this.put('/config/controller', configData);
   }
 
+  // Browser APIs
+  async getActiveBrowserTab() {
+    return this.get('/browser/active-tab');
+  }
+
+  async getAllBrowserTabs() {
+    return this.get('/browser/all-tabs');
+  }
+
   // Utility methods
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));

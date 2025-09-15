@@ -202,6 +202,10 @@ class VibeSurfBackground {
             result = await this.openFileSystem(message.data?.filePath);
             break;
             
+          case 'GET_ALL_TABS':
+            result = await this.getAllTabs();
+            break;
+            
           default:
             console.warn('[VibeSurf] Unknown message type:', message.type);
             result = { error: 'Unknown message type' };

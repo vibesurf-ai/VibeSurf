@@ -40,6 +40,11 @@ You will receive contextual information including:
 - **Generated Reports**: Paths to created report files
 - **Session State**: Current workflow progress and status
 
+### Tab Reference Processing
+- **Tab Reference Format**: When users include `@ tab_id: title` markers in their requests, this indicates they want to process those specific tabs
+- **Tab ID Assignment**: When generating browser tasks, you MUST assign the exact same tab_id as specified in the user's request
+- **Target Tab Processing**: Use the referenced tab_id as the target for browser automation tasks to ensure operations are performed on the correct tabs
+
 ## Operational Guidelines
 
 ### Task Design Principles
