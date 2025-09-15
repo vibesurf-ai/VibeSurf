@@ -167,7 +167,7 @@ Please analyze the task, determine if you need to read any additional files, the
             while iteration < max_iterations:
                 # Use the consolidated pause state management
                 if self.paused:
-                    logger.debug(f'⏸️ Step {iteration}: Agent paused, waiting to resume...')
+                    logger.info(f'⏸️ Step {iteration}: Agent paused, waiting to resume...')
                     await self._external_pause_event.wait()
                     signal_handler.reset()
 
