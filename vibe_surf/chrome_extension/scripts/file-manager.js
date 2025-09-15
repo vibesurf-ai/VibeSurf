@@ -77,14 +77,8 @@ class VibeSurfFileManager {
       
       console.log('[FileManager] File upload response:', response);
       
-      // If SessionManager doesn't trigger the event, handle it directly
-      if (response && response.files) {
-        console.log('[FileManager] Manually handling uploaded files');
-        this.handleFilesUploaded({
-          sessionId: this.sessionManager.getCurrentSessionId(),
-          files: response.files
-        });
-      }
+      // SessionManager will emit 'filesUploaded' event, no need to handle manually
+      // Remove duplicate handling that was causing files to appear twice
       
       this.emit('loading', { hide: true });
       this.emit('notification', {

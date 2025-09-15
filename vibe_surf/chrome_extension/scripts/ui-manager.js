@@ -725,9 +725,25 @@ class VibeSurfUIManager {
 
   async handleTerminateTask() {
     try {
+      // Temporarily stop task status monitoring during terminate to avoid conflicts
+      const wasMonitoring = !!this.taskStatusInterval;
+      if (wasMonitoring) {
+        this.stopTaskStatusMonitoring();
+      }
+      
       await this.sessionManager.stopTask('User clicked terminate');
+      
+      // Restart monitoring after a brief delay if it was running
+      if (wasMonitoring) {
+        setTimeout(() => {
+          this.startTaskStatusMonitoring();
+        }, 1000);
+      }
     } catch (error) {
-      this.showNotification(`Failed to terminate task: ${error.message}`, 'error');
+      // Only show error notification for actual failures, not status conflicts
+      if (!error.message.includes('status') && !error.message.includes('running')) {
+        this.showNotification(`Failed to terminate task: ${error.message}`, 'error');
+      }
     }
   }
 

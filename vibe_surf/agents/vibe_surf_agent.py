@@ -132,22 +132,75 @@ def format_browser_results(browser_results: List[BrowserTaskResult]) -> str:
     return "\n".join(result_text)
 
 
+def process_agent_msg_file_links(agent_msg: str, agent_name: str, base_dir: Path) -> str:
+    """
+    Process file links in agent_msg, converting relative paths to absolute paths
+    
+    Args:
+        agent_msg: The agent message containing potential file links
+        agent_name: Name of the agent (used for special handling of browser_use_agent)
+        base_dir: Base directory path from file_system.get_dir()
+    
+    Returns:
+        Processed agent_msg with absolute paths
+    """
+    # Pattern to match markdown links: [text](path)
+    link_pattern = r'\[([^\]]*)\]\(([^)]+)\)'
+    
+    def replace_link(match):
+        text = match.group(1)
+        path = match.group(2)
+        
+        # Skip if already an absolute path or URL
+        if path.startswith(('http://', 'https://', 'file:///', '/')):
+            return match.group(0)
+        
+        # Build absolute path
+        if agent_name.startswith('browser_use_agent-'):
+            # Extract task_id and index from agent_name
+            # Format: browser_use_agent-{task_id}-{i + 1:03d}
+            parts = agent_name.split('-')
+            if len(parts) >= 3:
+                task_id = parts[1]
+                index = parts[2]
+                # Add the special sub-path for browser_use_agent
+                sub_path = f"bu_agents/{task_id}-{index}"
+                absolute_path = base_dir / sub_path / path
+            else:
+                absolute_path = base_dir / path
+        else:
+            absolute_path = base_dir / path
+        
+        # Convert to string and normalize separators
+        abs_path_str = str(absolute_path).replace(os.path.sep, '/')
+        
+        return f"[{text}]({abs_path_str})"
+    
+    # Replace all file links
+    processed_msg = re.sub(link_pattern, replace_link, agent_msg)
+    return processed_msg
+
+
 async def log_agent_activity(state: VibeSurfState, agent_name: str, agent_status: str, agent_msg: str) -> None:
     """Log agent activity to the activity log"""
     token_summary = await state.vibesurf_agent.token_cost_service.get_usage_summary()
     token_summary_md = token_summary.model_dump_json(indent=2, exclude_none=True, exclude_unset=True)
     logger.debug(token_summary_md)
 
+    # Process file links in agent_msg to convert relative paths to absolute paths
+    base_dir = state.vibesurf_agent.file_system.get_dir()
+    processed_agent_msg = process_agent_msg_file_links(agent_msg, agent_name, base_dir)
+
     activity_entry = {
         "agent_name": agent_name,
         "agent_status": agent_status,  # working, result, error
-        "agent_msg": agent_msg,
+        "agent_msg": processed_agent_msg,
         "timestamp": datetime.now().isoformat(),
         "total_tokens": token_summary.total_tokens,
         "total_cost": token_summary.total_cost
     }
     state.vibesurf_agent.activity_logs.append(activity_entry)
-    logger.debug(f"📝 Logged activity: {agent_name} - {agent_status}:\n{agent_msg}")
+    logger.debug(f"📝 Logged activity: {agent_name} - {agent_status}:\n{processed_agent_msg}")
 
 
 def create_browser_agent_step_callback(state: VibeSurfState, agent_name: str):
@@ -294,10 +347,7 @@ async def vibesurf_agent_node(state: VibeSurfState) -> VibeSurfState:
 async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
     """Implementation using thinking + action pattern similar to report_writer_agent"""
 
-    # logger.info("🎯 VibeSurf Agent: Processing with thinking + action pattern...")
-    # token_summary = await state.vibesurf_agent.token_cost_service.get_usage_summary()
-    # token_summary_md = token_summary.model_dump_json(indent=2, exclude_none=True, exclude_unset=True)
-    # logger.info(token_summary_md)
+    agent_name = "vibesurf_agent"
 
     # Create action model and agent output using VibeSurfTools
     vibesurf_agent = state.vibesurf_agent
@@ -347,7 +397,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
 
         # Log thinking if present
         if hasattr(parsed, 'thinking') and parsed.thinking:
-            await log_agent_activity(state, "vibesurf_agent", "thinking", parsed.thinking)
+            await log_agent_activity(state, agent_name, "thinking", parsed.thinking)
 
         for i, action in enumerate(actions):
             action_data = action.model_dump(exclude_unset=True)
@@ -371,7 +421,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                         browser_tasks_md.append(f"- [ ] {bu_task}")
                 browser_tasks_md = '\n'.join(browser_tasks_md)
                 agent_msg = f"Routing to browser task execution with  {len(state.browser_tasks)} browser tasks:\n\n{browser_tasks_md}"
-                await log_agent_activity(state, "vibesurf_agent", "working", agent_msg)
+                await log_agent_activity(state, agent_name, "working", agent_msg)
                 logger.debug(agent_msg)
                 return state
 
@@ -383,7 +433,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                 state.current_step = "report_task_execution"
                 report_task = params.get('task', "")
                 agent_msg = f"Routing to report generation with task:\n{report_task}"
-                await log_agent_activity(state, "vibesurf_agent", "working", agent_msg)
+                await log_agent_activity(state, agent_name, "working", agent_msg)
                 return state
 
             elif action_name == 'task_done':
@@ -395,10 +445,10 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
 
                 # Format final response
                 final_response = f"{response_content}"
-                await log_agent_activity(state, "vibesurf_agent", "result", final_response)
+                await log_agent_activity(state, agent_name, "result", final_response)
 
                 if follow_tasks:
-                    await log_agent_activity(state, "vibesurf_agent", "suggestion_tasks",
+                    await log_agent_activity(state, agent_name, "suggestion_tasks",
                                              '\n'.join(follow_tasks))
                     final_response += "\n\n## Suggested Follow-up Tasks:\n"
                     for j, task in enumerate(follow_tasks[:3], 1):
@@ -414,12 +464,12 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                     todo_content = await vibesurf_agent.file_system.read_file('todo.md')
                     action_msg = f"{action_name}:\n\n{todo_content}"
                     logger.debug(action_msg)
-                    await log_agent_activity(state, "vibesurf_agent", "working", action_msg)
+                    await log_agent_activity(state, agent_name, "working", action_msg)
                 else:
                     action_msg = f"**⚡ Actions:**\n"
                     action_msg += f"```json\n{json.dumps(action_data, indent=2, ensure_ascii=False)}\n```"
                     logger.debug(action_msg)
-                    await log_agent_activity(state, "vibesurf_agent", "working", action_msg)
+                    await log_agent_activity(state, agent_name, "working", action_msg)
 
                 result = await vibesurf_agent.tools.act(
                     action=action,
@@ -431,11 +481,11 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                 if result.extracted_content:
                     vibesurf_agent.message_history.append(
                         UserMessage(content=f'Action result:\n{result.extracted_content}'))
-                    await log_agent_activity(state, "vibesurf_agent", "result", result.extracted_content)
+                    await log_agent_activity(state, agent_name, "result", result.extracted_content)
 
                 if result.error:
                     vibesurf_agent.message_history.append(UserMessage(content=f'Action error:\n{result.error}'))
-                    await log_agent_activity(state, "vibesurf_agent", "error", result.error)
+                    await log_agent_activity(state, agent_name, "error", result.error)
 
         return state
 
@@ -443,7 +493,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
         logger.error(f"❌ VibeSurf agent failed: {e}")
         state.final_response = f"Task execution failed: {str(e)}"
         state.is_complete = True
-        await log_agent_activity(state, "vibesurf_agent", "error", f"Agent failed: {str(e)}")
+        await log_agent_activity(state, agent_name, "error", f"Agent failed: {str(e)}")
         return state
 
 
@@ -785,12 +835,13 @@ async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfStat
     """Implementation of report task execution node"""
     logger.info("📄 Executing HTML report generation task...")
 
+    agent_name = "report_writer_agent"
+
     # Log agent activity
-    await log_agent_activity(state, "report_task_executor", "working", "Generating HTML report")
+    await log_agent_activity(state, agent_name, "working", "Generating HTML report")
 
     try:
         # Create step callback for report writer agent
-        agent_name = "report_writer_agent"
         step_callback = create_report_writer_step_callback(state, agent_name)
 
         # Use ReportWriterAgent to generate HTML report
@@ -825,11 +876,11 @@ async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfStat
             state.current_step = "vibesurf_agent"
 
             if report_result.success:
-                await log_agent_activity(state, "report_task_executor", "result",
+                await log_agent_activity(state, agent_name, "result",
                                          f"✅ HTML report generated successfully: {report_result.msg}\nPath: `{report_result.report_path}`")
                 logger.info(f"✅ Report generated successfully: {report_result.report_path}")
             else:
-                await log_agent_activity(state, "report_task_executor", "error",
+                await log_agent_activity(state, agent_name, "error",
                                          f"❌ Report generation failed: {report_result.msg}\nPath: `{report_result.report_path}`")
                 logger.warning(f"⚠️ Report generation failed: {report_result.msg}")
                 
@@ -844,7 +895,7 @@ async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfStat
     except Exception as e:
         logger.error(f"❌ Report generation failed: {e}")
         state.current_step = "vibesurf_agent"
-        await log_agent_activity(state, "report_task_executor", "error", f"Report generation failed: {str(e)}")
+        await log_agent_activity(state, agent_name, "error", f"Report generation failed: {str(e)}")
         return state
 
 
@@ -1407,7 +1458,7 @@ Please continue with your assigned work, incorporating this guidance only if it'
         """
         Add a new task or follow-up instruction during execution.
         This can be user feedback, guidance, or additional requirements.
-        
+
         Args:
             new_task: The new task, guidance, or instruction from the user
         """
@@ -1417,7 +1468,7 @@ Please continue with your assigned work, incorporating this guidance only if it'
             "agent_msg": f"{new_task}"
         }
         self.activity_logs.append(activity_entry)
-        
+
         # Create an English prompt for the main agent
         prompt = f"""🔄 **New Task/Follow-up from User:**
 
@@ -1465,7 +1516,7 @@ Please continue with your assigned work, incorporating this guidance only if it'
             for i, file_path in enumerate(upload_files):
                 abs_file_path = self.file_system.get_absolute_path(file_path)
                 normalized_path = abs_file_path.replace(os.path.sep, '/')
-                file_url = f"{i + 1}. [{os.path.basename(file_path)}](file:///{normalized_path})"
+                file_url = f"{i + 1}. [{os.path.basename(file_path)}]({normalized_path})"
                 file_urls.append(file_url)
             return "\n".join(file_urls)
         else:
@@ -1648,3 +1699,4 @@ Please continue with your assigned work, incorporating this guidance only if it'
 
 
 workflow = create_vibe_surf_workflow()
+描述这张图片 Upload Files: 1. [36c6c730a8b1a642120c3338c699fe5872c327b07e93c8939cb9417a42036c96-ff.jpg](/Users/warmshao/AIBrowsers/VibeSurf/tmp/vibesurf_workspace/sessions/068c7ecd-9752-7620-8000-046b8bbe08c0/upload_files/36c6c730a8b1a642120c3338c699fe5872c327b07e93c8939cb9417a42036c96-ff.jpg)
