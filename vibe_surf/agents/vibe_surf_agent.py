@@ -27,7 +27,7 @@ from browser_use.browser.views import TabInfo
 from browser_use.tokens.service import TokenCost
 
 from vibe_surf.agents.browser_use_agent import BrowserUseAgent
-from vibe_surf.agents.report_writer_agent import ReportWriterAgent
+from vibe_surf.agents.report_writer_agent import ReportWriterAgent, ReportTaskResult
 from vibe_surf.agents.views import CustomAgentOutput
 
 from vibe_surf.agents.prompts.vibe_surf_prompt import (
@@ -104,8 +104,9 @@ class VibeSurfState:
     browser_tasks: List[Dict[str, Any]] = field(default_factory=list)
     browser_results: List[BrowserTaskResult] = field(default_factory=list)
 
+    generated_report_result: Optional[ReportTaskResult] = None
+    
     # Response outputs
-    generated_report_path: Optional[str] = None
     final_response: Optional[str] = None
 
     # vibesurf_agent
@@ -326,8 +327,11 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
     if state.browser_results:
         results_md = format_browser_results(state.browser_results)
         context_info.append(f"Previous Browser Results:\n{results_md}\n")
-    if state.generated_report_path:
-        context_info.append(f"Generated Report Path: {state.generated_report_path}\n")
+    if state.generated_report_result:
+        if state.generated_report_result.success:
+            context_info.append(f"Generated Report: ✅ Success - {state.generated_report_result.report_path}\n")
+        else:
+            context_info.append(f"Generated Report: ❌ Failed - {state.generated_report_result.msg}\nPath: {state.generated_report_result.report_path}\n")
 
     context_str = "\n".join(context_info) if context_info else "No additional context available."
     vibesurf_agent.message_history.append(UserMessage(content=context_str))
@@ -796,31 +800,45 @@ async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfStat
             step_callback=step_callback,
             thinking_mode=state.vibesurf_agent.thinking_mode,
         )
-        action_params = state.action_params
-        report_task = action_params.get('task', [])
-        report_information = {
-            "browser_results": state.browser_results
-        }
-        report_data = {
-            "report_task": report_task,
-            "report_information": report_information
-        }
+        
+        # Register report writer agent for control coordination
+        agent_id = "report_writer_agent"
+        if state.vibesurf_agent and hasattr(state.vibesurf_agent, '_running_agents'):
+            state.vibesurf_agent._running_agents[agent_id] = report_writer
+            logger.debug(f"🔗 Registered report writer agent for control coordination")
+        
+        try:
+            action_params = state.action_params
+            report_task = action_params.get('task', [])
+            report_information = {
+                "browser_results": state.browser_results
+            }
+            report_data = {
+                "report_task": report_task,
+                "report_information": report_information
+            }
 
-        report_path = await report_writer.generate_report(report_data)
-
-        if report_path:
-            state.generated_report_path = report_path
+            report_result = await report_writer.generate_report(report_data)
+            state.generated_report_result = report_result
 
             # Return to vibesurf agent for next decision
             state.current_step = "vibesurf_agent"
 
-            await log_agent_activity(state, "report_task_executor", "result",
-                                     f"HTML report generated successfully at: `{report_path}`")
-
-            logger.info(f"✅ Report generated: {report_path}")
-        else:
-            await log_agent_activity(state, "report_task_executor", "result",
-                                     f"HTML report generated successfully at: `{report_path}`")
+            if report_result.success:
+                await log_agent_activity(state, "report_task_executor", "result",
+                                         f"✅ HTML report generated successfully: {report_result.msg}\nPath: `{report_result.report_path}`")
+                logger.info(f"✅ Report generated successfully: {report_result.report_path}")
+            else:
+                await log_agent_activity(state, "report_task_executor", "error",
+                                         f"❌ Report generation failed: {report_result.msg}\nPath: `{report_result.report_path}`")
+                logger.warning(f"⚠️ Report generation failed: {report_result.msg}")
+                
+        finally:
+            # Remove report writer agent from control tracking
+            if state.vibesurf_agent and hasattr(state.vibesurf_agent, '_running_agents'):
+                state.vibesurf_agent._running_agents.pop(agent_id, None)
+                logger.debug(f"🔗 Unregistered report writer agent from control coordination")
+                
         return state
 
     except Exception as e:
@@ -1368,6 +1386,65 @@ class VibeSurfAgent:
                     # Note: paused_agents removed in simplified state
             except Exception as e:
                 logger.warning(f"⚠️ Failed to resume agent {agent_id}: {e}")
+
+    def _create_sub_agent_prompt(self, new_task: str, agent_id: str) -> str:
+        """
+        Create a generic prompt for sub-agents when receiving new tasks.
+        This prompt is designed to work with any type of sub-agent.
+        """
+        return f"""🔄 **New Task/Guidance from User:**
+
+{new_task}
+
+**Note:** As a sub-agent, you should evaluate whether this new task is relevant to your current work. You may:
+- **Use it** if it provides helpful guidance, tips, or corrections for your current task
+- **Use it** if it's a follow-up task that enhances your current work
+- **Ignore it** if it's unrelated to your specific responsibilities or doesn't apply to your current task
+
+Please continue with your assigned work, incorporating this guidance only if it's relevant and helpful to your specific role and current task."""
+
+    async def add_new_task(self, new_task: str) -> None:
+        """
+        Add a new task or follow-up instruction during execution.
+        This can be user feedback, guidance, or additional requirements.
+        
+        Args:
+            new_task: The new task, guidance, or instruction from the user
+        """
+        activity_entry = {
+            "agent_name": 'user',
+            "agent_status": 'request',  # working, result, error
+            "agent_msg": f"{new_task}"
+        }
+        self.activity_logs.append(activity_entry)
+        
+        # Create an English prompt for the main agent
+        prompt = f"""🔄 **New Task/Follow-up from User:**
+
+{new_task}
+
+**Instructions:** This is additional guidance, a follow-up task, or user feedback to help with the current task execution. Please analyze how this relates to the current task and proceed accordingly."""
+
+        # Add to VibeSurf agent's message history
+        self.message_history.append(UserMessage(content=prompt))
+        logger.info(f"🌊 VibeSurf agent received new task: {new_task}")
+
+        # Propagate to all running sub-agents with generic sub-agent prompt
+        if self._running_agents:
+            logger.info(f"📡 Propagating new task to {len(self._running_agents)} running agents")
+            for agent_id, agent in self._running_agents.items():
+                try:
+                    if hasattr(agent, 'add_new_task'):
+                        # Use the generic sub-agent prompt
+                        sub_agent_prompt = self._create_sub_agent_prompt(new_task, agent_id)
+                        agent.add_new_task(sub_agent_prompt)
+                        logger.debug(f"✅ Sent new task to agent {agent_id}")
+                    else:
+                        logger.debug(f"⚠️ Agent {agent_id} doesn't support add_new_task")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to send new task to agent {agent_id}: {e}")
+        else:
+            logger.debug("📭 No running agents to propagate new task to")
 
     async def process_upload_files(self, upload_files: Optional[List[str]] = None):
         if not upload_files:

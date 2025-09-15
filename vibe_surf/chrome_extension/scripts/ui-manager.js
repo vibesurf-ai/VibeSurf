@@ -289,11 +289,15 @@ class VibeSurfUIManager {
 
   handleTaskPaused(data) {
     this.updateControlPanel('paused');
+    // Force update UI for paused state - explicitly enable input
+    this.forceUpdateUIForPausedState();
     this.showNotification('Task paused successfully', 'info');
   }
 
   handleTaskResumed(data) {
     this.updateControlPanel('running');
+    // Force update UI for running state - disable input
+    this.forceUpdateUIForRunningState();
     this.showNotification('Task resumed successfully', 'info');
   }
 
@@ -402,26 +406,36 @@ class VibeSurfUIManager {
   }
 
   updateUIForTaskStatus(isRunning) {
+    const taskStatus = this.sessionManager.getTaskStatus();
+    const isPaused = taskStatus === 'paused';
+    
     // Disable/enable input elements based on task status
     if (this.elements.taskInput) {
-      this.elements.taskInput.disabled = isRunning;
-      this.elements.taskInput.placeholder = isRunning ?
-        'Task is running - please wait...' :
-        'Enter your task description...';
+      // Allow input when paused or not running
+      this.elements.taskInput.disabled = isRunning && !isPaused;
+      if (isPaused) {
+        this.elements.taskInput.placeholder = 'Add additional information or guidance...';
+      } else if (isRunning) {
+        this.elements.taskInput.placeholder = 'Task is running - please wait...';
+      } else {
+        this.elements.taskInput.placeholder = 'Enter your task description...';
+      }
     }
     
     if (this.elements.sendBtn) {
-      this.elements.sendBtn.disabled = isRunning || !this.canSubmitTask();
+      // Enable send button when paused or when can submit new task
+      this.elements.sendBtn.disabled = (isRunning && !isPaused) || (!isPaused && !this.canSubmitTask()) || (isPaused && !this.canAddNewTask());
     }
     
     if (this.elements.llmProfileSelect) {
-      this.elements.llmProfileSelect.disabled = isRunning;
+      // Allow LLM profile change only when not running
+      this.elements.llmProfileSelect.disabled = isRunning && !isPaused;
     }
     
-    // Update file manager state
+    // Update file manager state - keep disabled during pause (as per requirement)
     this.fileManager.setEnabled(!isRunning);
     
-    // Also disable header buttons when task is running
+    // Also disable header buttons when task is running (but not when paused)
     const headerButtons = [
       this.elements.newSessionBtn,
       this.elements.historyBtn,
@@ -430,8 +444,9 @@ class VibeSurfUIManager {
     
     headerButtons.forEach(button => {
       if (button) {
-        button.disabled = isRunning;
-        if (isRunning) {
+        const shouldDisable = isRunning && !isPaused;
+        button.disabled = shouldDisable;
+        if (shouldDisable) {
           button.classList.add('task-running-disabled');
           button.setAttribute('title', 'Disabled while task is running');
         } else {
@@ -442,11 +457,90 @@ class VibeSurfUIManager {
     });
   }
 
+  forceUpdateUIForPausedState() {
+    console.log('[UIManager] Force updating UI for paused state');
+    
+    // Enable input during pause
+    if (this.elements.taskInput) {
+      this.elements.taskInput.disabled = false;
+      this.elements.taskInput.placeholder = 'Add additional information or guidance...';
+    }
+    
+    if (this.elements.sendBtn) {
+      const hasText = this.elements.taskInput?.value.trim().length > 0;
+      this.elements.sendBtn.disabled = !hasText;
+    }
+    
+    // Keep LLM profile disabled during pause (user doesn't need to change it)
+    if (this.elements.llmProfileSelect) {
+      this.elements.llmProfileSelect.disabled = true;
+    }
+    
+    // Keep file manager disabled during pause
+    this.fileManager.setEnabled(false);
+    
+    // Keep header buttons disabled during pause (only input and send should be available)
+    const headerButtons = [
+      this.elements.newSessionBtn,
+      this.elements.historyBtn,
+      this.elements.settingsBtn
+    ];
+    
+    headerButtons.forEach(button => {
+      if (button) {
+        button.disabled = true;
+        button.classList.add('task-running-disabled');
+        button.setAttribute('title', 'Disabled during pause - only input and send are available');
+      }
+    });
+  }
+
+  forceUpdateUIForRunningState() {
+    console.log('[UIManager] Force updating UI for running state');
+    
+    // Disable input during running
+    if (this.elements.taskInput) {
+      this.elements.taskInput.disabled = true;
+      this.elements.taskInput.placeholder = 'Task is running - please wait...';
+    }
+    
+    if (this.elements.sendBtn) {
+      this.elements.sendBtn.disabled = true;
+    }
+    
+    if (this.elements.llmProfileSelect) {
+      this.elements.llmProfileSelect.disabled = true;
+    }
+    
+    // Update file manager state
+    this.fileManager.setEnabled(false);
+    
+    // Disable header buttons when task is running
+    const headerButtons = [
+      this.elements.newSessionBtn,
+      this.elements.historyBtn,
+      this.elements.settingsBtn
+    ];
+    
+    headerButtons.forEach(button => {
+      if (button) {
+        button.disabled = true;
+        button.classList.add('task-running-disabled');
+        button.setAttribute('title', 'Disabled while task is running');
+      }
+    });
+  }
+
   canSubmitTask() {
     const hasText = this.elements.taskInput?.value.trim().length > 0;
     const llmProfile = this.elements.llmProfileSelect?.value;
     const hasLlmProfile = llmProfile && llmProfile.trim() !== '';
     return hasText && hasLlmProfile && !this.state.isTaskRunning;
+  }
+
+  canAddNewTask() {
+    const hasText = this.elements.taskInput?.value.trim().length > 0;
+    return hasText;
   }
 
   async showTaskRunningWarning(action) {
@@ -535,40 +629,59 @@ class VibeSurfUIManager {
   }
 
   async handleSendTask() {
-    // Check if task is already running with enhanced blocking
-    const statusCheck = await this.checkTaskStatus();
-    if (statusCheck.isRunning) {
-      const canProceed = await this.showTaskRunningWarning('send a new task');
-      if (!canProceed) {
-        this.showNotification('Cannot send task while another task is running. Please stop the current task first.', 'warning');
-        return;
-      }
-    }
-    
     const taskDescription = this.elements.taskInput?.value.trim();
-    const llmProfile = this.elements.llmProfileSelect?.value;
+    const taskStatus = this.sessionManager.getTaskStatus();
+    const isPaused = taskStatus === 'paused';
     
     if (!taskDescription) {
       this.showNotification('Please enter a task description', 'warning');
       this.elements.taskInput?.focus();
       return;
     }
-    
-    // Check if LLM profile is selected
-    if (!llmProfile || llmProfile.trim() === '') {
-      // Check if there are any LLM profiles available
-      const profiles = this.settingsManager.getLLMProfiles();
-      if (profiles.length === 0) {
-        // No LLM profiles configured at all
-        this.showLLMProfileRequiredModal('configure');
-      } else {
-        // LLM profiles exist but none selected
-        this.showLLMProfileRequiredModal('select');
-      }
-      return;
-    }
-    
+
     try {
+      if (isPaused) {
+        // Handle adding new task to paused execution
+        console.log('[UIManager] Adding new task to paused execution:', taskDescription);
+        await this.sessionManager.addNewTaskToPaused(taskDescription);
+        
+        // Clear the input after successful addition
+        this.clearTaskInput();
+        this.showNotification('Additional information added to the task', 'success');
+        
+        // Automatically resume the task after adding new information
+        console.log('[UIManager] Auto-resuming task after adding new information');
+        await this.sessionManager.resumeTask('Auto-resume after adding new task information');
+        
+        return;
+      }
+      
+      // Original logic for new task submission
+      const statusCheck = await this.checkTaskStatus();
+      if (statusCheck.isRunning) {
+        const canProceed = await this.showTaskRunningWarning('send a new task');
+        if (!canProceed) {
+          this.showNotification('Cannot send task while another task is running. Please stop the current task first.', 'warning');
+          return;
+        }
+      }
+      
+      const llmProfile = this.elements.llmProfileSelect?.value;
+      
+      // Check if LLM profile is selected
+      if (!llmProfile || llmProfile.trim() === '') {
+        // Check if there are any LLM profiles available
+        const profiles = this.settingsManager.getLLMProfiles();
+        if (profiles.length === 0) {
+          // No LLM profiles configured at all
+          this.showLLMProfileRequiredModal('configure');
+        } else {
+          // LLM profiles exist but none selected
+          this.showLLMProfileRequiredModal('select');
+        }
+        return;
+      }
+      
       // Immediately clear welcome message and show user request
       this.clearWelcomeMessage();
       
@@ -637,10 +750,18 @@ class VibeSurfUIManager {
     const textarea = event.target;
     const llmProfile = this.elements.llmProfileSelect?.value;
     const hasLlmProfile = llmProfile && llmProfile.trim() !== '';
+    const taskStatus = this.sessionManager.getTaskStatus();
+    const isPaused = taskStatus === 'paused';
     
-    // Update send button state - require both text and LLM profile and no running task
+    // Update send button state - special handling for pause state
     if (this.elements.sendBtn) {
-      this.elements.sendBtn.disabled = !(hasText && hasLlmProfile && !this.state.isTaskRunning);
+      if (isPaused) {
+        // In pause state, only require text (no LLM profile needed for adding new info)
+        this.elements.sendBtn.disabled = !hasText;
+      } else {
+        // In normal state, require both text and LLM profile and no running task
+        this.elements.sendBtn.disabled = !(hasText && hasLlmProfile && !this.state.isTaskRunning);
+      }
     }
     
     // Auto-resize textarea based on content

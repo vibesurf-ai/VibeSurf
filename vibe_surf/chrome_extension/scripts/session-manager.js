@@ -333,6 +333,24 @@ class VibeSurfSessionManager {
     }
   }
 
+  async addNewTaskToPaused(newTaskDescription) {
+    try {
+      const response = await this.apiClient.addNewTask(newTaskDescription);
+      
+      this.emit('newTaskAdded', {
+        sessionId: this.currentSession?.id,
+        newTask: newTaskDescription,
+        response
+      });
+      
+      return response;
+    } catch (error) {
+      console.error('[SessionManager] Add new task failed:', error);
+      this.emit('taskError', { error: error.message, action: 'add_new_task' });
+      throw error;
+    }
+  }
+
   // Activity polling
   startActivityPolling() {
     if (this.isPolling) {

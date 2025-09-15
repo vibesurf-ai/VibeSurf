@@ -88,6 +88,16 @@ class ReportWriterAgent:
         # Signal pause event to unblock any waiting code so it can check the stopped state
         self._external_pause_event.set()
 
+    def add_new_task(self, new_task: str) -> None:
+        """
+        Add a new task or guidance to the report writer agent during execution.
+        The new_task parameter contains a pre-formatted prompt from VibeSurfAgent.
+        """
+        # Add the pre-formatted prompt directly to message history
+        from browser_use.llm.messages import UserMessage
+        self.message_history.append(UserMessage(content=new_task))
+        logger.info(f"📝 Report writer agent received new task guidance")
+
     async def generate_report(self, report_data: Dict[str, Any]) -> ReportTaskResult:
         """
         Generate HTML report using LLM-controlled flow

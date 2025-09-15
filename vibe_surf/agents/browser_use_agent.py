@@ -479,6 +479,13 @@ class BrowserUseAgent(Agent):
         # Increment step counter after step is fully completed
         self.state.n_steps += 1
 
+    def add_new_task(self, new_task: str) -> None:
+        """Add a new task to the agent, keeping the same task_id as tasks are continuous"""
+        # Simply delegate to message manager - no need for new task_id or events
+        # The task continues with new instructions, it doesn't end and start a new one
+        self.task = new_task
+        self._message_manager.add_new_task(new_task)
+
     @observe(name='agent.run', metadata={'task': '{{task}}', 'debug': '{{debug}}'})
     @time_execution_async('--run')
     async def run(

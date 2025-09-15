@@ -235,6 +235,10 @@ class VibeSurfAPIClient {
     return this.post('/tasks/stop', { reason });
   }
 
+  async addNewTask(newTask) {
+    return this.post('/tasks/add-new-task', { reason: newTask });
+  }
+
   // Activity APIs
   async getTaskInfo(taskId) {
     return this.get(`/activity/${taskId}`);

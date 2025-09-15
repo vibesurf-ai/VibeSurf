@@ -263,6 +263,36 @@ async def stop_task(control_request: TaskControlRequest):
         raise HTTPException(status_code=500, detail=f"Failed to stop task: {str(e)}")
 
 
+@router.post("/add-new-task")
+async def add_new_task(control_request: TaskControlRequest):
+    """Add a new task or follow-up instruction during execution"""
+    from ..shared_state import vibesurf_agent
+
+    if not vibesurf_agent:
+        raise HTTPException(status_code=503, detail="VibeSurf agent not initialized")
+
+    if not is_task_running():
+        raise HTTPException(status_code=400, detail="No active task to add new instruction to")
+
+    try:
+        # Use the reason field as the new task content
+        new_task = control_request.reason or "No additional task provided"
+        
+        # Add the new task to the running agent
+        await vibesurf_agent.add_new_task(new_task)
+
+        return {
+            "success": True,
+            "message": "New task added successfully",
+            "operation": "add_new_task",
+            "new_task": new_task
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to add new task: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to add new task: {str(e)}")
+
+
 @router.get("/detailed-status")
 async def get_detailed_task_status():
     """Get detailed task execution status with vibesurf information"""
