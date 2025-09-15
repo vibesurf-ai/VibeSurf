@@ -174,7 +174,7 @@ def process_agent_msg_file_links(agent_msg: str, agent_name: str, base_dir: Path
         # Convert to string and normalize separators
         abs_path_str = str(absolute_path).replace(os.path.sep, '/')
         
-        return f"[{text}]({abs_path_str})"
+        return f"[{text}](file:///{abs_path_str})"
     
     # Replace all file links
     processed_msg = re.sub(link_pattern, replace_link, agent_msg)
@@ -862,7 +862,7 @@ async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfStat
             action_params = state.action_params
             report_task = action_params.get('task', [])
             report_information = {
-                "browser_results": state.browser_results
+                "browser_results": [bu_result.model_dump() for bu_result in state.browser_results if bu_result]
             }
             report_data = {
                 "report_task": report_task,
@@ -1516,7 +1516,7 @@ Please continue with your assigned work, incorporating this guidance only if it'
             for i, file_path in enumerate(upload_files):
                 abs_file_path = self.file_system.get_absolute_path(file_path)
                 normalized_path = abs_file_path.replace(os.path.sep, '/')
-                file_url = f"{i + 1}. [{os.path.basename(file_path)}]({normalized_path})"
+                file_url = f"{i + 1}. [{os.path.basename(file_path)}](file:///{normalized_path})"
                 file_urls.append(file_url)
             return "\n".join(file_urls)
         else:
@@ -1699,4 +1699,3 @@ Please continue with your assigned work, incorporating this guidance only if it'
 
 
 workflow = create_vibe_surf_workflow()
-描述这张图片 Upload Files: 1. [36c6c730a8b1a642120c3338c699fe5872c327b07e93c8939cb9417a42036c96-ff.jpg](/Users/warmshao/AIBrowsers/VibeSurf/tmp/vibesurf_workspace/sessions/068c7ecd-9752-7620-8000-046b8bbe08c0/upload_files/36c6c730a8b1a642120c3338c699fe5872c327b07e93c8939cb9417a42036c96-ff.jpg)

@@ -74,7 +74,8 @@ class CustomFileSystem(FileSystem):
         """Read file content using file-specific read method and return appropriate message to LLM"""
         try:
             full_filepath = full_filename if external_file else str(self.data_dir / full_filename)
-            if not self.file_exist(full_filepath):
+            is_file_exist = await self.file_exist(full_filepath)
+            if not is_file_exist:
                 return f"Error: File '{full_filepath}' not found."
             try:
                 _, extension = self._parse_filename(full_filename)

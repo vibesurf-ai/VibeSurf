@@ -612,7 +612,7 @@ class VibeSurfTools:
     async def act(
             self,
             action: ActionModel,
-            browser_manager: BrowserManager,
+            browser_manager: BrowserManager | None = None,
             llm: BaseChatModel | None = None,
             file_system: CustomFileSystem | None = None,
     ) -> ActionResult:

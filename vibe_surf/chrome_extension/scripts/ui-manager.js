@@ -1134,9 +1134,9 @@ class VibeSurfUIManager {
     // Use backend timestamp if available, otherwise generate frontend timestamp
     let timestamp;
     if (data.timestamp) {
-      timestamp = new Date(data.timestamp).toLocaleTimeString();
+      timestamp = new Date(data.timestamp).toLocaleString();
     } else {
-      timestamp = new Date().toLocaleTimeString();
+      timestamp = new Date().toLocaleString();
     }
     
     // Extract token and cost information
@@ -1394,8 +1394,21 @@ class VibeSurfUIManager {
         // Add task list support manually (markdown-it doesn't have built-in task lists)
         formattedContent = this.preprocessTaskLists(formattedContent);
         
-        // Pre-process file:// markdown links since markdown-it doesn't recognize them
+        // Pre-process both regular file paths and file:// markdown links
+        const regularFilePathRegex = /\[([^\]]+)\]\(([^)]*\/[^)]*\.[^)]+)\)/g;
         const markdownFileLinkRegex = /\[([^\]]+)\]\((file:\/\/[^)]+)\)/g;
+        
+        // Handle regular file paths (convert to file:// format)
+        formattedContent = formattedContent.replace(regularFilePathRegex, (match, linkText, filePath) => {
+          // Only process if it looks like a file path (contains / and extension) and not already a URL
+          if (!filePath.startsWith('http') && !filePath.startsWith('file://') && (filePath.includes('/') || filePath.includes('\\'))) {
+            const fileUrl = filePath.startsWith('/') ? `file://${filePath}` : `file:///${filePath}`;
+            return `<a href="${fileUrl}" class="file-link-markdown">${linkText}</a>`;
+          }
+          return match;
+        });
+        
+        // Handle file:// links
         formattedContent = formattedContent.replace(markdownFileLinkRegex, (match, linkText, fileUrl) => {
           // Convert to HTML format that markdown-it will preserve
           return `<a href="${fileUrl}" class="file-link-markdown">${linkText}</a>`;
