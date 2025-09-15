@@ -2,12 +2,15 @@ import logging
 import os
 import time
 import re
+import asyncio
 from datetime import datetime
 from typing import Any, Dict, List
 import json
 
+from pydantic import BaseModel
 from browser_use.llm.base import BaseChatModel
 from browser_use.llm.messages import UserMessage, SystemMessage, AssistantMessage
+from browser_use.utils import SignalHandler
 
 from vibe_surf.agents.prompts.report_writer_prompt import REPORT_WRITER_PROMPT
 from vibe_surf.tools.file_system import CustomFileSystem
@@ -17,6 +20,13 @@ from vibe_surf.agents.views import CustomAgentOutput
 from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+class ReportTaskResult(BaseModel):
+    """Result of a report generation task"""
+    success: bool  # True only if LLM completed successfully
+    msg: str  # Success message or error details
+    report_path: str  # Path to the generated report file
 
 
 class ReportWriterAgent:
@@ -47,9 +57,38 @@ class ReportWriterAgent:
         else:
             self.AgentOutput = CustomAgentOutput.type_with_custom_actions_no_thinking(self.ActionModel)
 
+        # State management for pause/resume/stop control
+        self.paused = False
+        self.stopped = False
+        self.consecutive_failures = 0
+        self._external_pause_event = asyncio.Event()
+        self._external_pause_event.set()
+        
+        # Initialize message history as instance variable
+        self.message_history = []
+
         logger.info("📄 ReportWriterAgent initialized with LLM-controlled flow")
 
-    async def generate_report(self, report_data: Dict[str, Any]) -> str:
+    def pause(self) -> None:
+        """Pause the agent before the next step"""
+        logger.info('\n\n⏸️ Paused report writer agent.\n\tPress [Enter] to resume or [Ctrl+C] again to quit.')
+        self.paused = True
+        self._external_pause_event.clear()
+
+    def resume(self) -> None:
+        """Resume the agent"""
+        logger.info('▶️  Resuming report writer agent execution where it left off...\n')
+        self.paused = False
+        self._external_pause_event.set()
+
+    def stop(self) -> None:
+        """Stop the agent"""
+        logger.info('⏹️ Report writer agent stopping')
+        self.stopped = True
+        # Signal pause event to unblock any waiting code so it can check the stopped state
+        self._external_pause_event.set()
+
+    async def generate_report(self, report_data: Dict[str, Any]) -> ReportTaskResult:
         """
         Generate HTML report using LLM-controlled flow
         
@@ -59,9 +98,20 @@ class ReportWriterAgent:
                 - information: Collected information for the report
         
         Returns:
-            str: Absolute path to the generated report file
+            ReportTaskResult: Result containing success status, message, and report path
         """
         logger.info("📝 Starting LLM-controlled report generation...")
+
+        # Get current event loop
+        loop = asyncio.get_event_loop()
+
+        signal_handler = SignalHandler(
+            loop=loop,
+            pause_callback=self.pause,
+            resume_callback=self.resume,
+            exit_on_second_int=True,
+        )
+        signal_handler.register()
 
         try:
             # Extract task and information
@@ -76,13 +126,11 @@ class ReportWriterAgent:
             create_result = await self.file_system.create_file(report_filename)
             logger.info(f"Created report file: {create_result}")
 
-            # Initialize message history
-            message_history = []
-
             max_iterations = 6  # Prevent infinite loops
 
-            # Add system message with unified prompt
-            message_history.append(SystemMessage(content=REPORT_WRITER_PROMPT))
+            # Add system message with unified prompt only if message history is empty
+            if not self.message_history:
+                self.message_history.append(SystemMessage(content=REPORT_WRITER_PROMPT))
 
             # Add initial user message with task details
             user_message = f"""Please generate a report within MAX {max_iterations} steps based on the following:
@@ -96,20 +144,33 @@ class ReportWriterAgent:
 **Report File:**
 {report_filename}
 
-The report file '{report_filename}' has been created and is ready for you to write content. 
+The report file '{report_filename}' has been created and is ready for you to write content.
 Please analyze the task, determine if you need to read any additional files, then generate the complete report content and format it as professional HTML.
 """
-            message_history.append(UserMessage(content=user_message))
+            self.message_history.append(UserMessage(content=user_message))
 
             # LLM-controlled loop
             iteration = 0
+            agent_run_error = None
+            task_completed = False
 
             while iteration < max_iterations:
+                # Use the consolidated pause state management
+                if self.paused:
+                    logger.debug(f'⏸️ Step {iteration}: Agent paused, waiting to resume...')
+                    await self._external_pause_event.wait()
+                    signal_handler.reset()
+
+                # Check control flags before each step
+                if self.stopped:
+                    logger.info('🛑 Agent stopped')
+                    agent_run_error = 'Agent stopped programmatically because user interrupted.'
+                    break
                 iteration += 1
                 logger.info(f"🔄 LLM iteration {iteration}")
-                message_history.append(UserMessage(content=f"Current step: {iteration} / {max_iterations}"))
+                self.message_history.append(UserMessage(content=f"Current step: {iteration} / {max_iterations}"))
                 # Get LLM response
-                response = await self.llm.ainvoke(message_history, output_format=self.AgentOutput)
+                response = await self.llm.ainvoke(self.message_history, output_format=self.AgentOutput)
                 parsed = response.completion
                 actions = parsed.action
 
@@ -118,7 +179,7 @@ Please analyze the task, determine if you need to read any additional files, the
                     await self.step_callback(parsed, iteration)
 
                 # Add assistant message to history
-                message_history.append(AssistantMessage(
+                self.message_history.append(AssistantMessage(
                     content=json.dumps(response.completion.model_dump(exclude_none=True, exclude_unset=True),
                                        ensure_ascii=False)))
 
@@ -146,10 +207,11 @@ Please analyze the task, determine if you need to read any additional files, the
                     # Check if task is done
                     if action_name == 'task_done':
                         logger.info("🎉 Report Writing Task completed")
+                        task_completed = True
                         break
 
-                # Check if task is done
-                if any(action.name == 'task_done' for action in actions):
+                # Check if task is done - break out of main loop if task completed
+                if task_completed:
                     break
 
                 # Add results to message history using improved action result processing
@@ -169,26 +231,59 @@ Please analyze the task, determine if you need to read any additional files, the
 
                 if action_results:
                     formatted_results = f'Result:\n{action_results}'
-                    message_history.append(UserMessage(content=formatted_results))
+                    self.message_history.append(UserMessage(content=formatted_results))
 
                 # If no progress, add a prompt to continue
                 if not results:
-                    message_history.append(UserMessage(content="Please continue with the report generation."))
+                    self.message_history.append(UserMessage(content="Please continue with the report generation."))
 
-            if iteration >= max_iterations:
-                logger.warning("⚠️ Maximum iterations reached, finishing report generation")
-
-            # Post-process the generated HTML
+            # Handle different completion scenarios
             report_path = await self._finalize_report(report_filename)
-
-            logger.info(f"✅ Report generated successfully: {report_path}")
-            return report_path
+            
+            if agent_run_error:
+                # Agent was stopped
+                return ReportTaskResult(
+                    success=False,
+                    msg=agent_run_error,
+                    report_path=report_path
+                )
+            elif task_completed:
+                # Task completed successfully by LLM
+                logger.info(f"✅ Report generated successfully: {report_path}")
+                return ReportTaskResult(
+                    success=True,
+                    msg="Report generated successfully by LLM",
+                    report_path=report_path
+                )
+            elif iteration >= max_iterations:
+                # Maximum iterations reached
+                logger.warning("⚠️ Maximum iterations reached, finishing report generation")
+                return ReportTaskResult(
+                    success=False,
+                    msg="Maximum iterations reached without task completion",
+                    report_path=report_path
+                )
+            else:
+                # Unexpected exit from loop
+                return ReportTaskResult(
+                    success=False,
+                    msg="Report generation ended unexpectedly",
+                    report_path=report_path
+                )
 
         except Exception as e:
             logger.error(f"❌ Failed to generate report: {e}")
             # Generate a simple fallback report
             fallback_path = await self._generate_fallback_report(report_data)
-            return fallback_path
+            return ReportTaskResult(
+                success=False,
+                msg=f"Error occurred during report generation: {str(e)}",
+                report_path=fallback_path
+            )
+        finally:
+            signal_handler.unregister()
+            self.stopped = False
+            self.paused = False
 
     async def _finalize_report(self, report_filename: str) -> str:
         """
@@ -229,9 +324,9 @@ Please analyze the task, determine if you need to read any additional files, the
             await self.file_system.write_file(report_filename, final_html)
 
             # Get absolute path
-            absolute_path = self.file_system.get_absolute_path(report_filename)
+            # absolute_path = self.file_system.get_absolute_path(report_filename)
 
-            return absolute_path
+            return report_filename
 
         except Exception as e:
             logger.error(f"❌ Failed to finalize report: {e}")
@@ -419,7 +514,7 @@ Please analyze the task, determine if you need to read any additional files, the
         await self.file_system.write_file(report_filename, html_content)
 
         # Get absolute path
-        absolute_path = self.file_system.get_absolute_path(report_filename)
+        # absolute_path = self.file_system.get_absolute_path(report_filename)
 
-        logger.info(f"✅ Fallback report generated: {absolute_path}")
-        return absolute_path
+        logger.info(f"✅ Fallback report generated: {report_filename}")
+        return report_filename

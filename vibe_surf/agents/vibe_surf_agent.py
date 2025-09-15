@@ -808,15 +808,19 @@ async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfStat
 
         report_path = await report_writer.generate_report(report_data)
 
-        state.generated_report_path = report_path
+        if report_path:
+            state.generated_report_path = report_path
 
-        # Return to vibesurf agent for next decision
-        state.current_step = "vibesurf_agent"
+            # Return to vibesurf agent for next decision
+            state.current_step = "vibesurf_agent"
 
-        await log_agent_activity(state, "report_task_executor", "result",
-                                 f"HTML report generated successfully at: `{report_path}`")
+            await log_agent_activity(state, "report_task_executor", "result",
+                                     f"HTML report generated successfully at: `{report_path}`")
 
-        logger.info(f"✅ Report generated: {report_path}")
+            logger.info(f"✅ Report generated: {report_path}")
+        else:
+            await log_agent_activity(state, "report_task_executor", "result",
+                                     f"HTML report generated successfully at: `{report_path}`")
         return state
 
     except Exception as e:
