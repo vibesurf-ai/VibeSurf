@@ -25,8 +25,10 @@ from .api.browser import router as browser_router
 from . import shared_state
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 app = FastAPI(
     title="VibeSurf Backend API",

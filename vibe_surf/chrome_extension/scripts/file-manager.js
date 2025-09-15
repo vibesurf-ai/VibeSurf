@@ -77,14 +77,8 @@ class VibeSurfFileManager {
       
       console.log('[FileManager] File upload response:', response);
       
-      // If SessionManager doesn't trigger the event, handle it directly
-      if (response && response.files) {
-        console.log('[FileManager] Manually handling uploaded files');
-        this.handleFilesUploaded({
-          sessionId: this.sessionManager.getCurrentSessionId(),
-          files: response.files
-        });
-      }
+      // SessionManager will emit 'filesUploaded' event, no need to handle manually
+      // Remove duplicate handling that was causing files to appear twice
       
       this.emit('loading', { hide: true });
       this.emit('notification', {
@@ -306,9 +300,6 @@ class VibeSurfFileManager {
         `file:///${cleanPath}` :
         `file:///${cleanPath.replace(/^\//, '')}`;  // Remove leading slash and add triple slash
       
-      // Create Windows format path for system open
-      const windowsPath = cleanPath.replace(/\//g, '\\');
-      
       // Show user notification about the action
       this.emit('notification', {
         message: `Opening file: ${cleanPath}`,
@@ -318,43 +309,33 @@ class VibeSurfFileManager {
       // Use setTimeout to prevent UI blocking
       setTimeout(async () => {
         try {
-          // Primary strategy: Try browser open first for HTML files (more reliable)
-          if (fileUrl.toLowerCase().endsWith('.html') || fileUrl.toLowerCase().endsWith('.htm')) {
-            try {
-              const opened = window.open(fileUrl, '_blank', 'noopener,noreferrer');
-              if (opened) {
-                this.emit('notification', {
-                  message: 'File opened in browser',
-                  type: 'success'
-                });
-                return;
-              } else {
-                // If browser is blocked, try system open
-                await this.trySystemOpen(windowsPath, fileUrl);
-                return;
-              }
-            } catch (browserError) {
-              await this.trySystemOpen(windowsPath, fileUrl);
+          // For user-clicked file links, use OPEN_FILE_URL to keep tab open
+          // This prevents the auto-close behavior in OPEN_FILE_SYSTEM
+          const fileOpenResponse = await chrome.runtime.sendMessage({
+            type: 'OPEN_FILE_URL',
+            data: { fileUrl: fileUrl }
+          });
+          
+          if (fileOpenResponse && fileOpenResponse.success) {
+            this.emit('notification', {
+              message: 'File opened in browser tab',
+              type: 'success'
+            });
+            return;
+          }
+          
+          // If OPEN_FILE_URL fails, try direct browser open
+          try {
+            const opened = window.open(fileUrl, '_blank', 'noopener,noreferrer');
+            if (opened) {
+              this.emit('notification', {
+                message: 'File opened in browser',
+                type: 'success'
+              });
               return;
             }
-          } else {
-            // For non-HTML files, try system open first
-            const systemSuccess = await this.trySystemOpen(windowsPath, fileUrl);
-            if (systemSuccess) return;
-            
-            // Fallback to browser if system open fails
-            try {
-              const opened = window.open(fileUrl, '_blank', 'noopener,noreferrer');
-              if (opened) {
-                this.emit('notification', {
-                  message: 'File opened in browser',
-                  type: 'success'
-                });
-                return;
-              }
-            } catch (browserError) {
-              console.error('[FileManager] Failed to open file:', browserError);
-            }
+          } catch (browserError) {
+            console.error('[FileManager] Browser open failed:', browserError);
           }
           
           // Last resort: Copy path to clipboard
@@ -381,31 +362,6 @@ class VibeSurfFileManager {
     }
   }
   
-  async trySystemOpen(windowsPath, fileUrl) {
-    try {
-      const systemOpenPromise = chrome.runtime.sendMessage({
-        type: 'OPEN_FILE_SYSTEM',
-        data: { filePath: windowsPath }
-      });
-      
-      // Add timeout to prevent hanging
-      const systemOpenResponse = await Promise.race([
-        systemOpenPromise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
-      ]);
-      
-      if (systemOpenResponse && systemOpenResponse.success) {
-        this.emit('notification', {
-          message: 'File opened with system default application',
-          type: 'success'
-        });
-        return true;
-      }
-      return false;
-    } catch (systemError) {
-      return false;
-    }
-  }
 
   async copyToClipboardFallback(fileUrl) {
     try {

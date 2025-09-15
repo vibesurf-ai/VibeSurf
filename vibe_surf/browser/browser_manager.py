@@ -16,7 +16,9 @@ from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 if TYPE_CHECKING:
     from browser_use.browser.session import BrowserSession
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class BrowserManager:
@@ -80,11 +82,17 @@ class BrowserManager:
 
         # Validate target assignment
         if target_id:
-            target_id_owner = self.get_target_owner(target_id)
-            if target_id_owner and target_id_owner != agent_id:
-                logger.warning(
-                    f"Target id: {target_id} belongs to {target_id_owner}. You cannot assign it to {target_id_owner}.")
-                return False
+            try:
+                target_id = await self.main_browser_session.get_target_id_from_tab_id(target_id)
+            except Exception:
+                logger.warning(f"Target ID '{target_id}' not found.")
+                target_id = None
+            if target_id:
+                target_id_owner = self.get_target_owner(target_id)
+                if target_id_owner and target_id_owner != agent_id:
+                    logger.warning(
+                        f"Target id: {target_id} belongs to {target_id_owner}. You cannot assign it to {target_id_owner}.")
+                    return False
 
         # Get or create available target
         if target_id is None:
@@ -165,8 +173,6 @@ class BrowserManager:
                 await asyncio.sleep(1)
             except Exception as e:
                 logger.warning(f"Error during agent {agent_id} cleanup: {e}")
-
-        # Note: We don't close the root browser session here as it's managed externally
 
     async def __aenter__(self) -> "BrowserManager":
         """Async context manager entry."""

@@ -15,7 +15,9 @@ from getmac import get_mac_address
 
 import logging
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def derive_key(machine_id: str, salt: bytes = None) -> bytes:

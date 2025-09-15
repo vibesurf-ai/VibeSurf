@@ -10,9 +10,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-async def test_controller_with_mcp():
+async def test_tools_with_mcp():
     import os
-    from vibe_surf.controller.vibesurf_tools import VibeSurfController
+    from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 
     mcp_server_config = {
         "mcpServers": {
@@ -43,7 +43,7 @@ async def test_controller_with_mcp():
         }
     }
 
-    controller = VibeSurfController(mcp_server_config=mcp_server_config)
+    controller = VibeSurfTools(mcp_server_config=mcp_server_config)
     await controller.register_mcp_clients()
     pdb.set_trace()
     # action_name = "mcp.desktop-commander.start_process"
@@ -71,7 +71,7 @@ async def test_controller_with_mcp():
     #     pid = int(result.split("\n")[0].split("PID")[-1].strip())
     #     pdb.set_trace()
     #     action_name = "mcp.desktop-commander.read_process_output"
-    #     action_info = controller.registry.registry.actions[action_name]
+    #     action_info = tools.registry.registry.actions[action_name]
     #     param_model = action_info.param_model
     #     print(param_model.model_json_schema())
     #     params = {"pid": pid}
@@ -80,7 +80,7 @@ async def test_controller_with_mcp():
     #     output_result = ""
     #     while True:
     #         time.sleep(1)
-    #         result = await controller.act(action_model)
+    #         result = await tools.act(action_model)
     #         result = result.extracted_content
     #         if result:
     #             output_result = result
@@ -90,15 +90,34 @@ async def test_controller_with_mcp():
 
 
 async def test_filesystem():
-    from browser_use.filesystem.file_system import FileSystem
+    from vibe_surf.tools.file_system import CustomFileSystem
 
     file_system_path = r"E:\AIBrowser\VibeSurf\tmp\vibesurf_workspace"
-    filesystem = FileSystem(file_system_path)
-    result = await filesystem.read_file(
-        "E:/AIBrowser/VibeSurf/tmp/vibesurf_workspace/068b3165-ddb7-7a49-8000-d4df8a16ae2d/upload_files/Ayers Application Form.md")
+    filesystem = CustomFileSystem(file_system_path)
+    result = await filesystem.create_file("reports/final_report.html")
+    print(result)
+    result = filesystem.get_absolute_path("reports/final_report.html")
     print(result)
 
 
+async def test_bu_tools():
+    import os
+    from vibe_surf.tools.browser_use_tools import BrowserUseTools
+
+    tools = BrowserUseTools()
+    print(tools.registry.registry.actions.keys())
+
+
+async def test_vibesurf_tools():
+    import os
+    from vibe_surf.tools.vibesurf_tools import VibeSurfTools
+
+    tools = VibeSurfTools()
+    print(tools.registry.registry.actions.keys())
+
+
 if __name__ == '__main__':
-    # asyncio.run(test_controller_with_mcp())
-    asyncio.run(test_filesystem())
+    # asyncio.run(test_tools_with_mcp())
+    # asyncio.run(test_filesystem())
+    # asyncio.run(test_bu_tools())
+    asyncio.run(test_vibesurf_tools())

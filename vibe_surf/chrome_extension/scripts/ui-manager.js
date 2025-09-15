@@ -19,6 +19,7 @@ class VibeSurfUIManager {
     this.modalManager = null;
     
     this.bindElements();
+    this.initializeTabSelector(); // Initialize tab selector before binding events
     this.initializeManagers();
     this.bindEvents();
     this.setupSessionListeners();
@@ -49,6 +50,13 @@ class VibeSurfUIManager {
       llmProfileSelect: document.getElementById('llm-profile-select'),
       taskInput: document.getElementById('task-input'),
       sendBtn: document.getElementById('send-btn'),
+      
+      // Tab selector elements
+      tabSelectorDropdown: document.getElementById('tab-selector-dropdown'),
+      tabSelectorCancel: document.getElementById('tab-selector-cancel'),
+      tabSelectorConfirm: document.getElementById('tab-selector-confirm'),
+      selectAllTabs: document.getElementById('select-all-tabs'),
+      tabOptionsList: document.getElementById('tab-options-list'),
       
       // Loading
       loadingOverlay: document.getElementById('loading-overlay')
@@ -289,11 +297,15 @@ class VibeSurfUIManager {
 
   handleTaskPaused(data) {
     this.updateControlPanel('paused');
+    // Force update UI for paused state - explicitly enable input
+    this.forceUpdateUIForPausedState();
     this.showNotification('Task paused successfully', 'info');
   }
 
   handleTaskResumed(data) {
     this.updateControlPanel('running');
+    // Force update UI for running state - disable input
+    this.forceUpdateUIForRunningState();
     this.showNotification('Task resumed successfully', 'info');
   }
 
@@ -402,26 +414,36 @@ class VibeSurfUIManager {
   }
 
   updateUIForTaskStatus(isRunning) {
+    const taskStatus = this.sessionManager.getTaskStatus();
+    const isPaused = taskStatus === 'paused';
+    
     // Disable/enable input elements based on task status
     if (this.elements.taskInput) {
-      this.elements.taskInput.disabled = isRunning;
-      this.elements.taskInput.placeholder = isRunning ?
-        'Task is running - please wait...' :
-        'Enter your task description...';
+      // Allow input when paused or not running
+      this.elements.taskInput.disabled = isRunning && !isPaused;
+      if (isPaused) {
+        this.elements.taskInput.placeholder = 'Add additional information or guidance...';
+      } else if (isRunning) {
+        this.elements.taskInput.placeholder = 'Task is running - please wait...';
+      } else {
+        this.elements.taskInput.placeholder = 'Enter your task description...';
+      }
     }
     
     if (this.elements.sendBtn) {
-      this.elements.sendBtn.disabled = isRunning || !this.canSubmitTask();
+      // Enable send button when paused or when can submit new task
+      this.elements.sendBtn.disabled = (isRunning && !isPaused) || (!isPaused && !this.canSubmitTask()) || (isPaused && !this.canAddNewTask());
     }
     
     if (this.elements.llmProfileSelect) {
-      this.elements.llmProfileSelect.disabled = isRunning;
+      // Allow LLM profile change only when not running
+      this.elements.llmProfileSelect.disabled = isRunning && !isPaused;
     }
     
-    // Update file manager state
+    // Update file manager state - keep disabled during pause (as per requirement)
     this.fileManager.setEnabled(!isRunning);
     
-    // Also disable header buttons when task is running
+    // Also disable header buttons when task is running (but not when paused)
     const headerButtons = [
       this.elements.newSessionBtn,
       this.elements.historyBtn,
@@ -430,8 +452,9 @@ class VibeSurfUIManager {
     
     headerButtons.forEach(button => {
       if (button) {
-        button.disabled = isRunning;
-        if (isRunning) {
+        const shouldDisable = isRunning && !isPaused;
+        button.disabled = shouldDisable;
+        if (shouldDisable) {
           button.classList.add('task-running-disabled');
           button.setAttribute('title', 'Disabled while task is running');
         } else {
@@ -442,11 +465,90 @@ class VibeSurfUIManager {
     });
   }
 
+  forceUpdateUIForPausedState() {
+    console.log('[UIManager] Force updating UI for paused state');
+    
+    // Enable input during pause
+    if (this.elements.taskInput) {
+      this.elements.taskInput.disabled = false;
+      this.elements.taskInput.placeholder = 'Add additional information or guidance...';
+    }
+    
+    if (this.elements.sendBtn) {
+      const hasText = this.elements.taskInput?.value.trim().length > 0;
+      this.elements.sendBtn.disabled = !hasText;
+    }
+    
+    // Keep LLM profile disabled during pause (user doesn't need to change it)
+    if (this.elements.llmProfileSelect) {
+      this.elements.llmProfileSelect.disabled = true;
+    }
+    
+    // Keep file manager disabled during pause
+    this.fileManager.setEnabled(false);
+    
+    // Keep header buttons disabled during pause (only input and send should be available)
+    const headerButtons = [
+      this.elements.newSessionBtn,
+      this.elements.historyBtn,
+      this.elements.settingsBtn
+    ];
+    
+    headerButtons.forEach(button => {
+      if (button) {
+        button.disabled = true;
+        button.classList.add('task-running-disabled');
+        button.setAttribute('title', 'Disabled during pause - only input and send are available');
+      }
+    });
+  }
+
+  forceUpdateUIForRunningState() {
+    console.log('[UIManager] Force updating UI for running state');
+    
+    // Disable input during running
+    if (this.elements.taskInput) {
+      this.elements.taskInput.disabled = true;
+      this.elements.taskInput.placeholder = 'Task is running - please wait...';
+    }
+    
+    if (this.elements.sendBtn) {
+      this.elements.sendBtn.disabled = true;
+    }
+    
+    if (this.elements.llmProfileSelect) {
+      this.elements.llmProfileSelect.disabled = true;
+    }
+    
+    // Update file manager state
+    this.fileManager.setEnabled(false);
+    
+    // Disable header buttons when task is running
+    const headerButtons = [
+      this.elements.newSessionBtn,
+      this.elements.historyBtn,
+      this.elements.settingsBtn
+    ];
+    
+    headerButtons.forEach(button => {
+      if (button) {
+        button.disabled = true;
+        button.classList.add('task-running-disabled');
+        button.setAttribute('title', 'Disabled while task is running');
+      }
+    });
+  }
+
   canSubmitTask() {
     const hasText = this.elements.taskInput?.value.trim().length > 0;
     const llmProfile = this.elements.llmProfileSelect?.value;
     const hasLlmProfile = llmProfile && llmProfile.trim() !== '';
     return hasText && hasLlmProfile && !this.state.isTaskRunning;
+  }
+
+  canAddNewTask() {
+    const hasText = this.elements.taskInput?.value.trim().length > 0;
+    return hasText;
   }
 
   async showTaskRunningWarning(action) {
@@ -535,40 +637,59 @@ class VibeSurfUIManager {
   }
 
   async handleSendTask() {
-    // Check if task is already running with enhanced blocking
-    const statusCheck = await this.checkTaskStatus();
-    if (statusCheck.isRunning) {
-      const canProceed = await this.showTaskRunningWarning('send a new task');
-      if (!canProceed) {
-        this.showNotification('Cannot send task while another task is running. Please stop the current task first.', 'warning');
-        return;
-      }
-    }
-    
     const taskDescription = this.elements.taskInput?.value.trim();
-    const llmProfile = this.elements.llmProfileSelect?.value;
+    const taskStatus = this.sessionManager.getTaskStatus();
+    const isPaused = taskStatus === 'paused';
     
     if (!taskDescription) {
       this.showNotification('Please enter a task description', 'warning');
       this.elements.taskInput?.focus();
       return;
     }
-    
-    // Check if LLM profile is selected
-    if (!llmProfile || llmProfile.trim() === '') {
-      // Check if there are any LLM profiles available
-      const profiles = this.settingsManager.getLLMProfiles();
-      if (profiles.length === 0) {
-        // No LLM profiles configured at all
-        this.showLLMProfileRequiredModal('configure');
-      } else {
-        // LLM profiles exist but none selected
-        this.showLLMProfileRequiredModal('select');
-      }
-      return;
-    }
-    
+
     try {
+      if (isPaused) {
+        // Handle adding new task to paused execution
+        console.log('[UIManager] Adding new task to paused execution:', taskDescription);
+        await this.sessionManager.addNewTaskToPaused(taskDescription);
+        
+        // Clear the input after successful addition
+        this.clearTaskInput();
+        this.showNotification('Additional information added to the task', 'success');
+        
+        // Automatically resume the task after adding new information
+        console.log('[UIManager] Auto-resuming task after adding new information');
+        await this.sessionManager.resumeTask('Auto-resume after adding new task information');
+        
+        return;
+      }
+      
+      // Original logic for new task submission
+      const statusCheck = await this.checkTaskStatus();
+      if (statusCheck.isRunning) {
+        const canProceed = await this.showTaskRunningWarning('send a new task');
+        if (!canProceed) {
+          this.showNotification('Cannot send task while another task is running. Please stop the current task first.', 'warning');
+          return;
+        }
+      }
+      
+      const llmProfile = this.elements.llmProfileSelect?.value;
+      
+      // Check if LLM profile is selected
+      if (!llmProfile || llmProfile.trim() === '') {
+        // Check if there are any LLM profiles available
+        const profiles = this.settingsManager.getLLMProfiles();
+        if (profiles.length === 0) {
+          // No LLM profiles configured at all
+          this.showLLMProfileRequiredModal('configure');
+        } else {
+          // LLM profiles exist but none selected
+          this.showLLMProfileRequiredModal('select');
+        }
+        return;
+      }
+      
       // Immediately clear welcome message and show user request
       this.clearWelcomeMessage();
       
@@ -582,6 +703,13 @@ class VibeSurfUIManager {
       if (filePath) {
         taskData.upload_files_path = filePath;
         console.log('[UIManager] Set upload_files_path to:', filePath);
+      }
+      
+      // Add selected tabs information if any
+      const selectedTabsData = this.getSelectedTabsForTask();
+      if (selectedTabsData) {
+        taskData.selected_tabs = selectedTabsData;
+        console.log('[UIManager] Set selected_tabs to:', selectedTabsData);
       }
       
       console.log('[UIManager] Complete task data being submitted:', JSON.stringify(taskData, null, 2));
@@ -612,9 +740,25 @@ class VibeSurfUIManager {
 
   async handleTerminateTask() {
     try {
+      // Temporarily stop task status monitoring during terminate to avoid conflicts
+      const wasMonitoring = !!this.taskStatusInterval;
+      if (wasMonitoring) {
+        this.stopTaskStatusMonitoring();
+      }
+      
       await this.sessionManager.stopTask('User clicked terminate');
+      
+      // Restart monitoring after a brief delay if it was running
+      if (wasMonitoring) {
+        setTimeout(() => {
+          this.startTaskStatusMonitoring();
+        }, 1000);
+      }
     } catch (error) {
-      this.showNotification(`Failed to terminate task: ${error.message}`, 'error');
+      // Only show error notification for actual failures, not status conflicts
+      if (!error.message.includes('status') && !error.message.includes('running')) {
+        this.showNotification(`Failed to terminate task: ${error.message}`, 'error');
+      }
     }
   }
 
@@ -622,7 +766,72 @@ class VibeSurfUIManager {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       this.handleSendTask();
+      return;
     }
+    
+    // Handle tab token deletion
+    if (event.key === 'Backspace' || event.key === 'Delete') {
+      if (this.handleTabTokenDeletion(event)) {
+        event.preventDefault();
+        return;
+      }
+    }
+  }
+
+  handleTabTokenDeletion(event) {
+    const input = event.target;
+    const cursorPos = input.selectionStart;
+    const text = input.value;
+    
+    // Unicode markers for tab tokens
+    const startMarker = '\u200B'; // Zero-width space
+    const endMarker = '\u200C';   // Zero-width non-joiner
+    
+    let tokenStart = -1;
+    let tokenEnd = -1;
+    
+    if (event.key === 'Backspace') {
+      // Only delete if cursor is directly adjacent to end of token
+      // Check if the character immediately before cursor is an endMarker
+      if (cursorPos > 0 && text[cursorPos - 1] === endMarker) {
+        tokenEnd = cursorPos; // Include the marker
+        // Find the corresponding start marker backwards
+        for (let j = cursorPos - 2; j >= 0; j--) {
+          if (text[j] === startMarker) {
+            tokenStart = j;
+            break;
+          }
+        }
+      }
+    } else if (event.key === 'Delete') {
+      // Only delete if cursor is directly adjacent to start of token
+      // Check if the character immediately at cursor is a startMarker
+      if (cursorPos < text.length && text[cursorPos] === startMarker) {
+        tokenStart = cursorPos;
+        // Find the corresponding end marker forwards
+        for (let j = cursorPos + 1; j < text.length; j++) {
+          if (text[j] === endMarker) {
+            tokenEnd = j + 1; // Include the marker
+            break;
+          }
+        }
+      }
+    }
+    
+    // If we found a complete token, delete it
+    if (tokenStart !== -1 && tokenEnd !== -1) {
+      const beforeToken = text.substring(0, tokenStart);
+      const afterToken = text.substring(tokenEnd);
+      input.value = beforeToken + afterToken;
+      input.setSelectionRange(tokenStart, tokenStart);
+      
+      // Trigger input change event for validation
+      this.handleTaskInputChange({ target: input });
+      
+      return true; // Prevent default behavior
+    }
+    
+    return false; // Allow default behavior
   }
 
   handleLlmProfileChange(event) {
@@ -633,14 +842,27 @@ class VibeSurfUIManager {
   }
 
   handleTaskInputChange(event) {
+    console.log('[UIManager] handleTaskInputChange called with value:', event.target.value);
+    
     const hasText = event.target.value.trim().length > 0;
     const textarea = event.target;
     const llmProfile = this.elements.llmProfileSelect?.value;
     const hasLlmProfile = llmProfile && llmProfile.trim() !== '';
+    const taskStatus = this.sessionManager.getTaskStatus();
+    const isPaused = taskStatus === 'paused';
     
-    // Update send button state - require both text and LLM profile and no running task
+    // Check for @ character to trigger tab selector
+    this.handleTabSelectorInput(event);
+    
+    // Update send button state - special handling for pause state
     if (this.elements.sendBtn) {
-      this.elements.sendBtn.disabled = !(hasText && hasLlmProfile && !this.state.isTaskRunning);
+      if (isPaused) {
+        // In pause state, only require text (no LLM profile needed for adding new info)
+        this.elements.sendBtn.disabled = !hasText;
+      } else {
+        // In normal state, require both text and LLM profile and no running task
+        this.elements.sendBtn.disabled = !(hasText && hasLlmProfile && !this.state.isTaskRunning);
+      }
     }
     
     // Auto-resize textarea based on content
@@ -846,8 +1068,6 @@ class VibeSurfUIManager {
       return;
     }
     
-    const activityItem = this.createActivityItem(activityData);
-    
     if (this.elements.activityLog) {
       // Remove welcome message if present
       const welcomeMsg = this.elements.activityLog.querySelector('.welcome-message');
@@ -855,12 +1075,137 @@ class VibeSurfUIManager {
         welcomeMsg.remove();
       }
       
-      this.elements.activityLog.appendChild(activityItem);
-      activityItem.classList.add('fade-in');
-      
-      // Bind copy button functionality
-      this.bindCopyButtonEvent(activityItem, activityData);
+      // Check if this is a suggestion_tasks message
+      if (agentStatus.toLowerCase() === 'suggestion_tasks') {
+        // For suggestion_tasks, only show suggestion cards, not the normal message
+        // But the message is still kept in session manager's logs for proper indexing
+        this.addSuggestionTaskCards(activityData);
+      } else {
+        // For all other messages, show the normal activity item
+        const activityItem = this.createActivityItem(activityData);
+        this.elements.activityLog.appendChild(activityItem);
+        activityItem.classList.add('fade-in');
+        
+        // Bind copy button functionality
+        this.bindCopyButtonEvent(activityItem, activityData);
+      }
     }
+  }
+
+  addSuggestionTaskCards(activityData) {
+    const agentMsg = activityData.agent_msg || activityData.message || '';
+    
+    if (!agentMsg || typeof agentMsg !== 'string') {
+      return;
+    }
+    
+    // Parse tasks by splitting on newlines and filtering empty lines
+    const tasks = agentMsg.split('\n')
+      .map(task => task.trim())
+      .filter(task => task.length > 0);
+    
+    if (tasks.length === 0) {
+      return;
+    }
+    
+    // Create suggestion cards container
+    const suggestionsContainer = document.createElement('div');
+    suggestionsContainer.className = 'suggestion-tasks-container';
+    
+    // Add header for suggestion cards
+    const headerElement = document.createElement('div');
+    headerElement.className = 'suggestion-tasks-header';
+    headerElement.innerHTML = `
+      <h4>Suggestion Follow-Up Tasks</h4>
+    `;
+    suggestionsContainer.appendChild(headerElement);
+    
+    // Create cards container
+    const cardsContainer = document.createElement('div');
+    cardsContainer.className = 'suggestion-cards';
+    
+    // Create individual task cards
+    tasks.forEach((task, index) => {
+      const taskCard = document.createElement('div');
+      taskCard.className = 'suggestion-task-card';
+      taskCard.setAttribute('data-task', task);
+      taskCard.setAttribute('data-index', index);
+      
+      taskCard.innerHTML = `
+        <div class="suggestion-card-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="suggestion-card-content">
+          <div class="suggestion-task-text">${this.escapeHtml(task)}</div>
+        </div>
+        <div class="suggestion-card-arrow">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      `;
+      
+      // Add click event handler
+      taskCard.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.handleSuggestionTaskClick(task);
+      });
+      
+      cardsContainer.appendChild(taskCard);
+    });
+    
+    suggestionsContainer.appendChild(cardsContainer);
+    
+    // Add the suggestions container to the activity log
+    if (this.elements.activityLog) {
+      this.elements.activityLog.appendChild(suggestionsContainer);
+      suggestionsContainer.classList.add('fade-in');
+    }
+  }
+
+  handleSuggestionTaskClick(taskDescription) {
+    console.log('[UIManager] Suggestion task clicked:', taskDescription);
+    
+    // First check if task is running
+    if (this.state.isTaskRunning) {
+      this.showNotification('Cannot submit task while another task is running', 'warning');
+      return;
+    }
+    
+    // Check if LLM profile is selected
+    const llmProfile = this.elements.llmProfileSelect?.value;
+    if (!llmProfile || llmProfile.trim() === '') {
+      this.showLLMProfileRequiredModal('select');
+      return;
+    }
+    
+    // Set the task description in the input first
+    if (!this.elements.taskInput) {
+      console.error('[UIManager] Task input element not found');
+      this.showNotification('Task input not available', 'error');
+      return;
+    }
+    
+    console.log('[UIManager] Setting task description and submitting...');
+    this.elements.taskInput.value = taskDescription;
+    this.elements.taskInput.focus();
+    
+    // Trigger input change event for validation and auto-resize
+    this.handleTaskInputChange({ target: this.elements.taskInput });
+    
+    // Auto-submit the task after a short delay
+    setTimeout(() => {
+      console.log('[UIManager] Auto-submitting suggestion task...');
+      this.handleSendTask();
+    }, 100);
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   createActivityItem(data) {
@@ -870,7 +1215,18 @@ class VibeSurfUIManager {
     const agentName = data.agent_name || 'system';
     const agentStatus = data.agent_status || data.status || 'info';
     const agentMsg = data.agent_msg || data.message || data.action_description || 'No description';
-    const timestamp = new Date(data.timestamp || Date.now()).toLocaleTimeString();
+    
+    // Use backend timestamp if available, otherwise generate frontend timestamp
+    let timestamp;
+    if (data.timestamp) {
+      timestamp = new Date(data.timestamp).toLocaleString();
+    } else {
+      timestamp = new Date().toLocaleString();
+    }
+    
+    // Extract token and cost information
+    const totalTokens = data.total_tokens;
+    const totalCost = data.total_cost;
     
     // Determine if this is a user message (should be on the right)
     const isUser = agentName.toLowerCase() === 'user';
@@ -878,12 +1234,28 @@ class VibeSurfUIManager {
     // Set CSS classes based on agent type and status
     item.className = `activity-item ${isUser ? 'user-message' : 'agent-message'} ${agentStatus}`;
     
+    // Build metadata display (timestamp, tokens, cost)
+    let metadataHtml = `<span class="message-time">${timestamp}</span>`;
+    
+    if (totalTokens !== undefined || totalCost !== undefined) {
+      metadataHtml += '<span class="message-metrics">';
+      if (totalTokens !== undefined) {
+        metadataHtml += `<span class="metric-item">tokens: ${totalTokens}</span>`;
+      }
+      if (totalCost !== undefined) {
+        // Format cost to 4 decimal places
+        const formattedCost = typeof totalCost === 'number' ? totalCost.toFixed(4) : parseFloat(totalCost || 0).toFixed(4);
+        metadataHtml += `<span class="metric-item">cost: $${formattedCost}</span>`;
+      }
+      metadataHtml += '</span>';
+    }
+    
     // Create the message structure similar to chat interface
     item.innerHTML = `
       <div class="message-container ${isUser ? 'user-container' : 'agent-container'}">
         <div class="message-header">
           <span class="agent-name">${agentName}</span>
-          <span class="message-time">${timestamp}</span>
+          <div class="message-metadata">${metadataHtml}</div>
         </div>
         <div class="message-bubble ${isUser ? 'user-bubble' : 'agent-bubble'}">
           <div class="message-status">
@@ -1107,8 +1479,21 @@ class VibeSurfUIManager {
         // Add task list support manually (markdown-it doesn't have built-in task lists)
         formattedContent = this.preprocessTaskLists(formattedContent);
         
-        // Pre-process file:// markdown links since markdown-it doesn't recognize them
+        // Pre-process both regular file paths and file:// markdown links
+        const regularFilePathRegex = /\[([^\]]+)\]\(([^)]*\/[^)]*\.[^)]+)\)/g;
         const markdownFileLinkRegex = /\[([^\]]+)\]\((file:\/\/[^)]+)\)/g;
+        
+        // Handle regular file paths (convert to file:// format)
+        formattedContent = formattedContent.replace(regularFilePathRegex, (match, linkText, filePath) => {
+          // Only process if it looks like a file path (contains / and extension) and not already a URL
+          if (!filePath.startsWith('http') && !filePath.startsWith('file://') && (filePath.includes('/') || filePath.includes('\\'))) {
+            const fileUrl = filePath.startsWith('/') ? `file://${filePath}` : `file:///${filePath}`;
+            return `<a href="${fileUrl}" class="file-link-markdown">${linkText}</a>`;
+          }
+          return match;
+        });
+        
+        // Handle file:// links
         formattedContent = formattedContent.replace(markdownFileLinkRegex, (match, linkText, fileUrl) => {
           // Convert to HTML format that markdown-it will preserve
           return `<a href="${fileUrl}" class="file-link-markdown">${linkText}</a>`;
@@ -1405,6 +1790,404 @@ class VibeSurfUIManager {
     
     // Clear state
     this.state.currentModal = null;
+  }
+
+  // Tab Selector Methods
+  initializeTabSelector() {
+    console.log('[UIManager] Initializing tab selector...');
+    
+    // Initialize tab selector state
+    this.tabSelectorState = {
+      isVisible: false,
+      selectedTabs: [],
+      allTabs: [],
+      atPosition: -1 // Position where @ was typed
+    };
+
+    console.log('[UIManager] Tab selector state initialized:', this.tabSelectorState);
+    
+    // Bind tab selector events
+    this.bindTabSelectorEvents();
+  }
+
+  bindTabSelectorEvents() {
+    console.log('[UIManager] Binding tab selector events...');
+    console.log('[UIManager] Available elements for binding:', {
+      tabSelectorCancel: !!this.elements.tabSelectorCancel,
+      tabSelectorConfirm: !!this.elements.tabSelectorConfirm,
+      selectAllTabs: !!this.elements.selectAllTabs,
+      tabSelectorDropdown: !!this.elements.tabSelectorDropdown
+    });
+    
+    // Select all radio button
+    this.elements.selectAllTabs?.addEventListener('change', this.handleSelectAllTabs.bind(this));
+    
+    // Hide on click outside
+    document.addEventListener('click', (event) => {
+      if (this.tabSelectorState.isVisible &&
+          this.elements.tabSelectorDropdown &&
+          !this.elements.tabSelectorDropdown.contains(event.target) &&
+          !this.elements.taskInput?.contains(event.target)) {
+        this.hideTabSelector();
+      }
+    });
+    
+    console.log('[UIManager] Tab selector events bound successfully');
+  }
+
+  handleTabSelectorInput(event) {
+    // Safety check - ensure tab selector state is initialized
+    if (!this.tabSelectorState) {
+      console.warn('[UIManager] Tab selector state not initialized');
+      return;
+    }
+    
+    const inputValue = event.target.value;
+    const cursorPosition = event.target.selectionStart;
+    
+    console.log('[UIManager] Tab selector input check:', {
+      inputValue,
+      cursorPosition,
+      charAtCursor: inputValue[cursorPosition - 1],
+      isAtSymbol: inputValue[cursorPosition - 1] === '@'
+    });
+    
+    // Check if @ was just typed
+    if (inputValue[cursorPosition - 1] === '@') {
+      console.log('[UIManager] @ detected, showing tab selector');
+      this.tabSelectorState.atPosition = cursorPosition - 1;
+      this.showTabSelector();
+    } else if (this.tabSelectorState.isVisible) {
+      // Check if @ was deleted - hide tab selector immediately
+      if (this.tabSelectorState.atPosition >= 0 &&
+          (this.tabSelectorState.atPosition >= inputValue.length ||
+           inputValue[this.tabSelectorState.atPosition] !== '@')) {
+        console.log('[UIManager] @ deleted, hiding tab selector');
+        this.hideTabSelector();
+        return;
+      }
+      
+      // Hide tab selector if user continues typing after @
+      const textAfterAt = inputValue.substring(this.tabSelectorState.atPosition + 1, cursorPosition);
+      if (textAfterAt.length > 0 && !textAfterAt.match(/^[\s]*$/)) {
+        console.log('[UIManager] Hiding tab selector due to continued typing');
+        this.hideTabSelector();
+      }
+    }
+  }
+
+  async showTabSelector() {
+    console.log('[UIManager] showTabSelector called');
+    console.log('[UIManager] Tab selector elements:', {
+      dropdown: !!this.elements.tabSelectorDropdown,
+      taskInput: !!this.elements.taskInput,
+      tabOptionsList: !!this.elements.tabOptionsList
+    });
+    
+    if (!this.elements.tabSelectorDropdown || !this.elements.taskInput) {
+      console.error('[UIManager] Tab selector elements not found', {
+        dropdown: this.elements.tabSelectorDropdown,
+        taskInput: this.elements.taskInput
+      });
+      return;
+    }
+
+    try {
+      console.log('[UIManager] Fetching tab data...');
+      // Fetch tab data from backend
+      await this.populateTabSelector();
+      
+      console.log('[UIManager] Positioning dropdown...');
+      // Position the dropdown relative to the input
+      this.positionTabSelector();
+      
+      console.log('[UIManager] Showing dropdown...');
+      // Show the dropdown with explicit visibility
+      this.elements.tabSelectorDropdown.classList.remove('hidden');
+      this.elements.tabSelectorDropdown.style.display = 'block';
+      this.elements.tabSelectorDropdown.style.visibility = 'visible';
+      this.elements.tabSelectorDropdown.style.opacity = '1';
+      this.tabSelectorState.isVisible = true;
+      
+      console.log('[UIManager] Tab selector shown successfully');
+      console.log('[UIManager] Classes:', this.elements.tabSelectorDropdown.className);
+      console.log('[UIManager] Computed styles:', {
+        display: getComputedStyle(this.elements.tabSelectorDropdown).display,
+        visibility: getComputedStyle(this.elements.tabSelectorDropdown).visibility,
+        opacity: getComputedStyle(this.elements.tabSelectorDropdown).opacity,
+        zIndex: getComputedStyle(this.elements.tabSelectorDropdown).zIndex,
+        position: getComputedStyle(this.elements.tabSelectorDropdown).position
+      });
+      console.log('[UIManager] Dropdown content HTML:', this.elements.tabSelectorDropdown.innerHTML);
+    } catch (error) {
+      console.error('[UIManager] Failed to show tab selector:', error);
+      this.showNotification('Failed to load browser tabs', 'error');
+    }
+  }
+
+  hideTabSelector() {
+    if (this.elements.tabSelectorDropdown) {
+      this.elements.tabSelectorDropdown.classList.add('hidden');
+      this.elements.tabSelectorDropdown.style.display = 'none'; // Ensure it's hidden
+    }
+    this.tabSelectorState.isVisible = false;
+    this.tabSelectorState.selectedTabs = [];
+    this.tabSelectorState.atPosition = -1;
+    
+    console.log('[UIManager] Tab selector hidden');
+  }
+
+  positionTabSelector() {
+    if (!this.elements.tabSelectorDropdown || !this.elements.taskInput) return;
+    
+    const inputRect = this.elements.taskInput.getBoundingClientRect();
+    const dropdown = this.elements.tabSelectorDropdown;
+    
+    console.log('[UIManager] Positioning dropdown:', {
+      inputRect,
+      dropdownElement: dropdown
+    });
+    
+    // Calculate 90% width of input
+    const dropdownWidth = inputRect.width * 0.9;
+    
+    // Position dropdown ABOVE the input (not below)
+    dropdown.style.position = 'fixed';
+    dropdown.style.bottom = `${window.innerHeight - inputRect.top + 5}px`; // Above the input
+    dropdown.style.left = `${inputRect.left + (inputRect.width - dropdownWidth) / 2}px`; // Centered
+    dropdown.style.width = `${dropdownWidth}px`; // 80% of input width
+    dropdown.style.zIndex = '9999';
+    dropdown.style.maxHeight = '300px';
+    dropdown.style.overflowY = 'auto';
+    
+    console.log('[UIManager] Dropdown positioned with styles:', {
+      position: dropdown.style.position,
+      bottom: dropdown.style.bottom,
+      left: dropdown.style.left,
+      width: dropdown.style.width,
+      zIndex: dropdown.style.zIndex
+    });
+  }
+
+  async populateTabSelector() {
+    try {
+      console.log('[UIManager] Getting tab data from backend...');
+      // Get all tabs and active tab from backend
+      const [allTabsResponse, activeTabResponse] = await Promise.all([
+        this.apiClient.getAllBrowserTabs(),
+        this.apiClient.getActiveBrowserTab()
+      ]);
+      
+      console.log('[UIManager] Raw API responses:', {
+        allTabsResponse: JSON.stringify(allTabsResponse, null, 2),
+        activeTabResponse: JSON.stringify(activeTabResponse, null, 2)
+      });
+      
+      const allTabs = allTabsResponse.tabs || allTabsResponse || {};
+      const activeTab = activeTabResponse.tab || activeTabResponse || {};
+      const activeTabId = Object.keys(activeTab)[0];
+      
+      console.log('[UIManager] Processed tab data:', {
+        allTabsCount: Object.keys(allTabs).length,
+        activeTabId,
+        allTabIds: Object.keys(allTabs),
+        allTabsData: allTabs,
+        activeTabData: activeTab
+      });
+      
+      this.tabSelectorState.allTabs = allTabs;
+      
+      // Clear existing options
+      if (this.elements.tabOptionsList) {
+        this.elements.tabOptionsList.innerHTML = '';
+        console.log('[UIManager] Cleared existing tab options');
+      } else {
+        console.error('[UIManager] tabOptionsList element not found!');
+        return;
+      }
+      
+      // Add fallback test data if no tabs returned
+      if (Object.keys(allTabs).length === 0) {
+        console.warn('[UIManager] No tabs returned from API, adding test data for debugging');
+        const testTabs = {
+          'test-1': { title: 'Test Tab 1', url: 'https://example.com' },
+          'test-2': { title: 'Test Tab 2', url: 'https://google.com' },
+          'test-3': { title: 'Very Long Tab Title That Should Be Truncated', url: 'https://github.com' }
+        };
+        
+        Object.entries(testTabs).forEach(([tabId, tabInfo]) => {
+          const isActive = tabId === 'test-1';
+          console.log('[UIManager] Creating test tab option:', { tabId, title: tabInfo.title, isActive });
+          const option = this.createTabOption(tabId, tabInfo, isActive);
+          this.elements.tabOptionsList.appendChild(option);
+        });
+        
+        this.tabSelectorState.allTabs = testTabs;
+      } else {
+        // Add real tab options
+        Object.entries(allTabs).forEach(([tabId, tabInfo]) => {
+          const isActive = tabId === activeTabId;
+          console.log('[UIManager] Creating tab option:', { tabId, title: tabInfo.title, isActive });
+          const option = this.createTabOption(tabId, tabInfo, isActive);
+          this.elements.tabOptionsList.appendChild(option);
+        });
+      }
+      
+      // Reset select all checkbox
+      if (this.elements.selectAllTabs) {
+        this.elements.selectAllTabs.checked = false;
+      }
+      
+      console.log('[UIManager] Tab selector populated with', Object.keys(this.tabSelectorState.allTabs).length, 'tabs');
+    } catch (error) {
+      console.error('[UIManager] Failed to populate tab selector:', error);
+      throw error;
+    }
+  }
+
+  createTabOption(tabId, tabInfo, isActive) {
+    const option = document.createElement('div');
+    option.className = `tab-option ${isActive ? 'active-tab' : ''}`;
+    option.dataset.tabId = tabId;
+    
+    // Format title (first 20 characters)
+    const displayTitle = tabInfo.title ?
+      (tabInfo.title.length > 20 ? tabInfo.title.substring(0, 20) + '...' : tabInfo.title) :
+      'Unknown Title';
+    
+    option.innerHTML = `
+      <input type="radio" class="tab-radio" id="tab-${tabId}" name="tab-selection" value="${tabId}">
+      <label for="tab-${tabId}" class="tab-label">
+        <span class="tab-id">${tabId}:</span>
+        <span class="tab-title">${this.escapeHtml(displayTitle)}</span>
+        ${isActive ? '<span class="active-indicator">(Active)</span>' : ''}
+      </label>
+    `;
+    
+    // Add change event to radio button for auto-confirm
+    const radio = option.querySelector('.tab-radio');
+    radio?.addEventListener('change', this.handleTabSelection.bind(this));
+    
+    return option;
+  }
+
+  handleTabSelection(event) {
+    const tabId = event.target.value;
+    
+    if (event.target.checked) {
+      // For radio buttons, replace the selected tabs array with just this tab
+      this.tabSelectorState.selectedTabs = [tabId];
+      
+      console.log('[UIManager] Selected tab:', tabId);
+      
+      // Auto-confirm selection immediately
+      this.confirmTabSelection();
+    }
+  }
+
+  handleSelectAllTabs(event) {
+    if (event.target.checked) {
+      // "Select All" means list all tabs in the input
+      const allTabIds = Object.keys(this.tabSelectorState.allTabs);
+      this.tabSelectorState.selectedTabs = allTabIds;
+      
+      console.log('[UIManager] Select all tabs:', allTabIds);
+      
+      // Auto-confirm selection immediately
+      this.confirmTabSelection();
+    }
+  }
+
+  updateSelectAllState() {
+    if (!this.elements.selectAllTabs || !this.elements.tabOptionsList) return;
+    
+    const checkboxes = this.elements.tabOptionsList.querySelectorAll('.tab-checkbox');
+    const checkedBoxes = this.elements.tabOptionsList.querySelectorAll('.tab-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+      this.elements.selectAllTabs.indeterminate = false;
+      this.elements.selectAllTabs.checked = false;
+    } else if (checkedBoxes.length === checkboxes.length) {
+      this.elements.selectAllTabs.indeterminate = false;
+      this.elements.selectAllTabs.checked = true;
+    } else if (checkedBoxes.length > 0) {
+      this.elements.selectAllTabs.indeterminate = true;
+      this.elements.selectAllTabs.checked = false;
+    } else {
+      this.elements.selectAllTabs.indeterminate = false;
+      this.elements.selectAllTabs.checked = false;
+    }
+  }
+
+  confirmTabSelection() {
+    if (this.tabSelectorState.selectedTabs.length === 0) {
+      this.showNotification('Please select at least one tab', 'warning');
+      return;
+    }
+    
+    // Replace @ with selected tabs information
+    this.insertSelectedTabsIntoInput();
+    
+    // Hide the selector
+    this.hideTabSelector();
+    
+    console.log(`[UIManager] ${this.tabSelectorState.selectedTabs.length} tab(s) selected and confirmed`);
+  }
+
+  insertSelectedTabsIntoInput() {
+    if (!this.elements.taskInput) return;
+    
+    const input = this.elements.taskInput;
+    const currentValue = input.value;
+    const atPosition = this.tabSelectorState.atPosition;
+    
+    // Use special Unicode characters as boundaries for easy deletion
+    const TAB_START_MARKER = '\u200B'; // Zero-width space
+    const TAB_END_MARKER = '\u200C'; // Zero-width non-joiner
+    
+    // Create tab information string in new format: @ tab_id: title[:20]
+    const selectedTabsInfo = this.tabSelectorState.selectedTabs.map(tabId => {
+      const tabInfo = this.tabSelectorState.allTabs[tabId];
+      const displayTitle = tabInfo?.title ?
+        (tabInfo.title.length > 20 ? tabInfo.title.substring(0, 20) + '...' : tabInfo.title) :
+        'Unknown';
+      return `${TAB_START_MARKER}@ ${tabId}: ${displayTitle}${TAB_END_MARKER}`;
+    }).join(' ');
+    
+    // Replace @ with tab selection (preserve the @ symbol)
+    const beforeAt = currentValue.substring(0, atPosition);
+    const afterAt = currentValue.substring(atPosition + 1);
+    const newValue = `${beforeAt}${selectedTabsInfo} ${afterAt}`;
+    
+    input.value = newValue;
+    
+    // Trigger input change event for validation
+    this.handleTaskInputChange({ target: input });
+    
+    // Set cursor position after the inserted text
+    const newCursorPosition = beforeAt.length + selectedTabsInfo.length + 1; // Add space
+    input.setSelectionRange(newCursorPosition, newCursorPosition);
+    input.focus();
+  }
+
+  getSelectedTabsForTask() {
+    // Return selected tabs information for task submission
+    if (this.tabSelectorState.selectedTabs.length === 0) {
+      return null;
+    }
+    
+    const selectedTabsData = {};
+    this.tabSelectorState.selectedTabs.forEach(tabId => {
+      const tabInfo = this.tabSelectorState.allTabs[tabId];
+      if (tabInfo) {
+        selectedTabsData[tabId] = {
+          url: tabInfo.url,
+          title: tabInfo.title
+        };
+      }
+    });
+    
+    return selectedTabsData;
   }
 }
 

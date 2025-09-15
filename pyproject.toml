@@ -38,7 +38,11 @@ dependencies = [
     "rich>=13.0.0",
     "greenlet>=3.2.4",
     "getmac>=0.9.5",
-    "browser-use==0.7.1",
+    "browser-use==0.7.7",
+    "markdown-pdf>=1.9",
+    "nanoid>=2.0.0",
+    "markdownify>=1.2.0",
+    "pathvalidate>=3.3.1",
 ]
 
 [project.urls]
@@ -58,7 +62,7 @@ packages = [
     "vibe_surf.agents.prompts",
     "vibe_surf.browser",
     "vibe_surf.browser.watchdogs",
-    "vibe_surf.controller",
+    "vibe_surf.tools",
     "vibe_surf.llm",
     "vibe_surf.backend"
 ]

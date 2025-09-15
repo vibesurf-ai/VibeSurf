@@ -1,156 +1,348 @@
 import logging
 import os
 import time
+import re
+import asyncio
+from datetime import datetime
 from typing import Any, Dict, List
+import json
 
+from pydantic import BaseModel
 from browser_use.llm.base import BaseChatModel
-from browser_use.llm.messages import UserMessage
+from browser_use.llm.messages import UserMessage, SystemMessage, AssistantMessage
+from browser_use.utils import SignalHandler
 
-from vibe_surf.agents.prompts.vibe_surf_prompt import (
-    REPORT_CONTENT_PROMPT,
-    REPORT_FORMAT_PROMPT
-)
+from vibe_surf.agents.prompts.report_writer_prompt import REPORT_WRITER_PROMPT
+from vibe_surf.tools.file_system import CustomFileSystem
+from vibe_surf.tools.report_writer_tools import ReportWriterTools
+from vibe_surf.agents.views import CustomAgentOutput
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class ReportTaskResult(BaseModel):
+    """Result of a report generation task"""
+    success: bool  # True only if LLM completed successfully
+    msg: str  # Success message or error details
+    report_path: str  # Path to the generated report file
 
 
 class ReportWriterAgent:
-    """Agent responsible for generating HTML reports using two-phase LLM generation"""
-    
-    def __init__(self, llm: BaseChatModel, workspace_dir: str):
+    """Agent responsible for generating HTML reports using LLM-controlled flow"""
+
+    def __init__(self, llm: BaseChatModel, workspace_dir: str, step_callback=None, thinking_mode: bool = True):
         """
         Initialize ReportWriterAgent
         
         Args:
             llm: Language model for generating report content
             workspace_dir: Directory to save reports
+            step_callback: Optional callback function to log each step
         """
         self.llm = llm
-        self.workspace_dir = workspace_dir
+        self.workspace_dir = os.path.abspath(workspace_dir)
+        self.step_callback = step_callback
+        self.thinking_mode = thinking_mode
+
+        # Initialize file system and tools
+        self.file_system = CustomFileSystem(self.workspace_dir)
+        self.tools = ReportWriterTools()
+
+        # Setup action model and agent output
+        self.ActionModel = self.tools.registry.create_action_model()
+        if self.thinking_mode:
+            self.AgentOutput = CustomAgentOutput.type_with_custom_actions(self.ActionModel)
+        else:
+            self.AgentOutput = CustomAgentOutput.type_with_custom_actions_no_thinking(self.ActionModel)
+
+        # State management for pause/resume/stop control
+        self.paused = False
+        self.stopped = False
+        self.consecutive_failures = 0
+        self._external_pause_event = asyncio.Event()
+        self._external_pause_event.set()
         
-        logger.info("📄 ReportWriterAgent initialized")
-    
-    async def generate_report(self, report_data: Dict[str, Any]) -> str:
+        # Initialize message history as instance variable
+        self.message_history = []
+
+        logger.info("📄 ReportWriterAgent initialized with LLM-controlled flow")
+
+    def pause(self) -> None:
+        """Pause the agent before the next step"""
+        logger.info('\n\n⏸️ Paused report writer agent.\n\tPress [Enter] to resume or [Ctrl+C] again to quit.')
+        self.paused = True
+        self._external_pause_event.clear()
+
+    def resume(self) -> None:
+        """Resume the agent"""
+        logger.info('▶️  Resuming report writer agent execution where it left off...\n')
+        self.paused = False
+        self._external_pause_event.set()
+
+    def stop(self) -> None:
+        """Stop the agent"""
+        logger.info('⏹️ Report writer agent stopping')
+        self.stopped = True
+        # Signal pause event to unblock any waiting code so it can check the stopped state
+        self._external_pause_event.set()
+
+    def add_new_task(self, new_task: str) -> None:
         """
-        Generate HTML report using two-phase approach: content generation then formatting
+        Add a new task or guidance to the report writer agent during execution.
+        The new_task parameter contains a pre-formatted prompt from VibeSurfAgent.
+        """
+        # Add the pre-formatted prompt directly to message history
+        from browser_use.llm.messages import UserMessage
+        self.message_history.append(UserMessage(content=new_task))
+        logger.info(f"📝 Report writer agent received new task guidance")
+
+    async def generate_report(self, report_data: Dict[str, Any]) -> ReportTaskResult:
+        """
+        Generate HTML report using LLM-controlled flow
         
         Args:
             report_data: Dictionary containing:
-                - original_task: The original user task
-                - execution_results: List of BrowserTaskResult objects
-                - report_type: Type of report ("summary", "detailed", "none")
-                - upload_files: Optional list of uploaded files
+                - report_task: Report requirements, tips, and possible insights
+                - information: Collected information for the report
         
         Returns:
-            str: Path to the generated report file
+            ReportTaskResult: Result containing success status, message, and report path
         """
-        logger.info(f"📝 Generating {report_data.get('report_type', 'summary')} report...")
-        
+        logger.info("📝 Starting LLM-controlled report generation...")
+
+        # Get current event loop
+        loop = asyncio.get_event_loop()
+
+        signal_handler = SignalHandler(
+            loop=loop,
+            pause_callback=self.pause,
+            resume_callback=self.resume,
+            exit_on_second_int=True,
+        )
+        signal_handler.register()
+
         try:
-            # Phase 1: Generate report content
-            logger.info("📖 Phase 1: Generating report content...")
-            report_content = await self._generate_content(report_data)
+            # Extract task and information
+            report_task = report_data.get('report_task', 'Generate a comprehensive report')
+            report_information = report_data.get('report_information', 'No additional information provided')
+
+            # Create report file with timestamp
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            report_filename = f"reports/report-{timestamp}.html"
+
+            # Create the report file
+            create_result = await self.file_system.create_file(report_filename)
+            logger.info(f"Created report file: {create_result}")
+
+            max_iterations = 6  # Prevent infinite loops
+
+            # Add system message with unified prompt only if message history is empty
+            if not self.message_history:
+                self.message_history.append(SystemMessage(content=REPORT_WRITER_PROMPT))
+
+            # Add initial user message with task details
+            user_message = f"""Please generate a report within MAX {max_iterations} steps based on the following:
+
+**Report Task:**
+{report_task}
+
+**Available Information:**
+{json.dumps(report_information, indent=2, ensure_ascii=False)}
+
+**Report File:**
+{report_filename}
+
+The report file '{report_filename}' has been created and is ready for you to write content.
+Please analyze the task, determine if you need to read any additional files, then generate the complete report content and format it as professional HTML.
+"""
+            self.message_history.append(UserMessage(content=user_message))
+
+            # LLM-controlled loop
+            iteration = 0
+            agent_run_error = None
+            task_completed = False
+
+            while iteration < max_iterations:
+                # Use the consolidated pause state management
+                if self.paused:
+                    logger.info(f'⏸️ Step {iteration}: Agent paused, waiting to resume...')
+                    await self._external_pause_event.wait()
+                    signal_handler.reset()
+
+                # Check control flags before each step
+                if self.stopped:
+                    logger.info('🛑 Agent stopped')
+                    agent_run_error = 'Agent stopped programmatically because user interrupted.'
+                    break
+                iteration += 1
+                logger.info(f"🔄 LLM iteration {iteration}")
+                self.message_history.append(UserMessage(content=f"Current step: {iteration} / {max_iterations}"))
+                # Get LLM response
+                response = await self.llm.ainvoke(self.message_history, output_format=self.AgentOutput)
+                parsed = response.completion
+                actions = parsed.action
+
+                # Call step callback if provided to log thinking + action
+                if self.step_callback:
+                    await self.step_callback(parsed, iteration)
+
+                # Add assistant message to history
+                self.message_history.append(AssistantMessage(
+                    content=json.dumps(response.completion.model_dump(exclude_none=True, exclude_unset=True),
+                                       ensure_ascii=False)))
+
+                # Execute actions
+                results = []
+                time_start = time.time()
+
+                for i, action in enumerate(actions):
+                    action_data = action.model_dump(exclude_unset=True)
+                    action_name = next(iter(action_data.keys())) if action_data else 'unknown'
+                    logger.info(f"🛠️ Executing action {i + 1}/{len(actions)}: {action_name}")
+
+                    result = await self.tools.act(
+                        action=action,
+                        file_system=self.file_system,
+                        llm=self.llm,
+                    )
+
+                    time_end = time.time()
+                    time_elapsed = time_end - time_start
+                    results.append(result)
+
+                    logger.info(f"✅ Action completed in {time_elapsed:.2f}s")
+
+                    # Check if task is done
+                    if action_name == 'task_done':
+                        logger.info("🎉 Report Writing Task completed")
+                        task_completed = True
+                        break
+
+                # Check if task is done - break out of main loop if task completed
+                if task_completed:
+                    break
+
+                # Add results to message history using improved action result processing
+                action_results = ''
+                for idx, action_result in enumerate(results):
+                    if hasattr(action_result, 'extracted_content') and action_result.extracted_content:
+                        action_results += f'{action_result.extracted_content}\n'
+                        logger.debug(f'Added extracted_content to action_results: {action_result.extracted_content}')
+
+                    if hasattr(action_result, 'error') and action_result.error:
+                        if len(action_result.error) > 200:
+                            error_text = action_result.error[:100] + '......' + action_result.error[-100:]
+                        else:
+                            error_text = action_result.error
+                        action_results += f'{error_text}\n'
+                        logger.debug(f'Added error to action_results: {error_text}')
+
+                if action_results:
+                    formatted_results = f'Result:\n{action_results}'
+                    self.message_history.append(UserMessage(content=formatted_results))
+
+                # If no progress, add a prompt to continue
+                if not results:
+                    self.message_history.append(UserMessage(content="Please continue with the report generation."))
+
+            # Handle different completion scenarios
+            report_path = await self._finalize_report(report_filename)
             
-            # Phase 2: Format content as HTML
-            logger.info("🎨 Phase 2: Formatting as HTML...")
-            html_content = await self._format_as_html(report_content)
-            
-            # Save report to file
-            report_filename = f"report_{int(time.time())}.html"
-            reports_dir = os.path.join(self.workspace_dir, "reports")
-            os.makedirs(reports_dir, exist_ok=True)
-            report_path = os.path.join(reports_dir, report_filename)
-            
-            with open(report_path, 'w', encoding='utf-8') as f:
-                f.write(html_content)
-            
-            logger.info(f"✅ Report generated successfully: {report_path}")
-            return report_path
-            
+            if agent_run_error:
+                # Agent was stopped
+                return ReportTaskResult(
+                    success=False,
+                    msg=agent_run_error,
+                    report_path=report_path
+                )
+            elif task_completed:
+                # Task completed successfully by LLM
+                logger.info(f"✅ Report generated successfully: {report_path}")
+                return ReportTaskResult(
+                    success=True,
+                    msg="Report generated successfully by LLM",
+                    report_path=report_path
+                )
+            elif iteration >= max_iterations:
+                # Maximum iterations reached
+                logger.warning("⚠️ Maximum iterations reached, finishing report generation")
+                return ReportTaskResult(
+                    success=False,
+                    msg="Maximum iterations reached without task completion",
+                    report_path=report_path
+                )
+            else:
+                # Unexpected exit from loop
+                return ReportTaskResult(
+                    success=False,
+                    msg="Report generation ended unexpectedly",
+                    report_path=report_path
+                )
+
         except Exception as e:
             logger.error(f"❌ Failed to generate report: {e}")
             # Generate a simple fallback report
             fallback_path = await self._generate_fallback_report(report_data)
-            return fallback_path
-    
-    async def _generate_content(self, report_data: Dict[str, Any]) -> str:
-        """Generate the textual content for the report"""
-        # Format execution results for the prompt
-        results_text = self._format_execution_results(report_data.get('execution_results', []))
+            return ReportTaskResult(
+                success=False,
+                msg=f"Error occurred during report generation: {str(e)}",
+                report_path=fallback_path
+            )
+        finally:
+            signal_handler.unregister()
+            self.stopped = False
+            self.paused = False
+
+    async def _finalize_report(self, report_filename: str) -> str:
+        """
+        Finalize the report by cleaning HTML and converting links
         
-        # Format upload files
-        upload_files = report_data.get('upload_files', [])
-        upload_files_text = "None" if not upload_files else ", ".join(upload_files)
-        
-        # Generate content using the content prompt
-        content_prompt = REPORT_CONTENT_PROMPT.format(
-            original_task=report_data.get('original_task', 'No task specified'),
-            report_type=report_data.get('report_type', 'summary'),
-            upload_files=upload_files_text,
-            execution_results=results_text
-        )
-        
-        response = await self.llm.ainvoke([UserMessage(content=content_prompt)])
-        logger.debug(f"Content generation response type: {type(response)}")
-        logger.debug(f"Content generation completion: {response.completion}")
-        logger.debug(f"Content generation completion type: {type(response.completion)}")
-        
-        if response.completion is None:
-            logger.error("❌ Content generation returned None completion")
-            raise ValueError("LLM response completion is None - unable to generate report content")
-        
-        return response.completion
-    
-    async def _format_as_html(self, content: str) -> str:
-        """Format the content as a professional HTML document"""
-        format_prompt = REPORT_FORMAT_PROMPT.format(report_content=content)
-        
-        response = await self.llm.ainvoke([UserMessage(content=format_prompt)])
-        logger.debug(f"Format generation response type: {type(response)}")
-        logger.debug(f"Format generation completion: {response.completion}")
-        logger.debug(f"Format generation completion type: {type(response.completion)}")
-        
-        if response.completion is None:
-            logger.error("❌ Format generation returned None completion")
-            raise ValueError("LLM response completion is None - unable to format report as HTML")
-        
-        html_content = response.completion
-        
-        # Clean up the HTML content if needed
-        html_content = self._clean_html_content(html_content)
-        
-        return html_content
-    
-    def _format_execution_results(self, execution_results) -> str:
-        """Format execution results for the LLM prompt"""
-        if not execution_results:
-            return "No execution results available."
-        
-        formatted_results = []
-        for i, result in enumerate(execution_results, 1):
-            status = "✅ Success" if result.success else "❌ Failed"
+        Args:
+            report_filename: Name of the report file
             
-            # Extract meaningful result content
-            result_content = "No result available"
-            if result.result:
-                # Truncate very long results but keep meaningful content
-                if len(result.result) > 500:
-                    result_content = result.result[:497] + "..."
+        Returns:
+            str: Absolute path to the finalized report
+        """
+        try:
+            # Read the current content
+            content = await self.file_system.read_file(report_filename)
+
+            # Extract HTML content from the read result
+            if content.startswith('Read from file'):
+                # Extract content between <content> tags
+                start_tag = '<content>'
+                end_tag = '</content>'
+                start_idx = content.find(start_tag)
+                end_idx = content.find(end_tag)
+
+                if start_idx != -1 and end_idx != -1:
+                    html_content = content[start_idx + len(start_tag):end_idx].strip()
                 else:
-                    result_content = result.result
-            elif result.error:
-                result_content = f"Error: {result.error}"
-            
-            formatted_results.append(f"""
-**Task {i}:** {result.task}
-**Status:** {status}
-**Agent:** {result.agent_id}
-**Result:** {result_content}
-**Success:** {'Yes' if result.success else 'No'}
-            """)
-        
-        return "\n".join(formatted_results)
-    
+                    html_content = content
+            else:
+                html_content = content
+
+            # Clean HTML content
+            cleaned_html = self._clean_html_content(html_content)
+
+            # Convert relative file paths to absolute file:// URLs
+            final_html = self._convert_file_links(cleaned_html)
+
+            # Write the final content
+            await self.file_system.write_file(report_filename, final_html)
+
+            # Get absolute path
+            # absolute_path = self.file_system.get_absolute_path(report_filename)
+
+            return report_filename
+
+        except Exception as e:
+            logger.error(f"❌ Failed to finalize report: {e}")
+            # Return the path anyway
+            return self.file_system.get_absolute_path(report_filename)
+
     def _clean_html_content(self, html_content: str) -> str:
         """Clean and validate HTML content"""
         # Remove markdown code block markers if present
@@ -161,7 +353,7 @@ class ReportWriterAgent:
             html_content = html_content[3:].strip()
         if html_content.endswith("```"):
             html_content = html_content[:-3].strip()
-        
+
         # Ensure it starts with <!DOCTYPE html> or <html>
         if not html_content.lower().startswith(('<!doctype', '<html')):
             html_content = f"""<!DOCTYPE html>
@@ -169,13 +361,16 @@ class ReportWriterAgent:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VibeSurf Task Report</title>
+    <title>VibeSurf Report</title>
     <style>
-        body {{ font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }}
-        .container {{ max-width: 800px; margin: 0 auto; }}
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 1200px; margin: 0 auto; padding: 20px; }}
         h1 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
         h2 {{ color: #34495e; margin-top: 30px; }}
         .section {{ margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #007bff; }}
+        table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+        th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }}
+        th {{ background-color: #f2f2f2; font-weight: bold; }}
     </style>
 </head>
 <body>
@@ -184,24 +379,57 @@ class ReportWriterAgent:
     </div>
 </body>
 </html>"""
-        
+
         return html_content
-    
+
+    def _convert_file_links(self, html_content: str) -> str:
+        """
+        Convert relative file paths to absolute file:// URLs
+        
+        Args:
+            html_content: HTML content with relative file paths
+            
+        Returns:
+            str: HTML content with converted file:// URLs
+        """
+        # Pattern to match HTML href and src attributes with relative paths
+        patterns = [
+            (r'href\s*=\s*["\']([^"\']+)["\']', 'href'),  # <a href="path">
+            (r'src\s*=\s*["\']([^"\']+)["\']', 'src'),  # <img src="path">
+        ]
+
+        for pattern, attr_name in patterns:
+            def replace_path(match):
+                full_match = match.group(0)
+                file_path = match.group(1)
+
+                # Check if it's already a URL or absolute path
+                if file_path.startswith(('http://', 'https://', 'file://', '#', 'mailto:', 'tel:')):
+                    return full_match  # Return unchanged
+
+                # Convert to absolute path
+                if not os.path.isabs(file_path):
+                    absolute_path = os.path.abspath(os.path.join(self.workspace_dir, file_path))
+                else:
+                    absolute_path = file_path
+                normalized_path = absolute_path.replace(os.path.sep, '/')
+                file_url = f"file:///{normalized_path}"
+
+                # Return the updated attribute
+                quote = '"' if '"' in full_match else "'"
+                return f'{attr_name}={quote}{file_url}{quote}'
+
+            html_content = re.sub(pattern, replace_path, html_content)
+
+        return html_content
+
     async def _generate_fallback_report(self, report_data: Dict[str, Any]) -> str:
         """Generate a simple fallback report when LLM generation fails"""
         logger.info("📝 Generating fallback report...")
-        
-        upload_files = report_data.get('upload_files', [])
-        upload_files_section = ""
-        if upload_files:
-            upload_files_section = f"""
-    <div class="section">
-        <h2>Upload Files</h2>
-        <ul>
-            {"".join([f"<li>{file}</li>" for file in upload_files])}
-        </ul>
-    </div>"""
-        
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        report_filename = f"vibesurf_fallback_report-{timestamp}.html"
+
         # Create a simple HTML report
         html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -252,36 +480,6 @@ class ReportWriterAgent:
             border-left: 4px solid #3498db;
             padding-left: 15px;
         }}
-        .success {{
-            color: #27ae60;
-            font-weight: 600;
-        }}
-        .error {{
-            color: #e74c3c;
-            font-weight: 600;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-            background: white;
-            border-radius: 6px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }}
-        th, td {{
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }}
-        th {{
-            background: #34495e;
-            color: white;
-            font-weight: 600;
-        }}
-        tr:hover {{
-            background-color: #f8f9fa;
-        }}
         .meta {{
             background: #ecf0f1;
             color: #7f8c8d;
@@ -295,82 +493,38 @@ class ReportWriterAgent:
     <div class="container">
         <div class="header">
             <h1>VibeSurf Task Report</h1>
-            <p>Generated on {time.strftime('%B %d, %Y at %H:%M:%S')}</p>
+            <p>Generated on {datetime.now().strftime('%B %d, %Y at %H:%M:%S')}</p>
         </div>
         
         <div class="section">
-            <h2>Task Overview</h2>
-            <p><strong>Original Task:</strong> {report_data.get('original_task', 'No task specified')}</p>
-            <p><strong>Report Type:</strong> {report_data.get('report_type', 'summary').title()}</p>
-        </div>
-        {upload_files_section}
-        
-        <div class="section">
-            <h2>Execution Results</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Task</th>
-                        <th>Status</th>
-                        <th>Agent</th>
-                        <th>Result</th>
-                    </tr>
-                </thead>
-                <tbody>
-"""
-        
-        # Add execution results to table
-        execution_results = report_data.get('execution_results', [])
-        if execution_results:
-            for result in execution_results:
-                status_class = "success" if result.success else "error"
-                status_text = "✅ Success" if result.success else "❌ Failed"
-                result_text = result.result or result.error or "No result"
-                # Truncate long results
-                if len(result_text) > 150:
-                    result_text = result_text[:147] + "..."
-                
-                html_content += f"""
-                    <tr>
-                        <td>{result.task}</td>
-                        <td class="{status_class}">{status_text}</td>
-                        <td>{result.agent_id}</td>
-                        <td>{result_text}</td>
-                    </tr>
-"""
-        else:
-            html_content += """
-                    <tr>
-                        <td colspan="4" style="text-align: center; color: #7f8c8d; font-style: italic;">No execution results available</td>
-                    </tr>
-"""
-        
-        html_content += """
-                </tbody>
-            </table>
+            <h2>Report Task</h2>
+            <p>{report_data.get('report_task', 'No task specified')}</p>
         </div>
         
         <div class="section">
-            <h2>Summary</h2>
-            <p>This report was automatically generated by VibeSurf as a fallback when the advanced report generation encountered an issue. The report contains basic information about the task execution and results.</p>
+            <h2>Available Information</h2>
+            <p>{report_data.get('information', 'No information provided')}</p>
+        </div>
+        
+        <div class="section">
+            <h2>Notice</h2>
+            <p>This is a fallback report generated when the advanced LLM-controlled report generation encountered an issue. The report contains basic information provided for the task.</p>
             <p>For future runs, ensure that the LLM service is properly configured and accessible for enhanced report generation capabilities.</p>
         </div>
         
         <div class="meta">
-            Generated by VibeSurf Agent Framework
+            Generated by VibeSurf Agent Framework - Fallback Mode
         </div>
     </div>
 </body>
 </html>"""
-        
-        # Save fallback report
-        report_filename = f"fallback_report_{int(time.time())}.html"
-        reports_dir = os.path.join(self.workspace_dir, "reports")
-        os.makedirs(reports_dir, exist_ok=True)
-        report_path = os.path.join(reports_dir, report_filename)
-        
-        with open(report_path, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        
-        logger.info(f"✅ Fallback report generated: {report_path}")
-        return report_path
+
+        # Create and write fallback report
+        await self.file_system.create_file(report_filename)
+        await self.file_system.write_file(report_filename, html_content)
+
+        # Get absolute path
+        # absolute_path = self.file_system.get_absolute_path(report_filename)
+
+        logger.info(f"✅ Fallback report generated: {report_filename}")
+        return report_filename

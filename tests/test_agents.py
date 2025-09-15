@@ -14,7 +14,9 @@ from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.controller.vibesurf_tools import VibeSurfController
+from vibe_surf.browser.agen_browser_profile import AgentBrowserProfile
+from vibe_surf.tools.browser_use_tools import BrowserUseTools
+from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 from vibe_surf.llm.openai_compatible import ChatOpenAICompatible
 from vibe_surf.agents.browser_use_agent import BrowserUseAgent
 from vibe_surf.agents.vibe_surf_agent import VibeSurfAgent
@@ -25,7 +27,7 @@ async def run_single_bu_agent():
         browser_exec_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
     else:
         browser_exec_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    browser_profile = BrowserProfile(
+    browser_profile = AgentBrowserProfile(
         executable_path=browser_exec_path,
         user_data_dir=os.path.abspath('./tmp/chrome/profiles/default'),
         headless=False,
@@ -34,24 +36,24 @@ async def run_single_bu_agent():
     # Use SwarmBrowserSession instead of BrowserSession to disable DVD animation
     main_browser_session = AgentBrowserSession(browser_profile=browser_profile)
     await main_browser_session.start()
-    controller = VibeSurfController()
+    bu_tools = BrowserUseTools()
 
-    llm = ChatOpenAICompatible(model='gemini-2.5-pro',
+    llm = ChatOpenAICompatible(model='gemini-2.5-flash',
                                base_url=os.getenv("OPENAI_ENDPOINT"),
                                api_key=os.getenv("OPENAI_API_KEY"))
-    # task = "Search Google for 'what is browser automation' and tell me the top 3 results"
-    task = r"""
-    1. 在新的tab 导航到 https://github.com/
-    2. 在新的tab 导航到 https://vibemotion.co/
-    3. 在新的tab 导航到 https://browser-use.com/
-    4. 分别总结所有tab的内容(在一步中使用parallel的extract操作, 不要分开三步)，然后保存到 tabs_summary.txt
-    """
+    task = "Search Google for 'Elon Mask' and tell me the top 3 results"
+    # task = r"""
+    # 1. 在新的tab 导航到 https://github.com/
+    # 2. 在新的tab 导航到 https://vibemotion.co/
+    # 3. 在新的tab 导航到 https://browser-use.com/
+    # 4. 分别总结所有tab的内容(在一步中使用parallel的extract操作, 不要分开三步)，然后保存到 tabs_summary.txt
+    # """
     agent = BrowserUseAgent(task=task,
                             llm=llm,
                             browser_session=main_browser_session,
-                            controller=controller,
+                            tools=bu_tools,
                             task_id=main_browser_session.id,
-                            file_system_path="./tmp/agent_workspace")
+                            file_system_path="./tmp/single_bu_tests")
     history = await agent.run()
     print(history.final_result())
     await main_browser_session.kill()
@@ -63,7 +65,7 @@ async def run_multi_bu_agents():
         browser_exec_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
     else:
         browser_exec_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    browser_profile = BrowserProfile(
+    browser_profile = AgentBrowserProfile(
         executable_path=browser_exec_path,
         user_data_dir=os.path.abspath('./tmp/chrome/profiles/default'),
         headless=False,
@@ -82,12 +84,15 @@ async def run_multi_bu_agents():
         }
     }
     # Use SwarmBrowserSession instead of BrowserSession to disable DVD animation
+    # Use SwarmBrowserSession instead of BrowserSession to disable DVD animation
     main_browser_session = AgentBrowserSession(browser_profile=browser_profile)
     await main_browser_session.start()
+    bu_tools = BrowserUseTools()
     browser_manager = BrowserManager(main_browser_session=main_browser_session)
-    controller = VibeSurfController()
-    # await controller.register_mcp_clients(mcp_server_config)
-    llm = ChatOpenAICompatible(model='gemini-2.5-flash', base_url=os.getenv("OPENAI_ENDPOINT"),
+    # await tools.register_mcp_clients(mcp_server_config)
+
+    llm = ChatOpenAICompatible(model='gemini-2.5-flash',
+                               base_url=os.getenv("OPENAI_ENDPOINT"),
                                api_key=os.getenv("OPENAI_API_KEY"))
     agent_browser_sessions = await asyncio.gather(
         browser_manager.register_agent("agent-1"),
@@ -98,8 +103,8 @@ async def run_multi_bu_agents():
         BrowserUseAgent(task=task,
                         llm=llm,
                         browser_session=agent_browser_sessions[i],
-                        controller=controller,
-                        file_system_path="./tmp/agent_workspace")
+                        tools=bu_tools,
+                        file_system_path="./tmp/multi_bu_tests")
         for i, task in enumerate([
             # 'Search Google for weather in Tokyo',
             # 'Check Reddit front page title',
@@ -122,8 +127,8 @@ async def run_multi_bu_agents():
         print(await agent_browser_sessions[i].get_tabs())
         print(ret.final_result())
     await browser_manager.close()
-    await controller.unregister_mcp_clients()
     await main_browser_session.kill()
+    await bu_tools.unregister_mcp_clients()
 
 
 async def test_vibe_surf_agent():
@@ -133,37 +138,29 @@ async def test_vibe_surf_agent():
         browser_exec_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
     else:
         browser_exec_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    from screeninfo import get_monitors
-    primary_monitor = get_monitors()[0]
-    browser_profile = BrowserProfile(
+    browser_profile = AgentBrowserProfile(
         executable_path=browser_exec_path,
         user_data_dir=os.path.abspath('./tmp/chrome/profiles/default'),
         headless=False,
-        keep_alive=True,
-        highlight_elements=True,
-        window_size={"width": 1100, "height": 1280}
-        # window_size={"width": primary_monitor.width, "height": primary_monitor.height}
+        keep_alive=True
     )
-    
-    # Initialize components
+    # Use SwarmBrowserSession instead of BrowserSession to disable DVD animation
     main_browser_session = AgentBrowserSession(browser_profile=browser_profile)
     await main_browser_session.start()
-    
+    vs_tools = VibeSurfTools()
     browser_manager = BrowserManager(main_browser_session=main_browser_session)
-    controller = VibeSurfController()
-    
-    llm = ChatOpenAICompatible(
-        model='gemini-2.5-flash',
-        base_url=os.getenv("OPENAI_ENDPOINT"),
-        api_key=os.getenv("OPENAI_API_KEY")
-    )
+    llm = ChatOpenAICompatible(model='gemini-2.5-flash',
+                               base_url=os.getenv("OPENAI_ENDPOINT"),
+                               api_key=os.getenv("OPENAI_API_KEY"))
+
     
     # Create VibeSurfAgent
     agent = VibeSurfAgent(
         llm=llm,
         browser_manager=browser_manager,
-        controller=controller,
-        workspace_dir=os.path.abspath("./tmp/swarm_surf_workspace_test")
+        tools=vs_tools,
+        workspace_dir=os.path.abspath("./tmp/vibesurf_tests"),
+        calculate_token_cost=True
     )
     
     try:
@@ -194,11 +191,11 @@ async def test_vibe_surf_agent():
 
         # Test 4: Browser parallel task
         print("🧪 Testing browser parallel tasks...")
-        browser_task = "Search for Dify, n8n, browser-use and get latest news"
+        browser_task = "Search for Dify, n8n, browser-use and click into their own homepage, take screenshot and save"
         result4 = await agent.run(browser_task)
         print(f"✅ Browser task result:")
         pprint.pprint(result4)
-        with open("./tmp/swarm_surf_workspace_test/parallel_test.md", "w", encoding='utf-8') as fw:
+        with open("./tmp/vibesurf_tests/parallel_test.md", "w", encoding='utf-8') as fw:
             fw.write(result4)
         assert result4 is not None and len(result4) > 0
         print("🎉 All VibeSurfAgent tests passed!")
@@ -219,35 +216,31 @@ async def test_vibe_surf_agent_control():
         browser_exec_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
     else:
         browser_exec_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    
-    browser_profile = BrowserProfile(
+    browser_profile = AgentBrowserProfile(
         executable_path=browser_exec_path,
-        user_data_dir=os.path.abspath('./tmp/chrome/profiles/control_test'),
-        headless=False,  # Keep visible for control testing
+        user_data_dir=os.path.abspath('./tmp/chrome/profiles/default'),
+        headless=False,
         keep_alive=True
     )
-    
-    # Initialize components
+    # Use SwarmBrowserSession instead of BrowserSession to disable DVD animation
     main_browser_session = AgentBrowserSession(browser_profile=browser_profile)
     await main_browser_session.start()
-    
+    vs_tools = VibeSurfTools()
     browser_manager = BrowserManager(main_browser_session=main_browser_session)
-    controller = VibeSurfController()
+    llm = ChatOpenAICompatible(model='gemini-2.5-pro',
+                               base_url=os.getenv("OPENAI_ENDPOINT"),
+                               api_key=os.getenv("OPENAI_API_KEY"))
     
-    llm = ChatOpenAICompatible(
-        model='gemini-2.5-flash',
-        base_url=os.getenv("OPENAI_ENDPOINT"),
-        api_key=os.getenv("OPENAI_API_KEY")
-    )
-    
+
     # Create VibeSurfAgent
     agent = VibeSurfAgent(
         llm=llm,
         browser_manager=browser_manager,
-        controller=controller,
-        workspace_dir="./tmp/swarm_surf_control_test"
+        tools=vs_tools,
+        workspace_dir=os.path.abspath("./tmp/vibesurf_tests"),
+        calculate_token_cost=True
     )
-    
+
     try:
         print("🧪 Testing VibeSurfAgent control functionality...")
         
@@ -375,6 +368,6 @@ async def test_vibe_surf_agent_control():
 
 if __name__ == "__main__":
     # asyncio.run(run_single_bu_agent())
-    asyncio.run(run_multi_bu_agents())
-    # asyncio.run(test_vibe_surf_agent())
+    # asyncio.run(run_multi_bu_agents())
+    asyncio.run(test_vibe_surf_agent())
     # asyncio.run(test_vibe_surf_agent_control())

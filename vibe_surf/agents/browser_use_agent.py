@@ -3,6 +3,7 @@ import gc
 import inspect
 import json
 import logging
+import os.path
 import pdb
 import re
 import sys
@@ -11,7 +12,7 @@ import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar, Optional
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
@@ -74,10 +75,9 @@ from browser_use.utils import (
 )
 
 from browser_use.agent.service import Agent, AgentHookFunc
-from vibe_surf.controller.file_system import CustomFileSystem
+from vibe_surf.tools.file_system import CustomFileSystem
 
 Context = TypeVar('Context')
-
 
 
 class BrowserUseAgent(Agent):
@@ -134,9 +134,11 @@ class BrowserUseAgent(Agent):
             vision_detail_level: Literal['auto', 'low', 'high'] = 'auto',
             llm_timeout: int = 90,
             step_timeout: int = 120,
-            directly_open_url: bool = True,
+            directly_open_url: bool = False,
             include_recent_events: bool = False,
             allow_parallel_action_types: list[str] = ["extract_structured_data", "extract_content_from_file"],
+            _url_shortening_limit: int = 25,
+            token_cost_service: Optional[TokenCost] = None,
             **kwargs,
     ):
         if page_extraction_llm is None:
@@ -148,6 +150,7 @@ class BrowserUseAgent(Agent):
         self.task_id: str = self.id
         self.session_id: str = uuid7str()
         self.allow_parallel_action_types = allow_parallel_action_types
+        self._url_shortening_limit = _url_shortening_limit
 
         browser_profile = browser_profile or DEFAULT_BROWSER_PROFILE
 
@@ -206,7 +209,10 @@ class BrowserUseAgent(Agent):
         )
 
         # Token cost service
-        self.token_cost_service = TokenCost(include_cost=calculate_cost)
+        if token_cost_service is None:
+            self.token_cost_service = TokenCost(include_cost=calculate_cost)
+        else:
+            self.token_cost_service = token_cost_service
         self.token_cost_service.register_llm(llm)
         self.token_cost_service.register_llm(page_extraction_llm)
 
@@ -251,6 +257,11 @@ class BrowserUseAgent(Agent):
         if 'deepseek' in self.llm.model.lower():
             self.logger.warning(
                 '⚠️ DeepSeek models do not support use_vision=True yet. Setting use_vision=False for now...')
+            self.settings.use_vision = False
+
+        if 'kimi-k2' in self.llm.model.lower():
+            self.logger.warning(
+                '⚠️ Kimi-k2 models do not support use_vision=True yet. Setting use_vision=False for now...')
             self.settings.use_vision = False
 
         # Handle users trying to use use_vision=True with XAI models
@@ -468,6 +479,13 @@ class BrowserUseAgent(Agent):
         # Increment step counter after step is fully completed
         self.state.n_steps += 1
 
+    def add_new_task(self, new_task: str) -> None:
+        """Add a new task to the agent, keeping the same task_id as tasks are continuous"""
+        # Simply delegate to message manager - no need for new task_id or events
+        # The task continues with new instructions, it doesn't end and start a new one
+        self.task = new_task
+        self._message_manager.add_new_task(new_task)
+
     @observe(name='agent.run', metadata={'task': '{{task}}', 'debug': '{{debug}}'})
     @time_execution_async('--run')
     async def run(
@@ -527,11 +545,13 @@ class BrowserUseAgent(Agent):
                 # Replace the polling with clean pause-wait
                 if self.state.paused:
                     self.logger.debug(f'⏸️ Step {step}: Agent paused, waiting to resume...')
-                    await self.wait_until_resumed()
+                    await self._external_pause_event.wait()
                     signal_handler.reset()
 
                 # Check if we should stop due to too many failures
-                if self.state.consecutive_failures >= self.settings.max_failures:
+                if (self.state.consecutive_failures) >= self.settings.max_failures + int(
+                        self.settings.final_response_after_failure
+                ):
                     self.logger.error(f'❌ Stopping due to {self.settings.max_failures} consecutive failures')
                     agent_run_error = f'Stopped due to {self.settings.max_failures} consecutive failures'
                     break
@@ -630,6 +650,8 @@ class BrowserUseAgent(Agent):
             # Log token usage summary
             await self.token_cost_service.log_usage_summary()
 
+            self.save_history(os.path.join(self.file_system_path, 'AgentHistory.json'))
+
             # Unregister signal handlers before cleanup
             signal_handler.unregister()
 
@@ -673,7 +695,7 @@ class BrowserUseAgent(Agent):
         else:
             # Exact matching
             return action_type == allowed_pattern
-    
+
     def _is_action_parallel_allowed(self, action: ActionModel) -> bool:
         """
         Check if an action is allowed to be executed in parallel.
@@ -686,16 +708,16 @@ class BrowserUseAgent(Agent):
         """
         action_data = action.model_dump(exclude_unset=True)
         action_type = next(iter(action_data.keys())) if action_data else None
-        
+
         if not action_type:
             return False
-            
+
         for allowed_pattern in self.allow_parallel_action_types:
             if self._matches_action_type(action_type, allowed_pattern):
                 return True
-                
+
         return False
-    
+
     def _group_actions_for_parallel_execution(self, actions: list[ActionModel]) -> list[list[ActionModel]]:
         """
         Group consecutive actions that can be executed in parallel.
@@ -708,27 +730,27 @@ class BrowserUseAgent(Agent):
         """
         if not actions:
             return []
-            
+
         groups = []
         current_group = [actions[0]]
-        
+
         for i in range(1, len(actions)):
             current_action = actions[i]
-            previous_action = actions[i-1]
-            
+            previous_action = actions[i - 1]
+
             # Check if both current and previous actions can be executed in parallel
             if (self._is_action_parallel_allowed(current_action) and
-                self._is_action_parallel_allowed(previous_action)):
+                    self._is_action_parallel_allowed(previous_action)):
                 # Add to current group
                 current_group.append(current_action)
             else:
                 # Start a new group
                 groups.append(current_group)
                 current_group = [current_action]
-        
+
         # Add the last group
         groups.append(current_group)
-        
+
         return groups
 
     @observe_debug(ignore_input=True, ignore_output=True)
@@ -761,21 +783,22 @@ class BrowserUseAgent(Agent):
 
         # Group actions for potential parallel execution
         action_groups = self._group_actions_for_parallel_execution(actions)
-        
+
         # Track global action index for logging and DOM checks
         global_action_index = 0
 
         for group_index, action_group in enumerate(action_groups):
             group_size = len(action_group)
-            
+
             # Check if this group can be executed in parallel
             can_execute_in_parallel = (
-                group_size > 1 and
-                all(self._is_action_parallel_allowed(action) for action in action_group)
+                    group_size > 1 and
+                    all(self._is_action_parallel_allowed(action) for action in action_group)
             )
-            
+
             if can_execute_in_parallel:
-                self.logger.info(f'🚀 Executing {group_size} actions in parallel: group {group_index + 1}/{len(action_groups)}')
+                self.logger.info(
+                    f'🚀 Executing {group_size} actions in parallel: group {group_index + 1}/{len(action_groups)}')
                 # Execute actions in parallel using asyncio.gather
                 parallel_results = await self._execute_actions_in_parallel(
                     action_group, global_action_index, total_actions,
@@ -783,7 +806,7 @@ class BrowserUseAgent(Agent):
                 )
                 results.extend(parallel_results)
                 global_action_index += group_size
-                
+
                 # Check if any result indicates completion or error
                 if any(result.is_done or result.error for result in parallel_results):
                     break
@@ -791,7 +814,7 @@ class BrowserUseAgent(Agent):
                 # Execute actions sequentially
                 for local_index, action in enumerate(action_group):
                     i = global_action_index + local_index
-                    
+
                     # Original sequential execution logic continues here...
                     if i > 0:
                         # ONLY ALLOW TO CALL `done` IF IT IS A SINGLE ACTION
@@ -825,7 +848,7 @@ class BrowserUseAgent(Agent):
                     except Exception as e:
                         self.logger.error(f'❌ Executing action {i + 1} failed: {type(e).__name__}: {e}')
                         raise e
-                
+
                 global_action_index += len(action_group)
 
         return results
@@ -840,11 +863,11 @@ class BrowserUseAgent(Agent):
             check_for_new_elements: bool
     ) -> list[ActionResult]:
         """Execute a group of actions in parallel using asyncio.gather"""
-        
+
         async def execute_single_parallel_action(action: ActionModel, action_index: int) -> ActionResult:
             """Execute a single action for parallel execution"""
             await self._raise_if_stopped_or_paused()
-            
+
             # Get action info for logging
             action_data = action.model_dump(exclude_unset=True)
             action_name = next(iter(action_data.keys())) if action_data else 'unknown'
@@ -853,12 +876,12 @@ class BrowserUseAgent(Agent):
             ).replace('{', '').replace('}', '').replace("'", '').strip().strip(',')
             action_params = str(action_params)
             action_params = f'{action_params[:122]}...' if len(action_params) > 128 else action_params
-            
+
             time_start = time.time()
             blue = '\033[34m'
             reset = '\033[0m'
             self.logger.info(f'  🦾 {blue}[PARALLEL ACTION {action_index + 1}/{total_actions}]{reset} {action_params}')
-            
+
             # Execute the action
             result = await self.tools.act(
                 action=action,
@@ -868,26 +891,26 @@ class BrowserUseAgent(Agent):
                 sensitive_data=self.sensitive_data,
                 available_file_paths=self.available_file_paths,
             )
-            
+
             time_end = time.time()
             time_elapsed = time_end - time_start
-            
+
             green = '\033[92m'
             self.logger.debug(
                 f'☑️ Parallel action {action_index + 1}/{total_actions}: {green}{action_params}{reset} in {time_elapsed:.2f}s'
             )
-            
+
             return result
-        
+
         # Create tasks for parallel execution
         tasks = [
             execute_single_parallel_action(action, start_index + i)
             for i, action in enumerate(actions)
         ]
-        
+
         # Execute all tasks in parallel
         parallel_results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Process results and handle any exceptions
         processed_results = []
         for i, result in enumerate(parallel_results):
@@ -897,7 +920,7 @@ class BrowserUseAgent(Agent):
                 raise result
             else:
                 processed_results.append(result)
-        
+
         return processed_results
 
     async def _check_dom_synchronization(
@@ -955,13 +978,13 @@ class BrowserUseAgent(Agent):
                 include_in_memory=True,
                 long_term_memory=msg,
             )
-        
+
         return None
 
     async def _execute_single_action(self, action: ActionModel, action_index: int, total_actions: int) -> ActionResult:
         """Execute a single action in sequential mode"""
         await self._raise_if_stopped_or_paused()
-        
+
         # Get action name from the action model
         action_data = action.model_dump(exclude_unset=True)
         action_name = next(iter(action_data.keys())) if action_data else 'unknown'
@@ -971,14 +994,14 @@ class BrowserUseAgent(Agent):
         # Ensure action_params is always a string before checking length
         action_params = str(action_params)
         action_params = f'{action_params[:122]}...' if len(action_params) > 128 else action_params
-        
+
         time_start = time.time()
-        
+
         red = '\033[91m'
         green = '\033[92m'
         blue = '\033[34m'
         reset = '\033[0m'
-        
+
         self.logger.info(f'  🦾 {blue}[ACTION {action_index + 1}/{total_actions}]{reset} {action_params}')
 
         result = await self.tools.act(
@@ -996,5 +1019,5 @@ class BrowserUseAgent(Agent):
         self.logger.debug(
             f'☑️ Executed action {action_index + 1}/{total_actions}: {green}{action_params}{reset} in {time_elapsed:.2f}s'
         )
-        
+
         return result

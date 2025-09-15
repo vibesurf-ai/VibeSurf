@@ -13,11 +13,14 @@ from .models import Base
 from typing import AsyncGenerator
 import logging
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class DatabaseManager:
     """Database connection and session management"""
-    
+
     def __init__(self, database_url: str = None):
         """Initialize database manager
         
@@ -29,7 +32,7 @@ class DatabaseManager:
             'VIBESURF_DATABASE_URL',
             f'sqlite+aiosqlite:///{os.path.join(shared_state.workspace_dir, "vibe_surf.db")}'
         )
-        
+
         # Configure engine based on database type
         if self.database_url.startswith('sqlite'):
             # SQLite configuration for development
@@ -52,23 +55,23 @@ class DatabaseManager:
                 pool_recycle=3600,
                 echo=False
             )
-        
+
         self.async_session_factory = sessionmaker(
-            self.engine, 
-            class_=AsyncSession, 
+            self.engine,
+            class_=AsyncSession,
             expire_on_commit=False
         )
-    
+
     async def create_tables(self):
         """Create all database tables"""
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-    
+
     async def drop_tables(self):
         """Drop all database tables"""
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
-    
+
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         """Get async database session"""
         async with self.async_session_factory() as session:
@@ -80,46 +83,49 @@ class DatabaseManager:
                 raise
             finally:
                 await session.close()
-    
+
     async def close(self):
         """Close database connections"""
         await self.engine.dispose()
+
 
 # Dependency for FastAPI
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency for database sessions"""
     from .. import shared_state
-    
+
     if not shared_state.db_manager:
         raise RuntimeError("Database manager not initialized. Call initialize_vibesurf_components() first.")
-    
+
     async for session in shared_state.db_manager.get_session():
         yield session
+
 
 # Database initialization script
 async def init_database():
     """Initialize database with tables"""
     from .. import shared_state
-    
+
     logger.info("🗄️ Initializing VibeSurf database...")
-    
+
     try:
         if not shared_state.db_manager:
             raise RuntimeError("Database manager not initialized. Call initialize_vibesurf_components() first.")
-            
+
         await shared_state.db_manager.create_tables()
         logger.info("✅ Database tables created successfully")
         logger.info("✅ VibeSurf database ready for single-task execution")
-        
+
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}")
         raise
+
 
 if __name__ == "__main__":
     # For standalone execution, initialize a temporary db_manager
     import os
     from .. import shared_state
-    
+
     workspace_dir = os.getenv("VIBESURF_WORKSPACE", os.path.join(os.path.dirname(__file__), "../vibesurf_workspace"))
     database_url = os.getenv(
         'VIBESURF_DATABASE_URL',

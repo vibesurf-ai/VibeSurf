@@ -206,33 +206,33 @@ async def test_llm_profile_management():
 
 
 async def test_controller_configuration():
-    """Test controller/MCP server configuration"""
+    """Test tools/MCP server configuration"""
     print("\n🧪 Testing Controller Configuration...")
     async with BackendAPITester() as tester:
         await tester.wait_for_backend()
 
-        # 1. Get current controller config
-        print("\n📋 Testing get controller config...")
-        config_resp = await tester.get("/config/controller")
+        # 1. Get current tools config
+        print("\n📋 Testing get tools config...")
+        config_resp = await tester.get("/config/tools")
         print(f"Controller config response: {config_resp}")
 
-        # 2. Update controller config (using new Pydantic model)
-        print("\n✏️ Testing update controller config...")
+        # 2. Update tools config (using new Pydantic model)
+        print("\n✏️ Testing update tools config...")
         controller_config = {
             "exclude_actions": ["scroll_up", "scroll_down"],
             "max_actions_per_task": 150,
             "display_files_in_done_text": False
         }
 
-        update_resp = await tester.post("/config/controller", controller_config)
+        update_resp = await tester.post("/config/tools", controller_config)
         if update_resp["status"] == 200:
             print("✅ Controller configuration updated successfully")
         else:
             print(f"❌ Controller config update failed: {update_resp}")
 
         # 3. Verify the update
-        print("\n🔍 Testing verify controller config update...")
-        verify_resp = await tester.get("/config/controller")
+        print("\n🔍 Testing verify tools config update...")
+        verify_resp = await tester.get("/config/tools")
         if verify_resp["status"] == 200:
             print("✅ Controller configuration verified")
 
@@ -440,7 +440,7 @@ async def test_configuration_status():
             status_data = status_resp["data"]
             print(f"Overall status: {status_data.get('overall_status')}")
             print(f"LLM profiles: {status_data.get('llm_profiles')}")
-            print(f"Controller initialized: {status_data.get('controller', {}).get('initialized')}")
+            print(f"Controller initialized: {status_data.get('tools', {}).get('initialized')}")
             print(f"Browser manager initialized: {status_data.get('browser_manager', {}).get('initialized')}")
             print(f"Swarm agent initialized: {status_data.get('swarm_agent', {}).get('initialized')}")
 

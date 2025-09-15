@@ -5,10 +5,11 @@ import json
 import enum
 import base64
 import mimetypes
-
+import datetime
+from pathvalidate import sanitize_filename
 from typing import Optional, Type, Callable, Dict, Any, Union, Awaitable, TypeVar
 from pydantic import BaseModel
-from browser_use.tools.service import Controller, Tools
+from browser_use.tools.service import Tools
 import logging
 from browser_use.agent.views import ActionModel, ActionResult
 from browser_use.utils import time_execution_sync
@@ -38,33 +39,226 @@ from browser_use.dom.service import EnhancedDOMTreeNode
 from browser_use.browser.views import BrowserError
 from browser_use.mcp.client import MCPClient
 
-
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.controller.views import HoverAction, ExtractionAction, FileExtractionAction
-from vibe_surf.controller.mcp_client import VibeSurfMCPClient
+from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction
+from vibe_surf.tools.mcp_client import CustomMCPClient
+from vibe_surf.tools.file_system import CustomFileSystem
+from vibe_surf.logger import get_logger
+from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 Context = TypeVar('Context')
 
 T = TypeVar('T', bound=BaseModel)
 
 
-class VibeSurfTools(Tools):
+class BrowserUseTools(Tools, VibeSurfTools):
     def __init__(self,
                  exclude_actions: list[str] = [],
                  output_model: type[T] | None = None,
                  display_files_in_done_text: bool = True,
-                 mcp_server_config: Optional[Dict[str, Any]] = None
                  ):
-        super().__init__(exclude_actions=exclude_actions, output_model=output_model,
-                         display_files_in_done_text=display_files_in_done_text)
+        Tools.__init__(self, exclude_actions=exclude_actions, output_model=output_model,
+                       display_files_in_done_text=display_files_in_done_text)
         self._register_browser_actions()
-        self.mcp_server_config = mcp_server_config
-        self.mcp_clients = {}
+        self._register_file_actions()
+
+    def _register_done_action(self, output_model: type[T] | None, display_files_in_done_text: bool = True):
+        if output_model is not None:
+            self.display_files_in_done_text = display_files_in_done_text
+
+            @self.registry.action(
+                'Complete task - with return text and if the task is finished (success=True) or not yet completely finished (success=False), because last step is reached',
+                param_model=StructuredOutputAction[output_model],
+            )
+            async def done(params: StructuredOutputAction):
+                # Exclude success from the output JSON since it's an internal parameter
+                output_dict = params.data.model_dump()
+
+                # Enums are not serializable, convert to string
+                for key, value in output_dict.items():
+                    if isinstance(value, enum.Enum):
+                        output_dict[key] = value.value
+
+                return ActionResult(
+                    is_done=True,
+                    success=params.success,
+                    extracted_content=json.dumps(output_dict),
+                    long_term_memory=f'Task completed. Success Status: {params.success}',
+                )
+
+        else:
+
+            @self.registry.action(
+                'Complete task - provide a summary of results for the user. Set success=True if task completed successfully, false otherwise. Text should be your response to the user summarizing results. Include files in files_to_display if you would like to display to the user or there files are important for the task result.',
+                param_model=DoneAction,
+            )
+            async def done(params: DoneAction, file_system: CustomFileSystem):
+                user_message = params.text
+
+                len_text = len(params.text)
+                len_max_memory = 100
+                memory = f'Task completed: {params.success} - {params.text[:len_max_memory]}'
+                if len_text > len_max_memory:
+                    memory += f' - {len_text - len_max_memory} more characters'
+
+                attachments = []
+                if params.files_to_display:
+                    if self.display_files_in_done_text:
+                        file_msg = ''
+                        for file_name in params.files_to_display:
+                            if file_name == 'todo.md':
+                                continue
+                            file_content = await file_system.display_file(file_name)
+                            if file_content:
+                                file_msg += f'\n\n{file_name}:\n{file_content}'
+                                attachments.append(file_name)
+                        if file_msg:
+                            user_message += '\n\nAttachments:'
+                            user_message += file_msg
+                        else:
+                            logger.warning('Agent wanted to display files but none were found')
+                    else:
+                        for file_name in params.files_to_display:
+                            if file_name == 'todo.md':
+                                continue
+                            file_content = await file_system.display_file(file_name)
+                            if file_content:
+                                attachments.append(file_name)
+
+                attachments = [file_name for file_name in attachments]
+
+                return ActionResult(
+                    is_done=True,
+                    success=params.success,
+                    extracted_content=user_message,
+                    long_term_memory=memory,
+                    attachments=attachments,
+                )
 
     def _register_browser_actions(self):
         """Register custom browser actions"""
+
+        @self.registry.action('Upload file to interactive element with file path', param_model=UploadFileAction)
+        async def upload_file_to_element(
+                params: UploadFileAction, browser_session: BrowserSession, file_system: FileSystem
+        ):
+
+            # For local browsers, ensure the file exists on the local filesystem
+            full_file_path = params.path
+            if not os.path.exists(full_file_path):
+                full_file_path = str(file_system.get_dir() / params.path)
+            if not os.path.exists(full_file_path):
+                msg = f'File {params.path} does not exist'
+                return ActionResult(error=msg)
+
+            # Get the selector map to find the node
+            selector_map = await browser_session.get_selector_map()
+            if params.index not in selector_map:
+                msg = f'Element with index {params.index} does not exist.'
+                return ActionResult(error=msg)
+
+            node = selector_map[params.index]
+
+            # Helper function to find file input near the selected element
+            def find_file_input_near_element(
+                    node: EnhancedDOMTreeNode, max_height: int = 3, max_descendant_depth: int = 3
+            ) -> EnhancedDOMTreeNode | None:
+                """Find the closest file input to the selected element."""
+
+                def find_file_input_in_descendants(n: EnhancedDOMTreeNode, depth: int) -> EnhancedDOMTreeNode | None:
+                    if depth < 0:
+                        return None
+                    if browser_session.is_file_input(n):
+                        return n
+                    for child in n.children_nodes or []:
+                        result = find_file_input_in_descendants(child, depth - 1)
+                        if result:
+                            return result
+                    return None
+
+                current = node
+                for _ in range(max_height + 1):
+                    # Check the current node itself
+                    if browser_session.is_file_input(current):
+                        return current
+                    # Check all descendants of the current node
+                    result = find_file_input_in_descendants(current, max_descendant_depth)
+                    if result:
+                        return result
+                    # Check all siblings and their descendants
+                    if current.parent_node:
+                        for sibling in current.parent_node.children_nodes or []:
+                            if sibling is current:
+                                continue
+                            if browser_session.is_file_input(sibling):
+                                return sibling
+                            result = find_file_input_in_descendants(sibling, max_descendant_depth)
+                            if result:
+                                return result
+                    current = current.parent_node
+                    if not current:
+                        break
+                return None
+
+            # Try to find a file input element near the selected element
+            file_input_node = find_file_input_near_element(node)
+
+            # If not found near the selected element, fallback to finding the closest file input to current scroll position
+            if file_input_node is None:
+                logger.info(
+                    f'No file upload element found near index {params.index}, searching for closest file input to scroll position'
+                )
+
+                # Get current scroll position
+                cdp_session = await browser_session.get_or_create_cdp_session()
+                try:
+                    scroll_info = await cdp_session.cdp_client.send.Runtime.evaluate(
+                        params={'expression': 'window.scrollY || window.pageYOffset || 0'},
+                        session_id=cdp_session.session_id
+                    )
+                    current_scroll_y = scroll_info.get('result', {}).get('value', 0)
+                except Exception:
+                    current_scroll_y = 0
+
+                # Find all file inputs in the selector map and pick the closest one to scroll position
+                closest_file_input = None
+                min_distance = float('inf')
+
+                for idx, element in selector_map.items():
+                    if browser_session.is_file_input(element):
+                        # Get element's Y position
+                        if element.absolute_position:
+                            element_y = element.absolute_position.y
+                            distance = abs(element_y - current_scroll_y)
+                            if distance < min_distance:
+                                min_distance = distance
+                                closest_file_input = element
+
+                if closest_file_input:
+                    file_input_node = closest_file_input
+                    logger.info(f'Found file input closest to scroll position (distance: {min_distance}px)')
+                else:
+                    msg = 'No file upload element found on the page'
+                    logger.error(msg)
+                    raise BrowserError(msg)
+                # TODO: figure out why this fails sometimes + add fallback hail mary, just look for any file input on page
+
+            # Dispatch upload file event with the file input node
+            try:
+                event = browser_session.event_bus.dispatch(UploadFileEvent(node=file_input_node, file_path=full_file_path))
+                await event
+                await event.event_result(raise_if_any=True, raise_if_none=False)
+                msg = f'Successfully uploaded file to index {params.index}'
+                logger.info(f'📁 {msg}')
+                return ActionResult(
+                    extracted_content=msg,
+                    long_term_memory=f'Uploaded file {params.path} to element {params.index}',
+                )
+            except Exception as e:
+                logger.error(f'Failed to upload file: {e}')
+                raise BrowserError(f'Failed to upload file: {e}')
 
         @self.registry.action(
             'Hover over an element',
@@ -358,222 +552,42 @@ Provide the extracted information in a clear, structured format."""
                 logger.debug(f'Error extracting content: {e}')
                 raise RuntimeError(str(e))
 
-        @self.registry.action('Read file_name from file system. If this is a file not in Current workspace dir or with a absolute path, Set external_file=True.')
-        async def read_file(file_name: str, external_file: bool, file_system: FileSystem):
-            if not os.path.exists(file_name):
-                # if not exists, assume it is external_file
-                external_file = True
-            result = await file_system.read_file(file_name, external_file=external_file)
-
-            MAX_MEMORY_SIZE = 1000
-            if len(result) > MAX_MEMORY_SIZE:
-                lines = result.splitlines()
-                display = ''
-                lines_count = 0
-                for line in lines:
-                    if len(display) + len(line) < MAX_MEMORY_SIZE:
-                        display += line + '\n'
-                        lines_count += 1
-                    else:
-                        break
-                remaining_lines = len(lines) - lines_count
-                memory = f'{display}{remaining_lines} more lines...' if remaining_lines > 0 else display
-            else:
-                memory = result
-            logger.info(f'💾 {memory}')
-            return ActionResult(
-                extracted_content=result,
-                include_in_memory=True,
-                long_term_memory=memory,
-                include_extracted_content_only_once=True,
-            )
-
         @self.registry.action(
-            'Extract content from a file. Support image files, pdf and more.',
-            param_model=FileExtractionAction,
+            'Take a screenshot of the current page and save it to the file system',
+            param_model=NoParamsAction
         )
-        async def extract_content_from_file(
-                params: FileExtractionAction,
-                page_extraction_llm: BaseChatModel,
-                file_system: FileSystem,
-        ):
+        async def take_screenshot(_: NoParamsAction, browser_session: AgentBrowserSession, file_system: FileSystem):
             try:
-                # Get file path
-                file_path = params.file_path
+                # Take screenshot using browser session
+                screenshot = await browser_session.take_screenshot()
 
-                # Check if file exists
-                if not os.path.exists(file_path):
-                    file_path = os.path.join(file_system.get_dir(), file_path)
-                
-                # Determine if file is an image based on MIME type
-                mime_type, _ = mimetypes.guess_type(file_path)
-                is_image = mime_type and mime_type.startswith('image/')
-                
-                if is_image:
-                    # Handle image files with LLM vision
-                    try:
-                        # Read image file and encode to base64
-                        with open(file_path, 'rb') as image_file:
-                            image_data = image_file.read()
-                            image_base64 = base64.b64encode(image_data).decode('utf-8')
-                        
-                        # Create content parts similar to the user's example
-                        content_parts: list[ContentPartTextParam | ContentPartImageParam] = [
-                            ContentPartTextParam(text=f"Query: {params.query}")
-                        ]
-                        
-                        # Add the image
-                        content_parts.append(
-                            ContentPartImageParam(
-                                image_url=ImageURL(
-                                    url=f'data:{mime_type};base64,{image_base64}',
-                                    media_type=mime_type,
-                                    detail='high',
-                                ),
-                            )
-                        )
-                        
-                        # Create user message and invoke LLM
-                        user_message = UserMessage(content=content_parts, cache=True)
-                        response = await asyncio.wait_for(
-                            page_extraction_llm.ainvoke([user_message]),
-                            timeout=120.0,
-                        )
-                        
-                        extracted_content = f'File: {file_path}\nQuery: {params.query}\nExtracted Content:\n{response.completion}'
-                        
-                    except Exception as e:
-                        raise Exception(f'Failed to process image file {file_path}: {str(e)}')
-                        
-                else:
-                    # Handle non-image files by reading content
-                    try:
-                        file_content = await file_system.read_file(file_path, external_file=True)
-                        
-                        # Create a simple prompt for text extraction
-                        prompt = f"""Extract the requested information from this file content.
+                # Generate timestamp for filename
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
-Query: {params.query}
+                # Get file system directory path (Path type)
+                fs_dir = file_system.get_dir()
 
-File: {file_path}
-File Content:
-{file_content}
+                # Create screenshots directory if it doesn't exist
+                screenshots_dir = fs_dir / "screenshots"
+                screenshots_dir.mkdir(exist_ok=True)
 
-Provide the extracted information in a clear, structured format."""
+                # Save screenshot to file system
+                page_title = await browser_session.get_current_page_title()
+                page_title = sanitize_filename(page_title)
+                filename = f"{page_title}-{timestamp}.png"
+                filepath = screenshots_dir / filename
 
-                        response = await asyncio.wait_for(
-                            page_extraction_llm.ainvoke([UserMessage(content=prompt)]),
-                            timeout=120.0,
-                        )
-                        
-                        extracted_content = f'File: {file_path}\nQuery: {params.query}\nExtracted Content:\n{response.completion}'
-                        
-                    except Exception as e:
-                        raise Exception(f'Failed to read file {file_path}: {str(e)}')
-                
-                # Handle memory storage
-                if len(extracted_content) < 1000:
-                    memory = extracted_content
-                    include_extracted_content_only_once = False
-                else:
-                    save_result = await file_system.save_extracted_content(extracted_content)
-                    memory = (
-                        f'Extracted content from file {file_path} for query: {params.query}\nContent saved to file system: {save_result}'
-                    )
-                    include_extracted_content_only_once = True
+                with open(filepath, "wb") as f:
+                    f.write(base64.b64decode(screenshot))
 
-                logger.info(f'📄 Extracted content from file: {file_path}')
+                msg = f'📸 Screenshot saved to path: {str(filepath.relative_to(fs_dir))}'
+                logger.info(msg)
                 return ActionResult(
-                    extracted_content=extracted_content,
-                    include_extracted_content_only_once=include_extracted_content_only_once,
-                    long_term_memory=memory,
+                    extracted_content=msg,
+                    include_in_memory=True,
+                    long_term_memory=f'Screenshot saved to {str(filepath.relative_to(fs_dir))}',
                 )
-                
             except Exception as e:
-                logger.debug(f'Error extracting content from file: {e}')
-                raise RuntimeError(str(e))
-
-    async def register_mcp_clients(self, mcp_server_config: Optional[Dict[str, Any]] = None):
-        self.mcp_server_config = mcp_server_config or self.mcp_server_config
-        if self.mcp_server_config:
-            await self.unregister_mcp_clients()
-            await self.register_mcp_tools()
-
-    async def register_mcp_tools(self):
-        """
-        Register the MCP tools used by this controller.
-        """
-        if not self.mcp_server_config:
-            return
-            
-        # Handle both formats: with or without "mcpServers" key
-        mcp_servers = self.mcp_server_config.get('mcpServers', self.mcp_server_config)
-        
-        if not mcp_servers:
-            return
-            
-        for server_name, server_config in mcp_servers.items():
-            try:
-                logger.info(f'Connecting to MCP server: {server_name}')
-                
-                # Create MCP client
-                client = VibeSurfMCPClient(
-                    server_name=server_name,
-                    command=server_config['command'],
-                    args=server_config['args'],
-                    env=server_config.get('env', None)
-                )
-                
-                # Connect to the MCP server
-                await client.connect(timeout=200)
-                
-                # Register tools to controller with prefix
-                prefix = f"mcp.{server_name}."
-                await client.register_to_tools(
-                    tools=self,
-                    prefix=prefix
-                )
-                
-                # Store client for later cleanup
-                self.mcp_clients[server_name] = client
-                
-                logger.info(f'Successfully registered MCP server: {server_name} with prefix: {prefix}')
-                
-            except Exception as e:
-                logger.error(f'Failed to register MCP server {server_name}: {str(e)}')
-                # Continue with other servers even if one fails
-
-    async def unregister_mcp_clients(self):
-        """
-        Unregister and disconnect all MCP clients.
-        """
-        # Disconnect all MCP clients
-        for server_name, client in self.mcp_clients.items():
-            try:
-                logger.info(f'Disconnecting MCP server: {server_name}')
-                await client.disconnect()
-            except Exception as e:
-                logger.error(f'Failed to disconnect MCP server {server_name}: {str(e)}')
-        
-        # Remove MCP tools from registry
-        try:
-            # Get all registered actions
-            actions_to_remove = []
-            for action_name in list(self.registry.registry.actions.keys()):
-                if action_name.startswith('mcp.'):
-                    actions_to_remove.append(action_name)
-            
-            # Remove MCP actions from registry
-            for action_name in actions_to_remove:
-                if action_name in self.registry.registry.actions:
-                    del self.registry.registry.actions[action_name]
-                    logger.info(f'Removed MCP action: {action_name}')
-                    
-        except Exception as e:
-            logger.error(f'Failed to remove MCP actions from registry: {str(e)}')
-        
-        # Clear the clients dictionary
-        self.mcp_clients.clear()
-        logger.info('All MCP clients unregistered and disconnected')
-
-VibeSurfController = VibeSurfTools
+                error_msg = f'❌ Failed to take screenshot: {str(e)}'
+                logger.error(error_msg)
+                return ActionResult(error=error_msg)

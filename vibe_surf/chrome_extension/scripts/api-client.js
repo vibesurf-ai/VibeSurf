@@ -235,6 +235,10 @@ class VibeSurfAPIClient {
     return this.post('/tasks/stop', { reason });
   }
 
+  async addNewTask(newTask) {
+    return this.post('/tasks/add-new-task', { reason: newTask });
+  }
+
   // Activity APIs
   async getTaskInfo(taskId) {
     return this.get(`/activity/${taskId}`);
@@ -414,6 +418,15 @@ class VibeSurfAPIClient {
 
   async updateControllerConfig(configData) {
     return this.put('/config/controller', configData);
+  }
+
+  // Browser APIs
+  async getActiveBrowserTab() {
+    return this.get('/browser/active-tab');
+  }
+
+  async getAllBrowserTabs() {
+    return this.get('/browser/all-tabs');
   }
 
   // Utility methods

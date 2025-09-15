@@ -1,7 +1,7 @@
 """
 Configuration API endpoints for VibeSurf Backend
 
-Handles LLM Profile and controller configuration management.
+Handles LLM Profile and tools configuration management.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -18,7 +18,10 @@ from .models import (
 )
 
 router = APIRouter(prefix="/config", tags=["config"])
-logger = logging.getLogger(__name__)
+
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 def _profile_to_response_dict(profile) -> dict:
     """Convert SQLAlchemy LLMProfile to dict for Pydantic validation - safe extraction"""
@@ -654,8 +657,8 @@ async def get_configuration_status(db: AsyncSession = Depends(get_db_session)):
                 "default_profile": default_profile.profile_name if default_profile else None,
                 "has_default": default_profile is not None
             },
-            "controller": {
-                "initialized": shared_state.controller is not None
+            "tools": {
+                "initialized": shared_state.vibesurf_tools is not None
             },
             "browser_manager": {
                 "initialized": shared_state.browser_manager is not None
@@ -666,7 +669,7 @@ async def get_configuration_status(db: AsyncSession = Depends(get_db_session)):
             },
             "overall_status": "ready" if (
                     default_profile and
-                    shared_state.controller and
+                    shared_state.vibesurf_tools and
                     shared_state.browser_manager and
                     shared_state.vibesurf_agent
             ) else "partial"

@@ -25,7 +25,9 @@ from ..shared_state import (
     browser_manager
 )
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -76,16 +78,16 @@ async def submit_task(
         task_id = uuid7str()
 
         # Get MCP server config for saving
-        from ..shared_state import controller, active_mcp_server
+        from ..shared_state import vibesurf_tools, active_mcp_server
         mcp_server_config = task_request.mcp_server_config
-        if not mcp_server_config and controller and hasattr(controller, 'mcp_server_config'):
-            mcp_server_config = controller.mcp_server_config
-        
+        if not mcp_server_config and vibesurf_tools and hasattr(vibesurf_tools, 'mcp_server_config'):
+            mcp_server_config = vibesurf_tools.mcp_server_config
+
         # Ensure we have a valid MCP server config (never None)
         if mcp_server_config is None:
             mcp_server_config = {"mcpServers": {}}
             logger.info("Using default empty MCP server configuration")
-        
+
         # DEBUG: Log the type and content of mcp_server_config
         logger.info(f"mcp_server_config type: {type(mcp_server_config)}, value: {mcp_server_config}")
 
@@ -140,16 +142,17 @@ async def _ensure_llm_initialized(llm_profile):
     """Ensure LLM is initialized with the specified profile"""
     from ..utils.llm_factory import create_llm_from_profile
     from ..shared_state import vibesurf_agent
-    
+
     if not vibesurf_agent:
         raise HTTPException(status_code=503, detail="VibeSurf agent not initialized")
-    
+
     # Always create new LLM instance to ensure we're using the right profile
     new_llm = create_llm_from_profile(llm_profile)
-    
-    # Update vibesurf agent's LLM
-    vibesurf_agent.llm = new_llm
-    logger.info(f"LLM updated for profile: {llm_profile['profile_name']}")
+
+    # Update vibesurf agent's LLM and register with token cost service
+    if vibesurf_agent and vibesurf_agent.token_cost_service:
+        vibesurf_agent.llm = vibesurf_agent.token_cost_service.register_llm(new_llm)
+        logger.info(f"LLM updated and registered for token tracking for profile: {llm_profile['profile_name']}")
 
 
 @router.post("/pause")
@@ -258,6 +261,36 @@ async def stop_task(control_request: TaskControlRequest):
     except Exception as e:
         logger.error(f"Failed to stop task: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to stop task: {str(e)}")
+
+
+@router.post("/add-new-task")
+async def add_new_task(control_request: TaskControlRequest):
+    """Add a new task or follow-up instruction during execution"""
+    from ..shared_state import vibesurf_agent
+
+    if not vibesurf_agent:
+        raise HTTPException(status_code=503, detail="VibeSurf agent not initialized")
+
+    if not is_task_running():
+        raise HTTPException(status_code=400, detail="No active task to add new instruction to")
+
+    try:
+        # Use the reason field as the new task content
+        new_task = control_request.reason or "No additional task provided"
+        
+        # Add the new task to the running agent
+        await vibesurf_agent.add_new_task(new_task)
+
+        return {
+            "success": True,
+            "message": "New task added successfully",
+            "operation": "add_new_task",
+            "new_task": new_task
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to add new task: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to add new task: {str(e)}")
 
 
 @router.get("/detailed-status")

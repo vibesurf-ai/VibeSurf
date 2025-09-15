@@ -3,17 +3,18 @@ import logging
 import time
 from typing import Any
 
-
 from browser_use.telemetry import MCPClientTelemetryEvent, ProductTelemetry
 from browser_use.utils import get_browser_use_version
 from browser_use.mcp.client import MCPClient
 from mcp import ClientSession, StdioServerParameters, types
 from mcp.client.stdio import stdio_client
 
-logger = logging.getLogger(__name__)
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
 
 
-class VibeSurfMCPClient(MCPClient):
+class CustomMCPClient(MCPClient):
     async def connect(self, timeout: int = 200) -> None:
         """Connect to the MCP server and discover available tools."""
         if self._connected:

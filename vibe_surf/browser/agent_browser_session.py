@@ -720,10 +720,6 @@ class AgentBrowserSession(BrowserSession):
             # Wait for reload
             await asyncio.sleep(1.0)
 
-            # Note: We don't clear cached state here - let the next state fetch rebuild as needed
-
-            # Navigation is handled by BrowserSession via events
-
             self.logger.info('🔄 Target refreshed')
         except Exception as e:
             raise
