@@ -135,7 +135,7 @@ async def log_agent_activity(state: VibeSurfState, agent_name: str, agent_status
     """Log agent activity to the activity log"""
     token_summary = await state.vibesurf_agent.token_cost_service.get_usage_summary()
     token_summary_md = token_summary.model_dump_json(indent=2, exclude_none=True, exclude_unset=True)
-    logger.info(token_summary_md)
+    logger.debug(token_summary_md)
 
     activity_entry = {
         "agent_name": agent_name,
@@ -576,6 +576,7 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                 file_system_path=str(bu_agent_workdir),
                 register_new_step_callback=step_callback,
                 extend_system_message=EXTEND_BU_SYSTEM_PROMPT,
+                token_cost_service=state.vibesurf_agent.token_cost_service
             )
             agents.append(agent)
 
@@ -716,6 +717,7 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
             file_system_path=str(bu_agent_workdir),
             register_new_step_callback=step_callback,
             extend_system_message=EXTEND_BU_SYSTEM_PROMPT,
+            token_cost_service=state.vibesurf_agent.token_cost_service
         )
         if state.vibesurf_agent and hasattr(state.vibesurf_agent, '_running_agents'):
             state.vibesurf_agent._running_agents[agent_id] = agent
@@ -917,7 +919,7 @@ class VibeSurfAgent:
         self.llm: BaseChatModel = llm
         self.calculate_token_cost = calculate_token_cost
         self.token_cost_service = TokenCost(include_cost=calculate_token_cost)
-        self.llm = self.token_cost_service.register_llm(llm)
+        self.token_cost_service.register_llm(llm)
         self.browser_manager: BrowserManager = browser_manager
         self.tools: VibeSurfTools = tools
         self.workspace_dir = workspace_dir
@@ -1406,7 +1408,7 @@ class VibeSurfAgent:
         Returns:
             str: Markdown summary of execution results
         """
-        logger.info(f"🚀 Starting VibeSurfAgent execution for task: {task}")
+        logger.info(f"🚀 Starting VibeSurfAgent execution for task: {task}. Powered by LLM model: {self.llm.model_name}")
         try:
             self.thinking_mode = thinking_mode
             session_id = session_id or self.cur_session_id or uuid7str()
@@ -1418,8 +1420,7 @@ class VibeSurfAgent:
                 session_dir = os.path.join(self.workspace_dir, "sessions", self.cur_session_id)
                 os.makedirs(session_dir, exist_ok=True)
                 self.file_system = CustomFileSystem(session_dir)
-                self.token_cost_service = TokenCost(include_cost=self.calculate_token_cost)
-                self.llm = self.token_cost_service.register_llm(self.llm)
+                self.token_cost_service.clear_history()
 
             if upload_files and not isinstance(upload_files, list):
                 upload_files = [upload_files]

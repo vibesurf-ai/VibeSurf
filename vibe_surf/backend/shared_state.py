@@ -51,6 +51,9 @@ active_task: Optional[Dict[str, Any]] = None
 
 def get_all_components():
     """Get all components as a dictionary"""
+    global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager
+    global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs
+
     return {
         "vibesurf_agent": vibesurf_agent,
         "browser_manager": browser_manager,
@@ -521,8 +524,9 @@ async def update_llm_from_profile(profile_name: str):
 
                 # Update global state
                 llm = new_llm
-                if vibesurf_agent:
-                    vibesurf_agent.llm = new_llm
+                if vibesurf_agent and vibesurf_agent.token_cost_service:
+                    # FIX: Register new LLM with token cost service to maintain tracking
+                    vibesurf_agent.llm = vibesurf_agent.token_cost_service.register_llm(new_llm)
 
                 logger.info(f"✅ LLM updated to profile: {profile_name}")
                 return True

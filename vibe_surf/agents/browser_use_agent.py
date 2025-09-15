@@ -12,7 +12,7 @@ import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar, Optional
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
@@ -138,6 +138,7 @@ class BrowserUseAgent(Agent):
             include_recent_events: bool = False,
             allow_parallel_action_types: list[str] = ["extract_structured_data", "extract_content_from_file"],
             _url_shortening_limit: int = 25,
+            token_cost_service: Optional[TokenCost] = None,
             **kwargs,
     ):
         if page_extraction_llm is None:
@@ -208,7 +209,10 @@ class BrowserUseAgent(Agent):
         )
 
         # Token cost service
-        self.token_cost_service = TokenCost(include_cost=calculate_cost)
+        if token_cost_service is None:
+            self.token_cost_service = TokenCost(include_cost=calculate_cost)
+        else:
+            self.token_cost_service = token_cost_service
         self.token_cost_service.register_llm(llm)
         self.token_cost_service.register_llm(page_extraction_llm)
 

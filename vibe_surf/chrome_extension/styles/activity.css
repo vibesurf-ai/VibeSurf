@@ -655,3 +655,280 @@
 .message-content em {
   font-style: italic;
 }
+
+/* Suggestion Tasks Styles */
+.suggestion-tasks-container {
+  margin: var(--spacing-lg) 0;
+  padding: var(--spacing-md);
+  background: linear-gradient(135deg, rgba(0, 122, 204, 0.02), rgba(0, 122, 204, 0.05));
+  border: 1px solid rgba(0, 122, 204, 0.1);
+  border-radius: var(--radius-xl);
+  position: relative;
+  overflow: visible;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: auto;
+}
+
+.suggestion-tasks-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+.suggestion-tasks-header {
+  text-align: center;
+  margin-bottom: var(--spacing-md);
+  padding: 0;
+  display: block;
+  width: 100%;
+}
+
+.suggestion-tasks-header h4 {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  margin: 0;
+  display: block;
+  text-align: center;
+  line-height: 1.3;
+  white-space: normal;
+  overflow: visible;
+  word-wrap: break-word;
+}
+
+.suggestion-tasks-header p {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin: 0;
+  opacity: 0.8;
+  line-height: 1.4;
+  display: block;
+}
+
+.suggestion-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: 100%;
+  min-height: auto;
+}
+
+.suggestion-task-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: visible;
+  width: 100%;
+  min-height: 50px;
+  box-sizing: border-box;
+  margin-bottom: 0;
+}
+
+.suggestion-task-card:last-child {
+  margin-bottom: 0;
+}
+
+.suggestion-task-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--primary-color);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--transition-fast);
+}
+
+.suggestion-task-card:hover {
+  border-color: var(--primary-color);
+  background: var(--bg-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.suggestion-task-card:hover::before {
+  transform: scaleX(1);
+}
+
+.suggestion-task-card:active {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.suggestion-card-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+  border-radius: var(--radius-md);
+  color: white;
+  transition: transform var(--transition-fast);
+}
+
+.suggestion-task-card:hover .suggestion-card-icon {
+  transform: scale(1.1);
+}
+
+.suggestion-card-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.suggestion-task-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  line-height: 1.5;
+  font-weight: var(--font-weight-medium);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  text-overflow: clip;
+}
+
+.suggestion-tasks-section {
+  margin: var(--spacing-lg) 0;
+  width: 100%;
+}
+
+.suggestion-tasks-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  padding: 0 var(--spacing-sm);
+  min-height: 24px;
+  width: 100%;
+  overflow: visible;
+}
+
+.suggestion-tasks-header h4 {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.suggestion-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  width: 100%;
+  padding: 0 var(--spacing-sm);
+}
+
+.suggestion-card-arrow {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: all var(--transition-fast);
+}
+
+.suggestion-task-card:hover .suggestion-card-arrow {
+  color: var(--primary-color);
+  transform: translateX(4px);
+}
+
+/* Animation for suggestion cards */
+.suggestion-tasks-container.fade-in {
+  animation: suggestionFadeIn 0.5s ease-out;
+}
+
+@keyframes suggestionFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive design for suggestion cards */
+@media (max-width: 480px) {
+  .suggestion-tasks-container {
+    margin: var(--spacing-lg) 0;
+    padding: var(--spacing-md);
+  }
+  
+  .suggestion-task-card {
+    padding: var(--spacing-md);
+    gap: var(--spacing-sm);
+  }
+  
+  .suggestion-card-icon {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .suggestion-card-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .suggestion-task-text {
+    font-size: var(--font-size-xs);
+  }
+  
+  .suggestion-tasks-header h4 {
+    font-size: var(--font-size-base);
+  }
+}
+
+/* Loading state for suggestion cards */
+.suggestion-task-card.loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.suggestion-task-card.loading .suggestion-card-icon {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Success state when card is clicked */
+.suggestion-task-card.success {
+  border-color: var(--accent-color);
+  background: rgba(40, 167, 69, 0.05);
+}
+
+.suggestion-task-card.success .suggestion-card-icon {
+  background: var(--accent-color);
+}

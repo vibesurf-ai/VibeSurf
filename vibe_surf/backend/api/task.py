@@ -149,9 +149,10 @@ async def _ensure_llm_initialized(llm_profile):
     # Always create new LLM instance to ensure we're using the right profile
     new_llm = create_llm_from_profile(llm_profile)
 
-    # Update vibesurf agent's LLM
-    vibesurf_agent.llm = new_llm
-    logger.info(f"LLM updated for profile: {llm_profile['profile_name']}")
+    # Update vibesurf agent's LLM and register with token cost service
+    if vibesurf_agent and vibesurf_agent.token_cost_service:
+        vibesurf_agent.llm = vibesurf_agent.token_cost_service.register_llm(new_llm)
+        logger.info(f"LLM updated and registered for token tracking for profile: {llm_profile['profile_name']}")
 
 
 @router.post("/pause")

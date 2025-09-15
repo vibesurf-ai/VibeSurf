@@ -846,8 +846,6 @@ class VibeSurfUIManager {
       return;
     }
     
-    const activityItem = this.createActivityItem(activityData);
-    
     if (this.elements.activityLog) {
       // Remove welcome message if present
       const welcomeMsg = this.elements.activityLog.querySelector('.welcome-message');
@@ -855,12 +853,137 @@ class VibeSurfUIManager {
         welcomeMsg.remove();
       }
       
-      this.elements.activityLog.appendChild(activityItem);
-      activityItem.classList.add('fade-in');
-      
-      // Bind copy button functionality
-      this.bindCopyButtonEvent(activityItem, activityData);
+      // Check if this is a suggestion_tasks message
+      if (agentStatus.toLowerCase() === 'suggestion_tasks') {
+        // For suggestion_tasks, only show suggestion cards, not the normal message
+        // But the message is still kept in session manager's logs for proper indexing
+        this.addSuggestionTaskCards(activityData);
+      } else {
+        // For all other messages, show the normal activity item
+        const activityItem = this.createActivityItem(activityData);
+        this.elements.activityLog.appendChild(activityItem);
+        activityItem.classList.add('fade-in');
+        
+        // Bind copy button functionality
+        this.bindCopyButtonEvent(activityItem, activityData);
+      }
     }
+  }
+
+  addSuggestionTaskCards(activityData) {
+    const agentMsg = activityData.agent_msg || activityData.message || '';
+    
+    if (!agentMsg || typeof agentMsg !== 'string') {
+      return;
+    }
+    
+    // Parse tasks by splitting on newlines and filtering empty lines
+    const tasks = agentMsg.split('\n')
+      .map(task => task.trim())
+      .filter(task => task.length > 0);
+    
+    if (tasks.length === 0) {
+      return;
+    }
+    
+    // Create suggestion cards container
+    const suggestionsContainer = document.createElement('div');
+    suggestionsContainer.className = 'suggestion-tasks-container';
+    
+    // Add header for suggestion cards
+    const headerElement = document.createElement('div');
+    headerElement.className = 'suggestion-tasks-header';
+    headerElement.innerHTML = `
+      <h4>Suggestion Follow-Up Tasks</h4>
+    `;
+    suggestionsContainer.appendChild(headerElement);
+    
+    // Create cards container
+    const cardsContainer = document.createElement('div');
+    cardsContainer.className = 'suggestion-cards';
+    
+    // Create individual task cards
+    tasks.forEach((task, index) => {
+      const taskCard = document.createElement('div');
+      taskCard.className = 'suggestion-task-card';
+      taskCard.setAttribute('data-task', task);
+      taskCard.setAttribute('data-index', index);
+      
+      taskCard.innerHTML = `
+        <div class="suggestion-card-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="suggestion-card-content">
+          <div class="suggestion-task-text">${this.escapeHtml(task)}</div>
+        </div>
+        <div class="suggestion-card-arrow">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      `;
+      
+      // Add click event handler
+      taskCard.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.handleSuggestionTaskClick(task);
+      });
+      
+      cardsContainer.appendChild(taskCard);
+    });
+    
+    suggestionsContainer.appendChild(cardsContainer);
+    
+    // Add the suggestions container to the activity log
+    if (this.elements.activityLog) {
+      this.elements.activityLog.appendChild(suggestionsContainer);
+      suggestionsContainer.classList.add('fade-in');
+    }
+  }
+
+  handleSuggestionTaskClick(taskDescription) {
+    console.log('[UIManager] Suggestion task clicked:', taskDescription);
+    
+    // First check if task is running
+    if (this.state.isTaskRunning) {
+      this.showNotification('Cannot submit task while another task is running', 'warning');
+      return;
+    }
+    
+    // Check if LLM profile is selected
+    const llmProfile = this.elements.llmProfileSelect?.value;
+    if (!llmProfile || llmProfile.trim() === '') {
+      this.showLLMProfileRequiredModal('select');
+      return;
+    }
+    
+    // Set the task description in the input first
+    if (!this.elements.taskInput) {
+      console.error('[UIManager] Task input element not found');
+      this.showNotification('Task input not available', 'error');
+      return;
+    }
+    
+    console.log('[UIManager] Setting task description and submitting...');
+    this.elements.taskInput.value = taskDescription;
+    this.elements.taskInput.focus();
+    
+    // Trigger input change event for validation and auto-resize
+    this.handleTaskInputChange({ target: this.elements.taskInput });
+    
+    // Auto-submit the task after a short delay
+    setTimeout(() => {
+      console.log('[UIManager] Auto-submitting suggestion task...');
+      this.handleSendTask();
+    }, 100);
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   createActivityItem(data) {
