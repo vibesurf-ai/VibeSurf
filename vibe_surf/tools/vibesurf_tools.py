@@ -288,7 +288,7 @@ class VibeSurfTools:
         @self.registry.action(
             'Read file content from file system. If this is a file not in current file system, please provide an absolute path.')
         async def read_file(file_path: str, file_system: FileSystem):
-            if not os.path.exists(file_path):
+            if os.path.exists(file_path):
                 # if not exists, assume it is external_file
                 external_file = True
             else:

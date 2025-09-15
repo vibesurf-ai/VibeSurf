@@ -115,7 +115,7 @@ Please analyze the task, determine if you need to read any additional files, the
 
                 # Call step callback if provided to log thinking + action
                 if self.step_callback:
-                    self.step_callback(parsed, iteration)
+                    await self.step_callback(parsed, iteration)
 
                 # Add assistant message to history
                 message_history.append(AssistantMessage(
