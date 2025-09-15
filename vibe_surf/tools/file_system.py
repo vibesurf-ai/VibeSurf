@@ -74,16 +74,17 @@ class CustomFileSystem(FileSystem):
         """Read file content using file-specific read method and return appropriate message to LLM"""
         try:
             full_filepath = full_filename if external_file else str(self.data_dir / full_filename)
+            if not self.file_exist(full_filepath):
+                return f"Error: File '{full_filepath}' not found."
             try:
                 _, extension = self._parse_filename(full_filename)
             except Exception:
                 return f'Error: Invalid filename format {full_filename}. Must be alphanumeric with a supported extension.'
             if extension != 'pdf' and extension in self._file_types.keys():
-                import anyio
-
-                async with await anyio.open_file(full_filepath, 'r', encoding="utf-8") as f:
-                    content = await f.read()
+                with open(str(full_filepath), 'r', encoding="utf-8") as f:
+                    content = f.read()
                     return f'Read from file {full_filename}.\n<content>\n{content}\n</content>'
+                
             elif extension == 'pdf':
                 import pypdf
 
@@ -101,9 +102,9 @@ class CustomFileSystem(FileSystem):
         except FileNotFoundError:
             return f"Error: File '{full_filepath}' not found."
         except PermissionError:
-            return f"Error: Permission denied to read file '{full_filename}'."
+            return f"Error: Permission denied to read file '{full_filepath}'."
         except Exception as e:
-            return f"Error: Could not read file '{full_filename}'."
+            return f"Error: Could not read file '{full_filepath}': {str(e)}."
 
     async def copy_file(self, src_filename: str, dst_filename: str, external_src_file: bool = False) -> str:
         """Copy a file to the FileSystem from src (can be external) to dst filename"""
