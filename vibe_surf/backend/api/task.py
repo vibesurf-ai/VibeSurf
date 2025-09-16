@@ -68,15 +68,19 @@ async def submit_task(
         # Get LLM profile from database
         llm_profile = await LLMProfileQueries.get_profile_with_decrypted_key(db, task_request.llm_profile_name)
         if not llm_profile:
-            raise HTTPException(
-                status_code=404,
-                detail=f"LLM profile '{task_request.llm_profile_name}' not found"
-            )
+            active_task = None
+            return {
+                "success": False,
+                "error": "llm_connection_failed",
+                "message": f"Failed to get LLM profile with decrypted key {task_request.llm_profile_name}",
+                "llm_profile": task_request.llm_profile_name
+            }
 
         # Initialize LLM for this task if needed
         if not current_llm_profile_name or current_llm_profile_name != task_request.llm_profile_name:
             current_llm_profile_name = task_request.llm_profile_name
             success, message = await _ensure_llm_initialized(llm_profile)
+            logger.info("Test LLM Connection!")
             if not success:
                 active_task = None
                 return {

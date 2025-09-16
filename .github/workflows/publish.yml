@@ -85,14 +85,6 @@ jobs:
           - os: windows-latest
             asset_name: vibesurf-windows-x64.exe
             activate_cmd: .venv\Scripts\activate.bat
-          # macOS Intel (x86_64) - compatible with Apple Silicon via Rosetta 2
-          - os: macos-13
-            asset_name: vibesurf-macos-intel-x64
-            activate_cmd: source .venv/bin/activate
-          # macOS Apple Silicon (arm64) - native performance
-          - os: macos-14
-            asset_name: vibesurf-macos-apple-silicon
-            activate_cmd: source .venv/bin/activate
 
     runs-on: ${{ matrix.os }}
     
@@ -163,24 +155,6 @@ jobs:
         if [[ "$RUNNER_OS" == "Windows" ]]; then
           # Windows: rename .exe file
           mv dist/vibesurf.exe dist/${{ matrix.asset_name }}
-        elif [[ "$RUNNER_OS" == "macOS" ]]; then
-          # macOS: handle single executable (CLI application with console support)
-          echo "Processing macOS CLI executable with icon..."
-          mv dist/vibesurf dist/${{ matrix.asset_name }}
-          chmod +x dist/${{ matrix.asset_name }}
-          
-          # Apply ad-hoc code signing for macOS security
-          echo "Adding ad-hoc code signature to executable..."
-          codesign --force --sign - dist/${{ matrix.asset_name }} || echo "Code signing failed, continuing..."
-          
-          # Remove quarantine attribute to help with Gatekeeper
-          xattr -c dist/${{ matrix.asset_name }} 2>/dev/null || echo "No quarantine attributes to remove"
-          
-          # Verify signing
-          echo "Verifying code signature..."
-          codesign --verify dist/${{ matrix.asset_name }} && echo "✅ Signature verified" || echo "⚠️ Signature verification failed"
-          
-          echo "✅ macOS executable ready - double-click will open in Terminal with console interface"
         fi
         
         # Show final result
@@ -194,9 +168,6 @@ jobs:
         if [[ "$RUNNER_OS" == "Windows" ]]; then
           echo "Testing Windows executable..."
           ls -la dist/${{ matrix.asset_name }}
-        elif [[ "$RUNNER_OS" == "macOS" ]]; then
-          echo "Testing macOS executable..."
-          ./dist/${{ matrix.asset_name }} --help || echo "Basic test completed"
         fi
 
     - name: Upload executable
@@ -246,5 +217,3 @@ jobs:
       with:
         files: |
           vibesurf-windows-x64.exe/vibesurf-windows-x64.exe
-          vibesurf-macos-intel-x64/vibesurf-macos-intel-x64
-          vibesurf-macos-apple-silicon/vibesurf-macos-apple-silicon
