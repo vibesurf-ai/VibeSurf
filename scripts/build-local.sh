@@ -92,39 +92,30 @@ PLATFORM=$(uname -s)
 print_status "Detected platform: $PLATFORM"
 
 if [ "$PLATFORM" = "Darwin" ]; then
-    # macOS - check for .app bundle
-    if [ -d "dist/VibeSurf.app" ]; then
-        print_success "macOS .app bundle built successfully!"
-        
-        # Run macOS post-build script if it exists
-        if [ -f "macos-post-build.sh" ]; then
-            print_status "Running macOS post-build processing..."
-            chmod +x macos-post-build.sh
-            ./macos-post-build.sh
-        else
-            print_warning "macos-post-build.sh not found - skipping post-processing"
-            echo ""
-            echo "📊 App Bundle Information:"
-            echo "========================="
-            ls -lah dist/VibeSurf.app
-            echo ""
-            print_success "🎉 Build completed successfully!"
-            echo "📁 Your app is located at: ./dist/VibeSurf.app"
-            echo "🚀 To run: open ./dist/VibeSurf.app"
-        fi
-        
-    else
-        print_error "Build failed - VibeSurf.app bundle not found"
-        exit 1
-    fi
-    
-else
-    # Linux/Unix - check for regular executable
+    # macOS - check for single executable (CLI application with icon)
     if [ -f "dist/vibesurf" ]; then
-        print_success "Executable built successfully!"
+        print_success "macOS CLI executable with icon built successfully!"
         
-        # Make executable and test
+        # Make executable and apply code signing
         chmod +x dist/vibesurf
+        
+        print_status "Applying ad-hoc code signature..."
+        codesign --force --sign - dist/vibesurf || {
+            print_warning "Code signing failed, but executable should still work"
+        }
+        
+        # Remove quarantine attribute
+        xattr -c dist/vibesurf 2>/dev/null || {
+            print_warning "No quarantine attributes to remove"
+        }
+        
+        # Verify signing
+        print_status "Verifying code signature..."
+        codesign --verify dist/vibesurf && {
+            print_success "✅ Signature verified"
+        } || {
+            print_warning "⚠️ Signature verification failed"
+        }
         
         print_status "Testing executable..."
         ./dist/vibesurf --help > /dev/null 2>&1 && {
@@ -147,11 +138,20 @@ else
         print_success "🎉 Build completed successfully!"
         echo ""
         echo "📁 Your executable is located at: ./dist/vibesurf"
-        echo "🚀 To run: ./dist/vibesurf"
+        echo "🚀 To run:"
+        echo "   • Double-click vibesurf (opens in Terminal with console interface)"
+        echo "   • Or run: ./dist/vibesurf"
+        echo "💡 This executable has an icon and will open console interface when double-clicked"
         echo ""
         
     else
-        print_error "Build failed - executable not found"
+        print_error "Build failed - vibesurf executable not found"
         exit 1
     fi
+    
+else
+    # Other Unix-like systems are not supported
+    print_error "This build script currently only supports macOS."
+    print_error "For other platforms, please use the GitHub Actions workflow."
+    exit 1
 fi

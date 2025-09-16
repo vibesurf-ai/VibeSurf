@@ -4,6 +4,15 @@ LLM Factory utilities for creating LLM instances from profiles
 
 from typing import Optional
 import logging
+# Import LLM classes from browser_use and vibe_surf
+from browser_use.llm import (
+    BaseChatModel,
+    ChatOpenAI, ChatAnthropic, ChatGoogle, ChatAzureOpenAI,
+    ChatGroq, ChatOllama, ChatOpenRouter, ChatDeepSeek,
+    ChatAWSBedrock, ChatAnthropicBedrock
+)
+from vibe_surf.llm import ChatOpenAICompatible
+
 from ..llm_config import get_supported_providers, is_provider_supported
 
 from vibe_surf.logger import get_logger
@@ -11,16 +20,9 @@ from vibe_surf.logger import get_logger
 logger = get_logger(__name__)
 
 
-def create_llm_from_profile(llm_profile):
+def create_llm_from_profile(llm_profile) -> BaseChatModel:
     """Create LLM instance from LLMProfile database record (dict or object)"""
     try:
-        # Import LLM classes from browser_use and vibe_surf
-        from browser_use.llm import (
-            ChatOpenAI, ChatAnthropic, ChatGoogle, ChatAzureOpenAI,
-            ChatGroq, ChatOllama, ChatOpenRouter, ChatDeepSeek,
-            ChatAWSBedrock, ChatAnthropicBedrock
-        )
-        from vibe_surf.llm import ChatOpenAICompatible
 
         # Handle both dict and object access patterns
         def get_attr(obj, key, default=None):

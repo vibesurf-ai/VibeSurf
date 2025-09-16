@@ -359,6 +359,27 @@ class VibeSurfUIManager {
 
   handleTaskError(data) {
     console.error('[UIManager] Task error:', data.error);
+    console.log('[UIManager] Task error data structure:', JSON.stringify(data, null, 2));
+    
+    // Check if this is an LLM connection failure
+    if (data.error && typeof data.error === 'object' && data.error.error === 'llm_connection_failed') {
+      console.log('[UIManager] Detected LLM connection failure from object error');
+      // Show LLM connection failed modal instead of generic notification
+      this.showLLMConnectionFailedModal(data.error);
+      this.updateControlPanel('ready'); // Reset UI since task failed to start
+      return;
+    } else if (data.error && typeof data.error === 'string' && data.error.includes('llm_connection_failed')) {
+      console.log('[UIManager] Detected LLM connection failure from string error');
+      // Handle case where error is a string containing the error type
+      this.showLLMConnectionFailedModal({
+        message: data.error,
+        llm_profile: 'unknown'
+      });
+      this.updateControlPanel('ready'); // Reset UI since task failed to start
+      return;
+    }
+    
+    // Default error handling for other types of errors
     this.showNotification(`Task error: ${data.error}`, 'error');
     
     this.updateControlPanel('error');
@@ -718,7 +739,12 @@ class VibeSurfUIManager {
       // Clear uploaded files after successful task submission
       this.fileManager.clearUploadedFiles();
     } catch (error) {
-      this.showNotification(`Failed to submit task: ${error.message}`, 'error');
+      // Check if this is an LLM connection failure from API response
+      if (error.data && error.data.error === 'llm_connection_failed') {
+        this.showLLMConnectionFailedModal(error.data);
+      } else {
+        this.showNotification(`Failed to submit task: ${error.message}`, 'error');
+      }
     }
   }
 
@@ -1684,6 +1710,46 @@ class VibeSurfUIManager {
         };
     
     this.modalManager.showWarningModal(title, message, options);
+  }
+
+  showLLMConnectionFailedModal(errorData) {
+    console.log('[UIManager] showLLMConnectionFailedModal called with:', errorData);
+    
+    const llmProfile = errorData.llm_profile || 'unknown';
+    const errorMessage = errorData.message || 'Cannot connect to LLM API';
+    
+    const title = 'LLM Connection Failed';
+    const message = `${errorMessage}\n\nThe LLM profile "${llmProfile}" cannot be reached. Please check your LLM configuration and API credentials.`;
+    
+    const options = {
+      confirmText: 'Update LLM Profile',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        // Navigate to the specific LLM profile edit page
+        this.handleShowLLMProfileSettings(llmProfile);
+      }
+    };
+    
+    console.log('[UIManager] Showing LLM connection failed modal');
+    this.modalManager.showWarningModal(title, message, options);
+  }
+
+  async handleShowLLMProfileSettings(profileName) {
+    // Enhanced task running check
+    const statusCheck = await this.checkTaskStatus();
+    if (statusCheck.isRunning) {
+      const canProceed = await this.showTaskRunningWarning('access settings');
+      if (!canProceed) return;
+    }
+    
+    // Show settings and navigate to the specific LLM profile
+    this.settingsManager.showSettings();
+    
+    // Navigate to LLM profiles section and edit the specific profile
+    // We'll add a method to settings manager to handle this
+    if (this.settingsManager.navigateToLLMProfile) {
+      this.settingsManager.navigateToLLMProfile(profileName);
+    }
   }
 
   // Loading and notifications

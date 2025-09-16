@@ -1206,6 +1206,38 @@ class VibeSurfSettingsManager {
       this.elements.backendUrl.value = url;
     }
   }
+
+  // Navigate to specific LLM profile for editing
+  async navigateToLLMProfile(profileName) {
+    console.log('[SettingsManager] Navigating to LLM profile:', profileName);
+    
+    // First show the settings modal
+    this.showSettings();
+    
+    // Switch to LLM profiles tab
+    const llmTab = document.querySelector('.settings-tab[data-tab="llm-profiles"]');
+    if (llmTab) {
+      llmTab.click(); // This will trigger handleTabSwitch
+    }
+    
+    // Wait a moment for tab switching to complete
+    setTimeout(async () => {
+      // Find the profile in the current state
+      const profile = this.state.llmProfiles.find(p => p.profile_name === profileName);
+      
+      if (profile) {
+        // Show the edit form for this profile
+        await this.showProfileForm('llm', profile);
+        console.log('[SettingsManager] LLM profile edit form shown for:', profileName);
+      } else {
+        console.warn('[SettingsManager] Profile not found:', profileName);
+        this.emit('notification', {
+          message: `LLM profile "${profileName}" not found. Please check if it still exists.`,
+          type: 'warning'
+        });
+      }
+    }, 100);
+  }
 }
 
 // Export for use in other modules

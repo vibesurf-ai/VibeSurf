@@ -221,6 +221,16 @@ class VibeSurfSessionManager {
 
       const response = await this.apiClient.submitTask(taskPayload);
       
+      // Check if the response indicates LLM connection failure
+      if (response && response.success === false && response.error === 'llm_connection_failed') {
+        console.log('[SessionManager] LLM connection failed, emitting taskError');
+        this.emit('taskError', {
+          error: response,
+          sessionId: this.currentSession.id
+        });
+        throw new Error(response.message || 'LLM connection failed');
+      }
+      
       // Update current session with task info
       this.currentSession.currentTask = {
         taskId: response.task_id,

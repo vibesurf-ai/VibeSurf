@@ -62,8 +62,8 @@ print(f"Building for platform: {current_platform}")
 # Configure icon and console mode based on platform
 if current_platform == "Darwin":  # macOS
     icon_file = vibe_surf_path / 'chrome_extension' / 'icons' / 'logo.icns'
-    console_mode = False  # Windowed mode for macOS (equivalent to -w flag)
-    print(f"macOS detected - using ICNS icon and windowed mode")
+    console_mode = True  # Terminal mode for macOS CLI application
+    print(f"macOS detected - using ICNS icon and terminal mode")
 elif current_platform == "Windows":
     # Windows can use ICO or PNG, but prefer ICO if available
     ico_file = vibe_surf_path / 'chrome_extension' / 'icons' / 'logo.ico'
@@ -74,10 +74,10 @@ elif current_platform == "Windows":
         icon_file = vibe_surf_path / 'chrome_extension' / 'icons' / 'logo.png'
         print(f"Windows detected - using PNG icon (ICO not found)")
     console_mode = True
-else:  # Linux and other Unix-like systems
-    icon_file = vibe_surf_path / 'chrome_extension' / 'icons' / 'logo.png'
-    console_mode = True
-    print(f"Unix-like system detected - using PNG icon")
+else:  # Other platforms not supported
+    print(f"ERROR: Platform {current_platform} is not supported")
+    print("VibeSurf currently supports macOS and Windows only")
+    sys.exit(1)
 
 # Verify icon file exists
 if not icon_file.exists():
@@ -202,92 +202,28 @@ a = Analysis(
 # Remove duplicate files to reduce size
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-# Create executable - use onedir mode for macOS .app bundles, onefile for others
-if current_platform == "Darwin":
-    # macOS: Use onedir mode for proper .app bundle support
-    exe = EXE(
-        pyz,
-        a.scripts,
-        [],
-        exclude_binaries=True,  # This enables onedir mode
-        name='vibesurf',
-        debug=False,
-        bootloader_ignore_signals=False,
-        strip=False,
-        upx=True,
-        console=console_mode,
-        disable_windowed_traceback=False,
-        target_arch=None,
-        codesign_identity=None,
-        entitlements_file=None,
-        icon=None,  # Icon set in BUNDLE for macOS
-    )
-    
-    # Create COLLECT for onedir distribution
-    coll = COLLECT(
-        exe,
-        a.binaries,
-        a.zipfiles,
-        a.datas,
-        strip=False,
-        upx=True,
-        upx_exclude=[],
-        name='vibesurf'
-    )
-    print("Using onedir mode for macOS (recommended by PyInstaller)")
-else:
-    # Windows/Linux: Use onefile mode
-    exe = EXE(
-        pyz,
-        a.scripts,
-        a.binaries,
-        a.zipfiles,
-        a.datas,
-        [],
-        name='vibesurf',
-        debug=False,
-        bootloader_ignore_signals=False,
-        strip=False,
-        upx=True,  # Compress to reduce file size
-        upx_exclude=[],
-        runtime_tmpdir=None,
-        console=console_mode,
-        disable_windowed_traceback=False,
-        target_arch=None,
-        codesign_identity=None,
-        entitlements_file=None,
-        icon=str(icon_file) if icon_file else None,
-    )
-    print(f"Using onefile mode for {current_platform}")
-
-# For macOS, create a proper .app bundle using onedir mode
-if current_platform == "Darwin":
-    app = BUNDLE(
-        coll,  # Use COLLECT object for onedir mode
-        name='VibeSurf.app',
-        icon=str(icon_file) if icon_file else None,  # macOS icon set here
-        bundle_identifier='com.vibesurf.app',
-        version=app_version,
-        info_plist={
-            'CFBundleName': 'VibeSurf',
-            'CFBundleDisplayName': 'VibeSurf',
-            'CFBundleIdentifier': 'com.vibesurf.app',
-            'CFBundleVersion': app_version,
-            'CFBundleShortVersionString': app_version,
-            'CFBundleExecutable': 'vibesurf',
-            'CFBundleIconFile': 'logo.icns',
-            'NSHighResolutionCapable': True,
-            'LSApplicationCategoryType': 'public.app-category.developer-tools',
-            'NSAppleEventsUsageDescription': 'VibeSurf needs Apple Events access for browser automation.',
-            'NSCameraUsageDescription': 'VibeSurf may need camera access for certain automation tasks.',
-            'NSMicrophoneUsageDescription': 'VibeSurf may need microphone access for certain automation tasks.',
-            'NSScreenCaptureUsageDescription': 'VibeSurf needs screen capture access for browser automation.',
-            'LSMinimumSystemVersion': '10.13.0',
-        },
-        codesign_identity=None,  # Set this to your Developer ID if you have one
-        entitlements_file=None,
-    )
-    print("Created macOS .app bundle: VibeSurf.app (onedir mode)")
-    print(f"Bundle icon: {icon_file}")
-else:
-    print(f"Executable icon: {icon_file}")
+# Create executable - use onefile mode for all platforms (CLI apps work better this way)
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    [],
+    name='vibesurf',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,  # Compress to reduce file size
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=console_mode,
+    disable_windowed_traceback=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=str(icon_file) if icon_file else None,  # Set icon for all platforms
+)
+print(f"Using onefile mode for {current_platform} (CLI application)")
+print(f"Console mode: {console_mode}")
+print(f"Executable icon: {icon_file}")
