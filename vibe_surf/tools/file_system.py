@@ -240,7 +240,7 @@ class CustomFileSystem(FileSystem):
             return f"File '{full_filename}' not found."
 
         try:
-            with open(full_path, encoding='utf-8', mode='a') as f:
+            with open(str(full_path), encoding='utf-8', mode='a') as f:
                 f.write(content)
 
             return f'Data appended to file {full_filename} successfully.'
@@ -269,7 +269,7 @@ class CustomFileSystem(FileSystem):
                 file_obj = file_class(name=name_without_ext)
                 self.files[full_filename] = file_obj  # Use full filename as key
 
-            with open(full_path, encoding='utf-8', mode='w') as f:
+            with open(str(full_path), encoding='utf-8', mode='w') as f:
                 f.write(content)
 
             return f'Data written to file {full_filename} successfully.'
@@ -303,7 +303,8 @@ class CustomFileSystem(FileSystem):
                 self.files[full_filename] = file_obj  # Use full filename as key
 
             # Use file-specific write method
-            await file_obj.write('', self.data_dir)
+            with open(str(full_path), encoding='utf-8', mode='w') as f:
+                f.write('')
             return f'Create file {full_filename} successfully.'
         except FileSystemError as e:
             return str(e)

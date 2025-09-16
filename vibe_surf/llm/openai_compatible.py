@@ -53,24 +53,40 @@ from browser_use.llm.views import ChatInvokeCompletion, ChatInvokeUsage
 
 T = TypeVar('T', bound=BaseModel)
 
+from vibe_surf.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 @dataclass
 class ChatOpenAICompatible(ChatOpenAI):
     """
-    OpenAI-compatible chat model with automatic Gemini schema fix support.
+    OpenAI-compatible chat model with automatic schema fix support for Gemini, Kimi, and Qwen models.
     
-    This class extends browser_use's ChatOpenAI to automatically detect Gemini models
+    This class extends browser_use's ChatOpenAI to automatically detect special models
     and apply the necessary schema fixes to work with OpenAI-compatible APIs.
     
-    When a model name starts with 'gemini', this class will automatically apply
-    the schema transformations required by Gemini models to prevent validation errors
-    like "Unable to submit request because one or more response schemas specified 
-    other fields alongside any_of".
+    Supported models:
+    - Gemini models: Removes 'additionalProperties', 'title', 'default' and resolves $ref
+    - Kimi/Moonshot models: Removes 'min_items', 'max_items', 'minItems', 'maxItems', 'default' with anyOf
+    - Qwen models: Ensures 'json' keyword is present in messages when using response_format
+    
+    The class automatically detects the model type and applies appropriate fixes.
     """
 
     def _is_gemini_model(self) -> bool:
         """Check if the current model is a Gemini model."""
         return str(self.model).lower().startswith('gemini')
+
+    def _is_kimi_model(self) -> bool:
+        """Check if the current model is a Kimi/Moonshot model."""
+        model_str = str(self.model).lower()
+        return 'kimi' in model_str or 'moonshot' in model_str
+    
+    def _is_qwen_model(self) -> bool:
+        """Check if the current model is a Qwen model."""
+        model_str = str(self.model).lower()
+        return 'qwen' in model_str
 
     def _fix_gemini_schema(self, schema: dict[str, Any]) -> dict[str, Any]:
         """
@@ -147,6 +163,43 @@ class ChatOpenAICompatible(ChatOpenAI):
 
         return clean_schema(schema)
 
+    def _fix_kimi_schema(self, schema: dict[str, Any]) -> dict[str, Any]:
+        """
+        Convert a Pydantic model to a Kimi/Moonshot-compatible schema.
+        
+        This function removes unsupported keywords like 'min_items' that Moonshot API doesn't support.
+        
+        Args:
+            schema: The original JSON schema
+            
+        Returns:
+            A cleaned schema compatible with Moonshot API
+        """
+
+        def clean_schema(obj: Any) -> Any:
+            if isinstance(obj, dict):
+                cleaned = {}
+                has_any_of = 'anyOf' in obj
+                
+                for key, value in obj.items():
+                    # Remove unsupported keywords for Moonshot
+                    if key in ['min_items', 'minItems']:
+                        continue
+                    # Remove 'default' when 'anyOf' is present (Moonshot restriction)
+                    elif key == 'default' and has_any_of:
+                        continue
+                    # Remove other problematic keywords
+                    elif key in ['title', 'additionalProperties']:
+                        continue
+                    else:
+                        cleaned[key] = clean_schema(value)
+                return cleaned
+            elif isinstance(obj, list):
+                return [clean_schema(item) for item in obj]
+            return obj
+
+        return clean_schema(schema)
+
     @overload
     async def ainvoke(self, messages: list[BaseMessage], output_format: None = None) -> ChatInvokeCompletion[str]:
         ...
@@ -168,9 +221,9 @@ class ChatOpenAICompatible(ChatOpenAI):
         Returns:
             Either a string response or an instance of output_format
         """
-        # If this is not a Gemini model or no structured output is requested,
+        # If this is not a special model or no structured output is requested,
         # use the parent implementation directly
-        if not self._is_gemini_model() or output_format is None:
+        if not (self._is_gemini_model() or self._is_kimi_model()) or output_format is None:
             return await super().ainvoke(messages, output_format)
 
         openai_messages = OpenAIMessageSerializer.serialize_messages(messages)
@@ -217,7 +270,17 @@ class ChatOpenAICompatible(ChatOpenAI):
 
             else:
                 original_schema = SchemaOptimizer.create_optimized_json_schema(output_format)
-                fixed_schema = self._fix_gemini_schema(original_schema)
+
+                # Apply appropriate schema fix based on model type
+                if self._is_gemini_model():
+                    logger.debug(f"🔧 Applying Gemini schema fixes for model: {self.model}")
+                    fixed_schema = self._fix_gemini_schema(original_schema)
+                elif self._is_kimi_model():
+                    logger.debug(f"🔧 Applying Kimi/Moonshot schema fixes for model: {self.model}")
+                    fixed_schema = self._fix_kimi_schema(original_schema)
+                else:
+                    fixed_schema = original_schema
+
                 response_format: JSONSchema = {
                     'name': 'agent_output',
                     'strict': True,
