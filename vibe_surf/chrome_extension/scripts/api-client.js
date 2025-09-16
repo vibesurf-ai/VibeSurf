@@ -99,6 +99,12 @@ class VibeSurfAPIClient {
           if (error.status >= 400 && error.status < 500) {
             throw error; // Client errors shouldn't be retried
           }
+          
+          // Don't retry on LLM connection failures
+          if (error.data && error.data.error === 'llm_connection_failed') {
+            console.log('[API] LLM connection failed - skipping retry');
+            throw error;
+          }
         }
 
         // Don't retry on timeout for the last attempt

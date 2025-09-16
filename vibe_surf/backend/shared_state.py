@@ -33,6 +33,7 @@ browser_manager: Optional[BrowserManager] = None
 vibesurf_tools: Optional[VibeSurfTools] = None
 llm: Optional[BaseChatModel] = None
 db_manager: Optional['DatabaseManager'] = None
+current_llm_profile_name: Optional[str] = None
 
 # Environment variables
 workspace_dir: str = ""
@@ -51,7 +52,7 @@ active_task: Optional[Dict[str, Any]] = None
 
 def get_all_components():
     """Get all components as a dictionary"""
-    global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager
+    global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager, current_llm_profile_name
     global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs
 
     return {
@@ -65,13 +66,14 @@ def get_all_components():
         "browser_user_data": browser_user_data,
         "active_mcp_server": active_mcp_server,
         "active_task": active_task,
+        "current_llm_profile_name": current_llm_profile_name,
         "envs": envs
     }
 
 
 def set_components(**kwargs):
     """Update global components"""
-    global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager
+    global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager, current_llm_profile_name
     global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs
 
     if "vibesurf_agent" in kwargs:
@@ -94,6 +96,8 @@ def set_components(**kwargs):
         active_mcp_server = kwargs["active_mcp_server"]
     if "envs" in kwargs:
         envs = kwargs["envs"]
+    if "current_llm_profile_name" in kwargs:
+        envs = kwargs["current_llm_profile_name"]
 
 
 async def execute_task_background(
@@ -105,9 +109,11 @@ async def execute_task_background(
         db_session=None
 ):
     """Background task execution function for single task with LLM profile support"""
-    global vibesurf_agent, active_task
+    global vibesurf_agent, active_task, current_llm_profile_name
 
     try:
+        current_llm_profile_name = llm_profile_name
+
         # Check if MCP server configuration needs update
         await _check_and_update_mcp_servers(db_session)
 
@@ -314,7 +320,7 @@ async def _load_active_mcp_servers():
 
 async def initialize_vibesurf_components():
     """Initialize VibeSurf components from environment variables and default LLM profile"""
-    global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager
+    global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager, current_llm_profile_name
     global workspace_dir, browser_execution_path, browser_user_data, envs
     from vibe_surf import common
 
@@ -463,7 +469,7 @@ async def initialize_vibesurf_components():
 
 async def _initialize_default_llm():
     """Initialize LLM from default profile or fallback to environment variables"""
-    global db_manager
+    global db_manager, current_llm_profile_name
 
     try:
         # Try to get default LLM profile from database
@@ -482,6 +488,7 @@ async def _initialize_default_llm():
                         )
                         if profile_with_key:
                             llm_instance = create_llm_from_profile(profile_with_key)
+                            current_llm_profile_name = default_profile.profile_name
                             logger.info(f"✅ LLM initialized from default profile: {default_profile.profile_name}")
                             return llm_instance
                     break

@@ -48,7 +48,7 @@ async def submit_task(
 ):
     """Submit new task for execution (single task mode)"""
     from ..database.queries import LLMProfileQueries
-    from ..shared_state import workspace_dir, active_task
+    from ..shared_state import workspace_dir, active_task, llm, current_llm_profile_name
 
     # Check if task is already running
     if is_task_running():
@@ -74,7 +74,8 @@ async def submit_task(
             )
 
         # Initialize LLM for this task if needed
-        if not active_task or active_task["llm_profile_name"] != task_request.llm_profile_name:
+        if not current_llm_profile_name or current_llm_profile_name != task_request.llm_profile_name:
+            current_llm_profile_name = task_request.llm_profile_name
             success, message = await _ensure_llm_initialized(llm_profile)
             if not success:
                 active_task = None
