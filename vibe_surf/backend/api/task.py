@@ -248,7 +248,7 @@ async def stop_task(control_request: TaskControlRequest):
                 active_task["end_time"] = datetime.now()
 
             # Clear active task
-            # clear_active_task()
+            clear_active_task()
 
             return {
                 "success": True,

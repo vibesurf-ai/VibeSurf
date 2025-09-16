@@ -229,6 +229,26 @@ class CustomFileSystem(FileSystem):
         pattern = rf'^[a-zA-Z0-9_\-]+\.({extensions})$'
         return bool(re.match(pattern, file_name))
 
+    async def append_file(self, full_filename: str, content: str) -> str:
+        """Append content to file using file-specific append method"""
+        if not self._is_valid_filename(full_filename):
+            return INVALID_FILENAME_ERROR_MESSAGE
+
+        full_path = self.data_dir / full_filename
+        is_file_exist = await self.file_exist(full_filename)
+        if not is_file_exist:
+            return f"File '{full_filename}' not found."
+
+        try:
+            with open(str(full_path), encoding='utf-8', mode='a') as f:
+                f.write(content)
+
+            return f'Data appended to file {full_filename} successfully.'
+        except FileSystemError as e:
+            return str(e)
+        except Exception as e:
+            return f"Error: Could not append to file '{full_filename}'. {str(e)}"
+
     async def write_file(self, full_filename: str, content: str) -> str:
         """Write content to file using file-specific write method"""
         if not self._is_valid_filename(full_filename):
@@ -249,8 +269,9 @@ class CustomFileSystem(FileSystem):
                 file_obj = file_class(name=name_without_ext)
                 self.files[full_filename] = file_obj  # Use full filename as key
 
-            # Use file-specific write method
-            await file_obj.write(content, self.data_dir)
+            with open(str(full_path), encoding='utf-8', mode='w') as f:
+                f.write(content)
+
             return f'Data written to file {full_filename} successfully.'
         except FileSystemError as e:
             return str(e)
@@ -282,7 +303,8 @@ class CustomFileSystem(FileSystem):
                 self.files[full_filename] = file_obj  # Use full filename as key
 
             # Use file-specific write method
-            await file_obj.write('', self.data_dir)
+            with open(str(full_path), encoding='utf-8', mode='w') as f:
+                f.write('')
             return f'Create file {full_filename} successfully.'
         except FileSystemError as e:
             return str(e)

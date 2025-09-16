@@ -363,6 +363,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
 
     # Format context information
     context_info = []
+    context_info.append(f"Current Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     if browser_tabs:
         browser_tabs_info = {}
         for tab in browser_tabs:
