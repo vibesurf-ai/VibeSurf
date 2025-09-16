@@ -60,11 +60,7 @@ current_platform = platform.system()
 print(f"Building for platform: {current_platform}")
 
 # Configure icon and console mode based on platform
-if current_platform == "Darwin":  # macOS
-    icon_file = vibe_surf_path / 'chrome_extension' / 'icons' / 'logo.icns'
-    console_mode = True  # Terminal mode for macOS CLI application
-    print(f"macOS detected - using ICNS icon and terminal mode")
-elif current_platform == "Windows":
+if current_platform == "Windows":
     # Windows can use ICO or PNG, but prefer ICO if available
     ico_file = vibe_surf_path / 'chrome_extension' / 'icons' / 'logo.ico'
     if ico_file.exists():
@@ -76,7 +72,7 @@ elif current_platform == "Windows":
     console_mode = True
 else:  # Other platforms not supported
     print(f"ERROR: Platform {current_platform} is not supported")
-    print("VibeSurf currently supports macOS and Windows only")
+    print("VibeSurf currently supports Windows only")
     sys.exit(1)
 
 # Verify icon file exists
