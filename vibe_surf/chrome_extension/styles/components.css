@@ -1,6 +1,6 @@
 /* Components CSS - Modals, Forms, and Complex Components */
 
-/* Modal Styles */
+/* Modal Styles - Base modal container */
 .modal {
   position: fixed;
   top: 0;
@@ -14,6 +14,12 @@
   padding: var(--spacing-lg);
 }
 
+/* Hidden state for static modals */
+.modal.hidden {
+  display: none;
+}
+
+/* Legacy modal overlay for existing modals */
 .modal-overlay {
   position: absolute;
   top: 0;
@@ -22,6 +28,30 @@
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
+}
+
+/* Dynamic modal overlay for modal-manager.js */
+.modal-overlay.dynamic-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-fast);
+}
+
+.modal-overlay.dynamic-modal.show {
+  opacity: 1;
+  visibility: visible;
 }
 
 .modal-content {
@@ -35,6 +65,40 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Modal Body - for dynamic modals from modal-manager.js */
+.modal-body {
+  flex: 1;
+  padding: var(--spacing-lg) var(--spacing-xl);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--spacing-md);
+}
+
+.modal-body .warning-icon {
+  font-size: 2rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+.modal-body p {
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Modal Footer - for dynamic modals from modal-manager.js */
+.modal-footer {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: center;
+  padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl);
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
 }
 
 .modal-header {
@@ -66,6 +130,28 @@
 }
 
 .modal-close:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Modal Close Button - alternative class for dynamic modals */
+.modal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.modal-close-btn:hover {
   background-color: var(--bg-hover);
   color: var(--text-primary);
 }
@@ -505,6 +591,47 @@
   color: var(--text-secondary);
 }
 
+/* Button Styles for Dynamic Modals */
+.btn-primary, .btn-secondary {
+  padding: 12px 24px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-width: 100px;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 122, 204, 0.3);
+}
+
+.btn-secondary {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.btn-primary:disabled, .btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 /* Tooltip */
 .tooltip {
   position: relative;
@@ -578,22 +705,53 @@
   max-width: 300px;
 }
 
-/* Warning Modal */
-.warning-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2100;
-  padding: var(--spacing-lg);
+/* Dynamic Modal Styles for modal-manager.js */
+.modal-overlay.dynamic-modal .modal.warning-modal .modal-content {
+  border: 2px solid var(--warning-color);
+  animation: modalSlideIn 0.3s ease-out;
 }
 
+.modal-overlay.dynamic-modal .modal.warning-modal .modal-header {
+  background-color: rgba(255, 193, 7, 0.1);
+  border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+.modal-overlay.dynamic-modal .modal.warning-modal .modal-header h3 {
+  color: var(--warning-color);
+}
+
+.modal-overlay.dynamic-modal .modal.warning-modal .warning-icon {
+  color: var(--warning-color);
+  filter: drop-shadow(0 2px 4px rgba(255, 193, 7, 0.3));
+}
+
+/* Confirm Modal enhancements */
+.modal-overlay.dynamic-modal .modal.confirm-modal .modal-content {
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+/* Modal Animation */
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Z-index management for different modal types */
+.modal-overlay.dynamic-modal {
+  z-index: 10000; /* Higher than static modals */
+}
+
+.modal-overlay.dynamic-modal.warning-modal {
+  z-index: 15000; /* Highest priority for warning modals */
+}
+
+/* Legacy warning modal classes - keeping for backward compatibility but not used by modal-manager.js */
 .warning-content {
   background-color: var(--bg-primary);
   border-radius: var(--radius-xl);
@@ -612,11 +770,6 @@
   padding: var(--spacing-xl);
   background-color: rgba(255, 193, 7, 0.1);
   border-bottom: 1px solid rgba(255, 193, 7, 0.2);
-}
-
-.warning-icon {
-  font-size: 1.5rem;
-  color: var(--warning-color);
 }
 
 .warning-header h3 {

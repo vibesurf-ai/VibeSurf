@@ -22,7 +22,6 @@ from ..shared_state import (
     is_task_running,
     get_active_task_info,
     clear_active_task,
-    browser_manager
 )
 
 from vibe_surf.logger import get_logger
@@ -74,6 +73,17 @@ async def submit_task(
                 detail=f"LLM profile '{task_request.llm_profile_name}' not found"
             )
 
+        # Initialize LLM for this task if needed
+        if not active_task or active_task["llm_profile_name"] != task_request.llm_profile_name:
+            success, message = await _ensure_llm_initialized(llm_profile)
+            if not success:
+                active_task = None
+                return {
+                    "success": False,
+                    "error": "llm_connection_failed",
+                    "message": f"Cannot connect to LLM API: {message}",
+                    "llm_profile": task_request.llm_profile_name
+                }
         # Generate task ID
         task_id = uuid7str()
 
@@ -106,10 +116,6 @@ async def submit_task(
         )
         await db.commit()
 
-        # Initialize LLM for this task if needed
-        if not active_task or active_task["llm_profile_name"] != task_request.llm_profile_name:
-            await _ensure_llm_initialized(llm_profile)
-
         # Add background task
         background_tasks.add_task(
             execute_task_background,
@@ -139,20 +145,46 @@ async def submit_task(
 
 
 async def _ensure_llm_initialized(llm_profile):
-    """Ensure LLM is initialized with the specified profile"""
+    """Ensure LLM is initialized with the specified profile and test connectivity"""
     from ..utils.llm_factory import create_llm_from_profile
     from ..shared_state import vibesurf_agent
+    from browser_use.llm import UserMessage
 
     if not vibesurf_agent:
         raise HTTPException(status_code=503, detail="VibeSurf agent not initialized")
 
-    # Always create new LLM instance to ensure we're using the right profile
-    new_llm = create_llm_from_profile(llm_profile)
+    try:
+        # Always create new LLM instance to ensure we're using the right profile
+        new_llm = create_llm_from_profile(llm_profile)
 
-    # Update vibesurf agent's LLM and register with token cost service
-    if vibesurf_agent and vibesurf_agent.token_cost_service:
-        vibesurf_agent.llm = vibesurf_agent.token_cost_service.register_llm(new_llm)
-        logger.info(f"LLM updated and registered for token tracking for profile: {llm_profile['profile_name']}")
+        # Test LLM connectivity with a simple question
+        test_message = UserMessage(content='What is the capital of France? Answer in one word.')
+        
+        logger.info(f"Testing LLM connectivity for profile: {llm_profile['profile_name']}")
+        response = await new_llm.ainvoke([test_message])
+        
+        # Check if response contains expected answer
+        if not response or not hasattr(response, 'completion'):
+            return False, f"LLM response validation failed: No completion content received"
+        
+        completion = response.completion.lower() if response.completion else ""
+        if 'paris' not in completion:
+            logger.warning(f"LLM connectivity test returned unexpected answer: {response.completion}")
+            # Still continue if we got some response, just log the warning
+        
+        logger.info(f"LLM connectivity test successful for profile: {llm_profile['profile_name']}")
+
+        # Update vibesurf agent's LLM and register with token cost service
+        if vibesurf_agent and vibesurf_agent.token_cost_service:
+            vibesurf_agent.llm = vibesurf_agent.token_cost_service.register_llm(new_llm)
+            logger.info(f"LLM updated and registered for token tracking for profile: {llm_profile['profile_name']}")
+        
+        return True, "LLM initialized and tested successfully"
+        
+    except Exception as e:
+        error_msg = f"LLM connectivity test failed: {str(e)}"
+        logger.error(error_msg)
+        return False, error_msg
 
 
 @router.post("/pause")

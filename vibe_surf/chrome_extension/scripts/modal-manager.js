@@ -61,20 +61,24 @@ class VibeSurfModalManager {
 
     const modalId = this.generateModalId();
     
+    // Add warning icon to title and always show cancel for warning modals
+    const warningTitle = `⚠️ ${title}`;
+    const shouldShowCancel = showCancel || true; // Always show cancel for warning modals
+    
     const modalHTML = `
-      <div class="modal-overlay" id="${modalId}-overlay">
+      <div class="modal-overlay dynamic-modal warning-modal" id="${modalId}-overlay">
         <div class="modal warning-modal ${className}" id="${modalId}">
-          <div class="modal-header">
-            <h3>${this.escapeHtml(title)}</h3>
-            <button class="modal-close-btn" data-modal-id="${modalId}">×</button>
-          </div>
-          <div class="modal-body">
-            <div class="warning-icon">⚠️</div>
-            <p>${this.escapeHtml(message)}</p>
-          </div>
-          <div class="modal-footer">
-            ${showCancel ? `<button class="btn-secondary modal-cancel-btn" data-modal-id="${modalId}">${this.escapeHtml(cancelText)}</button>` : ''}
-            <button class="btn-primary modal-confirm-btn" data-modal-id="${modalId}">${this.escapeHtml(confirmText)}</button>
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3>${this.escapeHtml(warningTitle)}</h3>
+            </div>
+            <div class="modal-body">
+              <p>${this.escapeHtml(message)}</p>
+            </div>
+            <div class="modal-footer">
+              ${shouldShowCancel ? `<button class="btn-secondary modal-cancel-btn" data-modal-id="${modalId}">${this.escapeHtml(cancelText)}</button>` : ''}
+              <button class="btn-primary modal-confirm-btn" data-modal-id="${modalId}">${this.escapeHtml(confirmText)}</button>
+            </div>
           </div>
         </div>
       </div>
@@ -122,19 +126,21 @@ class VibeSurfModalManager {
     const icon = iconMap[type] || iconMap.question;
     
     const modalHTML = `
-      <div class="modal-overlay" id="${modalId}-overlay">
+      <div class="modal-overlay dynamic-modal" id="${modalId}-overlay">
         <div class="modal confirm-modal ${className}" id="${modalId}">
-          <div class="modal-header">
-            <h3>${this.escapeHtml(title)}</h3>
-            <button class="modal-close-btn" data-modal-id="${modalId}">×</button>
-          </div>
-          <div class="modal-body">
-            <div class="confirm-icon">${icon}</div>
-            <p>${this.escapeHtml(message)}</p>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary modal-cancel-btn" data-modal-id="${modalId}">${this.escapeHtml(cancelText)}</button>
-            <button class="btn-primary modal-confirm-btn" data-modal-id="${modalId}" ${type === 'danger' ? 'data-danger="true"' : ''}>${this.escapeHtml(confirmText)}</button>
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3>${this.escapeHtml(title)}</h3>
+              <button class="modal-close-btn" data-modal-id="${modalId}">×</button>
+            </div>
+            <div class="modal-body">
+              <div class="confirm-icon">${icon}</div>
+              <p>${this.escapeHtml(message)}</p>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary modal-cancel-btn" data-modal-id="${modalId}">${this.escapeHtml(cancelText)}</button>
+              <button class="btn-primary modal-confirm-btn" data-modal-id="${modalId}" ${type === 'danger' ? 'data-danger="true"' : ''}>${this.escapeHtml(confirmText)}</button>
+            </div>
           </div>
         </div>
       </div>
@@ -174,16 +180,18 @@ class VibeSurfModalManager {
     const modalId = this.generateModalId();
     
     const modalHTML = `
-      <div class="modal-overlay ${backdrop ? 'backdrop' : ''}" id="${modalId}-overlay">
+      <div class="modal-overlay dynamic-modal ${backdrop ? 'backdrop' : ''}" id="${modalId}-overlay">
         <div class="modal ${className}" id="${modalId}">
-          ${title || showCloseButton ? `
-            <div class="modal-header">
-              ${title ? `<h3>${this.escapeHtml(title)}</h3>` : ''}
-              ${showCloseButton ? `<button class="modal-close-btn" data-modal-id="${modalId}">×</button>` : ''}
+          <div class="modal-content">
+            ${title || showCloseButton ? `
+              <div class="modal-header">
+                ${title ? `<h3>${this.escapeHtml(title)}</h3>` : ''}
+                ${showCloseButton ? `<button class="modal-close-btn" data-modal-id="${modalId}">×</button>` : ''}
+              </div>
+            ` : ''}
+            <div class="modal-body">
+              ${content}
             </div>
-          ` : ''}
-          <div class="modal-body">
-            ${content}
           </div>
         </div>
       </div>
