@@ -125,16 +125,17 @@ class VibeSurfModalManager {
     
     const icon = iconMap[type] || iconMap.question;
     
+    // Add icon to title and remove close button
+    const iconTitle = `${icon} ${title}`;
+    
     const modalHTML = `
       <div class="modal-overlay dynamic-modal" id="${modalId}-overlay">
         <div class="modal confirm-modal ${className}" id="${modalId}">
           <div class="modal-content">
             <div class="modal-header">
-              <h3>${this.escapeHtml(title)}</h3>
-              <button class="modal-close-btn" data-modal-id="${modalId}">×</button>
+              <h3>${this.escapeHtml(iconTitle)}</h3>
             </div>
             <div class="modal-body">
-              <div class="confirm-icon">${icon}</div>
               <p>${this.escapeHtml(message)}</p>
             </div>
             <div class="modal-footer">
