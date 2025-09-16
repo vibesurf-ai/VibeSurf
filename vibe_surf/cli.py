@@ -341,7 +341,8 @@ def start_backend(port: int) -> None:
 def get_browser_execution_path() -> Optional[str]:
     """Get browser execution path from envs.json or environment variables."""
     # 1. Load environment variables
-    from .common import get_workspace_dir
+    from vibe_surf.common import get_workspace_dir
+
     workspace_dir = get_workspace_dir()
     os.makedirs(workspace_dir, exist_ok=True)
     logger.info("WorkSpace directory: {}".format(workspace_dir))
