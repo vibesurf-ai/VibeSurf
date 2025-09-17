@@ -454,7 +454,8 @@ class TaskQueries:
             task_result: Optional[str] = None,
             task_status: str = "pending",
             error_message: Optional[str] = None,
-            report_path: Optional[str] = None
+            report_path: Optional[str] = None,
+            agent_mode: str = "thinking"
     ) -> Task:
         """Create or update a task record"""
         try:
@@ -507,7 +508,8 @@ class TaskQueries:
                     mcp_server_config=mcp_server_config_json,
                     task_result=task_result,
                     error_message=error_message,
-                    report_path=report_path
+                    report_path=report_path,
+                    agent_mode=agent_mode
                 )
 
                 db.add(task)

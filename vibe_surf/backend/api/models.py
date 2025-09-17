@@ -106,6 +106,7 @@ class TaskCreateRequest(BaseModel):
     llm_profile_name: str = Field(description="LLM profile name to use")
     upload_files_path: Optional[str] = Field(default=None, description="Path to uploaded files")
     mcp_server_config: Optional[Dict[str, Any]] = Field(default=None, description="MCP server configuration")
+    agent_mode: str = Field(default="thinking", description="Agent mode: 'thinking', 'no-thinking', or 'flash'")
 
 class TaskControlRequest(BaseModel):
     """Request model for task control operations (pause/resume/stop)"""
@@ -121,6 +122,7 @@ class TaskResponse(BaseModel):
     upload_files_path: Optional[str] = None
     workspace_dir: Optional[str] = None
     mcp_server_config: Optional[Dict[str, Any]] = None
+    agent_mode: str = "thinking"
     task_result: Optional[str] = None
     error_message: Optional[str] = None
     report_path: Optional[str] = None
@@ -145,6 +147,7 @@ class TaskResponse(BaseModel):
             upload_files_path=task.upload_files_path,
             workspace_dir=task.workspace_dir,
             mcp_server_config=task.mcp_server_config,
+            agent_mode=task.agent_mode,
             task_result=task.task_result,
             error_message=task.error_message,
             report_path=task.report_path,

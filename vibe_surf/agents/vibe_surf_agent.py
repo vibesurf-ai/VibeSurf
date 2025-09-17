@@ -214,11 +214,11 @@ def create_browser_agent_step_callback(state: VibeSurfState, agent_name: str):
             step_msg = f"## Step {step_num}\n\n"
 
             # Add thinking if present
-            if agent_output.thinking:
+            if hasattr(agent_output, 'thinking') and agent_output.thinking:
                 step_msg += f"**💡 Thinking:**\n{agent_output.thinking}\n\n"
 
             # Add evaluation if present
-            if agent_output.evaluation_previous_goal:
+            if hasattr(agent_output, 'evaluation_previous_goal') and agent_output.evaluation_previous_goal:
                 step_msg += f"**👍 Evaluation:**\n{agent_output.evaluation_previous_goal}\n\n"
 
             # Add memory if present
@@ -226,7 +226,7 @@ def create_browser_agent_step_callback(state: VibeSurfState, agent_name: str):
             #     step_msg += f"**🧠 Memory:** {agent_output.memory}\n\n"
 
             # Add next goal if present
-            if agent_output.next_goal:
+            if hasattr(agent_output, 'next_goal') and agent_output.next_goal:
                 step_msg += f"**🎯 Next Goal:**\n{agent_output.next_goal}\n\n"
 
             # Add action summary

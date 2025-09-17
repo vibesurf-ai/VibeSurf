@@ -117,7 +117,8 @@ async def submit_task(
             mcp_server_config=mcp_server_config,
             llm_profile_name=task_request.llm_profile_name,
             workspace_dir=workspace_dir,
-            task_status="pending"
+            task_status="pending",
+            agent_mode=task_request.agent_mode
         )
         await db.commit()
 
@@ -129,6 +130,7 @@ async def submit_task(
             task=task_request.task_description,
             llm_profile_name=task_request.llm_profile_name,
             upload_files=task_request.upload_files_path,
+            agent_mode=task_request.agent_mode,
             db_session=db
         )
 

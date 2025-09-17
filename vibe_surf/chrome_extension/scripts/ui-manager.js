@@ -48,6 +48,7 @@ class VibeSurfUIManager {
       
       // Input area
       llmProfileSelect: document.getElementById('llm-profile-select'),
+      agentModeSelect: document.getElementById('agent-mode-select'),
       taskInput: document.getElementById('task-input'),
       sendBtn: document.getElementById('send-btn'),
       
@@ -235,6 +236,9 @@ class VibeSurfUIManager {
     
     // LLM profile selection handling
     this.elements.llmProfileSelect?.addEventListener('change', this.handleLlmProfileChange.bind(this));
+    
+    // Agent mode selection handling
+    this.elements.agentModeSelect?.addEventListener('change', this.handleAgentModeChange.bind(this));
     
     // Initialize auto-resize for textarea
     if (this.elements.taskInput) {
@@ -461,6 +465,11 @@ class VibeSurfUIManager {
       this.elements.llmProfileSelect.disabled = isRunning && !isPaused;
     }
     
+    if (this.elements.agentModeSelect) {
+      // Allow agent mode change only when not running
+      this.elements.agentModeSelect.disabled = isRunning && !isPaused;
+    }
+    
     // Update file manager state - keep disabled during pause (as per requirement)
     this.fileManager.setEnabled(!isRunning);
     
@@ -505,6 +514,11 @@ class VibeSurfUIManager {
       this.elements.llmProfileSelect.disabled = true;
     }
     
+    // Keep agent mode disabled during pause (user doesn't need to change it)
+    if (this.elements.agentModeSelect) {
+      this.elements.agentModeSelect.disabled = true;
+    }
+    
     // Keep file manager disabled during pause
     this.fileManager.setEnabled(false);
     
@@ -539,6 +553,10 @@ class VibeSurfUIManager {
     
     if (this.elements.llmProfileSelect) {
       this.elements.llmProfileSelect.disabled = true;
+    }
+    
+    if (this.elements.agentModeSelect) {
+      this.elements.agentModeSelect.disabled = true;
     }
     
     // Update file manager state
@@ -716,7 +734,8 @@ class VibeSurfUIManager {
       
       const taskData = {
         task_description: taskDescription,
-        llm_profile_name: llmProfile
+        llm_profile_name: llmProfile,
+        agent_mode: this.elements.agentModeSelect?.value || 'thinking'
       };
       
       // Add uploaded files path if any
@@ -862,6 +881,13 @@ class VibeSurfUIManager {
 
   handleLlmProfileChange(event) {
     // Re-validate send button state when LLM profile changes
+    if (this.elements.taskInput) {
+      this.handleTaskInputChange({ target: this.elements.taskInput });
+    }
+  }
+
+  handleAgentModeChange(event) {
+    // Re-validate send button state when agent mode changes
     if (this.elements.taskInput) {
       this.handleTaskInputChange({ target: this.elements.taskInput });
     }
