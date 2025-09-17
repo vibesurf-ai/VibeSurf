@@ -105,13 +105,15 @@ class VibeSurfTools:
 
     def _register_todo_actions(self):
         @self.registry.action(
-            'Generate a new todo.md file with the provided todo items in markdown checkbox format.'
+            'Generate a new todo.md file with the provided todo items in markdown checkbox format.',
+            param_model=TodoGenerateAction
         )
-        async def generate_todos(todo_items: list[str], file_system: CustomFileSystem):
+        async def generate_todos(params: TodoGenerateAction, file_system: CustomFileSystem):
             """Generate a new todo.md file with todo items in markdown format"""
             try:
                 # Format todo items as markdown checkboxes
                 formatted_items = []
+                todo_items = params.todo_items
                 for item in todo_items:
                     # Clean item and ensure it doesn't already have checkbox format
                     clean_item = item.strip()

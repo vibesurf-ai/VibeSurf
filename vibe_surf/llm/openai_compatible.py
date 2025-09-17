@@ -24,7 +24,7 @@ Example usage:
         temperature=0,
     )
 """
-
+import pdb
 from dataclasses import dataclass
 from typing import Any, TypeVar, overload
 from pydantic import BaseModel
@@ -223,9 +223,11 @@ class ChatOpenAICompatible(ChatOpenAI):
         """
         # If this is not a special model or no structured output is requested,
         # use the parent implementation directly
+        if self._is_qwen_model() or self._is_kimi_model():
+            self.add_schema_to_system_prompt = True
+
         if not (self._is_gemini_model() or self._is_kimi_model()) or output_format is None:
             return await super().ainvoke(messages, output_format)
-
         openai_messages = OpenAIMessageSerializer.serialize_messages(messages)
 
         try:
@@ -269,9 +271,8 @@ class ChatOpenAICompatible(ChatOpenAI):
                 )
 
             else:
-                original_schema = SchemaOptimizer.create_optimized_json_schema(output_format)
-
                 # Apply appropriate schema fix based on model type
+                original_schema = SchemaOptimizer.create_optimized_json_schema(output_format)
                 if self._is_gemini_model():
                     logger.debug(f"🔧 Applying Gemini schema fixes for model: {self.model}")
                     fixed_schema = self._fix_gemini_schema(original_schema)

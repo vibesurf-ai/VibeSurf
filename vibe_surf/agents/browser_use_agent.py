@@ -259,10 +259,10 @@ class BrowserUseAgent(Agent):
                 '⚠️ DeepSeek models do not support use_vision=True yet. Setting use_vision=False for now...')
             self.settings.use_vision = False
 
-        if 'kimi-k2' in self.llm.model.lower():
-            self.logger.warning(
-                '⚠️ Kimi-k2 models do not support use_vision=True yet. Setting use_vision=False for now...')
-            self.settings.use_vision = False
+        # if 'kimi-k2' in self.llm.model.lower():
+        #     self.logger.warning(
+        #         '⚠️ Kimi-k2 models do not support use_vision=True yet. Setting use_vision=False for now...')
+        #     self.settings.use_vision = False
 
         # Handle users trying to use use_vision=True with XAI models
         if 'grok' in self.llm.model.lower():

@@ -38,10 +38,20 @@ async def run_single_bu_agent():
     await main_browser_session.start()
     bu_tools = BrowserUseTools()
 
-    llm = ChatOpenAICompatible(model='gemini-2.5-flash',
-                               base_url=os.getenv("OPENAI_ENDPOINT"),
-                               api_key=os.getenv("OPENAI_API_KEY"))
+    # llm = ChatOpenAICompatible(model='gemini-2.5-flash',
+    #                            base_url=os.getenv("OPENAI_ENDPOINT"),
+    #                            api_key=os.getenv("OPENAI_API_KEY"))
+
+    # llm = ChatOpenAICompatible(model='qwen-plus',
+    #                            base_url=os.getenv("ALIBABA_ENDPOINT"),
+    #                            api_key=os.getenv("ALIBABA_API_KEY"))
+
+    llm = ChatOpenAICompatible(model='kimi-k2-turbo-preview',
+                               base_url=os.getenv("MOONSHOT_ENDPOINT"),
+                               api_key=os.getenv("MOONSHOT_API_KEY"))
+
     task = "Search Google for 'Elon Mask' and tell me the top 3 results"
+
     # task = r"""
     # 1. 在新的tab 导航到 https://github.com/
     # 2. 在新的tab 导航到 https://vibemotion.co/
@@ -367,7 +377,7 @@ async def test_vibe_surf_agent_control():
 
 
 if __name__ == "__main__":
-    # asyncio.run(run_single_bu_agent())
+    asyncio.run(run_single_bu_agent())
     # asyncio.run(run_multi_bu_agents())
-    asyncio.run(test_vibe_surf_agent())
+    # asyncio.run(test_vibe_surf_agent())
     # asyncio.run(test_vibe_surf_agent_control())

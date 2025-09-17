@@ -99,13 +99,13 @@ class TodoModification(BaseModel):
         description='Text of the todo item to operate on',
     )
 
-
 class TodoModifyAction(BaseModel):
     """Parameters for modifying todo items"""
     modifications: list[TodoModification] = Field(
         description='List of todo modifications to apply',
         min_length=1,
     )
+
 
 
 class VibeSurfDoneAction(BaseModel):
