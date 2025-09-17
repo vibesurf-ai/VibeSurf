@@ -71,7 +71,7 @@ class Task(Base):
     
     # Task definition
     task_description = Column(Text, nullable=False)
-    status = Column(Enum(TaskStatus), nullable=False, default=TaskStatus.PENDING)
+    status = Column(Enum(TaskStatus, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=TaskStatus.PENDING)
     
     # LLM Profile reference (instead of storing LLM config directly)
     llm_profile_name = Column(String(100), nullable=False)  # Reference to LLMProfile.profile_name
