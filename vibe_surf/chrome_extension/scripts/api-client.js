@@ -175,7 +175,8 @@ class VibeSurfAPIClient {
       task_description,
       llm_profile_name,
       upload_files_path,
-      mcp_server_config
+      mcp_server_config,
+      agent_mode
     } = taskData;
 
     return this.post('/tasks/submit', {
@@ -183,7 +184,8 @@ class VibeSurfAPIClient {
       task_description,
       llm_profile_name,
       upload_files_path,
-      mcp_server_config
+      mcp_server_config,
+      agent_mode
     });
   }
 

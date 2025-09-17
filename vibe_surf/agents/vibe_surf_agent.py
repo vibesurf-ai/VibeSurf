@@ -633,7 +633,9 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                 file_system_path=str(bu_agent_workdir),
                 register_new_step_callback=step_callback,
                 extend_system_message=EXTEND_BU_SYSTEM_PROMPT,
-                token_cost_service=state.vibesurf_agent.token_cost_service
+                token_cost_service=state.vibesurf_agent.token_cost_service,
+                flash_mode=state.vibesurf_agent.settings.agent_mode == "flash",
+                use_thinking=state.vibesurf_agent.settings.agent_mode == "thinking"
             )
             agents.append(agent)
 
@@ -784,7 +786,9 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
             file_system_path=str(bu_agent_workdir),
             register_new_step_callback=step_callback,
             extend_system_message=EXTEND_BU_SYSTEM_PROMPT,
-            token_cost_service=state.vibesurf_agent.token_cost_service
+            token_cost_service=state.vibesurf_agent.token_cost_service,
+            flash_mode=state.vibesurf_agent.settings.agent_mode == "flash",
+            use_thinking=state.vibesurf_agent.settings.agent_mode == "thinking"
         )
         if state.vibesurf_agent and hasattr(state.vibesurf_agent, '_running_agents'):
             state.vibesurf_agent._running_agents[agent_id] = agent

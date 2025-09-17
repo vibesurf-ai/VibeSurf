@@ -566,12 +566,6 @@ class BrowserUseAgent(Agent):
                     agent_run_error = 'Agent stopped programmatically'
                     break
 
-                while self.state.paused:
-                    await asyncio.sleep(0.2)  # Small delay to prevent CPU spinning
-                    if self.state.stopped:  # Allow stopping while paused
-                        agent_run_error = 'Agent stopped programmatically while paused'
-                        break
-
                 if on_step_start is not None:
                     await on_step_start(self)
 
@@ -820,12 +814,12 @@ class BrowserUseAgent(Agent):
                     i = global_action_index + local_index
 
                     # Original sequential execution logic continues here...
-                    if i > 0:
-                        # ONLY ALLOW TO CALL `done` IF IT IS A SINGLE ACTION
-                        if action.model_dump(exclude_unset=True).get('done') is not None:
-                            msg = f'Done action is allowed only as a single action - stopped after action {i} / {total_actions}.'
-                            self.logger.debug(msg)
-                            break
+                    # if i > 0:
+                    #     # ONLY ALLOW TO CALL `done` IF IT IS A SINGLE ACTION
+                    #     if action.model_dump(exclude_unset=True).get('done') is not None:
+                    #         msg = f'Done action is allowed only as a single action - stopped after action {i} / {total_actions}.'
+                    #         self.logger.debug(msg)
+                    #         break
 
                     # DOM synchronization check - verify element indexes are still valid AFTER first action
                     if action.get_index() is not None and i != 0:
