@@ -226,7 +226,7 @@ class ChatOpenAICompatible(ChatOpenAI):
         if self._is_qwen_model() or self._is_kimi_model():
             self.add_schema_to_system_prompt = True
 
-        if not (self._is_gemini_model() or self._is_kimi_model()) or output_format is None:
+        if not (self._is_gemini_model() or self._is_kimi_model() or self._is_qwen_model()) or output_format is None:
             return await super().ainvoke(messages, output_format)
         openai_messages = OpenAIMessageSerializer.serialize_messages(messages)
 
@@ -281,7 +281,6 @@ class ChatOpenAICompatible(ChatOpenAI):
                     fixed_schema = self._fix_kimi_schema(original_schema)
                 else:
                     fixed_schema = original_schema
-
                 response_format: JSONSchema = {
                     'name': 'agent_output',
                     'strict': True,

@@ -119,7 +119,7 @@ class CustomAgentOutput(BaseModel):
                 return schema
 
         model = create_model(
-            'AgentOutput',
+            'AgentOutputNoThinking',
             __base__=AgentOutputNoThinking,
             action=(
                 list[custom_actions],  # type: ignore
