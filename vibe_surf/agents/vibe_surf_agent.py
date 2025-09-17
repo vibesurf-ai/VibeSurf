@@ -512,7 +512,8 @@ async def _browser_task_execution_node_impl(state: VibeSurfState) -> VibeSurfSta
         task_count = len(state.browser_tasks)
         if task_count == 0:
             raise ValueError("No browser tasks assigned. Please assign 1 task at least.")
-
+        if not state.browser_results:
+            state.browser_results = []
         if task_count <= 1:
             # Single task execution
             logger.info("📝 Using single execution for single task")
