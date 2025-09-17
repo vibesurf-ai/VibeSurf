@@ -8,6 +8,7 @@ with optimized configuration for real-time operations.
 import asyncio
 import os
 import glob
+import pdb
 import re
 from pathlib import Path
 from typing import AsyncGenerator, List, Tuple, Optional
@@ -39,13 +40,15 @@ class DBMigrationManager:
                 'VIBESURF_DATABASE_URL',
                 f'sqlite+aiosqlite:///{os.path.join(shared_state.workspace_dir, "vibe_surf.db")}'
             )
-            # Extract path from sqlite URL
-            if database_url.startswith('sqlite+aiosqlite:///'):
-                self.db_path = database_url[20:]  # Remove 'sqlite+aiosqlite:///' prefix
-            else:
-                raise ValueError(f"Migration manager only supports SQLite databases, got: {database_url}")
+            self.db_path = database_url
         else:
             self.db_path = db_path
+            
+        # Extract path from sqlite URL
+        if self.db_path.startswith('sqlite+aiosqlite:///'):
+            self.db_path = self.db_path[20:]  # Remove 'sqlite+aiosqlite:///' prefix
+        else:
+            raise ValueError(f"Migration manager only supports SQLite databases, got: {self.db_path}")
             
         self.migrations_dir = Path(__file__).parent / "migrations"
     
@@ -189,7 +192,7 @@ class DatabaseManager:
         # Initialize migration manager for SQLite databases
         if self.database_url.startswith('sqlite'):
             try:
-                self.migration_manager = DBMigrationManager()
+                self.migration_manager = DBMigrationManager(db_path=self.database_url)
             except Exception as e:
                 logger.warning(f"Failed to initialize migration manager: {e}")
                 self.migration_manager = None
