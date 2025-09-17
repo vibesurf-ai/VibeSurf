@@ -38,6 +38,7 @@ from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.tools.browser_use_tools import BrowserUseTools
 from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 from vibe_surf.tools.file_system import CustomFileSystem
+from vibe_surf.agents.views import VibeSurfAgentSettings
 
 from vibe_surf.logger import get_logger
 
@@ -213,11 +214,11 @@ def create_browser_agent_step_callback(state: VibeSurfState, agent_name: str):
             step_msg = f"## Step {step_num}\n\n"
 
             # Add thinking if present
-            if agent_output.thinking:
+            if hasattr(agent_output, 'thinking') and agent_output.thinking:
                 step_msg += f"**💡 Thinking:**\n{agent_output.thinking}\n\n"
 
             # Add evaluation if present
-            if agent_output.evaluation_previous_goal:
+            if hasattr(agent_output, 'evaluation_previous_goal') and agent_output.evaluation_previous_goal:
                 step_msg += f"**👍 Evaluation:**\n{agent_output.evaluation_previous_goal}\n\n"
 
             # Add memory if present
@@ -225,7 +226,7 @@ def create_browser_agent_step_callback(state: VibeSurfState, agent_name: str):
             #     step_msg += f"**🧠 Memory:** {agent_output.memory}\n\n"
 
             # Add next goal if present
-            if agent_output.next_goal:
+            if hasattr(agent_output, 'next_goal') and agent_output.next_goal:
                 step_msg += f"**🎯 Next Goal:**\n{agent_output.next_goal}\n\n"
 
             # Add action summary
@@ -352,7 +353,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
     # Create action model and agent output using VibeSurfTools
     vibesurf_agent = state.vibesurf_agent
     ActionModel = vibesurf_agent.tools.registry.create_action_model()
-    if vibesurf_agent.thinking_mode:
+    if vibesurf_agent.settings.agent_mode == "thinking":
         AgentOutput = CustomAgentOutput.type_with_custom_actions(ActionModel)
     else:
         AgentOutput = CustomAgentOutput.type_with_custom_actions_no_thinking(ActionModel)
@@ -632,7 +633,9 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
                 file_system_path=str(bu_agent_workdir),
                 register_new_step_callback=step_callback,
                 extend_system_message=EXTEND_BU_SYSTEM_PROMPT,
-                token_cost_service=state.vibesurf_agent.token_cost_service
+                token_cost_service=state.vibesurf_agent.token_cost_service,
+                flash_mode=state.vibesurf_agent.settings.agent_mode == "flash",
+                use_thinking=state.vibesurf_agent.settings.agent_mode == "thinking"
             )
             agents.append(agent)
 
@@ -783,7 +786,9 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
             file_system_path=str(bu_agent_workdir),
             register_new_step_callback=step_callback,
             extend_system_message=EXTEND_BU_SYSTEM_PROMPT,
-            token_cost_service=state.vibesurf_agent.token_cost_service
+            token_cost_service=state.vibesurf_agent.token_cost_service,
+            flash_mode=state.vibesurf_agent.settings.agent_mode == "flash",
+            use_thinking=state.vibesurf_agent.settings.agent_mode == "thinking"
         )
         if state.vibesurf_agent and hasattr(state.vibesurf_agent, '_running_agents'):
             state.vibesurf_agent._running_agents[agent_id] = agent
@@ -861,7 +866,7 @@ async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfStat
             llm=state.vibesurf_agent.llm,
             workspace_dir=str(state.vibesurf_agent.file_system.get_dir()),
             step_callback=step_callback,
-            thinking_mode=state.vibesurf_agent.thinking_mode,
+            use_thinking=state.vibesurf_agent.settings.agent_mode == "thinking",
         )
         
         # Register report writer agent for control coordination
@@ -997,19 +1002,17 @@ class VibeSurfAgent:
             browser_manager: BrowserManager,
             tools: VibeSurfTools,
             workspace_dir: str = "./workspace",
-            thinking_mode: bool = True,
-            calculate_token_cost: bool = True,
+            settings: Optional[VibeSurfAgentSettings] = None
     ):
         """Initialize VibeSurfAgent with required components"""
         self.llm: BaseChatModel = llm
-        self.calculate_token_cost = calculate_token_cost
-        self.token_cost_service = TokenCost(include_cost=calculate_token_cost)
+        self.settings = settings or VibeSurfAgentSettings()
+        self.token_cost_service = TokenCost(include_cost=self.settings.calculate_cost)
         self.token_cost_service.register_llm(llm)
         self.browser_manager: BrowserManager = browser_manager
         self.tools: VibeSurfTools = tools
         self.workspace_dir = workspace_dir
         os.makedirs(self.workspace_dir, exist_ok=True)
-        self.thinking_mode = thinking_mode
 
         self.cur_session_id = None
         self.file_system: Optional[CustomFileSystem] = None
@@ -1540,7 +1543,7 @@ Please continue with your assigned work, incorporating this guidance only if it'
             task: str,
             upload_files: Optional[List[str]] = None,
             session_id: Optional[str] = None,
-            thinking_mode: bool = True
+            agent_mode: str = "thinking"
     ) -> str | None:
         """
         Main execution method that returns markdown summary with control capabilities
@@ -1554,7 +1557,7 @@ Please continue with your assigned work, incorporating this guidance only if it'
         """
         logger.info(f"🚀 Starting VibeSurfAgent execution for task: {task}. Powered by LLM model: {self.llm.model_name}")
         try:
-            self.thinking_mode = thinking_mode
+            self.settings.agent_mode = agent_mode
             session_id = session_id or self.cur_session_id or uuid7str()
             if session_id != self.cur_session_id:
                 # Load session-specific data when switching sessions

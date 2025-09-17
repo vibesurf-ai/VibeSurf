@@ -106,6 +106,7 @@ async def execute_task_background(
         task: str,
         llm_profile_name: str,
         upload_files: Optional[List[str]] = None,
+        agent_mode: str = "thinking",
         db_session=None
 ):
     """Background task execution function for single task with LLM profile support"""
@@ -141,7 +142,8 @@ async def execute_task_background(
         result = await vibesurf_agent.run(
             task=task,
             upload_files=upload_files,
-            session_id=session_id
+            session_id=session_id,
+            agent_mode=agent_mode
         )
 
         # Update task status to completed
@@ -400,8 +402,8 @@ async def initialize_vibesurf_components():
 
         db_manager = DatabaseManager(database_url)
 
-        # Initialize database tables
-        await db_manager.create_tables()
+        # Initialize database tables with migration support
+        await db_manager.create_tables(use_migrations=True)
         logger.info("✅ Database manager initialized successfully")
 
         # Initialize LLM from default profile (if available) or fallback to environment variables

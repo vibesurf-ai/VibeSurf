@@ -83,6 +83,9 @@ class Task(Base):
     # Configuration (JSON strings without API keys)
     mcp_server_config = Column(Text, nullable=True)  # MCP server config as JSON string
     
+    # Agent execution mode
+    agent_mode = Column(String(50), nullable=False, default='thinking')  # Agent mode: 'thinking' or 'direct'
+    
     # Results
     task_result = Column(Text, nullable=True)  # Final markdown result
     error_message = Column(Text, nullable=True)

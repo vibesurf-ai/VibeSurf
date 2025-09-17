@@ -32,7 +32,7 @@ class ReportTaskResult(BaseModel):
 class ReportWriterAgent:
     """Agent responsible for generating HTML reports using LLM-controlled flow"""
 
-    def __init__(self, llm: BaseChatModel, workspace_dir: str, step_callback=None, thinking_mode: bool = True):
+    def __init__(self, llm: BaseChatModel, workspace_dir: str, step_callback=None, use_thinking: bool = True):
         """
         Initialize ReportWriterAgent
         
@@ -44,7 +44,7 @@ class ReportWriterAgent:
         self.llm = llm
         self.workspace_dir = os.path.abspath(workspace_dir)
         self.step_callback = step_callback
-        self.thinking_mode = thinking_mode
+        self.use_thinking = use_thinking
 
         # Initialize file system and tools
         self.file_system = CustomFileSystem(self.workspace_dir)
@@ -52,7 +52,7 @@ class ReportWriterAgent:
 
         # Setup action model and agent output
         self.ActionModel = self.tools.registry.create_action_model()
-        if self.thinking_mode:
+        if self.use_thinking:
             self.AgentOutput = CustomAgentOutput.type_with_custom_actions(self.ActionModel)
         else:
             self.AgentOutput = CustomAgentOutput.type_with_custom_actions_no_thinking(self.ActionModel)
