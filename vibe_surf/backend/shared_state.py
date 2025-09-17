@@ -400,8 +400,8 @@ async def initialize_vibesurf_components():
 
         db_manager = DatabaseManager(database_url)
 
-        # Initialize database tables
-        await db_manager.create_tables()
+        # Initialize database tables with migration support
+        await db_manager.create_tables(use_migrations=True)
         logger.info("✅ Database manager initialized successfully")
 
         # Initialize LLM from default profile (if available) or fallback to environment variables
