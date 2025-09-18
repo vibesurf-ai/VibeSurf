@@ -33,20 +33,3 @@ FOR EACH ROW
 BEGIN
     UPDATE voice_profiles SET updated_at = CURRENT_TIMESTAMP WHERE profile_id = OLD.profile_id;
 END;
-
--- Insert default qwen3-asr-flash profile if it doesn't exist
-INSERT OR IGNORE INTO voice_profiles (
-    profile_id,
-    voice_profile_name,
-    voice_model_type,
-    voice_model_name,
-    description,
-    is_active
-) VALUES (
-    'default-qwen3-asr-flash',
-    'default-qwen3-asr-flash',
-    'asr',
-    'qwen3-asr-flash',
-    'Default Qwen ASR Flash voice profile',
-    1
-);
