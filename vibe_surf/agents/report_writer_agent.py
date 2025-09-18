@@ -136,7 +136,7 @@ class ReportWriterAgent:
             create_result = await self.file_system.create_file(report_filename)
             logger.info(f"Created report file: {create_result}")
 
-            max_iterations = 6  # Prevent infinite loops
+            max_iterations = 10  # Prevent infinite loops
 
             # Add system message with unified prompt only if message history is empty
             if not self.message_history:
