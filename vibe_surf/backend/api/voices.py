@@ -201,6 +201,29 @@ async def list_voice_profiles(
         )
 
 
+@router.get("/models")
+async def get_available_voice_models(model_type: Optional[str] = None):
+    """Get list of all available voice models"""
+    models = []
+    for model_name, config in VOICE_MODELS.items():
+        # Filter by model_type if provided
+        config_model_type = config.get("model_type", "asr")
+        if model_type and config_model_type != model_type:
+            continue
+            
+        model_info = {
+            "model_name": model_name,
+            "model_type": config_model_type,
+            "requires_api_key": config.get("requires_api_key", True)
+        }
+        models.append(model_info)
+    
+    return {
+        "models": models,
+        "total_models": len(models)
+    }
+
+
 @router.get("/{voice_profile_name}")
 async def get_voice_profile(
     voice_profile_name: str,
@@ -236,22 +259,3 @@ async def get_voice_profile(
             status_code=500,
             detail=f"Failed to get voice profile: {str(e)}"
         )
-
-
-@router.get("/models")
-async def get_available_voice_models():
-    """Get list of all available voice models"""
-    models = []
-    for model_name, config in VOICE_MODELS.items():
-        model_info = {
-            "model_name": model_name,
-            "model_type": config.get("model_type"),
-            "requires_api_key": config.get("requires_api_key", True),
-            "supports_base_url": config.get("supports_base_url", False)
-        }
-        models.append(model_info)
-    
-    return {
-        "models": models,
-        "total_models": len(models)
-    }

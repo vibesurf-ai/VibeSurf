@@ -201,6 +201,4 @@ Index('idx_mcp_profiles_active', McpProfile.is_active)
 # Voice Profile indexes
 Index('idx_voice_profiles_name', VoiceProfile.voice_profile_name)
 Index('idx_voice_profiles_type', VoiceProfile.voice_model_type)
-Index('idx_voice_profiles_provider', VoiceProfile.provider)
 Index('idx_voice_profiles_active', VoiceProfile.is_active)
-Index('idx_voice_profiles_default', VoiceProfile.is_default)
