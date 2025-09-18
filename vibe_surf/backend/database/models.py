@@ -22,6 +22,38 @@ class TaskStatus(enum.Enum):
     FAILED = "failed"
     STOPPED = "stopped"
 
+class VoiceModelType(enum.Enum):
+    ASR = "asr"
+    TTS = "tts"
+
+class VoiceProfile(Base):
+    """Voice Profile model for managing voice model configurations with encrypted API keys"""
+    __tablename__ = 'voice_profiles'
+    
+    # Primary identifier
+    profile_id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    voice_profile_name = Column(String(100), nullable=False, unique=True)  # User-defined unique name
+    
+    # Voice Model Configuration
+    voice_model_type = Column(Enum(VoiceModelType, values_callable=lambda obj: [e.value for e in obj]), nullable=False)  # asr or tts
+    voice_model_name = Column(String(100), nullable=False)
+    encrypted_api_key = Column(Text, nullable=True)  # Encrypted API key using MAC address
+    
+    # Voice model parameters (stored as JSON to allow flexibility)
+    voice_meta_params = Column(JSON, nullable=True)  # Model-specific parameters
+    
+    # Profile metadata
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    last_used_at = Column(DateTime, nullable=True)
+    
+    def __repr__(self):
+        return f"<VoiceProfile(voice_profile_name={self.voice_profile_name}, voice_model_name={self.voice_model_name}, type={self.voice_model_type.value})>"
+
 class LLMProfile(Base):
     """LLM Profile model for managing LLM configurations with encrypted API keys"""
     __tablename__ = 'llm_profiles'
@@ -165,3 +197,10 @@ Index('idx_uploaded_files_filename', UploadedFile.original_filename)
 Index('idx_mcp_profiles_display_name', McpProfile.display_name)
 Index('idx_mcp_profiles_server_name', McpProfile.mcp_server_name)
 Index('idx_mcp_profiles_active', McpProfile.is_active)
+
+# Voice Profile indexes
+Index('idx_voice_profiles_name', VoiceProfile.voice_profile_name)
+Index('idx_voice_profiles_type', VoiceProfile.voice_model_type)
+Index('idx_voice_profiles_provider', VoiceProfile.provider)
+Index('idx_voice_profiles_active', VoiceProfile.is_active)
+Index('idx_voice_profiles_default', VoiceProfile.is_default)

@@ -7,7 +7,7 @@ from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
 
-class QwenASR:
+class Qwen3ASRFlash:
     def __init__(self, model="qwen3-asr-flash", api_key: Optional[str] = None):
         dashscope.api_key = api_key or os.getenv("DASHSCOPE_API_KEY")
         self.model = model
