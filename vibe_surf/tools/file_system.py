@@ -311,6 +311,14 @@ class CustomFileSystem(FileSystem):
         except Exception as e:
             return f"Error: Could not write to file '{full_filename}'. {str(e)}"
 
+    async def save_extracted_content(self, content: str) -> str:
+        """Save extracted content to a numbered file"""
+        initial_filename = f'extracted_content_{self.extracted_content_count}'
+        extracted_filename = f'{initial_filename}.md'
+        await self.write_file(initial_filename, content)
+        self.extracted_content_count += 1
+        return f'Extracted content saved to file {extracted_filename} successfully.'
+
     async def list_directory(self, directory_path: str = "") -> str:
         """List contents of a directory within the file system (data_dir only)"""
         try:

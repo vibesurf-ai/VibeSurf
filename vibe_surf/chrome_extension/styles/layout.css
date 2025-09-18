@@ -43,6 +43,61 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Social Links */
+.social-links {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-left: var(--spacing-sm);
+}
+
+.social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  opacity: 0.7;
+}
+
+.social-link:hover {
+  color: var(--text-secondary);
+  background-color: var(--bg-hover);
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.social-link:active {
+  transform: scale(0.95);
+}
+
+.social-link[data-platform="github"]:hover {
+  color: #333;
+}
+
+.social-link[data-platform="discord"]:hover {
+  color: #5865F2;
+}
+
+.social-link[data-platform="x"]:hover {
+  color: #000;
+}
+
+/* Dark mode adjustments for social links */
+@media (prefers-color-scheme: dark) {
+  .social-link[data-platform="github"]:hover {
+    color: #f0f6fc;
+  }
+  
+  .social-link[data-platform="x"]:hover {
+    color: #fff;
+  }
+}
+
 .logo-image {
   width: 24px;
   height: 24px;
