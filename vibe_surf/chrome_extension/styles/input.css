@@ -531,6 +531,40 @@ select.task-running-disabled {
   animation: none;
 }
 
+/* Task running disabled state for voice recording */
+.voice-record-btn.task-running-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-muted);
+  animation: none;
+  position: relative;
+}
+
+.voice-record-btn.task-running-disabled:hover {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-muted);
+  transform: none;
+}
+
+/* Add lock icon for task running disabled state */
+.voice-record-btn.task-running-disabled::before {
+  content: '🔒';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 16px;
+  opacity: 0.8;
+  z-index: 1;
+}
+
+.voice-record-btn.task-running-disabled .recording-status {
+  display: none;
+}
+
 /* Recording status indicator */
 .recording-status {
   position: absolute;

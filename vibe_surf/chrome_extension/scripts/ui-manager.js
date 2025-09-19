@@ -597,6 +597,23 @@ class VibeSurfUIManager {
       this.elements.agentModeSelect.disabled = isRunning && !isPaused;
     }
     
+    // Update voice record button state - disable during task execution unless paused
+    if (this.elements.voiceRecordBtn) {
+      const shouldDisableVoice = isRunning && !isPaused;
+      this.elements.voiceRecordBtn.disabled = shouldDisableVoice;
+      if (shouldDisableVoice) {
+        this.elements.voiceRecordBtn.classList.add('task-running-disabled');
+        this.elements.voiceRecordBtn.setAttribute('title', 'Voice input disabled while task is running');
+      } else {
+        this.elements.voiceRecordBtn.classList.remove('task-running-disabled');
+        if (this.elements.voiceRecordBtn.classList.contains('recording')) {
+          this.elements.voiceRecordBtn.setAttribute('title', 'Recording... Click to stop');
+        } else {
+          this.elements.voiceRecordBtn.setAttribute('title', 'Click to start voice recording');
+        }
+      }
+    }
+    
     // Update file manager state - keep disabled during pause (as per requirement)
     this.fileManager.setEnabled(!isRunning);
     
@@ -635,6 +652,13 @@ class VibeSurfUIManager {
       this.elements.sendBtn.disabled = !hasText;
     }
     
+    // Enable voice record button during pause
+    if (this.elements.voiceRecordBtn) {
+      this.elements.voiceRecordBtn.disabled = false;
+      this.elements.voiceRecordBtn.classList.remove('task-running-disabled');
+      this.elements.voiceRecordBtn.setAttribute('title', 'Click to start voice recording');
+    }
+    
     // Keep LLM profile disabled during pause (user doesn't need to change it)
     if (this.elements.llmProfileSelect) {
       this.elements.llmProfileSelect.disabled = true;
@@ -648,7 +672,7 @@ class VibeSurfUIManager {
     // Keep file manager disabled during pause
     this.fileManager.setEnabled(false);
     
-    // Keep header buttons disabled during pause (only input and send should be available)
+    // Keep header buttons disabled during pause (only input, send, and voice should be available)
     const headerButtons = [
       this.elements.newSessionBtn,
       this.elements.historyBtn,
@@ -659,7 +683,7 @@ class VibeSurfUIManager {
       if (button) {
         button.disabled = true;
         button.classList.add('task-running-disabled');
-        button.setAttribute('title', 'Disabled during pause - only input and send are available');
+        button.setAttribute('title', 'Disabled during pause - only input, send, and voice input are available');
       }
     });
   }
@@ -683,6 +707,13 @@ class VibeSurfUIManager {
     
     if (this.elements.agentModeSelect) {
       this.elements.agentModeSelect.disabled = true;
+    }
+    
+    // Disable voice record button during running
+    if (this.elements.voiceRecordBtn) {
+      this.elements.voiceRecordBtn.disabled = true;
+      this.elements.voiceRecordBtn.classList.add('task-running-disabled');
+      this.elements.voiceRecordBtn.setAttribute('title', 'Voice input disabled while task is running');
     }
     
     // Update file manager state
@@ -829,10 +860,18 @@ class VibeSurfUIManager {
       return;
     }
 
-    // Check if task is running (disable recording during task execution)
-    if (this.state.isTaskRunning) {
-      this.showNotification('Cannot record voice while task is running', 'warning');
+    // Enhanced task status check - disable recording during task execution unless paused
+    const taskStatus = this.sessionManager.getTaskStatus();
+    const isTaskRunning = this.state.isTaskRunning;
+    
+    if (isTaskRunning && taskStatus !== 'paused') {
+      this.showNotification('Cannot record voice while task is running. Stop the current task or wait for it to complete.', 'warning');
       return;
+    }
+    
+    // Additional check: if task is paused, allow voice input but show info message
+    if (isTaskRunning && taskStatus === 'paused') {
+      console.log('[UIManager] Task is paused, allowing voice input');
     }
 
     try {

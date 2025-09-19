@@ -356,27 +356,8 @@ class VibeSurfSettingsManager {
       }
       this.applyTheme(savedTheme);
       
-      // Load default ASR profile from user settings storage
-      const savedAsrProfile = await this.userSettingsStorage.getDefaultAsr();
-      if (savedAsrProfile && this.elements.defaultAsrSelect) {
-        // Will be set after voice profiles are loaded
-        setTimeout(() => {
-          if (this.elements.defaultAsrSelect.querySelector(`option[value="${savedAsrProfile}"]`)) {
-            this.elements.defaultAsrSelect.value = savedAsrProfile;
-          }
-        }, 1000);
-      }
-      
-      // Load default TTS profile from user settings storage
-      const savedTtsProfile = await this.userSettingsStorage.getDefaultTts();
-      if (savedTtsProfile && this.elements.defaultTtsSelect) {
-        // Will be set after voice profiles are loaded
-        setTimeout(() => {
-          if (this.elements.defaultTtsSelect.querySelector(`option[value="${savedTtsProfile}"]`)) {
-            this.elements.defaultTtsSelect.value = savedTtsProfile;
-          }
-        }, 1000);
-      }
+      // Voice profile defaults will be handled by autoSelectLatestVoiceProfiles
+      // after voice profiles are loaded in loadVoiceProfilesForGeneral
       
       console.log('[SettingsManager] General settings loaded successfully');
     } catch (error) {
@@ -426,6 +407,9 @@ class VibeSurfSettingsManager {
         });
       }
       
+      // Auto-select latest updated profiles if no defaults are set
+      await this.autoSelectLatestVoiceProfiles(asrProfiles, ttsProfiles);
+      
     } catch (error) {
       console.error('[SettingsManager] Failed to load voice profiles for general settings:', error);
       // Populate with empty options on error
@@ -435,6 +419,73 @@ class VibeSurfSettingsManager {
       if (this.elements.defaultTtsSelect) {
         this.elements.defaultTtsSelect.innerHTML = '<option value="">Failed to load TTS profiles</option>';
       }
+    }
+  }
+
+  async autoSelectLatestVoiceProfiles(asrProfiles, ttsProfiles) {
+    try {
+      // Get current saved defaults
+      const savedAsrProfile = await this.userSettingsStorage.getDefaultAsr();
+      const savedTtsProfile = await this.userSettingsStorage.getDefaultTts();
+      
+      // Check ASR profile
+      if (!savedAsrProfile || !asrProfiles.find(p => p.voice_profile_name === savedAsrProfile)) {
+        // No ASR profile selected or saved profile doesn't exist, select latest updated
+        if (asrProfiles.length > 0) {
+          // Sort by updated_at desc to get the latest updated profile
+          const latestAsrProfile = asrProfiles.sort((a, b) => {
+            const dateA = new Date(a.updated_at || a.created_at);
+            const dateB = new Date(b.updated_at || b.created_at);
+            return dateB - dateA; // DESC order
+          })[0];
+          
+          console.log('[SettingsManager] Auto-selecting latest ASR profile:', latestAsrProfile.voice_profile_name);
+          
+          // Set as default in storage
+          await this.userSettingsStorage.setDefaultAsr(latestAsrProfile.voice_profile_name);
+          
+          // Update UI
+          if (this.elements.defaultAsrSelect) {
+            this.elements.defaultAsrSelect.value = latestAsrProfile.voice_profile_name;
+          }
+          
+          this.emit('notification', {
+            message: `Auto-selected latest ASR profile: ${latestAsrProfile.voice_profile_name}`,
+            type: 'info'
+          });
+        }
+      }
+      
+      // Check TTS profile
+      if (!savedTtsProfile || !ttsProfiles.find(p => p.voice_profile_name === savedTtsProfile)) {
+        // No TTS profile selected or saved profile doesn't exist, select latest updated
+        if (ttsProfiles.length > 0) {
+          // Sort by updated_at desc to get the latest updated profile
+          const latestTtsProfile = ttsProfiles.sort((a, b) => {
+            const dateA = new Date(a.updated_at || a.created_at);
+            const dateB = new Date(b.updated_at || b.created_at);
+            return dateB - dateA; // DESC order
+          })[0];
+          
+          console.log('[SettingsManager] Auto-selecting latest TTS profile:', latestTtsProfile.voice_profile_name);
+          
+          // Set as default in storage
+          await this.userSettingsStorage.setDefaultTts(latestTtsProfile.voice_profile_name);
+          
+          // Update UI
+          if (this.elements.defaultTtsSelect) {
+            this.elements.defaultTtsSelect.value = latestTtsProfile.voice_profile_name;
+          }
+          
+          this.emit('notification', {
+            message: `Auto-selected latest TTS profile: ${latestTtsProfile.voice_profile_name}`,
+            type: 'info'
+          });
+        }
+      }
+      
+    } catch (error) {
+      console.error('[SettingsManager] Failed to auto-select latest voice profiles:', error);
     }
   }
 
