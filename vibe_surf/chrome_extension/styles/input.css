@@ -129,8 +129,8 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background-color: var(--bg-primary);
-  font-size: var(--font-size-sm);
   color: var(--text-primary);
+  font-size: var(--font-size-sm);
   cursor: pointer;
   transition: border-color var(--transition-fast);
   min-width: 120px;
@@ -162,6 +162,7 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   background-color: var(--bg-primary);
+  color: var(--text-primary);
   font-size: var(--font-size-sm);
   font-family: inherit;
   line-height: 1.5;

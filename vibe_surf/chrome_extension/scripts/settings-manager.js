@@ -14,8 +14,12 @@ class VibeSurfSettingsManager {
     this.elements = {};
     this.eventListeners = new Map();
     
+    // Initialize user settings storage
+    this.userSettingsStorage = new VibeSurfUserSettingsStorage();
+    
     this.bindElements();
     this.bindEvents();
+    this.initializeUserSettings();
   }
 
   bindElements() {
@@ -104,6 +108,46 @@ class VibeSurfSettingsManager {
     document.addEventListener('keydown', this.handleKeydown.bind(this));
   }
 
+  // Initialize user settings storage
+  async initializeUserSettings() {
+    try {
+      await this.userSettingsStorage.initialize();
+      
+      // Listen to storage events
+      this.userSettingsStorage.on('settingChanged', this.handleStorageSettingChanged.bind(this));
+      this.userSettingsStorage.on('settingsChanged', this.handleStorageSettingsChanged.bind(this));
+      
+      console.log('[SettingsManager] User settings storage initialized');
+    } catch (error) {
+      console.error('[SettingsManager] Failed to initialize user settings storage:', error);
+    }
+  }
+
+  // Handle individual setting changes from storage
+  handleStorageSettingChanged(data) {
+    console.log('[SettingsManager] Storage setting changed:', data);
+    
+    // Apply setting changes to UI if needed
+    switch (data.key) {
+      case 'theme':
+        this.applyTheme(data.value);
+        if (this.elements.themeSelect) {
+          this.elements.themeSelect.value = data.value;
+        }
+        break;
+      case 'defaultAsr':
+        if (this.elements.defaultAsrSelect) {
+          this.elements.defaultAsrSelect.value = data.value;
+        }
+        break;
+      case 'defaultTts':
+        if (this.elements.defaultTtsSelect) {
+          this.elements.defaultTtsSelect.value = data.value;
+        }
+        break;
+    }
+  }
+
   handleKeydown(event) {
     // Close settings modal on Escape key
     if (event.key === 'Escape') {
@@ -179,12 +223,13 @@ class VibeSurfSettingsManager {
       await this.loadEnvironmentVariables();
       
       // Load general settings
-      this.loadGeneralSettings();
+      await this.loadGeneralSettings();
       
       // Load voice profiles for general settings dropdowns
       await this.loadVoiceProfilesForGeneral();
       
       // Emit event to update LLM profile select dropdown
+      // This should happen AFTER all data is loaded but BEFORE user selections are restored
       this.emit('profilesUpdated', {
         llmProfiles: this.state.llmProfiles,
         mcpProfiles: this.state.mcpProfiles,
@@ -281,17 +326,17 @@ class VibeSurfSettingsManager {
     }
   }
 
-  loadGeneralSettings() {
+  async loadGeneralSettings() {
     try {
-      // Load and apply theme setting
-      const savedTheme = localStorage.getItem('vibesurf-theme') || 'auto';
+      // Load and apply theme setting from user settings storage
+      const savedTheme = await this.userSettingsStorage.getTheme();
       if (this.elements.themeSelect) {
         this.elements.themeSelect.value = savedTheme;
       }
       this.applyTheme(savedTheme);
       
-      // Load default ASR profile
-      const savedAsrProfile = localStorage.getItem('vibesurf-default-asr');
+      // Load default ASR profile from user settings storage
+      const savedAsrProfile = await this.userSettingsStorage.getDefaultAsr();
       if (savedAsrProfile && this.elements.defaultAsrSelect) {
         // Will be set after voice profiles are loaded
         setTimeout(() => {
@@ -301,8 +346,8 @@ class VibeSurfSettingsManager {
         }, 1000);
       }
       
-      // Load default TTS profile
-      const savedTtsProfile = localStorage.getItem('vibesurf-default-tts');
+      // Load default TTS profile from user settings storage
+      const savedTtsProfile = await this.userSettingsStorage.getDefaultTts();
       if (savedTtsProfile && this.elements.defaultTtsSelect) {
         // Will be set after voice profiles are loaded
         setTimeout(() => {
@@ -376,15 +421,15 @@ class VibeSurfSettingsManager {
     const selectedProfile = event.target.value;
     
     try {
-      // Store ASR profile preference in localStorage
+      // Store ASR profile preference in user settings storage
+      await this.userSettingsStorage.setDefaultAsr(selectedProfile);
+      
       if (selectedProfile) {
-        localStorage.setItem('vibesurf-default-asr', selectedProfile);
         this.emit('notification', {
           message: `Default ASR profile set to ${selectedProfile}`,
           type: 'success'
         });
       } else {
-        localStorage.removeItem('vibesurf-default-asr');
         this.emit('notification', {
           message: 'Default ASR profile cleared',
           type: 'info'
@@ -404,15 +449,15 @@ class VibeSurfSettingsManager {
     const selectedProfile = event.target.value;
     
     try {
-      // Store TTS profile preference in localStorage
+      // Store TTS profile preference in user settings storage
+      await this.userSettingsStorage.setDefaultTts(selectedProfile);
+      
       if (selectedProfile) {
-        localStorage.setItem('vibesurf-default-tts', selectedProfile);
         this.emit('notification', {
           message: `Default TTS profile set to ${selectedProfile}`,
           type: 'success'
         });
       } else {
-        localStorage.removeItem('vibesurf-default-tts');
         this.emit('notification', {
           message: 'Default TTS profile cleared',
           type: 'info'
@@ -440,7 +485,7 @@ class VibeSurfSettingsManager {
 
   async showProfileForm(type, profile = null) {
     const isEdit = profile !== null;
-    const title = isEdit ? `Edit ${type.toUpperCase()} Profile` : `Add ${type.toUpperCase()} Profile`;
+    const title = isEdit ? `Edit ${type.toUpperCase()}` : `Add ${type.toUpperCase()}`;
     
     if (this.elements.profileFormTitle) {
       this.elements.profileFormTitle.textContent = title;
@@ -1211,8 +1256,8 @@ class VibeSurfSettingsManager {
     const selectedTheme = event.target.value;
     
     try {
-      // Store theme preference in localStorage
-      localStorage.setItem('vibesurf-theme', selectedTheme);
+      // Store theme preference in user settings storage
+      await this.userSettingsStorage.setTheme(selectedTheme);
       
       // Apply theme to document
       this.applyTheme(selectedTheme);

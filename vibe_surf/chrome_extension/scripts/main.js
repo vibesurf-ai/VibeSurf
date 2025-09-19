@@ -154,11 +154,11 @@ class VibeSurfApp {
 
   async initializeUIManager() {
     this.uiManager = new VibeSurfUIManager(this.sessionManager, this.apiClient);
-    
+
     // Initialize UI with loaded data
     await this.uiManager.initialize();
     
-    console.log('[VibeSurf] UI manager initialized');
+    console.log('[VibeSurf] UI manager initialized successfully');
   }
 
   setupErrorHandling() {

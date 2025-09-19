@@ -13,7 +13,7 @@ import os
 import logging
 from datetime import datetime
 
-from vibe_surf.tools.voice_asr import Qwen3ASRFlash
+from vibe_surf.tools.voice_asr import QwenASR, OpenAIASR, GeminiASR
 
 from ..database.manager import get_db_session
 from ..database.queries import VoiceProfileQueries
@@ -294,7 +294,7 @@ async def voice_recognition(
                 if original_ext:
                     file_extension = original_ext
             
-            saved_filename = f"{timestamp}{file_extension}"
+            saved_filename = f"asr-{timestamp}{file_extension}"
             saved_file_path = os.path.join(audios_dir, saved_filename)
             
             # Save the audio file
@@ -304,9 +304,18 @@ async def voice_recognition(
             
             # Initialize ASR
             api_key = profile_data.get("api_key")
-            
-            if voice_model_name == "qwen3-asr-flash":
-                asr = Qwen3ASRFlash(model=voice_model_name, api_key=api_key)
+            voice_meta_params = profile_data.get("voice_meta_params", {})
+            asr_model_name = voice_meta_params.get("asr_model_name", )
+            if voice_model_name == "qwen3-asr":
+                asr = QwenASR(model=asr_model_name, api_key=api_key)
+                recognized_text = asr.asr(wav_url=saved_file_path)
+            elif voice_model_name == "openai-asr":
+                # Support custom base_url for OpenAI
+                base_url = voice_meta_params.get("base_url")
+                asr = OpenAIASR(model=asr_model_name, api_key=api_key, base_url=base_url)
+                recognized_text = asr.asr(wav_url=saved_file_path)
+            elif voice_model_name == "gemini-asr":
+                asr = GeminiASR(model=asr_model_name, api_key=api_key)
                 recognized_text = asr.asr(wav_url=saved_file_path)
             else:
                 raise HTTPException(
