@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeSurf - Microphone Permission</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 400px;
+        }
+        .logo {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        p {
+            color: #718096;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .button-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .allow-btn {
+            background: #4299e1;
+            color: white;
+        }
+        .allow-btn:hover {
+            background: #3182ce;
+            transform: translateY(-1px);
+        }
+        .deny-btn {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        .deny-btn:hover {
+            background: #cbd5e0;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        .success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        .error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        .loading {
+            background: #bee3f8;
+            color: #2a4365;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="icons/logo.png" alt="VibeSurf" class="logo">
+        <h1>Microphone Permission Required</h1>
+        <p>VibeSurf needs access to your microphone to enable voice input. This permission is used only when you click the microphone button.</p>
+        <div class="button-group">
+            <button id="allowBtn" class="allow-btn">Allow Microphone</button>
+            <button id="denyBtn" class="deny-btn">Deny</button>
+        </div>
+        <div id="status"></div>
+    </div>
+
+    <script src="scripts/permission-request.js"></script>
+</body>
+</html>

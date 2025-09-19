@@ -17,6 +17,7 @@ class VibeSurfUIManager {
     this.historyManager = null;
     this.fileManager = null;
     this.modalManager = null;
+    this.voiceRecorder = null;
     
     // Initialize user settings storage
     this.userSettingsStorage = null;
@@ -57,6 +58,7 @@ class VibeSurfUIManager {
       agentModeSelect: document.getElementById('agent-mode-select'),
       taskInput: document.getElementById('task-input'),
       sendBtn: document.getElementById('send-btn'),
+      voiceRecordBtn: document.getElementById('voice-record-btn'),
       
       // Tab selector elements
       tabSelectorDropdown: document.getElementById('tab-selector-dropdown'),
@@ -85,6 +87,10 @@ class VibeSurfUIManager {
       
       // Initialize user settings storage
       this.userSettingsStorage = new VibeSurfUserSettingsStorage();
+      
+      // Initialize voice recorder
+      this.voiceRecorder = new VibeSurfVoiceRecorder(this.apiClient);
+      this.setupVoiceRecorderCallbacks();
       
       // Initialize other managers
       this.settingsManager = new VibeSurfSettingsManager(this.apiClient);
@@ -226,6 +232,113 @@ class VibeSurfUIManager {
     });
   }
 
+  // Voice Recorder Callbacks
+  setupVoiceRecorderCallbacks() {
+    this.voiceRecorder.setCallbacks({
+      onRecordingStart: () => {
+        console.log('[UIManager] Voice recording started');
+        this.updateVoiceRecordingUI(true);
+      },
+      onRecordingStop: (audioBlob, duration) => {
+        console.log(`[UIManager] Voice recording stopped after ${duration}ms`);
+        this.updateVoiceRecordingUI(false);
+      },
+      onTranscriptionComplete: (transcribedText, result) => {
+        console.log(`[UIManager] Transcription completed: "${transcribedText}"`);
+        this.handleTranscriptionComplete(transcribedText);
+      },
+      onTranscriptionError: (errorMessage, errorType) => {
+        console.error(`[UIManager] Transcription error: ${errorMessage}`);
+        this.handleTranscriptionError(errorMessage, errorType);
+      },
+      onDurationUpdate: (formattedDuration, durationMs) => {
+        this.updateRecordingDuration(formattedDuration, durationMs);
+      }
+    });
+  }
+
+  // Update voice recording UI state
+  updateVoiceRecordingUI(isRecording) {
+    if (this.elements.voiceRecordBtn) {
+      if (isRecording) {
+        this.elements.voiceRecordBtn.classList.add('recording');
+        this.elements.voiceRecordBtn.setAttribute('title', 'Stop Recording');
+        this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Recording... Click to stop');
+      } else {
+        this.elements.voiceRecordBtn.classList.remove('recording');
+        this.elements.voiceRecordBtn.setAttribute('title', 'Voice Input');
+        this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Click to start voice recording');
+        
+        // Clear duration display
+        this.updateRecordingDuration('0:00', 0);
+      }
+    }
+  }
+
+  // Update recording duration display
+  updateRecordingDuration(formattedDuration, durationMs) {
+    if (this.elements.voiceRecordBtn) {
+      // Update the tooltip with duration
+      this.elements.voiceRecordBtn.setAttribute('data-tooltip', `Recording... ${formattedDuration} - Click to stop`);
+      
+      // Create or update duration display element
+      let durationElement = this.elements.voiceRecordBtn.querySelector('.recording-duration');
+      if (!durationElement) {
+        durationElement = document.createElement('div');
+        durationElement.className = 'recording-duration';
+        this.elements.voiceRecordBtn.appendChild(durationElement);
+      }
+      
+      durationElement.textContent = formattedDuration;
+    }
+  }
+
+  // Handle transcription completion
+  handleTranscriptionComplete(transcribedText) {
+    if (!this.elements.taskInput) {
+      console.error('[UIManager] Task input element not found');
+      return;
+    }
+
+    // Insert transcribed text into the input field
+    const currentValue = this.elements.taskInput.value;
+    const cursorPosition = this.elements.taskInput.selectionStart;
+    
+    // Insert at cursor position or append to end
+    const beforeCursor = currentValue.substring(0, cursorPosition);
+    const afterCursor = currentValue.substring(cursorPosition);
+    const newValue = beforeCursor + transcribedText + afterCursor;
+    
+    this.elements.taskInput.value = newValue;
+    
+    // Trigger input change event for validation and auto-resize
+    this.handleTaskInputChange({ target: this.elements.taskInput });
+    
+    // Set cursor position after the inserted text
+    const newCursorPosition = cursorPosition + transcribedText.length;
+    this.elements.taskInput.setSelectionRange(newCursorPosition, newCursorPosition);
+    this.elements.taskInput.focus();
+    
+    this.showNotification('Voice transcription completed', 'success');
+  }
+
+  // Handle transcription errors
+  handleTranscriptionError(errorMessage, errorType) {
+    let userMessage = 'Voice transcription failed';
+    
+    if (errorType === 'recording') {
+      userMessage = `Recording failed: ${errorMessage}`;
+    } else if (errorType === 'transcription') {
+      if (errorMessage.includes('No active ASR profiles')) {
+        userMessage = 'No voice recognition profiles configured. Please set up an ASR profile in Settings > Voice.';
+      } else {
+        userMessage = `Transcription failed: ${errorMessage}`;
+      }
+    }
+    
+    this.showNotification(userMessage, 'error');
+  }
+
   bindEvents() {
     // Header buttons
     this.elements.newSessionBtn?.addEventListener('click', this.handleNewSession.bind(this));
@@ -242,6 +355,7 @@ class VibeSurfUIManager {
     
     // Input handling
     this.elements.sendBtn?.addEventListener('click', this.handleSendTask.bind(this));
+    this.elements.voiceRecordBtn?.addEventListener('click', this.handleVoiceRecord.bind(this));
     
     // Task input handling
     this.elements.taskInput?.addEventListener('keydown', this.handleTaskInputKeydown.bind(this));
@@ -704,6 +818,88 @@ class VibeSurfUIManager {
     } catch (error) {
       console.error('[UIManager] Failed to copy session ID:', error);
       this.showNotification('Failed to copy session ID', 'error');
+    }
+  }
+
+  // Voice Recording UI Handler
+  async handleVoiceRecord() {
+    // Check if voice recording is supported
+    if (!this.voiceRecorder.isSupported()) {
+      this.showNotification('Voice recording is not supported in your browser', 'error');
+      return;
+    }
+
+    // Check if task is running (disable recording during task execution)
+    if (this.state.isTaskRunning) {
+      this.showNotification('Cannot record voice while task is running', 'warning');
+      return;
+    }
+
+    try {
+      if (this.voiceRecorder.isCurrentlyRecording()) {
+        // Stop recording
+        console.log('[UIManager] Stopping voice recording');
+        await this.voiceRecorder.stopRecording();
+      } else {
+        // Start recording
+        console.log('[UIManager] Starting voice recording');
+        
+        // Request microphone permission first
+        try {
+          // For Chrome extensions, ensure we have proper user gesture context
+          console.log('[UIManager] Requesting microphone permission with user gesture context');
+          
+          // Add a small delay to ensure user gesture is properly registered
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          const hasPermission = await this.voiceRecorder.requestMicrophonePermission();
+          if (!hasPermission) {
+            this.showNotification('Microphone permission denied. Please allow microphone access to use voice input.', 'error');
+            return;
+          }
+        } catch (permissionError) {
+          console.error('[UIManager] Microphone permission error:', permissionError);
+          
+          // Handle different types of permission errors with detailed guidance
+          let errorMessage = 'Microphone permission denied';
+          let detailedHelp = '';
+          
+          if (permissionError.name === 'MicrophonePermissionError') {
+            errorMessage = permissionError.message;
+            if (permissionError.userAction) {
+              detailedHelp = permissionError.userAction;
+            }
+          } else if (permissionError.name === 'NotAllowedError') {
+            errorMessage = 'Microphone access was denied by your browser.';
+            detailedHelp = 'Please check your browser permissions and try again. You may need to allow microphone access in your browser settings.';
+          } else {
+            errorMessage = `Microphone access error: ${permissionError.message}`;
+            detailedHelp = 'Please ensure your browser allows microphone access and that a microphone is connected.';
+          }
+          
+          // Show detailed error message
+          const fullMessage = detailedHelp ? `${errorMessage}\n\n${detailedHelp}` : errorMessage;
+          this.showNotification(fullMessage, 'error');
+          
+          // Also log detailed error for debugging
+          console.error('[UIManager] Detailed microphone permission error:', {
+            name: permissionError.name,
+            message: permissionError.message,
+            userAction: permissionError.userAction,
+            originalError: permissionError.originalError
+          });
+          
+          this.updateVoiceRecordingUI(false);
+          return;
+        }
+
+        // Start recording
+        await this.voiceRecorder.startRecording();
+      }
+    } catch (error) {
+      console.error('[UIManager] Voice recording error:', error);
+      this.showNotification(`Voice recording failed: ${error.message}`, 'error');
+      this.updateVoiceRecordingUI(false);
     }
   }
 
@@ -1997,6 +2193,16 @@ class VibeSurfUIManager {
   // Initialization
   async initialize() {
     try {
+      // Check for microphone permission parameter first (like Doubao AI)
+      const urlParams = new URLSearchParams(window.location.search);
+      const enterParam = urlParams.get('enter');
+      
+      if (enterParam === 'mic-permission') {
+        console.log('[UIManager] Detected microphone permission request parameter');
+        this.showMicrophonePermissionRequest();
+        return; // Skip normal initialization for permission request
+      }
+      
       this.showLoading('Initializing VibeSurf...');
       
       // Initialize user settings storage first
@@ -2030,6 +2236,7 @@ class VibeSurfUIManager {
       
       
       // Create initial session if none exists
+      
       if (!this.sessionManager.getCurrentSession()) {
         
         await this.sessionManager.createSession();
@@ -2044,6 +2251,76 @@ class VibeSurfUIManager {
     }
   }
 
+  // Show microphone permission request (like Doubao AI) - simplified approach
+  showMicrophonePermissionRequest() {
+    console.log('[UIManager] Showing simplified microphone permission request');
+    console.log('[UIManager] Current URL:', window.location.href);
+    console.log('[UIManager] URL params:', window.location.search);
+    
+    // Simple approach: just try to get permission directly
+    this.requestMicrophonePermissionDirectly();
+  }
+
+  // Direct microphone permission request (simplified like Doubao AI)
+  async requestMicrophonePermissionDirectly() {
+    console.log('[UIManager] Requesting microphone permission directly');
+    
+    try {
+      // Immediately try to get microphone permission
+      console.log('[UIManager] Calling getUserMedia...');
+      console.log('[UIManager] User agent:', navigator.userAgent);
+      console.log('[UIManager] Location protocol:', window.location.protocol);
+      console.log('[UIManager] Location href:', window.location.href);
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false
+      });
+      
+      console.log('[UIManager] Microphone permission granted!');
+      
+      // Stop the stream immediately (we just need permission)
+      stream.getTracks().forEach(track => track.stop());
+      
+      // Send success message back to original tab
+      console.log('[UIManager] Sending success message...');
+      chrome.runtime.sendMessage({
+        type: 'MICROPHONE_PERMISSION_RESULT',
+        granted: true
+      }, (response) => {
+        console.log('[UIManager] Success message response:', response);
+      });
+      
+      // Close this tab after a short delay
+      setTimeout(() => {
+        console.log('[UIManager] Closing tab...');
+        window.close();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('[UIManager] Microphone permission denied:', error);
+      console.log('[UIManager] Error name:', error.name);
+      console.log('[UIManager] Error message:', error.message);
+      console.log('[UIManager] Error stack:', error.stack);
+      
+      // Send error message back to original tab
+      console.log('[UIManager] Sending error message...');
+      chrome.runtime.sendMessage({
+        type: 'MICROPHONE_PERMISSION_RESULT',
+        granted: false,
+        error: error.message,
+        errorName: error.name
+      }, (response) => {
+        console.log('[UIManager] Error message response:', response);
+      });
+      
+      // Close this tab after a short delay
+      setTimeout(() => {
+        console.log('[UIManager] Closing tab after error...');
+        window.close();
+      }, 2000);
+    }
+  }
   // Restore agent mode selection from user settings storage
   async restoreAgentModeSelection() {
     try {
@@ -2097,6 +2374,11 @@ class VibeSurfUIManager {
   destroy() {
     // Stop task status monitoring
     this.stopTaskStatusMonitoring();
+    
+    // Cleanup voice recorder
+    if (this.voiceRecorder) {
+      this.voiceRecorder.cleanup();
+    }
     
     // Cleanup managers
     if (this.settingsManager) {

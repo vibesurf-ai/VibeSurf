@@ -148,6 +148,27 @@ class VibeSurfSettingsManager {
     }
   }
 
+  // Handle bulk settings changes from storage
+  handleStorageSettingsChanged(allSettings) {
+    console.log('[SettingsManager] Storage settings changed (bulk):', allSettings);
+    
+    // Apply bulk setting changes to UI if needed
+    if (allSettings.theme) {
+      this.applyTheme(allSettings.theme);
+      if (this.elements.themeSelect) {
+        this.elements.themeSelect.value = allSettings.theme;
+      }
+    }
+    
+    if (allSettings.defaultAsr && this.elements.defaultAsrSelect) {
+      this.elements.defaultAsrSelect.value = allSettings.defaultAsr;
+    }
+    
+    if (allSettings.defaultTts && this.elements.defaultTtsSelect) {
+      this.elements.defaultTtsSelect.value = allSettings.defaultTts;
+    }
+  }
+
   handleKeydown(event) {
     // Close settings modal on Escape key
     if (event.key === 'Escape') {

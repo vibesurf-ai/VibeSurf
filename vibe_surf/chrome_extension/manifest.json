@@ -16,7 +16,8 @@
     "contextMenus",
     "tabs",
     "clipboardWrite",
-    "scripting"
+    "scripting",
+    "microphone"
   ],
   "host_permissions": [
     "http://localhost:*/*",
