@@ -7,7 +7,8 @@ Handles voice recognition and other tool-related operations.
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
+from pydantic import BaseModel
 import os
 import logging
 from datetime import datetime
@@ -24,6 +25,199 @@ router = APIRouter(prefix="/voices", tags=["voices"])
 from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+# Pydantic models for request validation
+class VoiceProfileCreate(BaseModel):
+    voice_profile_name: str
+    voice_model_type: str  # "asr" or "tts"
+    voice_model_name: str
+    api_key: Optional[str] = None
+    voice_meta_params: Optional[Dict[str, Any]] = None
+    description: Optional[str] = None
+
+class VoiceProfileUpdate(BaseModel):
+    voice_model_type: Optional[str] = None
+    voice_model_name: Optional[str] = None
+    api_key: Optional[str] = None
+    voice_meta_params: Optional[Dict[str, Any]] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+@router.post("/voice-profiles")
+async def create_voice_profile(
+    profile_data: VoiceProfileCreate,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """Create a new voice profile"""
+    try:
+        # Validate voice_model_type
+        if profile_data.voice_model_type not in ["asr", "tts"]:
+            raise HTTPException(
+                status_code=400,
+                detail="voice_model_type must be 'asr' or 'tts'"
+            )
+        
+        # Check if profile name already exists
+        existing_profile = await VoiceProfileQueries.get_profile(db, profile_data.voice_profile_name)
+        if existing_profile:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Voice profile '{profile_data.voice_profile_name}' already exists"
+            )
+        
+        # Create the profile
+        created_profile = await VoiceProfileQueries.create_profile(
+            db=db,
+            voice_profile_name=profile_data.voice_profile_name,
+            voice_model_type=profile_data.voice_model_type,
+            voice_model_name=profile_data.voice_model_name,
+            api_key=profile_data.api_key,
+            voice_meta_params=profile_data.voice_meta_params,
+            description=profile_data.description
+        )
+        
+        await db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Voice profile '{profile_data.voice_profile_name}' created successfully",
+            "profile": created_profile
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to create voice profile: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create voice profile: {str(e)}"
+        )
+
+
+@router.put("/voice-profiles/{voice_profile_name}")
+async def update_voice_profile(
+    voice_profile_name: str,
+    profile_data: VoiceProfileUpdate,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """Update an existing voice profile"""
+    try:
+        # Check if profile exists
+        existing_profile = await VoiceProfileQueries.get_profile(db, voice_profile_name)
+        if not existing_profile:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Voice profile '{voice_profile_name}' not found"
+            )
+        
+        # Validate voice_model_type if provided
+        if profile_data.voice_model_type and profile_data.voice_model_type not in ["asr", "tts"]:
+            raise HTTPException(
+                status_code=400,
+                detail="voice_model_type must be 'asr' or 'tts'"
+            )
+        
+        # Prepare update data (exclude None values)
+        update_data = {}
+        for field, value in profile_data.dict(exclude_unset=True).items():
+            if value is not None:
+                update_data[field] = value
+        
+        if not update_data:
+            raise HTTPException(
+                status_code=400,
+                detail="No valid fields provided for update"
+            )
+        
+        # Update the profile
+        success = await VoiceProfileQueries.update_profile(
+            db=db,
+            voice_profile_name=voice_profile_name,
+            updates=update_data
+        )
+        
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to update voice profile"
+            )
+        
+        await db.commit()
+        
+        # Get updated profile
+        updated_profile = await VoiceProfileQueries.get_profile(db, voice_profile_name)
+        
+        return {
+            "success": True,
+            "message": f"Voice profile '{voice_profile_name}' updated successfully",
+            "profile": {
+                "profile_id": updated_profile.profile_id,
+                "voice_profile_name": updated_profile.voice_profile_name,
+                "voice_model_type": updated_profile.voice_model_type.value,
+                "voice_model_name": updated_profile.voice_model_name,
+                "voice_meta_params": updated_profile.voice_meta_params,
+                "description": updated_profile.description,
+                "is_active": updated_profile.is_active,
+                "created_at": updated_profile.created_at,
+                "updated_at": updated_profile.updated_at,
+                "last_used_at": updated_profile.last_used_at
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to update voice profile: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update voice profile: {str(e)}"
+        )
+
+
+@router.delete("/voice-profiles/{voice_profile_name}")
+async def delete_voice_profile(
+    voice_profile_name: str,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """Delete a voice profile"""
+    try:
+        # Check if profile exists
+        existing_profile = await VoiceProfileQueries.get_profile(db, voice_profile_name)
+        if not existing_profile:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Voice profile '{voice_profile_name}' not found"
+            )
+        
+        # Delete the profile
+        success = await VoiceProfileQueries.delete_profile(db, voice_profile_name)
+        
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to delete voice profile"
+            )
+        
+        await db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Voice profile '{voice_profile_name}' deleted successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to delete voice profile: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete voice profile: {str(e)}"
+        )
 
 
 @router.post("/asr")

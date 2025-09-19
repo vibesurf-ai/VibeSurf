@@ -992,7 +992,7 @@ class VoiceProfileQueries:
             if profile:
                 # Ensure all attributes are loaded by accessing them
                 _ = (profile.profile_id, profile.created_at, profile.updated_at,
-                     profile.last_used_at, profile.is_active, profile.is_default)
+                     profile.last_used_at, profile.is_active)
             return profile
         except Exception as e:
             logger.error(f"Failed to get Voice profile {voice_profile_name}: {e}")
@@ -1053,7 +1053,7 @@ class VoiceProfileQueries:
             # Ensure all attributes are loaded for each profile
             for profile in profiles:
                 _ = (profile.profile_id, profile.created_at, profile.updated_at,
-                     profile.last_used_at, profile.is_active, profile.is_default)
+                     profile.last_used_at, profile.is_active)
 
             return profiles
         except Exception as e:
