@@ -163,3 +163,141 @@
 .save-env-vars-btn-modern:disabled::before {
   display: none;
 }
+
+/* Compact Button for General Tab */
+.save-env-vars-btn-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 122, 204, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.save-env-vars-btn-compact::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.save-env-vars-btn-compact:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 122, 204, 0.25);
+  background: linear-gradient(135deg, var(--primary-hover), var(--primary-color));
+}
+
+.save-env-vars-btn-compact:hover::before {
+  left: 100%;
+}
+
+.save-env-vars-btn-compact:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 122, 204, 0.15);
+}
+
+.save-env-vars-btn-compact .btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.save-env-vars-btn-compact .btn-text {
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+.save-env-vars-btn-compact:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: 0 2px 8px rgba(0, 122, 204, 0.1) !important;
+}
+
+.save-env-vars-btn-compact:disabled::before {
+  display: none;
+}
+
+/* General Tab Sections Layout */
+.general-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.general-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.general-section:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.general-section .section-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.general-section .section-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.general-section .section-description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.general-settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Responsive adjustments for general sections */
+@media (max-width: 768px) {
+  .general-section {
+    padding: 16px;
+  }
+  
+  .general-sections {
+    gap: 16px;
+  }
+  
+  .general-section .section-header h3 {
+    font-size: 16px;
+  }
+  
+  .general-section .section-header {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+  }
+}

@@ -25,6 +25,11 @@ class VibeSurfSettingsManager {
       settingsTabs: document.querySelectorAll('.settings-tab'),
       settingsTabContents: document.querySelectorAll('.settings-tab-content'),
       
+      // General Settings
+      themeSelect: document.getElementById('theme-select'),
+      defaultAsrSelect: document.getElementById('default-asr-select'),
+      defaultTtsSelect: document.getElementById('default-tts-select'),
+      
       // LLM Profiles
       llmProfilesContainer: document.getElementById('llm-profiles-container'),
       addLlmProfileBtn: document.getElementById('add-llm-profile-btn'),
@@ -83,6 +88,11 @@ class VibeSurfSettingsManager {
     if (this.elements.profileFormSubmit) {
       this.elements.profileFormSubmit.addEventListener('click', this.handleProfileFormSubmitClick.bind(this));
     }
+    
+    // General settings
+    this.elements.themeSelect?.addEventListener('change', this.handleThemeChange.bind(this));
+    this.elements.defaultAsrSelect?.addEventListener('change', this.handleDefaultAsrChange.bind(this));
+    this.elements.defaultTtsSelect?.addEventListener('change', this.handleDefaultTtsChange.bind(this));
     
     // Environment variables
     this.elements.saveEnvVarsBtn?.addEventListener('click', this.handleSaveEnvironmentVariables.bind(this));
@@ -146,6 +156,11 @@ class VibeSurfSettingsManager {
     if (targetContent) {
       targetContent.classList.add('active');
     }
+    
+    // If switching to general tab, ensure environment variables are loaded
+    if (targetTabId === 'general') {
+      this.loadEnvironmentVariables();
+    }
   }
 
   // Data Loading
@@ -162,6 +177,12 @@ class VibeSurfSettingsManager {
       
       // Load environment variables
       await this.loadEnvironmentVariables();
+      
+      // Load general settings
+      this.loadGeneralSettings();
+      
+      // Load voice profiles for general settings dropdowns
+      await this.loadVoiceProfilesForGeneral();
       
       // Emit event to update LLM profile select dropdown
       this.emit('profilesUpdated', {
@@ -257,6 +278,153 @@ class VibeSurfSettingsManager {
     } catch (error) {
       console.error('[SettingsManager] Failed to load environment variables:', error);
       this.renderEnvironmentVariables({});
+    }
+  }
+
+  loadGeneralSettings() {
+    try {
+      // Load and apply theme setting
+      const savedTheme = localStorage.getItem('vibesurf-theme') || 'auto';
+      if (this.elements.themeSelect) {
+        this.elements.themeSelect.value = savedTheme;
+      }
+      this.applyTheme(savedTheme);
+      
+      // Load default ASR profile
+      const savedAsrProfile = localStorage.getItem('vibesurf-default-asr');
+      if (savedAsrProfile && this.elements.defaultAsrSelect) {
+        // Will be set after voice profiles are loaded
+        setTimeout(() => {
+          if (this.elements.defaultAsrSelect.querySelector(`option[value="${savedAsrProfile}"]`)) {
+            this.elements.defaultAsrSelect.value = savedAsrProfile;
+          }
+        }, 1000);
+      }
+      
+      // Load default TTS profile
+      const savedTtsProfile = localStorage.getItem('vibesurf-default-tts');
+      if (savedTtsProfile && this.elements.defaultTtsSelect) {
+        // Will be set after voice profiles are loaded
+        setTimeout(() => {
+          if (this.elements.defaultTtsSelect.querySelector(`option[value="${savedTtsProfile}"]`)) {
+            this.elements.defaultTtsSelect.value = savedTtsProfile;
+          }
+        }, 1000);
+      }
+      
+      console.log('[SettingsManager] General settings loaded successfully');
+    } catch (error) {
+      console.error('[SettingsManager] Failed to load general settings:', error);
+    }
+  }
+
+  async loadVoiceProfilesForGeneral() {
+    try {
+      // Load voice profiles for ASR and TTS dropdowns in general settings
+      const response = await this.apiClient.getVoiceProfiles(false);
+      console.log('[SettingsManager] Voice profiles loaded for general settings:', response);
+      
+      // Handle different response structures
+      let profiles = [];
+      if (Array.isArray(response)) {
+        profiles = response;
+      } else if (response.profiles && Array.isArray(response.profiles)) {
+        profiles = response.profiles;
+      } else if (response.data && Array.isArray(response.data)) {
+        profiles = response.data;
+      }
+      
+      // Filter profiles by type
+      const asrProfiles = profiles.filter(p => p.voice_model_type === 'asr' && p.is_active);
+      const ttsProfiles = profiles.filter(p => p.voice_model_type === 'tts' && p.is_active);
+      
+      // Populate ASR dropdown
+      if (this.elements.defaultAsrSelect) {
+        this.elements.defaultAsrSelect.innerHTML = '<option value="">No ASR profile selected</option>';
+        asrProfiles.forEach(profile => {
+          const option = document.createElement('option');
+          option.value = profile.voice_profile_name;
+          option.textContent = profile.voice_profile_name;
+          this.elements.defaultAsrSelect.appendChild(option);
+        });
+      }
+      
+      // Populate TTS dropdown
+      if (this.elements.defaultTtsSelect) {
+        this.elements.defaultTtsSelect.innerHTML = '<option value="">No TTS profile selected</option>';
+        ttsProfiles.forEach(profile => {
+          const option = document.createElement('option');
+          option.value = profile.voice_profile_name;
+          option.textContent = profile.voice_profile_name;
+          this.elements.defaultTtsSelect.appendChild(option);
+        });
+      }
+      
+    } catch (error) {
+      console.error('[SettingsManager] Failed to load voice profiles for general settings:', error);
+      // Populate with empty options on error
+      if (this.elements.defaultAsrSelect) {
+        this.elements.defaultAsrSelect.innerHTML = '<option value="">Failed to load ASR profiles</option>';
+      }
+      if (this.elements.defaultTtsSelect) {
+        this.elements.defaultTtsSelect.innerHTML = '<option value="">Failed to load TTS profiles</option>';
+      }
+    }
+  }
+
+  async handleDefaultAsrChange(event) {
+    const selectedProfile = event.target.value;
+    
+    try {
+      // Store ASR profile preference in localStorage
+      if (selectedProfile) {
+        localStorage.setItem('vibesurf-default-asr', selectedProfile);
+        this.emit('notification', {
+          message: `Default ASR profile set to ${selectedProfile}`,
+          type: 'success'
+        });
+      } else {
+        localStorage.removeItem('vibesurf-default-asr');
+        this.emit('notification', {
+          message: 'Default ASR profile cleared',
+          type: 'info'
+        });
+      }
+      
+    } catch (error) {
+      console.error('[SettingsManager] Failed to change default ASR profile:', error);
+      this.emit('notification', {
+        message: 'Failed to change default ASR profile',
+        type: 'error'
+      });
+    }
+  }
+
+  async handleDefaultTtsChange(event) {
+    const selectedProfile = event.target.value;
+    
+    try {
+      // Store TTS profile preference in localStorage
+      if (selectedProfile) {
+        localStorage.setItem('vibesurf-default-tts', selectedProfile);
+        this.emit('notification', {
+          message: `Default TTS profile set to ${selectedProfile}`,
+          type: 'success'
+        });
+      } else {
+        localStorage.removeItem('vibesurf-default-tts');
+        this.emit('notification', {
+          message: 'Default TTS profile cleared',
+          type: 'info'
+        });
+      }
+      
+    } catch (error) {
+      console.error('[SettingsManager] Failed to change default TTS profile:', error);
+      this.emit('notification', {
+        message: 'Failed to change default TTS profile',
+        type: 'error'
+      });
     }
   }
 
@@ -1037,6 +1205,60 @@ class VibeSurfSettingsManager {
       
       nameInput.addEventListener('input', removeError);
     }
+  }
+
+  async handleThemeChange(event) {
+    const selectedTheme = event.target.value;
+    
+    try {
+      // Store theme preference in localStorage
+      localStorage.setItem('vibesurf-theme', selectedTheme);
+      
+      // Apply theme to document
+      this.applyTheme(selectedTheme);
+      
+      this.emit('notification', {
+        message: `Theme changed to ${selectedTheme}`,
+        type: 'success'
+      });
+      
+    } catch (error) {
+      console.error('[SettingsManager] Failed to change theme:', error);
+      this.emit('notification', {
+        message: 'Failed to change theme',
+        type: 'error'
+      });
+    }
+  }
+
+
+  applyTheme(theme) {
+    const root = document.documentElement;
+    
+    if (theme === 'dark') {
+      root.setAttribute('data-theme', 'dark');
+      root.classList.add('dark-theme');
+      root.classList.remove('light-theme');
+    } else if (theme === 'light') {
+      root.setAttribute('data-theme', 'light');
+      root.classList.add('light-theme');
+      root.classList.remove('dark-theme');
+    } else { // auto
+      root.classList.remove('dark-theme', 'light-theme');
+      // Let system preference take over
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        root.setAttribute('data-theme', 'dark');
+        root.classList.add('dark-theme');
+      } else {
+        root.setAttribute('data-theme', 'light');
+        root.classList.add('light-theme');
+      }
+    }
+    
+    // Force a repaint to ensure theme changes are applied immediately
+    document.body.style.display = 'none';
+    document.body.offsetHeight; // trigger reflow
+    document.body.style.display = '';
   }
 
   async handleBackendUrlChange(event) {
