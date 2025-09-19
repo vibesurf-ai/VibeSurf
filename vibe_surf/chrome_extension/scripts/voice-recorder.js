@@ -178,6 +178,16 @@ class VibeSurfVoiceRecorder {
     try {
       console.log('[VoiceRecorder] Starting voice recording...');
       
+      // Check for ASR profiles BEFORE starting recording
+      const asrProfiles = await this.apiClient.getASRProfiles(true);
+      if (!asrProfiles.profiles || asrProfiles.profiles.length === 0) {
+        console.log('[VoiceRecorder] No ASR profiles found, showing configuration modal');
+        this.handleNoVoiceProfileError();
+        return false;
+      }
+      
+      console.log(`[VoiceRecorder] Found ${asrProfiles.profiles.length} ASR profile(s)`);
+      
       // Get microphone stream
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -416,10 +426,16 @@ class VibeSurfVoiceRecorder {
     
     // Send message to UI manager to show voice profile required modal
     if (typeof window !== 'undefined' && window.vibeSurfUIManager) {
-      window.vibeSurfUIManager.showVoiceProfileRequiredModal('configure');
+      try {
+        window.vibeSurfUIManager.showVoiceProfileRequiredModal('configure');
+      } catch (error) {
+        console.error('[VoiceRecorder] Failed to show voice profile modal:', error);
+        // Fallback to generic error handling
+        this.handleTranscriptionError(new Error('No active ASR profiles found. Please configure an ASR profile in Settings > Voice.'));
+      }
     } else {
       // Fallback to generic error handling
-      this.handleTranscriptionError(new Error('No active ASR profiles found. Please configure an ASR profile in settings.'));
+      this.handleTranscriptionError(new Error('No active ASR profiles found. Please configure an ASR profile in Settings > Voice.'));
     }
   }
 
@@ -470,6 +486,17 @@ class VibeSurfVoiceRecorder {
   // Check if currently recording
   isCurrentlyRecording() {
     return this.isRecording;
+  }
+
+  // Check if voice recording should be disabled due to missing ASR profiles
+  async isVoiceRecordingAvailable() {
+    try {
+      const asrProfiles = await this.apiClient.getASRProfiles(true);
+      return asrProfiles.profiles && asrProfiles.profiles.length > 0;
+    } catch (error) {
+      console.error('[VoiceRecorder] Error checking ASR profiles availability:', error);
+      return false;
+    }
   }
 
   // Set callbacks

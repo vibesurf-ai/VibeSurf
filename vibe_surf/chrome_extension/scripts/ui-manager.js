@@ -115,6 +115,9 @@ class VibeSurfUIManager {
       if (!this.isRestoringSelections) {
         this.updateLLMProfileSelect();
       }
+      
+      // Also update voice button state when profiles are updated (ASR profiles might have changed)
+      this.updateVoiceButtonState();
     });
     
     this.settingsManager.on('notification', (data) => {
@@ -860,6 +863,14 @@ class VibeSurfUIManager {
       return;
     }
 
+    // Check if ASR profiles are available before allowing recording
+    const isVoiceAvailable = await this.voiceRecorder.isVoiceRecordingAvailable();
+    if (!isVoiceAvailable) {
+      console.log('[UIManager] No ASR profiles available, showing configuration modal');
+      this.showVoiceProfileRequiredModal('configure');
+      return;
+    }
+
     // Enhanced task status check - disable recording during task execution unless paused
     const taskStatus = this.sessionManager.getTaskStatus();
     const isTaskRunning = this.state.isTaskRunning;
@@ -872,6 +883,13 @@ class VibeSurfUIManager {
     // Additional check: if task is paused, allow voice input but show info message
     if (isTaskRunning && taskStatus === 'paused') {
       console.log('[UIManager] Task is paused, allowing voice input');
+    }
+
+    // Check if voice button is disabled due to missing ASR profiles
+    if (this.elements.voiceRecordBtn && this.elements.voiceRecordBtn.classList.contains('voice-disabled')) {
+      console.log('[UIManager] Voice button is disabled due to missing ASR profiles, showing modal');
+      this.showVoiceProfileRequiredModal('configure');
+      return;
     }
 
     try {
@@ -2275,6 +2293,35 @@ class VibeSurfUIManager {
     }
   }
 
+  // Check and update voice button state based on ASR profile availability
+  async updateVoiceButtonState() {
+    if (!this.elements.voiceRecordBtn) return;
+    
+    try {
+      const isVoiceAvailable = await this.voiceRecorder.isVoiceRecordingAvailable();
+      
+      if (!isVoiceAvailable) {
+        // Add visual indication but keep button enabled for click handling
+        this.elements.voiceRecordBtn.classList.add('voice-disabled');
+        this.elements.voiceRecordBtn.setAttribute('title', 'Voice input disabled - No ASR profiles configured. Click to configure.');
+        this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Voice input disabled - No ASR profiles configured. Click to configure.');
+      } else {
+        // Remove visual indication and restore normal tooltip
+        this.elements.voiceRecordBtn.classList.remove('voice-disabled');
+        if (!this.elements.voiceRecordBtn.classList.contains('recording')) {
+          this.elements.voiceRecordBtn.setAttribute('title', 'Click to start voice recording');
+          this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Click to start voice recording');
+        }
+      }
+    } catch (error) {
+      console.error('[UIManager] Error updating voice button state:', error);
+      // Fallback: add visual indication but keep button enabled
+      this.elements.voiceRecordBtn.classList.add('voice-disabled');
+      this.elements.voiceRecordBtn.setAttribute('title', 'Voice input temporarily unavailable. Click for more info.');
+      this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Voice input temporarily unavailable. Click for more info.');
+    }
+  }
+
   // Initialization
   async initialize() {
     try {
@@ -2318,6 +2365,8 @@ class VibeSurfUIManager {
         this.isRestoringSelections = false;
       }
       
+      // Check and update voice button state based on ASR profile availability
+      await this.updateVoiceButtonState();
       
       
       // Create initial session if none exists
