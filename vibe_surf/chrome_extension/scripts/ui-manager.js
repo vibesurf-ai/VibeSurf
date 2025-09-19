@@ -2060,6 +2060,52 @@ class VibeSurfUIManager {
     this.modalManager.showWarningModal(title, message, options);
   }
 
+  showVoiceProfileRequiredModal(action) {
+    const isConfigureAction = action === 'configure';
+    const title = isConfigureAction ? 'Voice Profile Required' : 'Please Select Voice Profile';
+    const message = isConfigureAction
+      ? 'No voice recognition (ASR) profiles are configured. You need to configure at least one voice profile before using voice input.'
+      : 'Please configure a voice recognition profile to use voice input functionality.';
+    
+    const options = isConfigureAction
+      ? {
+          confirmText: 'Open Voice Settings',
+          cancelText: 'Cancel',
+          onConfirm: () => {
+            this.handleShowVoiceSettings();
+          }
+        }
+      : {
+          confirmText: 'Open Voice Settings',
+          cancelText: 'Cancel',
+          onConfirm: () => {
+            this.handleShowVoiceSettings();
+          }
+        };
+    
+    this.modalManager.showWarningModal(title, message, options);
+  }
+
+  async handleShowVoiceSettings() {
+    // Enhanced task running check
+    const statusCheck = await this.checkTaskStatus();
+    if (statusCheck.isRunning) {
+      const canProceed = await this.showTaskRunningWarning('access voice settings');
+      if (!canProceed) return;
+    }
+    
+    // Show settings and navigate directly to Voice profiles tab
+    this.settingsManager.showSettings();
+    
+    // Switch to Voice profiles tab after settings are shown
+    setTimeout(() => {
+      const voiceTab = document.querySelector('.settings-tab[data-tab="voice-profiles"]');
+      if (voiceTab) {
+        voiceTab.click();
+      }
+    }, 100);
+  }
+
   showLLMConnectionFailedModal(errorData) {
     
     

@@ -3,6 +3,7 @@ Tools API endpoints for VibeSurf Backend
 
 Handles voice recognition and other tool-related operations.
 """
+import pdb
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.responses import JSONResponse
@@ -222,17 +223,16 @@ async def delete_voice_profile(
 
 @router.post("/asr")
 async def voice_recognition(
-    voice_profile_name: str,
     audio_file: UploadFile = File(...),
+    voice_profile_name: str = None,
     db: AsyncSession = Depends(get_db_session)
 ):
     """
     Voice recognition using specified voice profile
     
     Args:
-        voice_profile_name: Name of the voice profile to use
         audio_file: Audio file to transcribe
-        context: Optional context for better recognition
+        voice_profile_name: Name of the voice profile to use (required)
         db: Database session
     
     Returns:
@@ -240,6 +240,22 @@ async def voice_recognition(
     """
     from .. import shared_state
     try:
+        # Validate required parameters
+        if not voice_profile_name:
+            raise HTTPException(
+                status_code=400,
+                detail="voice_profile_name parameter is required"
+            )
+        
+        if not audio_file or not audio_file.filename:
+            raise HTTPException(
+                status_code=400,
+                detail="audio_file is required and must have a filename"
+            )
+        
+        # Log the incoming request for debugging
+        logger.info(f"ASR request: voice_profile_name='{voice_profile_name}', audio_file='{audio_file.filename}', size={audio_file.size if hasattr(audio_file, 'size') else 'unknown'}")
+        
         # Get voice profile with decrypted API key
         profile_data = await VoiceProfileQueries.get_profile_with_decrypted_key(db, voice_profile_name)
         if not profile_data:
@@ -305,8 +321,9 @@ async def voice_recognition(
             # Initialize ASR
             api_key = profile_data.get("api_key")
             voice_meta_params = profile_data.get("voice_meta_params", {})
-            asr_model_name = voice_meta_params.get("asr_model_name", )
-            if voice_model_name == "qwen3-asr":
+            asr_model_name = voice_meta_params.get("asr_model_name", "")
+            recognized_text = ""
+            if voice_model_name == "qwen-asr":
                 asr = QwenASR(model=asr_model_name, api_key=api_key)
                 recognized_text = asr.asr(wav_url=saved_file_path)
             elif voice_model_name == "openai-asr":
@@ -322,7 +339,7 @@ async def voice_recognition(
                     status_code=400,
                     detail=f"Voice model '{voice_model_name}' is not supported"
                 )
-            
+            logger.debug(f"Recognized text: {recognized_text}")
             # Update last used timestamp
             await VoiceProfileQueries.update_last_used(db, voice_profile_name)
             await db.commit()
