@@ -31,10 +31,13 @@ class VibeSurfVoiceRecorder {
   async requestMicrophonePermission() {
     try {
       console.log('[VoiceRecorder] Requesting microphone permission...');
+      console.log('[VoiceRecorder] Current location:', window.location.href);
+      console.log('[VoiceRecorder] User agent:', navigator.userAgent);
       
-      // For Chrome extensions, first show manual setup instructions
+      // For Chrome extensions, use iframe injection method
       if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
         console.log('[VoiceRecorder] Detected Chrome extension context');
+        console.log('[VoiceRecorder] Extension ID:', chrome.runtime.id);
         
         // Check if we have the microphone permission declared
         try {
@@ -49,9 +52,9 @@ class VibeSurfVoiceRecorder {
           console.warn('[VoiceRecorder] Could not check manifest permissions:', manifestError);
         }
         
-        // Use URL parameter approach like Doubao AI
+        // Use iframe injection method (more reliable than tab approach)
         return new Promise((resolve) => {
-          this.showMicrophonePermissionTab(resolve);
+          this.requestMicrophonePermissionViaIframe(resolve);
         });
       }
       
@@ -145,75 +148,136 @@ class VibeSurfVoiceRecorder {
     }
   }
 
-  // Show microphone permission using URL parameter approach (like Doubao AI)
-  showMicrophonePermissionTab(resolve) {
-    console.log('[VoiceRecorder] Using URL parameter approach for microphone permission');
+  // Request microphone permission via iframe injection (more reliable method)
+  async requestMicrophonePermissionViaIframe(resolve) {
+    console.log('[VoiceRecorder] Using iframe injection method for microphone permission');
     
     try {
-      // Get current extension URL
-      const extensionId = chrome.runtime.id;
-      const currentUrl = window.location.href;
-      const baseUrl = currentUrl.split('?')[0]; // Remove any existing parameters
+      console.log('[VoiceRecorder] Requesting content script to inject permission iframe...');
       
-      // Create permission request URL with parameter (like Doubao AI)
-      const permissionUrl = `${baseUrl}?enter=mic-permission`;
+      // First, try to get current active tab to inject iframe
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       
+      if (!tabs || tabs.length === 0) {
+        throw new Error('No active tab found for iframe injection');
+      }
+      
+      const activeTab = tabs[0];
+      console.log('[VoiceRecorder] Active tab found:', activeTab.url);
+      
+      // Check if we can inject into this tab
+      if (activeTab.url.startsWith('chrome://') ||
+          activeTab.url.startsWith('chrome-extension://') ||
+          activeTab.url.startsWith('edge://') ||
+          activeTab.url.startsWith('moz-extension://')) {
+        console.warn('[VoiceRecorder] Cannot inject into restricted tab, falling back to new tab method');
+        return this.showMicrophonePermissionTab(resolve);
+      }
+      
+      // Send message to content script to inject iframe
+      console.log('[VoiceRecorder] Sending iframe injection request to content script...');
+      const response = await chrome.tabs.sendMessage(activeTab.id, {
+        type: 'INJECT_MICROPHONE_PERMISSION_IFRAME'
+      });
+      
+      console.log('[VoiceRecorder] Iframe injection response:', response);
+      
+      if (response && response.success) {
+        // Set up listener for permission result from content script
+        const messageHandler = (message, sender, sendResponse) => {
+          console.log('[VoiceRecorder] Message handler received:', message.type, message);
+          
+          if (message.type === 'MICROPHONE_PERMISSION_RESULT' && message.source === 'iframe') {
+            console.log('[VoiceRecorder] Received iframe permission result:', message);
+            console.log('[VoiceRecorder] Permission granted:', message.granted);
+            console.log('[VoiceRecorder] Success status:', message.success);
+            
+            // Clean up listener
+            chrome.runtime.onMessage.removeListener(messageHandler);
+            
+            // Resolve with result - use success status if granted is undefined
+            const permissionGranted = message.granted !== undefined ? message.granted : message.success;
+            console.log('[VoiceRecorder] Final permission result:', permissionGranted);
+            resolve(permissionGranted || false);
+          }
+        };
+        
+        chrome.runtime.onMessage.addListener(messageHandler);
+        
+        // Set timeout to clean up
+        setTimeout(() => {
+          console.log('[VoiceRecorder] Iframe permission request timeout, cleaning up...');
+          chrome.runtime.onMessage.removeListener(messageHandler);
+          
+          // Try to remove iframe
+          chrome.tabs.sendMessage(activeTab.id, {
+            type: 'REMOVE_MICROPHONE_PERMISSION_IFRAME'
+          }).catch(() => {});
+          
+          resolve(false);
+        }, 35000); // 35 second timeout (longer than iframe timeout)
+        
+      } else {
+        throw new Error('Failed to inject permission iframe: ' + (response?.error || 'Unknown error'));
+      }
+      
+    } catch (error) {
+      console.error('[VoiceRecorder] Iframe permission request failed:', error);
+      console.log('[VoiceRecorder] Falling back to tab method...');
+      
+      // Fallback to the tab-based method
+      this.showMicrophonePermissionTab(resolve);
+    }
+  }
+  
+  // Fallback: Show microphone permission using new tab approach
+  showMicrophonePermissionTab(resolve) {
+    console.log('[VoiceRecorder] Using fallback tab method for microphone permission');
+    
+    try {
+      const permissionUrl = chrome.runtime.getURL('permission-request.html');
       console.log('[VoiceRecorder] Opening permission tab with URL:', permissionUrl);
       
-      // Open new tab with permission parameter
+      // Open new tab with permission page
       chrome.tabs.create({
         url: permissionUrl,
         active: true
       }, (tab) => {
-        console.log('[VoiceRecorder] Permission tab opened:', tab.id);
+        if (chrome.runtime.lastError) {
+          console.error('[VoiceRecorder] Failed to create permission tab:', chrome.runtime.lastError);
+          this.requestDirectMicrophonePermission(resolve);
+          return;
+        }
+        
+        console.log('[VoiceRecorder] Permission tab opened successfully:', tab.id);
         
         // Set up message listener for permission result
         const messageHandler = (message, sender, sendResponse) => {
-          console.log('[VoiceRecorder] Received message in permission tab:', message);
+          console.log('[VoiceRecorder] Tab method - received message:', message.type, message);
+          
           if (message.type === 'MICROPHONE_PERMISSION_RESULT') {
             console.log('[VoiceRecorder] Received permission result:', message.granted);
+            console.log('[VoiceRecorder] Success status:', message.success);
             
             // Remove the message listener
             chrome.runtime.onMessage.removeListener(messageHandler);
             
             // Close the permission tab
-            chrome.tabs.remove(tab.id).catch(() => {
-              // Tab might already be closed
-            });
+            chrome.tabs.remove(tab.id).catch(() => {});
             
-            // Resolve the promise
-            resolve(message.granted);
+            // Resolve the promise - use success status if granted is undefined
+            const permissionGranted = message.granted !== undefined ? message.granted : message.success;
+            console.log('[VoiceRecorder] Tab method - final permission result:', permissionGranted);
+            resolve(permissionGranted || false);
           }
         };
         
-        // Also listen for storage changes as backup
-        const storageHandler = (changes, namespace) => {
-          if (changes.microphonePermissionResult) {
-            console.log('[VoiceRecorder] Detected storage change for permission result');
-            chrome.storage.onChanged.removeListener(storageHandler);
-            chrome.runtime.onMessage.removeListener(messageHandler);
-            
-            const result = changes.microphonePermissionResult.newValue;
-            if (result && result.granted !== undefined) {
-              resolve(result.granted);
-            } else {
-              resolve(false);
-            }
-          }
-        };
-        
-        // Add both listeners
-        chrome.runtime.onMessage.addListener(messageHandler);
-        chrome.storage.onChanged.addListener(storageHandler);
-        
-        // Add message listener
         chrome.runtime.onMessage.addListener(messageHandler);
         
         // Set timeout to clean up
         setTimeout(() => {
           console.log('[VoiceRecorder] Permission request timeout, cleaning up...');
           chrome.runtime.onMessage.removeListener(messageHandler);
-          chrome.storage.onChanged.removeListener(storageHandler);
           chrome.tabs.remove(tab.id).catch(() => {});
           resolve(false);
         }, 30000); // 30 second timeout
@@ -221,7 +285,7 @@ class VibeSurfVoiceRecorder {
       
     } catch (error) {
       console.error('[VoiceRecorder] Failed to open permission tab:', error);
-      // Fallback to direct permission request
+      // Final fallback to direct permission request
       this.requestDirectMicrophonePermission(resolve);
     }
   }
@@ -269,6 +333,10 @@ class VibeSurfVoiceRecorder {
       let stream;
       
       try {
+        console.log('[VoiceRecorder] Attempting standard getUserMedia approach...');
+        console.log('[VoiceRecorder] MediaDevices available:', !!navigator.mediaDevices);
+        console.log('[VoiceRecorder] getUserMedia available:', !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+        
         // Try standard approach first
         stream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -277,8 +345,11 @@ class VibeSurfVoiceRecorder {
             sampleRate: 44100
           }
         });
+        console.log('[VoiceRecorder] Standard getUserMedia successful!');
       } catch (recordingError) {
         console.warn('[VoiceRecorder] Standard recording approach failed:', recordingError);
+        console.warn('[VoiceRecorder] Error name:', recordingError.name);
+        console.warn('[VoiceRecorder] Error message:', recordingError.message);
         
         // For Chrome extensions, try background script approach
         if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {

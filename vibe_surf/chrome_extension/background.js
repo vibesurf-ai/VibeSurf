@@ -257,7 +257,7 @@ class VibeSurfBackground {
               'OPEN_FILE_URL', 'OPEN_FILE_SYSTEM', 'GET_ALL_TABS', 'REQUEST_MICROPHONE_PERMISSION',
               'REQUEST_MICROPHONE_PERMISSION_WITH_UI', 'MICROPHONE_PERMISSION_RESULT'
             ]);
-            result = { error: 'Unknown message type' };
+            result = { error: 'Unknown message type', receivedType: message.type };
         }
         
         sendResponse(result);

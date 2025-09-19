@@ -53,8 +53,34 @@
             sendResponse(clickResult);
             break;
             
+          case 'INJECT_MICROPHONE_PERMISSION_IFRAME':
+            this.injectMicrophonePermissionIframe()
+              .then(result => sendResponse(result))
+              .catch(error => sendResponse({ success: false, error: error.message }));
+            return true; // Will respond asynchronously
+            
+          case 'REMOVE_MICROPHONE_PERMISSION_IFRAME':
+            this.removeMicrophonePermissionIframe();
+            sendResponse({ success: true });
+            break;
+            
           default:
             console.warn('[VibeSurf Content] Unknown message type:', message.type);
+        }
+      });
+      
+      // Listen for postMessage from iframe
+      window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'MICROPHONE_PERMISSION_RESULT') {
+          console.log('[VibeSurf Content] Received permission result from iframe:', event.data);
+          
+          // Forward to extension
+          chrome.runtime.sendMessage({
+            type: 'MICROPHONE_PERMISSION_RESULT',
+            ...event.data
+          }).catch(() => {
+            // Ignore if no listeners
+          });
         }
       });
     }
@@ -230,6 +256,127 @@
       } catch (error) {
         console.error('[VibeSurf Content] Click error:', error);
         return { success: false, message: error.message };
+      }
+    }
+    
+    // Inject hidden iframe for microphone permission request
+    async injectMicrophonePermissionIframe() {
+      try {
+        console.log('[VibeSurf Content] Injecting microphone permission iframe...');
+        
+        // Check if iframe already exists
+        const existingIframe = document.getElementById('vibesurf-permission-iframe');
+        if (existingIframe) {
+          console.log('[VibeSurf Content] Permission iframe already exists');
+          return { success: true, alreadyExists: true };
+        }
+        
+        // Create the iframe element
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('id', 'vibesurf-permission-iframe');
+        iframe.setAttribute('allow', 'microphone');
+        iframe.setAttribute('hidden', 'hidden');
+        iframe.style.display = 'none';
+        iframe.style.width = '0px';
+        iframe.style.height = '0px';
+        iframe.style.border = 'none';
+        iframe.style.position = 'fixed';
+        iframe.style.top = '-9999px';
+        iframe.style.left = '-9999px';
+        iframe.style.zIndex = '-1';
+        
+        // Set the source to our permission iframe page
+        const iframeUrl = chrome.runtime.getURL('permission-iframe.html');
+        iframe.src = iframeUrl;
+        
+        console.log('[VibeSurf Content] Creating iframe with URL:', iframeUrl);
+        
+        // Return a promise that resolves when permission is granted/denied
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            console.log('[VibeSurf Content] Permission iframe timeout');
+            this.removeMicrophonePermissionIframe();
+            reject(new Error('Permission request timeout'));
+          }, 30000); // 30 second timeout
+          
+          // Listen for permission result
+          const messageHandler = (event) => {
+            if (event.data && event.data.type === 'MICROPHONE_PERMISSION_RESULT') {
+              console.log('[VibeSurf Content] Received permission result:', event.data);
+              
+              clearTimeout(timeout);
+              window.removeEventListener('message', messageHandler);
+              
+              if (event.data.success) {
+                resolve({
+                  success: true,
+                  granted: event.data.granted,
+                  source: 'iframe'
+                });
+              } else {
+                resolve({
+                  success: false,
+                  granted: false,
+                  error: event.data.error || 'Permission denied',
+                  userMessage: event.data.userMessage
+                });
+              }
+              
+              // Clean up iframe after a short delay
+              setTimeout(() => {
+                this.removeMicrophonePermissionIframe();
+              }, 1000);
+            }
+          };
+          
+          window.addEventListener('message', messageHandler);
+          
+          // Handle iframe load
+          iframe.onload = () => {
+            console.log('[VibeSurf Content] Permission iframe loaded successfully');
+            
+            // Send message to iframe to start permission request
+            setTimeout(() => {
+              if (iframe.contentWindow) {
+                iframe.contentWindow.postMessage({
+                  type: 'REQUEST_MICROPHONE_PERMISSION'
+                }, '*');
+              }
+            }, 100);
+          };
+          
+          iframe.onerror = (error) => {
+            console.error('[VibeSurf Content] Permission iframe load error:', error);
+            clearTimeout(timeout);
+            window.removeEventListener('message', messageHandler);
+            this.removeMicrophonePermissionIframe();
+            reject(new Error('Failed to load permission iframe'));
+          };
+          
+          // Append to document body
+          document.body.appendChild(iframe);
+          console.log('[VibeSurf Content] Permission iframe injected into page');
+        });
+        
+      } catch (error) {
+        console.error('[VibeSurf Content] Failed to inject permission iframe:', error);
+        throw error;
+      }
+    }
+    
+    // Remove microphone permission iframe
+    removeMicrophonePermissionIframe() {
+      try {
+        const iframe = document.getElementById('vibesurf-permission-iframe');
+        if (iframe) {
+          console.log('[VibeSurf Content] Removing permission iframe');
+          iframe.remove();
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error('[VibeSurf Content] Error removing permission iframe:', error);
+        return false;
       }
     }
     

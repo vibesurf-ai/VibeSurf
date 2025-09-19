@@ -106,7 +106,6 @@ class AgentBrowserProfile(BrowserProfile):
 
         # convert to dict and back to dedupe and merge other duplicate args
         final_args_list = BrowserLaunchArgs.args_as_list(BrowserLaunchArgs.args_as_dict(non_disable_features_args))
-
         return final_args_list
 
     def _get_extension_args(self) -> list[str]:
@@ -214,9 +213,16 @@ class AgentBrowserProfile(BrowserProfile):
         """Filter out arguments that block microphone functionality for voice input."""
         filtered_args = set()
         
+        # Arguments that block microphone permission requests
+        blocking_args = {
+            '--disable-infobars',                    # ⚠️ CRITICAL: Blocks permission request infobars
+            '--disable-speech-synthesis-api',       # Speech API related
+            '--disable-speech-api',                 # Speech API related
+        }
+        
         for arg in args:
-            # Skip speech-related blocking arguments
-            if arg in ['--disable-speech-synthesis-api', '--disable-speech-api']:
+            # Skip microphone-blocking arguments
+            if arg in blocking_args:
                 logger.info(f'[BrowserProfile] 🎤 Skipping microphone-blocking arg: {arg}')
                 continue
                 

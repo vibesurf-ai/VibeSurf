@@ -49,7 +49,15 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["sidepanel.html", "styles/*", "scripts/*", "config.js", "icons/*"],
+      "resources": [
+        "sidepanel.html",
+        "permission-request.html",
+        "permission-iframe.html",
+        "styles/*",
+        "scripts/*",
+        "config.js",
+        "icons/*"
+      ],
       "matches": ["<all_urls>"]
     }
   ]

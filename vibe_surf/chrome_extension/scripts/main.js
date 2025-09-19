@@ -482,6 +482,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           .catch(error => sendResponse({ success: false, error: error.message }));
         return true; // Keep message channel open for async response
         
+      case 'MICROPHONE_PERMISSION_RESULT':
+        console.log('[VibeSurf] Received microphone permission result:', message);
+        // This message is typically handled by voice recorder, just acknowledge
+        sendResponse({ acknowledged: true });
+        break;
+        
       default:
         console.warn('[VibeSurf] Unknown message type:', message.type);
     }
