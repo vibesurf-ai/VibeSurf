@@ -428,9 +428,9 @@ class AgentBrowserSession(BrowserSession):
         self._popups_watchdog.attach_to_session()
 
         # Initialize PermissionsWatchdog (handles granting and revoking browser permissions like clipboard, microphone, camera, etc.)
-        PermissionsWatchdog.model_rebuild()
-        self._permissions_watchdog = PermissionsWatchdog(event_bus=self.event_bus, browser_session=self)
-        self._permissions_watchdog.attach_to_session()
+        # PermissionsWatchdog.model_rebuild()
+        # self._permissions_watchdog = PermissionsWatchdog(event_bus=self.event_bus, browser_session=self)
+        # self._permissions_watchdog.attach_to_session()
 
         # Initialize DefaultActionWatchdog (handles all default actions like click, type, scroll, go back, go forward, refresh, wait, send keys, upload file, scroll to text, etc.)
         CustomActionWatchdog.model_rebuild()

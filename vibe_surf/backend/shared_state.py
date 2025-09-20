@@ -174,7 +174,7 @@ async def execute_task_background(
                     db_session,
                     task_id=task_id,
                     task_result=result,
-                    task_status=active_task.get("status", "completed"),
+                    task_status=active_task.get("status", "completed") if active_task else "completed",
                     report_path=report_path
                 )
                 await db_session.commit()

@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func, desc, and_, or_
 from sqlalchemy.orm import selectinload
-from .models import Task, TaskStatus, LLMProfile, UploadedFile, McpProfile
+from .models import Task, TaskStatus, LLMProfile, UploadedFile, McpProfile, VoiceProfile, VoiceModelType
 from ..utils.encryption import encrypt_api_key, decrypt_api_key
 import logging
 import json
@@ -928,4 +928,192 @@ class UploadedFileQueries:
             return result.rowcount
         except Exception as e:
             logger.error(f"Failed to cleanup deleted files: {e}")
+            raise
+
+
+class VoiceProfileQueries:
+    """Query operations for VoiceProfile model"""
+
+    @staticmethod
+    async def create_profile(
+            db: AsyncSession,
+            voice_profile_name: str,
+            voice_model_type: str,
+            voice_model_name: str,
+            api_key: Optional[str] = None,
+            voice_meta_params: Optional[Dict[str, Any]] = None,
+            description: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Create a new Voice profile with encrypted API key"""
+        try:
+            # Encrypt API key if provided
+            encrypted_api_key = encrypt_api_key(api_key) if api_key else None
+
+            profile = VoiceProfile(
+                voice_profile_name=voice_profile_name,
+                voice_model_type=VoiceModelType(voice_model_type),
+                voice_model_name=voice_model_name,
+                encrypted_api_key=encrypted_api_key,
+                voice_meta_params=voice_meta_params or {},
+                description=description
+            )
+
+            db.add(profile)
+            await db.flush()
+            await db.refresh(profile)
+
+            # Extract data immediately to avoid greenlet issues
+            profile_data = {
+                "profile_id": profile.profile_id,
+                "voice_profile_name": profile.voice_profile_name,
+                "voice_model_type": profile.voice_model_type.value,
+                "voice_model_name": profile.voice_model_name,
+                "voice_meta_params": profile.voice_meta_params,
+                "description": profile.description,
+                "is_active": profile.is_active,
+                "created_at": profile.created_at,
+                "updated_at": profile.updated_at,
+                "last_used_at": profile.last_used_at
+            }
+
+            return profile_data
+        except Exception as e:
+            logger.error(f"Failed to create Voice profile {voice_profile_name}: {e}")
+            raise
+
+    @staticmethod
+    async def get_profile(db: AsyncSession, voice_profile_name: str) -> Optional[VoiceProfile]:
+        """Get Voice profile by name"""
+        try:
+            result = await db.execute(
+                select(VoiceProfile).where(VoiceProfile.voice_profile_name == voice_profile_name)
+            )
+            profile = result.scalar_one_or_none()
+            if profile:
+                # Ensure all attributes are loaded by accessing them
+                _ = (profile.profile_id, profile.created_at, profile.updated_at,
+                     profile.last_used_at, profile.is_active)
+            return profile
+        except Exception as e:
+            logger.error(f"Failed to get Voice profile {voice_profile_name}: {e}")
+            raise
+
+    @staticmethod
+    async def get_profile_with_decrypted_key(db: AsyncSession, voice_profile_name: str) -> Optional[Dict[str, Any]]:
+        """Get Voice profile with decrypted API key"""
+        try:
+            profile = await VoiceProfileQueries.get_profile(db, voice_profile_name)
+            if not profile:
+                return None
+
+            # Decrypt API key
+            decrypted_api_key = decrypt_api_key(profile.encrypted_api_key) if profile.encrypted_api_key else None
+
+            return {
+                "profile_id": profile.profile_id,
+                "voice_profile_name": profile.voice_profile_name,
+                "voice_model_type": profile.voice_model_type.value,
+                "voice_model_name": profile.voice_model_name,
+                "api_key": decrypted_api_key,  # Decrypted for use
+                "voice_meta_params": profile.voice_meta_params,
+                "description": profile.description,
+                "is_active": profile.is_active,
+                "created_at": profile.created_at,
+                "updated_at": profile.updated_at,
+                "last_used_at": profile.last_used_at
+            }
+        except Exception as e:
+            logger.error(f"Failed to get Voice profile with decrypted key {voice_profile_name}: {e}")
+            raise
+
+    @staticmethod
+    async def list_profiles(
+            db: AsyncSession,
+            voice_model_type: Optional[str] = None,
+            active_only: bool = True,
+            limit: int = 50,
+            offset: int = 0
+    ) -> List[VoiceProfile]:
+        """List Voice profiles"""
+        try:
+            query = select(VoiceProfile)
+
+            if active_only:
+                query = query.where(VoiceProfile.is_active == True)
+            
+            if voice_model_type:
+                query = query.where(VoiceProfile.voice_model_type == VoiceModelType(voice_model_type))
+
+            query = query.order_by(desc(VoiceProfile.last_used_at), desc(VoiceProfile.created_at))
+            query = query.limit(limit).offset(offset)
+
+            result = await db.execute(query)
+            profiles = result.scalars().all()
+
+            # Ensure all attributes are loaded for each profile
+            for profile in profiles:
+                _ = (profile.profile_id, profile.created_at, profile.updated_at,
+                     profile.last_used_at, profile.is_active)
+
+            return profiles
+        except Exception as e:
+            logger.error(f"Failed to list Voice profiles: {e}")
+            raise
+
+    @staticmethod
+    async def update_profile(
+            db: AsyncSession,
+            voice_profile_name: str,
+            updates: Dict[str, Any]
+    ) -> bool:
+        """Update Voice profile"""
+        try:
+            # Handle API key encryption if present
+            if "api_key" in updates:
+                api_key = updates.pop("api_key")
+                if api_key:
+                    updates["encrypted_api_key"] = encrypt_api_key(api_key)
+                else:
+                    updates["encrypted_api_key"] = None
+
+            # Handle voice_model_type enum conversion
+            if "voice_model_type" in updates:
+                updates["voice_model_type"] = VoiceModelType(updates["voice_model_type"])
+
+            result = await db.execute(
+                update(VoiceProfile)
+                .where(VoiceProfile.voice_profile_name == voice_profile_name)
+                .values(**updates)
+            )
+
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to update Voice profile {voice_profile_name}: {e}")
+            raise
+
+    @staticmethod
+    async def delete_profile(db: AsyncSession, voice_profile_name: str) -> bool:
+        """Delete Voice profile"""
+        try:
+            result = await db.execute(
+                delete(VoiceProfile).where(VoiceProfile.voice_profile_name == voice_profile_name)
+            )
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to delete Voice profile {voice_profile_name}: {e}")
+            raise
+
+
+    @staticmethod
+    async def update_last_used(db: AsyncSession, voice_profile_name: str) -> bool:
+        """Update the last_used_at timestamp for a profile"""
+        try:
+            result = await db.execute(
+                update(VoiceProfile)
+                .where(VoiceProfile.voice_profile_name == voice_profile_name)
+                .values(last_used_at=func.now())
+            )
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to update last_used for Voice profile {voice_profile_name}: {e}")
             raise

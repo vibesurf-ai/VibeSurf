@@ -17,6 +17,13 @@ class VibeSurfUIManager {
     this.historyManager = null;
     this.fileManager = null;
     this.modalManager = null;
+    this.voiceRecorder = null;
+    
+    // Initialize user settings storage
+    this.userSettingsStorage = null;
+    
+    // Track if we're currently restoring selections to prevent override
+    this.isRestoringSelections = false;
     
     this.bindElements();
     this.initializeTabSelector(); // Initialize tab selector before binding events
@@ -51,6 +58,7 @@ class VibeSurfUIManager {
       agentModeSelect: document.getElementById('agent-mode-select'),
       taskInput: document.getElementById('task-input'),
       sendBtn: document.getElementById('send-btn'),
+      voiceRecordBtn: document.getElementById('voice-record-btn'),
       
       // Tab selector elements
       tabSelectorDropdown: document.getElementById('tab-selector-dropdown'),
@@ -77,6 +85,13 @@ class VibeSurfUIManager {
       // Initialize modal manager first (others may depend on it)
       this.modalManager = new VibeSurfModalManager();
       
+      // Initialize user settings storage
+      this.userSettingsStorage = new VibeSurfUserSettingsStorage();
+      
+      // Initialize voice recorder
+      this.voiceRecorder = new VibeSurfVoiceRecorder(this.apiClient);
+      this.setupVoiceRecorderCallbacks();
+      
       // Initialize other managers
       this.settingsManager = new VibeSurfSettingsManager(this.apiClient);
       this.historyManager = new VibeSurfHistoryManager(this.apiClient);
@@ -85,7 +100,7 @@ class VibeSurfUIManager {
       // Set up inter-manager communication
       this.setupManagerEvents();
       
-      console.log('[UIManager] All specialized managers initialized');
+      
     } catch (error) {
       console.error('[UIManager] Failed to initialize managers:', error);
       this.showNotification('Failed to initialize UI components', 'error');
@@ -95,7 +110,14 @@ class VibeSurfUIManager {
   setupManagerEvents() {
     // Settings Manager Events
     this.settingsManager.on('profilesUpdated', () => {
-      this.updateLLMProfileSelect();
+      // Only update the profile select if we're not in the middle of restoring selections
+      // This prevents the profilesUpdated event from overriding user selections during initialization
+      if (!this.isRestoringSelections) {
+        this.updateLLMProfileSelect();
+      }
+      
+      // Also update voice button state when profiles are updated (ASR profiles might have changed)
+      this.updateVoiceButtonState();
     });
     
     this.settingsManager.on('notification', (data) => {
@@ -213,6 +235,113 @@ class VibeSurfUIManager {
     });
   }
 
+  // Voice Recorder Callbacks
+  setupVoiceRecorderCallbacks() {
+    this.voiceRecorder.setCallbacks({
+      onRecordingStart: () => {
+        console.log('[UIManager] Voice recording started');
+        this.updateVoiceRecordingUI(true);
+      },
+      onRecordingStop: (audioBlob, duration) => {
+        console.log(`[UIManager] Voice recording stopped after ${duration}ms`);
+        this.updateVoiceRecordingUI(false);
+      },
+      onTranscriptionComplete: (transcribedText, result) => {
+        console.log(`[UIManager] Transcription completed: "${transcribedText}"`);
+        this.handleTranscriptionComplete(transcribedText);
+      },
+      onTranscriptionError: (errorMessage, errorType) => {
+        console.error(`[UIManager] Transcription error: ${errorMessage}`);
+        this.handleTranscriptionError(errorMessage, errorType);
+      },
+      onDurationUpdate: (formattedDuration, durationMs) => {
+        this.updateRecordingDuration(formattedDuration, durationMs);
+      }
+    });
+  }
+
+  // Update voice recording UI state
+  updateVoiceRecordingUI(isRecording) {
+    if (this.elements.voiceRecordBtn) {
+      if (isRecording) {
+        this.elements.voiceRecordBtn.classList.add('recording');
+        this.elements.voiceRecordBtn.setAttribute('title', 'Stop Recording');
+        this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Recording... Click to stop');
+      } else {
+        this.elements.voiceRecordBtn.classList.remove('recording');
+        this.elements.voiceRecordBtn.setAttribute('title', 'Voice Input');
+        this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Click to start voice recording');
+        
+        // Clear duration display
+        this.updateRecordingDuration('0:00', 0);
+      }
+    }
+  }
+
+  // Update recording duration display
+  updateRecordingDuration(formattedDuration, durationMs) {
+    if (this.elements.voiceRecordBtn) {
+      // Update the tooltip with duration
+      this.elements.voiceRecordBtn.setAttribute('data-tooltip', `Recording... ${formattedDuration} - Click to stop`);
+      
+      // Create or update duration display element
+      let durationElement = this.elements.voiceRecordBtn.querySelector('.recording-duration');
+      if (!durationElement) {
+        durationElement = document.createElement('div');
+        durationElement.className = 'recording-duration';
+        this.elements.voiceRecordBtn.appendChild(durationElement);
+      }
+      
+      durationElement.textContent = formattedDuration;
+    }
+  }
+
+  // Handle transcription completion
+  handleTranscriptionComplete(transcribedText) {
+    if (!this.elements.taskInput) {
+      console.error('[UIManager] Task input element not found');
+      return;
+    }
+
+    // Insert transcribed text into the input field
+    const currentValue = this.elements.taskInput.value;
+    const cursorPosition = this.elements.taskInput.selectionStart;
+    
+    // Insert at cursor position or append to end
+    const beforeCursor = currentValue.substring(0, cursorPosition);
+    const afterCursor = currentValue.substring(cursorPosition);
+    const newValue = beforeCursor + transcribedText + afterCursor;
+    
+    this.elements.taskInput.value = newValue;
+    
+    // Trigger input change event for validation and auto-resize
+    this.handleTaskInputChange({ target: this.elements.taskInput });
+    
+    // Set cursor position after the inserted text
+    const newCursorPosition = cursorPosition + transcribedText.length;
+    this.elements.taskInput.setSelectionRange(newCursorPosition, newCursorPosition);
+    this.elements.taskInput.focus();
+    
+    this.showNotification('Voice transcription completed', 'success');
+  }
+
+  // Handle transcription errors
+  handleTranscriptionError(errorMessage, errorType) {
+    let userMessage = 'Voice transcription failed';
+    
+    if (errorType === 'recording') {
+      userMessage = `Recording failed: ${errorMessage}`;
+    } else if (errorType === 'transcription') {
+      if (errorMessage.includes('No active ASR profiles')) {
+        userMessage = 'No voice recognition profiles configured. Please set up an ASR profile in Settings > Voice.';
+      } else {
+        userMessage = `Transcription failed: ${errorMessage}`;
+      }
+    }
+    
+    this.showNotification(userMessage, 'error');
+  }
+
   bindEvents() {
     // Header buttons
     this.elements.newSessionBtn?.addEventListener('click', this.handleNewSession.bind(this));
@@ -229,6 +358,7 @@ class VibeSurfUIManager {
     
     // Input handling
     this.elements.sendBtn?.addEventListener('click', this.handleSendTask.bind(this));
+    this.elements.voiceRecordBtn?.addEventListener('click', this.handleVoiceRecord.bind(this));
     
     // Task input handling
     this.elements.taskInput?.addEventListener('keydown', this.handleTaskInputKeydown.bind(this));
@@ -294,7 +424,7 @@ class VibeSurfUIManager {
   }
 
   handleTaskSubmitted(data) {
-    console.log('[UIManager] Task submitted successfully, showing control panel');
+    
     this.updateControlPanel('running');
     this.clearTaskInput();
   }
@@ -319,21 +449,21 @@ class VibeSurfUIManager {
   }
 
   handleTaskCompleted(data) {
-    console.log('[UIManager] Task completed with status:', data.status);
+    
     
     const message = data.status === 'done' ? 'Task completed successfully!' : 'Task completed with errors';
     const type = data.status === 'done' ? 'success' : 'error';
     
     // Check if we need to respect minimum visibility period
     if (this.controlPanelMinVisibilityActive) {
-      console.log('[UIManager] Task completed during minimum visibility period, delaying control panel hide');
+      
       const remainingTime = 1000;
       setTimeout(() => {
-        console.log('[UIManager] Minimum visibility period respected, now hiding control panel');
+        
         this.updateControlPanel('ready');
       }, remainingTime);
     } else {
-      console.log('[UIManager] Task completed, hiding control panel immediately');
+      
       this.updateControlPanel('ready');
     }
     
@@ -363,17 +493,17 @@ class VibeSurfUIManager {
 
   handleTaskError(data) {
     console.error('[UIManager] Task error:', data.error);
-    console.log('[UIManager] Task error data structure:', JSON.stringify(data, null, 2));
+    
     
     // Check if this is an LLM connection failure
     if (data.error && typeof data.error === 'object' && data.error.error === 'llm_connection_failed') {
-      console.log('[UIManager] Detected LLM connection failure from object error');
+      
       // Show LLM connection failed modal instead of generic notification
       this.showLLMConnectionFailedModal(data.error);
       this.updateControlPanel('ready'); // Reset UI since task failed to start
       return;
     } else if (data.error && typeof data.error === 'string' && data.error.includes('llm_connection_failed')) {
-      console.log('[UIManager] Detected LLM connection failure from string error');
+      
       // Handle case where error is a string containing the error type
       this.showLLMConnectionFailedModal({
         message: data.error,
@@ -392,10 +522,10 @@ class VibeSurfUIManager {
     setTimeout(() => {
       this.checkTaskStatus().then(status => {
         if (!status.isRunning) {
-          console.log('[UIManager] Task confirmed stopped after error, hiding controls');
+          
           this.updateControlPanel('ready');
         } else {
-          console.log('[UIManager] Task still running after error, keeping controls visible');
+          
         }
       }).catch(err => {
         console.warn('[UIManager] Could not verify task status after error:', err);
@@ -470,6 +600,23 @@ class VibeSurfUIManager {
       this.elements.agentModeSelect.disabled = isRunning && !isPaused;
     }
     
+    // Update voice record button state - disable during task execution unless paused
+    if (this.elements.voiceRecordBtn) {
+      const shouldDisableVoice = isRunning && !isPaused;
+      this.elements.voiceRecordBtn.disabled = shouldDisableVoice;
+      if (shouldDisableVoice) {
+        this.elements.voiceRecordBtn.classList.add('task-running-disabled');
+        this.elements.voiceRecordBtn.setAttribute('title', 'Voice input disabled while task is running');
+      } else {
+        this.elements.voiceRecordBtn.classList.remove('task-running-disabled');
+        if (this.elements.voiceRecordBtn.classList.contains('recording')) {
+          this.elements.voiceRecordBtn.setAttribute('title', 'Recording... Click to stop');
+        } else {
+          this.elements.voiceRecordBtn.setAttribute('title', 'Click to start voice recording');
+        }
+      }
+    }
+    
     // Update file manager state - keep disabled during pause (as per requirement)
     this.fileManager.setEnabled(!isRunning);
     
@@ -496,7 +643,6 @@ class VibeSurfUIManager {
   }
 
   forceUpdateUIForPausedState() {
-    console.log('[UIManager] Force updating UI for paused state');
     
     // Enable input during pause
     if (this.elements.taskInput) {
@@ -507,6 +653,13 @@ class VibeSurfUIManager {
     if (this.elements.sendBtn) {
       const hasText = this.elements.taskInput?.value.trim().length > 0;
       this.elements.sendBtn.disabled = !hasText;
+    }
+    
+    // Enable voice record button during pause
+    if (this.elements.voiceRecordBtn) {
+      this.elements.voiceRecordBtn.disabled = false;
+      this.elements.voiceRecordBtn.classList.remove('task-running-disabled');
+      this.elements.voiceRecordBtn.setAttribute('title', 'Click to start voice recording');
     }
     
     // Keep LLM profile disabled during pause (user doesn't need to change it)
@@ -522,7 +675,7 @@ class VibeSurfUIManager {
     // Keep file manager disabled during pause
     this.fileManager.setEnabled(false);
     
-    // Keep header buttons disabled during pause (only input and send should be available)
+    // Keep header buttons disabled during pause (only input, send, and voice should be available)
     const headerButtons = [
       this.elements.newSessionBtn,
       this.elements.historyBtn,
@@ -533,13 +686,13 @@ class VibeSurfUIManager {
       if (button) {
         button.disabled = true;
         button.classList.add('task-running-disabled');
-        button.setAttribute('title', 'Disabled during pause - only input and send are available');
+        button.setAttribute('title', 'Disabled during pause - only input, send, and voice input are available');
       }
     });
   }
 
   forceUpdateUIForRunningState() {
-    console.log('[UIManager] Force updating UI for running state');
+    
     
     // Disable input during running
     if (this.elements.taskInput) {
@@ -557,6 +710,13 @@ class VibeSurfUIManager {
     
     if (this.elements.agentModeSelect) {
       this.elements.agentModeSelect.disabled = true;
+    }
+    
+    // Disable voice record button during running
+    if (this.elements.voiceRecordBtn) {
+      this.elements.voiceRecordBtn.disabled = true;
+      this.elements.voiceRecordBtn.classList.add('task-running-disabled');
+      this.elements.voiceRecordBtn.setAttribute('title', 'Voice input disabled while task is running');
     }
     
     // Update file manager state
@@ -658,6 +818,26 @@ class VibeSurfUIManager {
     this.settingsManager.showSettings();
   }
 
+  async handleShowLLMSettings() {
+    // Enhanced task running check
+    const statusCheck = await this.checkTaskStatus();
+    if (statusCheck.isRunning) {
+      const canProceed = await this.showTaskRunningWarning('access settings');
+      if (!canProceed) return;
+    }
+    
+    // Show settings and navigate directly to LLM profiles tab
+    this.settingsManager.showSettings();
+    
+    // Switch to LLM profiles tab after settings are shown
+    setTimeout(() => {
+      const llmTab = document.querySelector('.settings-tab[data-tab="llm-profiles"]');
+      if (llmTab) {
+        llmTab.click();
+      }
+    }, 100);
+  }
+
   async handleCopySession() {
     const sessionId = this.sessionManager.getCurrentSessionId();
     
@@ -675,6 +855,111 @@ class VibeSurfUIManager {
     }
   }
 
+  // Voice Recording UI Handler
+  async handleVoiceRecord() {
+    // Check if voice recording is supported
+    if (!this.voiceRecorder.isSupported()) {
+      this.showNotification('Voice recording is not supported in your browser', 'error');
+      return;
+    }
+
+    // Check if ASR profiles are available before allowing recording
+    const isVoiceAvailable = await this.voiceRecorder.isVoiceRecordingAvailable();
+    if (!isVoiceAvailable) {
+      console.log('[UIManager] No ASR profiles available, showing configuration modal');
+      this.showVoiceProfileRequiredModal('configure');
+      return;
+    }
+
+    // Enhanced task status check - disable recording during task execution unless paused
+    const taskStatus = this.sessionManager.getTaskStatus();
+    const isTaskRunning = this.state.isTaskRunning;
+    
+    if (isTaskRunning && taskStatus !== 'paused') {
+      this.showNotification('Cannot record voice while task is running. Stop the current task or wait for it to complete.', 'warning');
+      return;
+    }
+    
+    // Additional check: if task is paused, allow voice input but show info message
+    if (isTaskRunning && taskStatus === 'paused') {
+      console.log('[UIManager] Task is paused, allowing voice input');
+    }
+
+    // Check if voice button is disabled due to missing ASR profiles
+    if (this.elements.voiceRecordBtn && this.elements.voiceRecordBtn.classList.contains('voice-disabled')) {
+      console.log('[UIManager] Voice button is disabled due to missing ASR profiles, showing modal');
+      this.showVoiceProfileRequiredModal('configure');
+      return;
+    }
+
+    try {
+      if (this.voiceRecorder.isCurrentlyRecording()) {
+        // Stop recording
+        console.log('[UIManager] Stopping voice recording');
+        await this.voiceRecorder.stopRecording();
+      } else {
+        // Start recording
+        console.log('[UIManager] Starting voice recording');
+        
+        // Request microphone permission first
+        try {
+          // For Chrome extensions, ensure we have proper user gesture context
+          console.log('[UIManager] Requesting microphone permission with user gesture context');
+          
+          // Add a small delay to ensure user gesture is properly registered
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          const hasPermission = await this.voiceRecorder.requestMicrophonePermission();
+          if (!hasPermission) {
+            this.showNotification('Microphone permission denied. Please allow microphone access to use voice input.', 'error');
+            return;
+          }
+        } catch (permissionError) {
+          console.error('[UIManager] Microphone permission error:', permissionError);
+          
+          // Handle different types of permission errors with detailed guidance
+          let errorMessage = 'Microphone permission denied';
+          let detailedHelp = '';
+          
+          if (permissionError.name === 'MicrophonePermissionError') {
+            errorMessage = permissionError.message;
+            if (permissionError.userAction) {
+              detailedHelp = permissionError.userAction;
+            }
+          } else if (permissionError.name === 'NotAllowedError') {
+            errorMessage = 'Microphone access was denied by your browser.';
+            detailedHelp = 'Please check your browser permissions and try again. You may need to allow microphone access in your browser settings.';
+          } else {
+            errorMessage = `Microphone access error: ${permissionError.message}`;
+            detailedHelp = 'Please ensure your browser allows microphone access and that a microphone is connected.';
+          }
+          
+          // Show detailed error message
+          const fullMessage = detailedHelp ? `${errorMessage}\n\n${detailedHelp}` : errorMessage;
+          this.showNotification(fullMessage, 'error');
+          
+          // Also log detailed error for debugging
+          console.error('[UIManager] Detailed microphone permission error:', {
+            name: permissionError.name,
+            message: permissionError.message,
+            userAction: permissionError.userAction,
+            originalError: permissionError.originalError
+          });
+          
+          this.updateVoiceRecordingUI(false);
+          return;
+        }
+
+        // Start recording
+        await this.voiceRecorder.startRecording();
+      }
+    } catch (error) {
+      console.error('[UIManager] Voice recording error:', error);
+      this.showNotification(`Voice recording failed: ${error.message}`, 'error');
+      this.updateVoiceRecordingUI(false);
+    }
+  }
+
   async handleSendTask() {
     const taskDescription = this.elements.taskInput?.value.trim();
     const taskStatus = this.sessionManager.getTaskStatus();
@@ -689,7 +974,7 @@ class VibeSurfUIManager {
     try {
       if (isPaused) {
         // Handle adding new task to paused execution
-        console.log('[UIManager] Adding new task to paused execution:', taskDescription);
+        
         await this.sessionManager.addNewTaskToPaused(taskDescription);
         
         // Clear the input after successful addition
@@ -697,7 +982,7 @@ class VibeSurfUIManager {
         this.showNotification('Additional information added to the task', 'success');
         
         // Automatically resume the task after adding new information
-        console.log('[UIManager] Auto-resuming task after adding new information');
+        
         await this.sessionManager.resumeTask('Auto-resume after adding new task information');
         
         return;
@@ -742,17 +1027,17 @@ class VibeSurfUIManager {
       const filePath = this.fileManager.getUploadedFilesForTask();
       if (filePath) {
         taskData.upload_files_path = filePath;
-        console.log('[UIManager] Set upload_files_path to:', filePath);
+        
       }
       
       // Add selected tabs information if any
       const selectedTabsData = this.getSelectedTabsForTask();
       if (selectedTabsData) {
         taskData.selected_tabs = selectedTabsData;
-        console.log('[UIManager] Set selected_tabs to:', selectedTabsData);
+        
       }
       
-      console.log('[UIManager] Complete task data being submitted:', JSON.stringify(taskData, null, 2));
+      
       await this.sessionManager.submitTask(taskData);
       
       // Clear uploaded files after successful task submission
@@ -879,14 +1164,64 @@ class VibeSurfUIManager {
     return false; // Allow default behavior
   }
 
-  handleLlmProfileChange(event) {
+  async handleLlmProfileChange(event) {
+    const selectedProfile = event.target.value;
+    
+    
+    
+    try {
+      // Save the selected LLM profile to user settings storage
+      if (this.userSettingsStorage) {
+        
+        await this.userSettingsStorage.setSelectedLlmProfile(selectedProfile);
+        
+        
+        // Verify the save
+        const verified = await this.userSettingsStorage.getSelectedLlmProfile();
+        
+        
+        // Also save to localStorage as backup for browser restart scenarios
+        localStorage.setItem('vibesurf-llm-profile-backup', selectedProfile);
+        
+      } else {
+        console.warn('[UIManager] userSettingsStorage not available for LLM profile save');
+      }
+    } catch (error) {
+      console.error('[UIManager] Failed to save LLM profile selection:', error);
+    }
+    
     // Re-validate send button state when LLM profile changes
     if (this.elements.taskInput) {
       this.handleTaskInputChange({ target: this.elements.taskInput });
     }
   }
 
-  handleAgentModeChange(event) {
+  async handleAgentModeChange(event) {
+    const selectedMode = event.target.value;
+    
+    
+    
+    try {
+      // Save the selected agent mode to user settings storage
+      if (this.userSettingsStorage) {
+        
+        await this.userSettingsStorage.setSelectedAgentMode(selectedMode);
+        
+        
+        // Verify the save
+        const verified = await this.userSettingsStorage.getSelectedAgentMode();
+        
+        
+        // Also save to localStorage as backup for browser restart scenarios
+        localStorage.setItem('vibesurf-agent-mode-backup', selectedMode);
+        
+      } else {
+        console.warn('[UIManager] userSettingsStorage not available for agent mode save');
+      }
+    } catch (error) {
+      console.error('[UIManager] Failed to save agent mode selection:', error);
+    }
+    
     // Re-validate send button state when agent mode changes
     if (this.elements.taskInput) {
       this.handleTaskInputChange({ target: this.elements.taskInput });
@@ -894,7 +1229,7 @@ class VibeSurfUIManager {
   }
 
   handleTaskInputChange(event) {
-    console.log('[UIManager] handleTaskInputChange called with value:', event.target.value);
+    
     
     const hasText = event.target.value.trim().length > 0;
     const textarea = event.target;
@@ -938,10 +1273,10 @@ class VibeSurfUIManager {
 
   // UI Display Methods
   updateSessionDisplay(sessionId) {
-    console.log('[UIManager] Updating session display with ID:', sessionId);
+    
     if (this.elements.sessionId) {
       this.elements.sessionId.textContent = sessionId || '-';
-      console.log('[UIManager] Session ID display updated to:', sessionId);
+      
     } else {
       console.error('[UIManager] Session ID element not found');
     }
@@ -968,13 +1303,13 @@ class VibeSurfUIManager {
     
     switch (status) {
       case 'ready':
-        console.log('[UIManager] Setting control panel to ready (hidden)');
+        
         panel.classList.add('hidden');
         panel.classList.remove('error-state');
         break;
         
       case 'running':
-        console.log('[UIManager] Setting control panel to running (showing cancel button)');
+        
         panel.classList.remove('hidden');
         panel.classList.remove('error-state');
         cancelBtn?.classList.remove('hidden');
@@ -986,7 +1321,7 @@ class VibeSurfUIManager {
         break;
         
       case 'paused':
-        console.log('[UIManager] Setting control panel to paused (showing resume/terminate buttons)');
+        
         panel.classList.remove('hidden');
         panel.classList.remove('error-state');
         cancelBtn?.classList.add('hidden');
@@ -995,7 +1330,7 @@ class VibeSurfUIManager {
         break;
         
       case 'error':
-        console.log('[UIManager] Setting control panel to error (keeping cancel/terminate buttons visible)');
+        
         panel.classList.remove('hidden');
         panel.classList.add('error-state');
         cancelBtn?.classList.remove('hidden');
@@ -1017,7 +1352,7 @@ class VibeSurfUIManager {
     // Clear the flag after minimum visibility period (2 seconds)
     setTimeout(() => {
       this.controlPanelMinVisibilityActive = false;
-      console.log('[UIManager] Minimum control panel visibility period ended');
+      
     }, 2000);
   }
 
@@ -1218,7 +1553,7 @@ class VibeSurfUIManager {
   }
 
   handleSuggestionTaskClick(taskDescription) {
-    console.log('[UIManager] Suggestion task clicked:', taskDescription);
+    
     
     // First check if task is running
     if (this.state.isTaskRunning) {
@@ -1240,7 +1575,7 @@ class VibeSurfUIManager {
       return;
     }
     
-    console.log('[UIManager] Setting task description and submitting...');
+    
     this.elements.taskInput.value = taskDescription;
     this.elements.taskInput.focus();
     
@@ -1249,7 +1584,7 @@ class VibeSurfUIManager {
     
     // Auto-submit the task after a short delay
     setTimeout(() => {
-      console.log('[UIManager] Auto-submitting suggestion task...');
+      
       this.handleSendTask();
     }, 100);
   }
@@ -1370,9 +1705,9 @@ class VibeSurfUIManager {
       }
       
       // Check clipboard API availability
-      console.log('[UIManager] navigator.clipboard available:', !!navigator.clipboard);
-      console.log('[UIManager] writeText method available:', !!(navigator.clipboard && navigator.clipboard.writeText));
-      console.log('[UIManager] Document has focus:', document.hasFocus());
+      
+      
+      
       
       // Try multiple clipboard methods
       let copySuccess = false;
@@ -1380,7 +1715,7 @@ class VibeSurfUIManager {
       
       // Method 1: Chrome extension messaging approach
       try {
-        console.log('[UIManager] Trying Chrome extension messaging approach...');
+        
         await new Promise((resolve, reject) => {
           chrome.runtime.sendMessage({
             type: 'COPY_TO_CLIPBOARD',
@@ -1396,7 +1731,7 @@ class VibeSurfUIManager {
           });
         });
         copySuccess = true;
-        console.log('[UIManager] Copied using Chrome extension messaging');
+        
       } catch (extensionError) {
         console.warn('[UIManager] Chrome extension messaging failed:', extensionError);
         lastError = extensionError;
@@ -1405,10 +1740,10 @@ class VibeSurfUIManager {
       // Method 2: Modern clipboard API (if extension method failed)
       if (!copySuccess && navigator.clipboard && navigator.clipboard.writeText) {
         try {
-          console.log('[UIManager] Trying modern clipboard API...');
+          
           await navigator.clipboard.writeText(messageText);
           copySuccess = true;
-          console.log('[UIManager] Copied using modern clipboard API');
+          
         } catch (clipboardError) {
           console.warn('[UIManager] Modern clipboard API failed:', clipboardError);
           lastError = clipboardError;
@@ -1418,7 +1753,7 @@ class VibeSurfUIManager {
       // Method 3: Fallback using execCommand
       if (!copySuccess) {
         try {
-          console.log('[UIManager] Trying execCommand fallback...');
+          
           const textArea = document.createElement('textarea');
           textArea.value = messageText;
           textArea.style.position = 'fixed';
@@ -1435,7 +1770,7 @@ class VibeSurfUIManager {
           
           if (success) {
             copySuccess = true;
-            console.log('[UIManager] Copied using execCommand fallback');
+            
           } else {
             console.warn('[UIManager] execCommand returned false');
           }
@@ -1448,7 +1783,7 @@ class VibeSurfUIManager {
       if (copySuccess) {
         // Show visual feedback
         this.showCopyFeedback();
-        console.log('[UIManager] Copy operation completed successfully');
+        
       } else {
         throw new Error(`All clipboard methods failed. Last error: ${lastError?.message || 'Unknown error'}`);
       }
@@ -1668,8 +2003,11 @@ class VibeSurfUIManager {
     }
   }
 
-  updateLLMProfileSelect() {
+  async updateLLMProfileSelect() {
     if (!this.elements.llmProfileSelect) return;
+    
+    // Preserve current user selection if any (to avoid overriding during profile updates)
+    const currentSelection = this.elements.llmProfileSelect.value;
     
     const profiles = this.settingsManager.getLLMProfiles();
     const select = this.elements.llmProfileSelect;
@@ -1691,16 +2029,50 @@ class VibeSurfUIManager {
       emptyOption.disabled = true;
       select.appendChild(emptyOption);
       
+      // Determine selection priority: current selection > saved selection > default profile
+      let targetSelection = currentSelection; // Preserve current selection first
+      
+      // If no current selection, get saved selection
+      if (!targetSelection) {
+        try {
+          if (this.userSettingsStorage) {
+            targetSelection = await this.userSettingsStorage.getSelectedLlmProfile();
+          }
+        } catch (error) {
+          console.error('[UIManager] Failed to get saved LLM profile selection:', error);
+        }
+      }
+      
       // Add actual profiles
+      let hasSelectedProfile = false;
+      let hasTargetProfile = false;
+      
       profiles.forEach(profile => {
         const option = document.createElement('option');
         option.value = profile.profile_name;
         option.textContent = profile.profile_name;
-        if (profile.is_default) {
-          option.selected = true;
+        
+        // Check if this profile matches our target selection
+        if (targetSelection && profile.profile_name === targetSelection) {
+          hasTargetProfile = true;
         }
+        
         select.appendChild(option);
       });
+      
+      // Apply selection based on priority
+      if (hasTargetProfile) {
+        select.value = targetSelection;
+        hasSelectedProfile = true;
+      } else {
+        // Fall back to default profile if target not available
+        const defaultProfile = profiles.find(p => p.is_default);
+        if (defaultProfile) {
+          select.value = defaultProfile.profile_name;
+          hasSelectedProfile = true;
+        }
+      }
+      
     }
     
     // Update send button state if taskInput exists
@@ -1721,7 +2093,7 @@ class VibeSurfUIManager {
           confirmText: 'Open Settings',
           cancelText: 'Cancel',
           onConfirm: () => {
-            this.handleShowSettings();
+            this.handleShowLLMSettings();
           }
         }
       : {
@@ -1731,15 +2103,61 @@ class VibeSurfUIManager {
             this.elements.llmProfileSelect?.focus();
           },
           onCancel: () => {
-            this.handleShowSettings();
+            this.handleShowLLMSettings();
           }
         };
     
     this.modalManager.showWarningModal(title, message, options);
   }
 
+  showVoiceProfileRequiredModal(action) {
+    const isConfigureAction = action === 'configure';
+    const title = isConfigureAction ? 'Voice Profile Required' : 'Please Select Voice Profile';
+    const message = isConfigureAction
+      ? 'No voice recognition (ASR) profiles are configured. You need to configure at least one voice profile before using voice input.'
+      : 'Please configure a voice recognition profile to use voice input functionality.';
+    
+    const options = isConfigureAction
+      ? {
+          confirmText: 'Open Voice Settings',
+          cancelText: 'Cancel',
+          onConfirm: () => {
+            this.handleShowVoiceSettings();
+          }
+        }
+      : {
+          confirmText: 'Open Voice Settings',
+          cancelText: 'Cancel',
+          onConfirm: () => {
+            this.handleShowVoiceSettings();
+          }
+        };
+    
+    this.modalManager.showWarningModal(title, message, options);
+  }
+
+  async handleShowVoiceSettings() {
+    // Enhanced task running check
+    const statusCheck = await this.checkTaskStatus();
+    if (statusCheck.isRunning) {
+      const canProceed = await this.showTaskRunningWarning('access voice settings');
+      if (!canProceed) return;
+    }
+    
+    // Show settings and navigate directly to Voice profiles tab
+    this.settingsManager.showSettings();
+    
+    // Switch to Voice profiles tab after settings are shown
+    setTimeout(() => {
+      const voiceTab = document.querySelector('.settings-tab[data-tab="voice-profiles"]');
+      if (voiceTab) {
+        voiceTab.click();
+      }
+    }, 100);
+  }
+
   showLLMConnectionFailedModal(errorData) {
-    console.log('[UIManager] showLLMConnectionFailedModal called with:', errorData);
+    
     
     const llmProfile = errorData.llm_profile || 'unknown';
     const errorMessage = errorData.message || 'Cannot connect to LLM API';
@@ -1756,7 +2174,7 @@ class VibeSurfUIManager {
       }
     };
     
-    console.log('[UIManager] Showing LLM connection failed modal');
+    
     this.modalManager.showWarningModal(title, message, options);
   }
 
@@ -1825,20 +2243,132 @@ class VibeSurfUIManager {
     });
   }
 
+  // Restore LLM profile selection from user settings storage
+  async restoreLlmProfileSelection() {
+    try {
+      if (this.userSettingsStorage && this.elements.llmProfileSelect) {
+        // Check current options available
+        const availableOptions = Array.from(this.elements.llmProfileSelect.options).map(opt => opt.value);
+        
+        const savedLlmProfile = await this.userSettingsStorage.getSelectedLlmProfile();
+        
+        if (savedLlmProfile && savedLlmProfile.trim() !== '') {
+          // Check if the saved profile exists in the current options
+          const option = this.elements.llmProfileSelect.querySelector(`option[value="${savedLlmProfile}"]`);
+          
+          if (option) {
+            this.elements.llmProfileSelect.value = savedLlmProfile;
+          } else {
+            console.warn('[UIManager] Saved LLM profile not found in current options:', savedLlmProfile);
+          }
+        } else {
+          // Check localStorage backup for browser restart scenarios
+          const backupProfile = localStorage.getItem('vibesurf-llm-profile-backup');
+          
+          if (backupProfile) {
+            const option = this.elements.llmProfileSelect.querySelector(`option[value="${backupProfile}"]`);
+            if (option) {
+              this.elements.llmProfileSelect.value = backupProfile;
+              // Also save it back to Chrome storage
+              await this.userSettingsStorage.setSelectedLlmProfile(backupProfile);
+            } else {
+              console.warn('[UIManager] Backup profile not found in current options:', backupProfile);
+            }
+          }
+        }
+      } else {
+        console.warn('[UIManager] Required components not available - userSettingsStorage:', !!this.userSettingsStorage, 'llmProfileSelect:', !!this.elements.llmProfileSelect);
+      }
+    } catch (error) {
+      console.error('[UIManager] Failed to restore LLM profile selection:', error);
+    }
+  }
+
+  // Check and update voice button state based on ASR profile availability
+  async updateVoiceButtonState() {
+    if (!this.elements.voiceRecordBtn) return;
+    
+    try {
+      const isVoiceAvailable = await this.voiceRecorder.isVoiceRecordingAvailable();
+      
+      if (!isVoiceAvailable) {
+        // Add visual indication but keep button enabled for click handling
+        this.elements.voiceRecordBtn.classList.add('voice-disabled');
+        this.elements.voiceRecordBtn.setAttribute('title', 'Voice input disabled - No ASR profiles configured. Click to configure.');
+        this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Voice input disabled - No ASR profiles configured. Click to configure.');
+      } else {
+        // Remove visual indication and restore normal tooltip
+        this.elements.voiceRecordBtn.classList.remove('voice-disabled');
+        if (!this.elements.voiceRecordBtn.classList.contains('recording')) {
+          this.elements.voiceRecordBtn.setAttribute('title', 'Click to start voice recording');
+          this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Click to start voice recording');
+        }
+      }
+    } catch (error) {
+      console.error('[UIManager] Error updating voice button state:', error);
+      // Fallback: add visual indication but keep button enabled
+      this.elements.voiceRecordBtn.classList.add('voice-disabled');
+      this.elements.voiceRecordBtn.setAttribute('title', 'Voice input temporarily unavailable. Click for more info.');
+      this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Voice input temporarily unavailable. Click for more info.');
+    }
+  }
+
   // Initialization
   async initialize() {
     try {
+      // Check for microphone permission parameter first (like Doubao AI)
+      const urlParams = new URLSearchParams(window.location.search);
+      const enterParam = urlParams.get('enter');
+      
+      if (enterParam === 'mic-permission') {
+        console.log('[UIManager] Detected microphone permission request parameter');
+        this.showMicrophonePermissionRequest();
+        return; // Skip normal initialization for permission request
+      }
+      
       this.showLoading('Initializing VibeSurf...');
       
+      // Initialize user settings storage first
+      if (this.userSettingsStorage) {
+        
+        await this.userSettingsStorage.initialize();
+        
+      } else {
+        console.error('[UIManager] userSettingsStorage not available during initialization');
+      }
+      
       // Load settings data through settings manager
+      
       await this.settingsManager.loadSettingsData();
       
+      
+      // Now restore user selections AFTER profiles are loaded but before any other initialization
+      
+      this.isRestoringSelections = true;
+      
+      try {
+        // Restore LLM profile selection first
+        await this.restoreLlmProfileSelection();
+        
+        // Restore agent mode selection
+        await this.restoreAgentModeSelection();
+      } finally {
+        this.isRestoringSelections = false;
+      }
+      
+      // Check and update voice button state based on ASR profile availability
+      await this.updateVoiceButtonState();
+      
+      
       // Create initial session if none exists
+      
       if (!this.sessionManager.getCurrentSession()) {
+        
         await this.sessionManager.createSession();
       }
       
       this.hideLoading();
+      
     } catch (error) {
       this.hideLoading();
       console.error('[UIManager] Initialization failed:', error);
@@ -1846,10 +2376,129 @@ class VibeSurfUIManager {
     }
   }
 
+  // Show microphone permission request (like Doubao AI) - simplified approach
+  showMicrophonePermissionRequest() {
+    console.log('[UIManager] Showing simplified microphone permission request');
+    console.log('[UIManager] Current URL:', window.location.href);
+    console.log('[UIManager] URL params:', window.location.search);
+    
+    // Simple approach: just try to get permission directly
+    this.requestMicrophonePermissionDirectly();
+  }
+
+  // Direct microphone permission request (simplified like Doubao AI)
+  async requestMicrophonePermissionDirectly() {
+    console.log('[UIManager] Requesting microphone permission directly');
+    
+    try {
+      // Immediately try to get microphone permission
+      console.log('[UIManager] Calling getUserMedia...');
+      console.log('[UIManager] User agent:', navigator.userAgent);
+      console.log('[UIManager] Location protocol:', window.location.protocol);
+      console.log('[UIManager] Location href:', window.location.href);
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false
+      });
+      
+      console.log('[UIManager] Microphone permission granted!');
+      
+      // Stop the stream immediately (we just need permission)
+      stream.getTracks().forEach(track => track.stop());
+      
+      // Send success message back to original tab
+      console.log('[UIManager] Sending success message...');
+      chrome.runtime.sendMessage({
+        type: 'MICROPHONE_PERMISSION_RESULT',
+        granted: true
+      }, (response) => {
+        console.log('[UIManager] Success message response:', response);
+      });
+      
+      // Close this tab after a short delay
+      setTimeout(() => {
+        console.log('[UIManager] Closing tab...');
+        window.close();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('[UIManager] Microphone permission denied:', error);
+      console.log('[UIManager] Error name:', error.name);
+      console.log('[UIManager] Error message:', error.message);
+      console.log('[UIManager] Error stack:', error.stack);
+      
+      // Send error message back to original tab
+      console.log('[UIManager] Sending error message...');
+      chrome.runtime.sendMessage({
+        type: 'MICROPHONE_PERMISSION_RESULT',
+        granted: false,
+        error: error.message,
+        errorName: error.name
+      }, (response) => {
+        console.log('[UIManager] Error message response:', response);
+      });
+      
+      // Close this tab after a short delay
+      setTimeout(() => {
+        console.log('[UIManager] Closing tab after error...');
+        window.close();
+      }, 2000);
+    }
+  }
+  // Restore agent mode selection from user settings storage
+  async restoreAgentModeSelection() {
+    try {
+      
+      if (this.userSettingsStorage && this.elements.agentModeSelect) {
+        // Check current options available
+        const availableOptions = Array.from(this.elements.agentModeSelect.options).map(opt => opt.value);
+        
+        const savedAgentMode = await this.userSettingsStorage.getSelectedAgentMode();
+        
+        if (savedAgentMode && savedAgentMode.trim() !== '') {
+          // Restore any saved agent mode, including 'thinking'
+          this.elements.agentModeSelect.value = savedAgentMode;
+          // Ensure the option is actually selected
+          const option = this.elements.agentModeSelect.querySelector(`option[value="${savedAgentMode}"]`);
+          if (option) {
+            option.selected = true;
+            console.log('[UIManager] Restored agent mode selection:', savedAgentMode);
+          } else {
+            console.warn('[UIManager] Agent mode option not found:', savedAgentMode);
+          }
+        } else {
+          // Check localStorage backup for browser restart scenarios
+          const backupMode = localStorage.getItem('vibesurf-agent-mode-backup');
+          
+          if (backupMode) {
+            const option = this.elements.agentModeSelect.querySelector(`option[value="${backupMode}"]`);
+            if (option) {
+              this.elements.agentModeSelect.value = backupMode;
+              // Also save it back to Chrome storage
+              await this.userSettingsStorage.setSelectedAgentMode(backupMode);
+            } else {
+              console.warn('[UIManager] Backup agent mode not found in current options:', backupMode);
+            }
+          }
+        }
+      } else {
+        console.warn('[UIManager] Required components not available - userSettingsStorage:', !!this.userSettingsStorage, 'agentModeSelect:', !!this.elements.agentModeSelect);
+      }
+    } catch (error) {
+      console.error('[UIManager] Failed to restore agent mode selection:', error);
+    }
+  }
+
   // Cleanup
   destroy() {
     // Stop task status monitoring
     this.stopTaskStatusMonitoring();
+    
+    // Cleanup voice recorder
+    if (this.voiceRecorder) {
+      this.voiceRecorder.cleanup();
+    }
     
     // Cleanup managers
     if (this.settingsManager) {
@@ -1886,7 +2535,7 @@ class VibeSurfUIManager {
 
   // Tab Selector Methods
   initializeTabSelector() {
-    console.log('[UIManager] Initializing tab selector...');
+    
     
     // Initialize tab selector state
     this.tabSelectorState = {
@@ -1896,20 +2545,15 @@ class VibeSurfUIManager {
       atPosition: -1 // Position where @ was typed
     };
 
-    console.log('[UIManager] Tab selector state initialized:', this.tabSelectorState);
+    
     
     // Bind tab selector events
     this.bindTabSelectorEvents();
   }
 
   bindTabSelectorEvents() {
-    console.log('[UIManager] Binding tab selector events...');
-    console.log('[UIManager] Available elements for binding:', {
-      tabSelectorCancel: !!this.elements.tabSelectorCancel,
-      tabSelectorConfirm: !!this.elements.tabSelectorConfirm,
-      selectAllTabs: !!this.elements.selectAllTabs,
-      tabSelectorDropdown: !!this.elements.tabSelectorDropdown
-    });
+    
+    
     
     // Select all radio button
     this.elements.selectAllTabs?.addEventListener('change', this.handleSelectAllTabs.bind(this));
@@ -1924,7 +2568,7 @@ class VibeSurfUIManager {
       }
     });
     
-    console.log('[UIManager] Tab selector events bound successfully');
+    
   }
 
   handleTabSelectorInput(event) {
@@ -1937,16 +2581,11 @@ class VibeSurfUIManager {
     const inputValue = event.target.value;
     const cursorPosition = event.target.selectionStart;
     
-    console.log('[UIManager] Tab selector input check:', {
-      inputValue,
-      cursorPosition,
-      charAtCursor: inputValue[cursorPosition - 1],
-      isAtSymbol: inputValue[cursorPosition - 1] === '@'
-    });
+    
     
     // Check if @ was just typed
     if (inputValue[cursorPosition - 1] === '@') {
-      console.log('[UIManager] @ detected, showing tab selector');
+      
       this.tabSelectorState.atPosition = cursorPosition - 1;
       this.showTabSelector();
     } else if (this.tabSelectorState.isVisible) {
@@ -1954,7 +2593,7 @@ class VibeSurfUIManager {
       if (this.tabSelectorState.atPosition >= 0 &&
           (this.tabSelectorState.atPosition >= inputValue.length ||
            inputValue[this.tabSelectorState.atPosition] !== '@')) {
-        console.log('[UIManager] @ deleted, hiding tab selector');
+        
         this.hideTabSelector();
         return;
       }
@@ -1962,19 +2601,15 @@ class VibeSurfUIManager {
       // Hide tab selector if user continues typing after @
       const textAfterAt = inputValue.substring(this.tabSelectorState.atPosition + 1, cursorPosition);
       if (textAfterAt.length > 0 && !textAfterAt.match(/^[\s]*$/)) {
-        console.log('[UIManager] Hiding tab selector due to continued typing');
+        
         this.hideTabSelector();
       }
     }
   }
 
   async showTabSelector() {
-    console.log('[UIManager] showTabSelector called');
-    console.log('[UIManager] Tab selector elements:', {
-      dropdown: !!this.elements.tabSelectorDropdown,
-      taskInput: !!this.elements.taskInput,
-      tabOptionsList: !!this.elements.tabOptionsList
-    });
+    
+    
     
     if (!this.elements.tabSelectorDropdown || !this.elements.taskInput) {
       console.error('[UIManager] Tab selector elements not found', {
@@ -1985,15 +2620,15 @@ class VibeSurfUIManager {
     }
 
     try {
-      console.log('[UIManager] Fetching tab data...');
+      
       // Fetch tab data from backend
       await this.populateTabSelector();
       
-      console.log('[UIManager] Positioning dropdown...');
+      
       // Position the dropdown relative to the input
       this.positionTabSelector();
       
-      console.log('[UIManager] Showing dropdown...');
+      
       // Show the dropdown with explicit visibility
       this.elements.tabSelectorDropdown.classList.remove('hidden');
       this.elements.tabSelectorDropdown.style.display = 'block';
@@ -2001,16 +2636,10 @@ class VibeSurfUIManager {
       this.elements.tabSelectorDropdown.style.opacity = '1';
       this.tabSelectorState.isVisible = true;
       
-      console.log('[UIManager] Tab selector shown successfully');
-      console.log('[UIManager] Classes:', this.elements.tabSelectorDropdown.className);
-      console.log('[UIManager] Computed styles:', {
-        display: getComputedStyle(this.elements.tabSelectorDropdown).display,
-        visibility: getComputedStyle(this.elements.tabSelectorDropdown).visibility,
-        opacity: getComputedStyle(this.elements.tabSelectorDropdown).opacity,
-        zIndex: getComputedStyle(this.elements.tabSelectorDropdown).zIndex,
-        position: getComputedStyle(this.elements.tabSelectorDropdown).position
-      });
-      console.log('[UIManager] Dropdown content HTML:', this.elements.tabSelectorDropdown.innerHTML);
+      
+      
+      
+      
     } catch (error) {
       console.error('[UIManager] Failed to show tab selector:', error);
       this.showNotification('Failed to load browser tabs', 'error');
@@ -2026,7 +2655,7 @@ class VibeSurfUIManager {
     this.tabSelectorState.selectedTabs = [];
     this.tabSelectorState.atPosition = -1;
     
-    console.log('[UIManager] Tab selector hidden');
+    
   }
 
   positionTabSelector() {
@@ -2035,10 +2664,7 @@ class VibeSurfUIManager {
     const inputRect = this.elements.taskInput.getBoundingClientRect();
     const dropdown = this.elements.tabSelectorDropdown;
     
-    console.log('[UIManager] Positioning dropdown:', {
-      inputRect,
-      dropdownElement: dropdown
-    });
+    
     
     // Calculate 90% width of input
     const dropdownWidth = inputRect.width * 0.9;
@@ -2052,47 +2678,32 @@ class VibeSurfUIManager {
     dropdown.style.maxHeight = '300px';
     dropdown.style.overflowY = 'auto';
     
-    console.log('[UIManager] Dropdown positioned with styles:', {
-      position: dropdown.style.position,
-      bottom: dropdown.style.bottom,
-      left: dropdown.style.left,
-      width: dropdown.style.width,
-      zIndex: dropdown.style.zIndex
-    });
+    
   }
 
   async populateTabSelector() {
     try {
-      console.log('[UIManager] Getting tab data from backend...');
+      
       // Get all tabs and active tab from backend
       const [allTabsResponse, activeTabResponse] = await Promise.all([
         this.apiClient.getAllBrowserTabs(),
         this.apiClient.getActiveBrowserTab()
       ]);
       
-      console.log('[UIManager] Raw API responses:', {
-        allTabsResponse: JSON.stringify(allTabsResponse, null, 2),
-        activeTabResponse: JSON.stringify(activeTabResponse, null, 2)
-      });
+      
       
       const allTabs = allTabsResponse.tabs || allTabsResponse || {};
       const activeTab = activeTabResponse.tab || activeTabResponse || {};
       const activeTabId = Object.keys(activeTab)[0];
       
-      console.log('[UIManager] Processed tab data:', {
-        allTabsCount: Object.keys(allTabs).length,
-        activeTabId,
-        allTabIds: Object.keys(allTabs),
-        allTabsData: allTabs,
-        activeTabData: activeTab
-      });
+      
       
       this.tabSelectorState.allTabs = allTabs;
       
       // Clear existing options
       if (this.elements.tabOptionsList) {
         this.elements.tabOptionsList.innerHTML = '';
-        console.log('[UIManager] Cleared existing tab options');
+        
       } else {
         console.error('[UIManager] tabOptionsList element not found!');
         return;
@@ -2109,7 +2720,7 @@ class VibeSurfUIManager {
         
         Object.entries(testTabs).forEach(([tabId, tabInfo]) => {
           const isActive = tabId === 'test-1';
-          console.log('[UIManager] Creating test tab option:', { tabId, title: tabInfo.title, isActive });
+          
           const option = this.createTabOption(tabId, tabInfo, isActive);
           this.elements.tabOptionsList.appendChild(option);
         });
@@ -2119,7 +2730,7 @@ class VibeSurfUIManager {
         // Add real tab options
         Object.entries(allTabs).forEach(([tabId, tabInfo]) => {
           const isActive = tabId === activeTabId;
-          console.log('[UIManager] Creating tab option:', { tabId, title: tabInfo.title, isActive });
+          
           const option = this.createTabOption(tabId, tabInfo, isActive);
           this.elements.tabOptionsList.appendChild(option);
         });
@@ -2130,7 +2741,7 @@ class VibeSurfUIManager {
         this.elements.selectAllTabs.checked = false;
       }
       
-      console.log('[UIManager] Tab selector populated with', Object.keys(this.tabSelectorState.allTabs).length, 'tabs');
+      
     } catch (error) {
       console.error('[UIManager] Failed to populate tab selector:', error);
       throw error;
@@ -2170,7 +2781,7 @@ class VibeSurfUIManager {
       // For radio buttons, replace the selected tabs array with just this tab
       this.tabSelectorState.selectedTabs = [tabId];
       
-      console.log('[UIManager] Selected tab:', tabId);
+      
       
       // Auto-confirm selection immediately
       this.confirmTabSelection();
@@ -2183,7 +2794,7 @@ class VibeSurfUIManager {
       const allTabIds = Object.keys(this.tabSelectorState.allTabs);
       this.tabSelectorState.selectedTabs = allTabIds;
       
-      console.log('[UIManager] Select all tabs:', allTabIds);
+      
       
       // Auto-confirm selection immediately
       this.confirmTabSelection();

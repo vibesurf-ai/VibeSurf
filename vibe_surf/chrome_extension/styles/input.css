@@ -129,8 +129,8 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background-color: var(--bg-primary);
-  font-size: var(--font-size-sm);
   color: var(--text-primary);
+  font-size: var(--font-size-sm);
   cursor: pointer;
   transition: border-color var(--transition-fast);
   min-width: 120px;
@@ -162,6 +162,7 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   background-color: var(--bg-primary);
+  color: var(--text-primary);
   font-size: var(--font-size-sm);
   font-family: inherit;
   line-height: 1.5;
@@ -479,4 +480,166 @@ select.task-running-disabled {
   font-weight: var(--font-weight-medium);
   pointer-events: none;
   z-index: 2;
+}
+
+/* Voice Recording Button Styles */
+.voice-record-btn {
+  background-color: var(--bg-primary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+}
+
+.voice-record-btn:hover {
+  border-color: var(--primary-color);
+  background-color: var(--bg-hover);
+  color: var(--primary-color);
+}
+
+.voice-record-btn.recording {
+  background-color: var(--danger-color);
+  border-color: var(--danger-color);
+  color: white;
+  animation: pulse-recording 1.5s infinite;
+}
+
+.voice-record-btn.recording:hover {
+  background-color: #c82333;
+  border-color: #c82333;
+}
+
+/* Recording pulse animation */
+@keyframes pulse-recording {
+  0% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+  }
+}
+
+/* Disabled state for voice recording */
+.voice-record-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: var(--border-color);
+  border-color: var(--border-color);
+  color: var(--text-muted);
+  animation: none;
+}
+
+/* Task running disabled state for voice recording */
+.voice-record-btn.task-running-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-muted);
+  animation: none;
+  position: relative;
+}
+
+.voice-record-btn.task-running-disabled:hover {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-muted);
+  transform: none;
+}
+
+/* Add lock icon for task running disabled state */
+.voice-record-btn.task-running-disabled::before {
+  content: '🔒';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 16px;
+  opacity: 0.8;
+  z-index: 1;
+}
+
+.voice-record-btn.task-running-disabled .recording-status {
+  display: none;
+}
+
+/* Recording status indicator */
+.recording-status {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 8px;
+  height: 8px;
+  background-color: var(--danger-color);
+  border-radius: 50%;
+  animation: pulse-dot 1s infinite;
+}
+
+@keyframes pulse-dot {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+}
+
+/* Voice recording tooltip */
+.voice-record-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-fast);
+  pointer-events: none;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.voice-record-btn:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+/* Recording duration display */
+.recording-duration {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--danger-color);
+  color: white;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-fast);
+  pointer-events: none;
+}
+
+.voice-record-btn.recording .recording-duration {
+  opacity: 1;
+  visibility: visible;
 }

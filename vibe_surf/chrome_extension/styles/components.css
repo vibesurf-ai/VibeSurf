@@ -861,3 +861,38 @@
   color: var(--text-muted);
   border-color: var(--border-color);
 }
+
+/* Voice recording disabled state */
+.voice-disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  filter: grayscale(100%);
+  position: relative;
+}
+
+.voice-disabled::after {
+  content: '🔇';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.voice-disabled:hover {
+  opacity: 0.5;
+  filter: grayscale(100%);
+}
+
+/* Task running disabled state (existing) */
+.task-running-disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  filter: grayscale(100%);
+}
+
+.task-running-disabled:hover {
+  opacity: 0.5;
+  filter: grayscale(100%);
+}

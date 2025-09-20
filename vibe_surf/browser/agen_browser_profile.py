@@ -17,6 +17,8 @@ from browser_use.observability import observe_debug
 from browser_use.utils import _log_pretty_path, logger
 
 from browser_use.browser import BrowserProfile
+from browser_use.browser.profile import CHROME_DEFAULT_ARGS, CHROME_DOCKER_ARGS, CHROME_HEADLESS_ARGS, \
+    CHROME_DETERMINISTIC_RENDERING_ARGS, CHROME_DISABLE_SECURITY_ARGS, BrowserLaunchArgs
 
 
 class AgentBrowserProfile(BrowserProfile):

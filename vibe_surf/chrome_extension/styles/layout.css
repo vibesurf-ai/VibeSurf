@@ -9,7 +9,7 @@
   min-width: 320px;
   background-color: var(--bg-primary);
   resize: horizontal;
-  overflow: auto;
+  overflow: hidden;
 }
 
 /* Header */

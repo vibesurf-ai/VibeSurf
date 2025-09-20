@@ -410,6 +410,67 @@ class VibeSurfAPIClient {
     return this.get(`/config/llm/providers/${encodeURIComponent(providerName)}/models`);
   }
 
+  // Voice Profile Management
+  async getVoiceProfiles(activeOnly = true, voiceModelType = null, limit = 50, offset = 0) {
+    const params = { active_only: activeOnly, limit, offset };
+    if (voiceModelType) {
+      params.voice_model_type = voiceModelType;
+    }
+    return this.get('/voices/voice-profiles', { params });
+  }
+
+  async getVoiceProfile(profileName) {
+    return this.get(`/voices/${encodeURIComponent(profileName)}`);
+  }
+
+  async createVoiceProfile(profileData) {
+    return this.post('/voices/voice-profiles', profileData);
+  }
+
+  async updateVoiceProfile(profileName, updateData) {
+    return this.put(`/voices/voice-profiles/${encodeURIComponent(profileName)}`, updateData);
+  }
+
+  async deleteVoiceProfile(profileName) {
+    return this.delete(`/voices/voice-profiles/${encodeURIComponent(profileName)}`);
+  }
+
+  // Voice Models - matches the backend route @router.get("/models")
+  async getVoiceModels(modelType = null) {
+    let url = '/voices/models';
+    if (modelType) {
+      url += `?model_type=${encodeURIComponent(modelType)}`;
+    }
+    return this.get(url);
+  }
+
+  // Voice Recording API
+  async transcribeAudio(audioBlob, voiceProfileName = null) {
+    const formData = new FormData();
+    formData.append('audio_file', audioBlob, 'recording.webm');
+    
+    // Add voice profile name if provided
+    const params = {};
+    if (voiceProfileName) {
+      params.voice_profile_name = voiceProfileName;
+    }
+    
+    return this.post('/voices/asr', formData, {
+      params,
+      headers: {} // Let browser set Content-Type with boundary for FormData
+    });
+  }
+
+  // Get available ASR profiles
+  async getASRProfiles(activeOnly = true) {
+    return this.get('/voices/voice-profiles', {
+      params: {
+        voice_model_type: 'asr',
+        active_only: activeOnly
+      }
+    });
+  }
+
   // Environment Variables
   async getEnvironmentVariables() {
     return this.get('/config/environments');

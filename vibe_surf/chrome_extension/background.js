@@ -155,12 +155,14 @@ class VibeSurfBackground {
   }
 
   handleMessage(message, sender, sendResponse) {
+    console.log('[VibeSurf] Received message:', message.type);
     
     // Handle async messages properly
     (async () => {
       try {
         let result;
         
+        console.log('[VibeSurf] Processing message type:', message.type);
         switch (message.type) {
           case 'GET_CURRENT_TAB':
             result = await this.getCurrentTabInfo();
@@ -206,9 +208,56 @@ class VibeSurfBackground {
             result = await this.getAllTabs();
             break;
             
+          case 'REQUEST_MICROPHONE_PERMISSION':
+            result = await this.requestMicrophonePermission();
+            break;
+            
+          case 'REQUEST_MICROPHONE_PERMISSION_WITH_UI':
+            console.log('[VibeSurf] Handling REQUEST_MICROPHONE_PERMISSION_WITH_UI');
+            result = await this.requestMicrophonePermissionWithUI();
+            break;
+            
+          case 'MICROPHONE_PERMISSION_RESULT':
+            console.log('[VibeSurf] Received MICROPHONE_PERMISSION_RESULT:', message);
+            console.log('[VibeSurf] Permission granted:', message.granted);
+            console.log('[VibeSurf] Permission error:', message.error);
+            
+            // Handle permission result from URL parameter approach
+            if (message.granted !== undefined) {
+              console.log('[VibeSurf] Processing permission result with granted:', message.granted);
+              
+              // Store the result for the original tab to retrieve
+              chrome.storage.local.set({
+                microphonePermissionResult: {
+                  granted: message.granted,
+                  error: message.error,
+                  timestamp: Date.now()
+                }
+              });
+              
+              // Also send to any waiting listeners
+              console.log('[VibeSurf] Broadcasting permission result to all tabs...');
+              chrome.runtime.sendMessage({
+                type: 'MICROPHONE_PERMISSION_RESULT',
+                granted: message.granted,
+                error: message.error
+              }).then(() => {
+                console.log('[VibeSurf] Permission result broadcast successful');
+              }).catch((err) => {
+                console.log('[VibeSurf] Permission result broadcast failed (no listeners):', err);
+              });
+            }
+            result = { acknowledged: true };
+            break;
+            
           default:
-            console.warn('[VibeSurf] Unknown message type:', message.type);
-            result = { error: 'Unknown message type' };
+            console.warn('[VibeSurf] Unknown message type:', message.type, 'Available handlers:', [
+              'GET_CURRENT_TAB', 'UPDATE_BADGE', 'SHOW_NOTIFICATION', 'COPY_TO_CLIPBOARD',
+              'HEALTH_CHECK', 'GET_BACKEND_STATUS', 'STORE_SESSION_DATA', 'GET_SESSION_DATA',
+              'OPEN_FILE_URL', 'OPEN_FILE_SYSTEM', 'GET_ALL_TABS', 'REQUEST_MICROPHONE_PERMISSION',
+              'REQUEST_MICROPHONE_PERMISSION_WITH_UI', 'MICROPHONE_PERMISSION_RESULT'
+            ]);
+            result = { error: 'Unknown message type', receivedType: message.type };
         }
         
         sendResponse(result);
@@ -321,14 +370,65 @@ class VibeSurfBackground {
     // Map custom types to valid Chrome notification types
     const validType = ['basic', 'image', 'list', 'progress'].includes(type) ? type : 'basic';
     
-    const notificationId = await chrome.notifications.create({
-      type: validType,
-      iconUrl,
-      title: title || 'VibeSurf',
-      message
-    });
+    // Validate icon URL and provide fallback
+    let validatedIconUrl = iconUrl;
+    try {
+      // Check if icon URL is accessible
+      if (iconUrl && iconUrl !== 'icons/icon48.png') {
+        // For custom icons, validate they exist
+        const response = await fetch(iconUrl, { method: 'HEAD' });
+        if (!response.ok) {
+          validatedIconUrl = 'icons/icon48.png';
+        }
+      } else {
+        // Use default icon, check if it exists
+        const defaultIconUrl = chrome.runtime.getURL('icons/icon48.png');
+        const response = await fetch(defaultIconUrl, { method: 'HEAD' });
+        if (response.ok) {
+          validatedIconUrl = defaultIconUrl;
+        } else {
+          // Fallback to logo.png if icon48.png doesn't exist
+          const logoUrl = chrome.runtime.getURL('icons/logo.png');
+          const logoResponse = await fetch(logoUrl, { method: 'HEAD' });
+          if (logoResponse.ok) {
+            validatedIconUrl = logoUrl;
+          } else {
+            // If no icons work, use empty string (browser will use default)
+            validatedIconUrl = '';
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('[VibeSurf] Icon validation failed, using fallback:', error);
+      // Use empty string as fallback (browser will use default icon)
+      validatedIconUrl = '';
+    }
     
-    return { notificationId };
+    try {
+      const notificationId = await chrome.notifications.create({
+        type: validType,
+        iconUrl: validatedIconUrl,
+        title: title || 'VibeSurf',
+        message
+      });
+      
+      return { notificationId };
+    } catch (error) {
+      console.error('[VibeSurf] Failed to create notification:', error);
+      // Try once more with empty icon URL
+      try {
+        const notificationId = await chrome.notifications.create({
+          type: validType,
+          iconUrl: '', // Empty string will use browser default
+          title: title || 'VibeSurf',
+          message
+        });
+        return { notificationId };
+      } catch (fallbackError) {
+        console.error('[VibeSurf] Fallback notification also failed:', fallbackError);
+        throw new Error(`Failed to create notification: ${error.message}`);
+      }
+    }
   }
 
   async showWelcomeNotification() {
@@ -620,6 +720,121 @@ class VibeSurfBackground {
       
     } catch (error) {
       console.error('[VibeSurf] Clipboard operation failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Request microphone permission through background script
+  async requestMicrophonePermission() {
+    try {
+      console.log('[VibeSurf] Requesting microphone permission through background script');
+      
+      // Get the active tab to inject script
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      if (!tab) {
+        throw new Error('No active tab found');
+      }
+      
+      // Check if we can inject script into this tab
+      if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') ||
+          tab.url.startsWith('edge://') || tab.url.startsWith('moz-extension://')) {
+        throw new Error('Cannot access microphone from this type of page');
+      }
+      
+      // Inject script to request microphone permission
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          return new Promise((resolve, reject) => {
+            try {
+              // Check if mediaDevices is available
+              if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                reject(new Error('Media devices not supported'));
+                return;
+              }
+              
+              // Request microphone with minimal constraints
+              const constraints = { audio: true, video: false };
+              
+              navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => {
+                  // Stop the stream immediately after getting permission
+                  stream.getTracks().forEach(track => track.stop());
+                  resolve({ success: true, hasPermission: true });
+                })
+                .catch(error => {
+                  reject(new Error(`Microphone permission denied: ${error.name} - ${error.message}`));
+                });
+            } catch (error) {
+              reject(new Error(`Failed to request microphone permission: ${error.message}`));
+            }
+          });
+        }
+      });
+      
+      const result = await results[0].result;
+      console.log('[VibeSurf] Microphone permission result:', result);
+      return result;
+      
+    } catch (error) {
+      console.error('[VibeSurf] Failed to request microphone permission:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Create a proper permission request page that opens in a new tab
+  async requestMicrophonePermissionWithUI() {
+    try {
+      console.log('[VibeSurf] Opening permission request page in new tab');
+      
+      // Use the existing permission-request.html file
+      const permissionPageUrl = chrome.runtime.getURL('permission-request.html');
+      
+      // Create a tab with the permission page
+      const permissionTab = await chrome.tabs.create({
+        url: permissionPageUrl,
+        active: true
+      });
+      
+      console.log('[VibeSurf] Created permission tab:', permissionTab.id);
+      
+      // Return a promise that resolves when we get the permission result
+      return new Promise((resolve) => {
+        const messageHandler = (message, sender, sendResponse) => {
+          if (message.type === 'MICROPHONE_PERMISSION_RESULT') {
+            console.log('[VibeSurf] Received permission result:', message);
+            
+            // Clean up the message listener
+            chrome.runtime.onMessage.removeListener(messageHandler);
+            
+            // Close the permission tab
+            chrome.tabs.remove(permissionTab.id).catch(() => {
+              // Tab might already be closed
+            });
+            
+            // Resolve the promise
+            if (message.granted) {
+              resolve({ success: true, hasPermission: true });
+            } else {
+              resolve({ success: false, error: message.error || 'Permission denied by user' });
+            }
+          }
+        };
+        
+        // Add the message listener
+        chrome.runtime.onMessage.addListener(messageHandler);
+        
+        // Set a timeout to clean up if the tab is closed without response
+        setTimeout(() => {
+          chrome.runtime.onMessage.removeListener(messageHandler);
+          chrome.tabs.remove(permissionTab.id).catch(() => {});
+          resolve({ success: false, error: 'Permission request timed out' });
+        }, 30000); // 30 second timeout
+      });
+      
+    } catch (error) {
+      console.error('[VibeSurf] Failed to create permission UI:', error);
       return { success: false, error: error.message };
     }
   }
