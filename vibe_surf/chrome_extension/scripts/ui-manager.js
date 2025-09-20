@@ -1338,6 +1338,15 @@ class VibeSurfUIManager {
         terminateBtn?.classList.remove('hidden');
         break;
         
+      case 'done':
+      case 'completed':
+      case 'finished':
+        console.log(`[UIManager] Task completed with status: ${status}, hiding panel after delay`);
+        // Treat as ready state
+        panel.classList.add('hidden');
+        panel.classList.remove('error-state');
+        break;
+        
       default:
         console.log(`[UIManager] Unknown control panel status: ${status}, hiding panel`);
         panel.classList.add('hidden');
@@ -1443,7 +1452,19 @@ class VibeSurfUIManager {
     }
     
     logs.forEach(log => this.addActivityLog(log));
+    
+    // Bind link click handlers to all existing activity items after loading
+    this.bindLinkHandlersToAllActivityItems();
+    
     this.scrollActivityToBottom();
+  }
+
+  bindLinkHandlersToAllActivityItems() {
+    // Bind link click handlers to all existing activity items
+    const activityItems = this.elements.activityLog.querySelectorAll('.activity-item');
+    activityItems.forEach(item => {
+      this.bindLinkClickHandlers(item);
+    });
   }
 
   addActivityLog(activityData) {
@@ -1475,6 +1496,9 @@ class VibeSurfUIManager {
         
         // Bind copy button functionality
         this.bindCopyButtonEvent(activityItem, activityData);
+        
+        // Bind link click handlers to prevent extension freezing
+        this.bindLinkClickHandlers(activityItem);
       }
     }
   }
@@ -1674,6 +1698,147 @@ class VibeSurfUIManager {
         
         await this.copyMessageToClipboard(activityData);
       });
+    }
+  }
+
+  bindLinkClickHandlers(activityItem) {
+    // Handle all link clicks within activity items to prevent extension freezing
+    const links = activityItem.querySelectorAll('a');
+    
+    links.forEach(link => {
+      // Check if handler is already attached to prevent double binding
+      if (link.hasAttribute('data-link-handler-attached')) {
+        return;
+      }
+      
+      link.setAttribute('data-link-handler-attached', 'true');
+      
+      link.addEventListener('click', async (e) => {
+        console.log('[VibeSurf] Link click event detected:', e);
+        
+        // Comprehensive event prevention
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation(); // Prevent any other handlers
+        
+        // Remove href temporarily to prevent default browser behavior
+        const originalHref = link.getAttribute('href');
+        link.setAttribute('href', '#');
+        
+        const href = originalHref;
+        if (!href || href === '#') return;
+        
+        // Debounce - prevent rapid repeated clicks
+        if (link.hasAttribute('data-link-processing')) {
+          console.log('[VibeSurf] Link already processing, ignoring duplicate click');
+          return;
+        }
+        
+        link.setAttribute('data-link-processing', 'true');
+        
+        try {
+          console.log('[VibeSurf] Processing link:', href);
+          
+          // Handle file:// links using existing logic
+          if (href.startsWith('file://')) {
+            await this.handleFileLinkClick(href);
+          }
+          // Handle HTTP/HTTPS links
+          else if (href.startsWith('http://') || href.startsWith('https://')) {
+            await this.handleHttpLinkClick(href);
+          }
+          // Handle other protocols or relative URLs
+          else {
+            await this.handleOtherLinkClick(href);
+          }
+          
+          console.log('[VibeSurf] Link processed successfully:', href);
+        } catch (error) {
+          console.error('[VibeSurf] Error handling link click:', error);
+          this.showNotification(`Failed to open link: ${error.message}`, 'error');
+        } finally {
+          // Restore original href
+          link.setAttribute('href', originalHref);
+          
+          // Remove processing flag after a short delay
+          setTimeout(() => {
+            link.removeAttribute('data-link-processing');
+          }, 1000);
+        }
+      });
+    });
+  }
+
+  async handleFileLinkClick(fileUrl) {
+    console.log('[UIManager] Opening file URL:', fileUrl);
+    
+    // Use the background script to handle file URLs
+    const result = await chrome.runtime.sendMessage({
+      type: 'OPEN_FILE_URL',
+      data: { fileUrl }
+    });
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to open file');
+    }
+  }
+
+  async handleHttpLinkClick(url) {
+    console.log('[VibeSurf] Opening HTTP URL:', url);
+    
+    try {
+      // Open HTTP/HTTPS links in a new tab
+      const result = await chrome.runtime.sendMessage({
+        type: 'OPEN_FILE_URL',
+        data: { fileUrl: url }
+      });
+      
+      console.log('[VibeSurf] Background script response:', result);
+      
+      if (!result || !result.success) {
+        throw new Error(result?.error || 'Failed to create tab for URL');
+      }
+      
+      console.log('[VibeSurf] Successfully opened tab:', result.tabId);
+    } catch (error) {
+      console.error('[VibeSurf] Error opening HTTP URL:', error);
+      throw error;
+    }
+  }
+
+  async handleOtherLinkClick(url) {
+    console.log('[UIManager] Opening other URL:', url);
+    
+    // For relative URLs or other protocols, try to open in new tab
+    try {
+      // Use the background script to handle URL opening
+      const result = await chrome.runtime.sendMessage({
+        type: 'OPEN_FILE_URL',
+        data: { fileUrl: url }
+      });
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to open URL');
+      }
+    } catch (error) {
+      // If the background script method fails, try to construct absolute URL
+      if (!url.startsWith('http')) {
+        try {
+          const absoluteUrl = new URL(url, window.location.href).href;
+          const result = await chrome.runtime.sendMessage({
+            type: 'OPEN_FILE_URL',
+            data: { fileUrl: absoluteUrl }
+          });
+          
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to open absolute URL');
+          }
+        } catch (urlError) {
+          throw new Error(`Failed to open URL: ${urlError.message}`);
+        }
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -2492,45 +2657,83 @@ class VibeSurfUIManager {
 
   // Cleanup
   destroy() {
-    // Stop task status monitoring
-    this.stopTaskStatusMonitoring();
-    
-    // Cleanup voice recorder
-    if (this.voiceRecorder) {
-      this.voiceRecorder.cleanup();
+    // Prevent multiple cleanup calls
+    if (this.isDestroying) {
+      console.log('[UIManager] Cleanup already in progress, skipping...');
+      return;
     }
     
-    // Cleanup managers
-    if (this.settingsManager) {
-      // Cleanup settings manager if it has destroy method
-      if (typeof this.settingsManager.destroy === 'function') {
-        this.settingsManager.destroy();
+    this.isDestroying = true;
+    console.log('[UIManager] Destroying UI manager...');
+    
+    try {
+      // Stop task status monitoring
+      this.stopTaskStatusMonitoring();
+      
+      // Cleanup voice recorder
+      if (this.voiceRecorder) {
+        this.voiceRecorder.cleanup();
+        this.voiceRecorder = null;
       }
-    }
-    
-    if (this.historyManager) {
-      // Cleanup history manager if it has destroy method
-      if (typeof this.historyManager.destroy === 'function') {
-        this.historyManager.destroy();
+      
+      // Cleanup managers with error handling
+      if (this.settingsManager) {
+        try {
+          if (typeof this.settingsManager.destroy === 'function') {
+            this.settingsManager.destroy();
+          }
+        } catch (error) {
+          console.error('[UIManager] Error destroying settings manager:', error);
+        }
+        this.settingsManager = null;
       }
-    }
-    
-    if (this.fileManager) {
-      // Cleanup file manager if it has destroy method
-      if (typeof this.fileManager.destroy === 'function') {
-        this.fileManager.destroy();
+      
+      if (this.historyManager) {
+        try {
+          if (typeof this.historyManager.destroy === 'function') {
+            this.historyManager.destroy();
+          }
+        } catch (error) {
+          console.error('[UIManager] Error destroying history manager:', error);
+        }
+        this.historyManager = null;
       }
-    }
-    
-    if (this.modalManager) {
-      // Cleanup modal manager if it has destroy method
-      if (typeof this.modalManager.destroy === 'function') {
-        this.modalManager.destroy();
+      
+      if (this.fileManager) {
+        try {
+          if (typeof this.fileManager.destroy === 'function') {
+            this.fileManager.destroy();
+          }
+        } catch (error) {
+          console.error('[UIManager] Error destroying file manager:', error);
+        }
+        this.fileManager = null;
       }
+      
+      if (this.modalManager) {
+        try {
+          if (typeof this.modalManager.destroy === 'function') {
+            this.modalManager.destroy();
+          }
+        } catch (error) {
+          console.error('[UIManager] Error destroying modal manager:', error);
+        }
+        this.modalManager = null;
+      }
+      
+      // Clear state
+      this.state = {
+        isLoading: false,
+        isTaskRunning: false,
+        taskInfo: null
+      };
+      
+      console.log('[UIManager] UI manager cleanup complete');
+    } catch (error) {
+      console.error('[UIManager] Error during destroy:', error);
+    } finally {
+      this.isDestroying = false;
     }
-    
-    // Clear state
-    this.state.currentModal = null;
   }
 
   // Tab Selector Methods

@@ -135,12 +135,17 @@ class VibeSurfBackground {
       console.error('[VibeSurf] Failed to open side panel:', error);
       
       // Show notification with helpful message
-      await chrome.notifications.create({
-        type: 'basic',
-        iconUrl: chrome.runtime.getURL('icons/icon48.png') || '',
-        title: 'VibeSurf',
-        message: 'Side panel failed. Please update Chrome to the latest version or try right-clicking the extension icon.'
-      });
+      try {
+        await chrome.notifications.create({
+          type: 'basic',
+          iconUrl: '', // Use empty string to avoid icon issues
+          title: 'VibeSurf',
+          message: 'Side panel failed. Please update Chrome to the latest version or try right-clicking the extension icon.'
+        });
+      } catch (notifError) {
+        console.warn('[VibeSurf] Notification failed:', notifError);
+        // Don't throw, just log the warning
+      }
       
       // Fallback: try to open in new tab
       try {
@@ -365,56 +370,35 @@ class VibeSurfBackground {
   }
 
   async showNotification(data) {
-    const { title, message, type = 'info', iconUrl = 'icons/icon48.png' } = data;
+    const { title, message, type = 'info', iconUrl } = data;
     
     // Map custom types to valid Chrome notification types
     const validType = ['basic', 'image', 'list', 'progress'].includes(type) ? type : 'basic';
     
-    // Validate icon URL and provide fallback
-    let validatedIconUrl = iconUrl;
-    try {
-      // Check if icon URL is accessible
-      if (iconUrl && iconUrl !== 'icons/icon48.png') {
-        // For custom icons, validate they exist
-        const response = await fetch(iconUrl, { method: 'HEAD' });
-        if (!response.ok) {
-          validatedIconUrl = 'icons/icon48.png';
-        }
-      } else {
-        // Use default icon, check if it exists
-        const defaultIconUrl = chrome.runtime.getURL('icons/icon48.png');
-        const response = await fetch(defaultIconUrl, { method: 'HEAD' });
-        if (response.ok) {
-          validatedIconUrl = defaultIconUrl;
-        } else {
-          // Fallback to logo.png if icon48.png doesn't exist
-          const logoUrl = chrome.runtime.getURL('icons/logo.png');
-          const logoResponse = await fetch(logoUrl, { method: 'HEAD' });
-          if (logoResponse.ok) {
-            validatedIconUrl = logoUrl;
-          } else {
-            // If no icons work, use empty string (browser will use default)
-            validatedIconUrl = '';
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('[VibeSurf] Icon validation failed, using fallback:', error);
-      // Use empty string as fallback (browser will use default icon)
-      validatedIconUrl = '';
-    }
+    // Simplified icon handling - try available icons without validation
+    let finalIconUrl = '';
+    
+    // Try to use extension icons in order of preference, but don't validate with fetch
+    const iconCandidates = [
+      iconUrl ? chrome.runtime.getURL(iconUrl) : null,
+      chrome.runtime.getURL('icons/icon48.png'),
+      chrome.runtime.getURL('icons/logo.png')
+    ].filter(Boolean);
+    
+    // Use the first candidate, or empty string as fallback
+    finalIconUrl = iconCandidates[0] || '';
     
     try {
       const notificationId = await chrome.notifications.create({
         type: validType,
-        iconUrl: validatedIconUrl,
+        iconUrl: finalIconUrl,
         title: title || 'VibeSurf',
         message
       });
       
       return { notificationId };
     } catch (error) {
-      console.error('[VibeSurf] Failed to create notification:', error);
+      console.warn('[VibeSurf] Notification with icon failed, trying without icon:', error);
       // Try once more with empty icon URL
       try {
         const notificationId = await chrome.notifications.create({
@@ -432,12 +416,17 @@ class VibeSurfBackground {
   }
 
   async showWelcomeNotification() {
-    await chrome.notifications.create({
-      type: 'basic',
-      iconUrl: 'icons/icon48.png',
-      title: 'Welcome to VibeSurf!',
-      message: 'Click the VibeSurf icon in the toolbar to start automating your browsing tasks.'
-    });
+    try {
+      await chrome.notifications.create({
+        type: 'basic',
+        iconUrl: '', // Use empty string to avoid icon issues
+        title: 'Welcome to VibeSurf!',
+        message: 'Click the VibeSurf icon in the toolbar to start automating your browsing tasks.'
+      });
+    } catch (error) {
+      console.warn('[VibeSurf] Welcome notification failed:', error);
+      // Don't throw, just log the warning
+    }
   }
 
   async checkBackendStatus(backendUrl = null) {
@@ -558,7 +547,40 @@ class VibeSurfBackground {
       return { success: false, error: 'No file URL provided' };
     }
 
+    // Add a unique request ID to track duplicate calls
+    const requestId = Date.now() + Math.random();
+    console.log(`[VibeSurf] openFileUrl called with ID: ${requestId}, URL: ${fileUrl}`);
+
     try {
+      // Validate URL format before attempting to open
+      try {
+        new URL(fileUrl);
+      } catch (urlError) {
+        console.warn('[VibeSurf] Invalid URL format:', fileUrl, urlError);
+        return { success: false, error: 'Invalid file URL format' };
+      }
+      
+      // Check if this is an HTTP/HTTPS URL and handle it appropriately
+      if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+        console.log(`[VibeSurf] Detected HTTP(S) URL, creating tab for: ${fileUrl}`);
+        
+        // Try to create a new tab with the URL
+        const tab = await chrome.tabs.create({
+          url: fileUrl,
+          active: true
+        });
+        
+        if (tab && tab.id) {
+          console.log(`[VibeSurf] Successfully opened HTTP(S) URL in tab: ${tab.id} (request: ${requestId})`);
+          return { success: true, tabId: tab.id };
+        } else {
+          console.warn(`[VibeSurf] Tab creation returned but no tab ID for request: ${requestId}`);
+          return { success: false, error: 'Failed to create tab - no tab ID returned' };
+        }
+      }
+      
+      // For file:// URLs, try the original approach
+      console.log(`[VibeSurf] Attempting to open file URL: ${fileUrl} (request: ${requestId})`);
       
       // Try to create a new tab with the file URL
       const tab = await chrome.tabs.create({
@@ -567,16 +589,25 @@ class VibeSurfBackground {
       });
       
       if (tab && tab.id) {
+        console.log(`[VibeSurf] Successfully opened file in tab: ${tab.id} (request: ${requestId})`);
         return { success: true, tabId: tab.id };
       } else {
-        return { success: false, error: 'Failed to create tab' };
+        console.warn(`[VibeSurf] Tab creation returned but no tab ID for request: ${requestId}`);
+        return { success: false, error: 'Failed to create tab - no tab ID returned' };
       }
       
     } catch (error) {
-      console.error('[VibeSurf] Error opening file URL:', error);
+      console.error(`[VibeSurf] Error opening file URL (request: ${requestId}):`, error);
+      
+      // Provide more specific error messages
+      let errorMessage = error.message || 'Unknown error opening file';
+      if (error.message && error.message.includes('file://')) {
+        errorMessage = 'Browser security restricts opening local files. Try copying the file path and opening manually.';
+      }
+      
       return {
         success: false,
-        error: error.message || 'Unknown error opening file'
+        error: errorMessage
       };
     }
   }

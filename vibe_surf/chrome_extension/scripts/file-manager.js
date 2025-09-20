@@ -275,14 +275,28 @@ class VibeSurfFileManager {
   async handleFileLink(filePath) {
     // Prevent multiple simultaneous calls
     if (this.state.isHandlingFileLink) {
+      console.log('[FileManager] File link handling already in progress, skipping...');
       return;
     }
     
     this.state.isHandlingFileLink = true;
     
     try {
-      // First decode the URL-encoded path
-      let decodedPath = decodeURIComponent(filePath);
+      console.log('[FileManager] Handling file link:', filePath);
+      
+      // Validate input
+      if (!filePath || typeof filePath !== 'string') {
+        throw new Error('Invalid file path provided');
+      }
+      
+      // First decode the URL-encoded path safely
+      let decodedPath;
+      try {
+        decodedPath = decodeURIComponent(filePath);
+      } catch (decodeError) {
+        console.warn('[FileManager] Failed to decode URL, using original path:', decodeError);
+        decodedPath = filePath;
+      }
       
       // Remove file:// protocol prefix and normalize
       let cleanPath = decodedPath.replace(/^file:\/\/\//, '').replace(/^file:\/\//, '');
@@ -300,21 +314,28 @@ class VibeSurfFileManager {
         `file:///${cleanPath}` :
         `file:///${cleanPath.replace(/^\//, '')}`;  // Remove leading slash and add triple slash
       
+      console.log('[FileManager] Processed file URL:', fileUrl);
+      
       // Show user notification about the action
       this.emit('notification', {
         message: `Opening file: ${cleanPath}`,
         type: 'info'
       });
       
-      // Use setTimeout to prevent UI blocking
+      // Use setTimeout to prevent UI blocking and ensure proper cleanup
       setTimeout(async () => {
         try {
           // For user-clicked file links, use OPEN_FILE_URL to keep tab open
           // This prevents the auto-close behavior in OPEN_FILE_SYSTEM
-          const fileOpenResponse = await chrome.runtime.sendMessage({
-            type: 'OPEN_FILE_URL',
-            data: { fileUrl: fileUrl }
-          });
+          const fileOpenResponse = await Promise.race([
+            chrome.runtime.sendMessage({
+              type: 'OPEN_FILE_URL',
+              data: { fileUrl: fileUrl }
+            }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('File open timeout')), 5000)
+            )
+          ]);
           
           if (fileOpenResponse && fileOpenResponse.success) {
             this.emit('notification', {
@@ -322,12 +343,14 @@ class VibeSurfFileManager {
               type: 'success'
             });
             return;
+          } else if (fileOpenResponse && fileOpenResponse.error) {
+            console.warn('[FileManager] Background script file open failed:', fileOpenResponse.error);
           }
           
-          // If OPEN_FILE_URL fails, try direct browser open
+          // If OPEN_FILE_URL fails, try direct browser open with additional safety
           try {
             const opened = window.open(fileUrl, '_blank', 'noopener,noreferrer');
-            if (opened) {
+            if (opened && !opened.closed) {
               this.emit('notification', {
                 message: 'File opened in browser',
                 type: 'success'
@@ -339,14 +362,32 @@ class VibeSurfFileManager {
           }
           
           // Last resort: Copy path to clipboard
-          this.copyToClipboardFallback(fileUrl);
+          await this.copyToClipboardFallback(fileUrl);
           
         } catch (error) {
           console.error('[FileManager] Error in async file handling:', error);
+          
+          // Provide more helpful error messages
+          let userMessage = 'Unable to open file';
+          if (error.message.includes('timeout')) {
+            userMessage = 'File open operation timed out. Try copying the path manually.';
+          } else if (error.message.includes('protocol')) {
+            userMessage = 'Browser security restricts opening local files. File path copied to clipboard.';
+          } else {
+            userMessage = `Unable to open file: ${error.message}`;
+          }
+          
           this.emit('notification', {
-            message: `Unable to open file: ${error.message}`,
+            message: userMessage,
             type: 'error'
           });
+          
+          // Fallback to clipboard
+          try {
+            await this.copyToClipboardFallback(fileUrl);
+          } catch (clipboardError) {
+            console.error('[FileManager] Clipboard fallback also failed:', clipboardError);
+          }
         } finally {
           this.state.isHandlingFileLink = false;
         }
@@ -355,7 +396,7 @@ class VibeSurfFileManager {
     } catch (error) {
       console.error('[FileManager] Error handling file link:', error);
       this.emit('notification', {
-        message: `Unable to open file: ${error.message}`,
+        message: `File link processing failed: ${error.message}`,
         type: 'error'
       });
       this.state.isHandlingFileLink = false;

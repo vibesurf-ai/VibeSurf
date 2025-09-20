@@ -525,7 +525,7 @@ class BrowserUseAgent(Agent):
         signal_handler.register()
 
         try:
-            self._log_agent_run()
+            await self._log_agent_run()
 
             self.logger.debug(
                 f'🔧 Agent setup: Task ID {self.task_id[-4:]}, Session ID {self.session_id[-4:]}, Browser Session ID {self.browser_session.id[-4:] if self.browser_session else "None"}'

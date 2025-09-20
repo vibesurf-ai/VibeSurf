@@ -43,6 +43,7 @@ from browser_use.browser.events import (
     TabClosedEvent,
     TabCreatedEvent,
 )
+from browser_use.browser.profile import BrowserProfile, ProxySettings
 
 DEFAULT_BROWSER_PROFILE = AgentBrowserProfile()
 
@@ -94,7 +95,7 @@ class AgentBrowserSession(BrowserSession):
             deterministic_rendering: bool | None = None,
             allowed_domains: list[str] | None = None,
             keep_alive: bool | None = None,
-            proxy: any | None = None,
+            proxy: ProxySettings | None = None,
             enable_default_extensions: bool | None = None,
             window_size: dict | None = None,
             window_position: dict | None = None,
