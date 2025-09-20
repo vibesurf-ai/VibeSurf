@@ -117,7 +117,6 @@ class VibeSurfSettingsManager {
       this.userSettingsStorage.on('settingChanged', this.handleStorageSettingChanged.bind(this));
       this.userSettingsStorage.on('settingsChanged', this.handleStorageSettingsChanged.bind(this));
       
-      console.log('[SettingsManager] User settings storage initialized');
     } catch (error) {
       console.error('[SettingsManager] Failed to initialize user settings storage:', error);
     }
@@ -125,7 +124,6 @@ class VibeSurfSettingsManager {
 
   // Handle individual setting changes from storage
   handleStorageSettingChanged(data) {
-    console.log('[SettingsManager] Storage setting changed:', data);
     
     // Apply setting changes to UI if needed
     switch (data.key) {
@@ -369,7 +367,6 @@ class VibeSurfSettingsManager {
     try {
       // Load voice profiles for ASR and TTS dropdowns in general settings
       const response = await this.apiClient.getVoiceProfiles(false);
-      console.log('[SettingsManager] Voice profiles loaded for general settings:', response);
       
       // Handle different response structures
       let profiles = [];
@@ -428,9 +425,6 @@ class VibeSurfSettingsManager {
       const savedAsrProfile = await this.userSettingsStorage.getDefaultAsr();
       const savedTtsProfile = await this.userSettingsStorage.getDefaultTts();
       
-      console.log('[SettingsManager] Restoring saved ASR profile:', savedAsrProfile);
-      console.log('[SettingsManager] Available ASR profiles:', asrProfiles.map(p => p.voice_profile_name));
-      
       // Check ASR profile
       if (!savedAsrProfile || !asrProfiles.find(p => p.voice_profile_name === savedAsrProfile)) {
         // No ASR profile selected or saved profile doesn't exist, select latest updated
@@ -464,9 +458,6 @@ class VibeSurfSettingsManager {
           this.elements.defaultAsrSelect.value = savedAsrProfile;
         }
       }
-      
-      console.log('[SettingsManager] Restoring saved TTS profile:', savedTtsProfile);
-      console.log('[SettingsManager] Available TTS profiles:', ttsProfiles.map(p => p.voice_profile_name));
       
       // Check TTS profile
       if (!savedTtsProfile || !ttsProfiles.find(p => p.voice_profile_name === savedTtsProfile)) {

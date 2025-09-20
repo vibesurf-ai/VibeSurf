@@ -145,22 +145,18 @@ class VibeSurfUserSettingsStorage {
         
         // Fallback to localStorage
         const stored = localStorage.getItem(this.storageKeys.userSettings);
-        console.log('[UserSettingsStorage] [DEBUG] localStorage raw stored value:', stored);
         const settings = stored ? JSON.parse(stored) : {};
-        console.log('[UserSettingsStorage] [DEBUG] Retrieved settings from localStorage:', settings);
         return settings;
       }
     } catch (error) {
-      console.error('[UserSettingsStorage] [DEBUG] Failed to get all settings:', error);
+      console.error('[UserSettingsStorage] Failed to get all settings:', error);
       // Fallback to localStorage if Chrome storage fails
       try {
-        console.log('[UserSettingsStorage] [DEBUG] Attempting localStorage fallback...');
         const stored = localStorage.getItem(this.storageKeys.userSettings);
         const settings = stored ? JSON.parse(stored) : {};
-        console.log('[UserSettingsStorage] [DEBUG] Fallback to localStorage successful:', settings);
         return settings;
       } catch (fallbackError) {
-        console.error('[UserSettingsStorage] [DEBUG] localStorage fallback also failed:', fallbackError);
+        console.error('[UserSettingsStorage] localStorage fallback also failed:', fallbackError);
         return {};
       }
     }
