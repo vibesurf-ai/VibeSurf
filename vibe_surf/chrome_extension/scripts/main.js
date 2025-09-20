@@ -189,6 +189,12 @@ class VibeSurfApp {
     // Periodic backend health check
     setInterval(async () => {
       try {
+        // Check if apiClient exists and is initialized
+        if (!this.apiClient || typeof this.apiClient.healthCheck !== 'function') {
+          console.warn('[VibeSurf] Health check skipped - API client not available');
+          return;
+        }
+        
         const healthCheck = await this.apiClient.healthCheck();
         
         if (healthCheck.status === 'healthy') {
@@ -413,18 +419,37 @@ class VibeSurfApp {
 
   // Cleanup method
   destroy() {
+    // Prevent multiple cleanup calls
+    if (this.isDestroying || !this.isInitialized) {
+      console.log('[VibeSurf] Cleanup already in progress or app not initialized, skipping...');
+      return;
+    }
+    
+    this.isDestroying = true;
     console.log('[VibeSurf] Cleaning up application...');
     
-    if (this.uiManager) {
-      this.uiManager.destroy();
+    try {
+      if (this.uiManager) {
+        this.uiManager.destroy();
+        this.uiManager = null;
+      }
+      
+      if (this.sessionManager) {
+        this.sessionManager.destroy();
+        this.sessionManager = null;
+      }
+      
+      if (this.apiClient) {
+        this.apiClient = null;
+      }
+      
+      this.isInitialized = false;
+      console.log('[VibeSurf] Application cleanup complete');
+    } catch (error) {
+      console.error('[VibeSurf] Error during cleanup:', error);
+    } finally {
+      this.isDestroying = false;
     }
-    
-    if (this.sessionManager) {
-      this.sessionManager.destroy();
-    }
-    
-    this.isInitialized = false;
-    console.log('[VibeSurf] Application cleanup complete');
   }
 
   // Get application status
@@ -456,8 +481,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Handle page unload
 window.addEventListener('beforeunload', () => {
-  if (window.vibeSurfApp) {
+  if (window.vibeSurfApp && window.vibeSurfApp.isInitialized && !window.vibeSurfApp.isDestroying) {
+    console.log('[VibeSurf] Page unloading, cleaning up...');
     window.vibeSurfApp.destroy();
+  }
+});
+
+// Handle visibility change to prevent unnecessary cleanup
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    console.log('[VibeSurf] Page hidden, but not cleaning up (might be tab switch)');
+  } else if (document.visibilityState === 'visible') {
+    console.log('[VibeSurf] Page visible again');
   }
 });
 

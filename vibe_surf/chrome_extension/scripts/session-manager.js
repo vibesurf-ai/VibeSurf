@@ -653,11 +653,37 @@ class VibeSurfSessionManager {
 
   // Cleanup
   destroy() {
-    this.stopActivityPolling();
-    this.eventListeners.clear();
-    this.currentSession = null;
-    this.activityLogs = [];
+    // Prevent multiple cleanup calls
+    if (this.isDestroying) {
+      console.log('[SessionManager] Cleanup already in progress, skipping...');
+      return;
+    }
     
+    this.isDestroying = true;
+    console.log('[SessionManager] Destroying session manager...');
+    
+    try {
+      this.stopActivityPolling();
+      this.eventListeners.clear();
+      
+      // Clear any ongoing requests
+      if (this.pollingTimer) {
+        clearTimeout(this.pollingTimer);
+        this.pollingTimer = null;
+      }
+      
+      // Reset state
+      this.currentSession = null;
+      this.currentTaskId = null;
+      this.activityLogs = [];
+      this.isPolling = false;
+      
+      console.log('[SessionManager] Session manager cleanup complete');
+    } catch (error) {
+      console.error('[SessionManager] Error during destroy:', error);
+    } finally {
+      this.isDestroying = false;
+    }
   }
 
   // Status helpers

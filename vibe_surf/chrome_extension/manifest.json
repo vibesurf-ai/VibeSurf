@@ -16,8 +16,7 @@
     "contextMenus",
     "tabs",
     "clipboardWrite",
-    "scripting",
-    "microphone"
+    "scripting"
   ],
   "host_permissions": [
     "http://localhost:*/*",
@@ -49,15 +48,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": [
-        "sidepanel.html",
-        "permission-request.html",
-        "permission-iframe.html",
-        "styles/*",
-        "scripts/*",
-        "config.js",
-        "icons/*"
-      ],
+      "resources": ["sidepanel.html", "styles/*", "scripts/*", "config.js", "icons/*"],
       "matches": ["<all_urls>"]
     }
   ]
