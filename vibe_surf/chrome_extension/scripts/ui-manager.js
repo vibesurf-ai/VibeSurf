@@ -2006,17 +2006,20 @@ class VibeSurfUIManager {
   async updateLLMProfileSelect() {
     if (!this.elements.llmProfileSelect) return;
     
-    
+    console.log('[UIManager] [DEBUG] updateLLMProfileSelect called');
+    console.log('[UIManager] [DEBUG] isRestoringSelections flag:', this.isRestoringSelections);
     
     // Preserve current user selection if any (to avoid overriding during profile updates)
     const currentSelection = this.elements.llmProfileSelect.value;
-    
+    console.log('[UIManager] [DEBUG] Current LLM selection before update:', currentSelection);
     
     const profiles = this.settingsManager.getLLMProfiles();
+    console.log('[UIManager] [DEBUG] Available LLM profiles:', profiles.map(p => p.profile_name));
     const select = this.elements.llmProfileSelect;
     select.innerHTML = '';
     
     if (profiles.length === 0) {
+      console.log('[UIManager] [DEBUG] No LLM profiles available, adding placeholder');
       // Add placeholder option when no profiles available
       const placeholderOption = document.createElement('option');
       placeholderOption.value = '';
@@ -2034,16 +2037,17 @@ class VibeSurfUIManager {
       
       // Determine selection priority: current selection > saved selection > default profile
       let targetSelection = currentSelection; // Preserve current selection first
+      console.log('[UIManager] [DEBUG] Initial target selection (current):', targetSelection);
       
       // If no current selection, get saved selection
       if (!targetSelection) {
         try {
           if (this.userSettingsStorage) {
             targetSelection = await this.userSettingsStorage.getSelectedLlmProfile();
-            
+            console.log('[UIManager] [DEBUG] Retrieved saved selection from storage:', targetSelection);
           }
         } catch (error) {
-          console.error('[UIManager] Failed to get saved LLM profile selection:', error);
+          console.error('[UIManager] [DEBUG] Failed to get saved LLM profile selection:', error);
         }
       }
       
@@ -2059,6 +2063,7 @@ class VibeSurfUIManager {
         // Check if this profile matches our target selection
         if (targetSelection && profile.profile_name === targetSelection) {
           hasTargetProfile = true;
+          console.log('[UIManager] [DEBUG] Found target profile in available profiles:', targetSelection);
         }
         
         select.appendChild(option);
@@ -2068,18 +2073,18 @@ class VibeSurfUIManager {
       if (hasTargetProfile) {
         select.value = targetSelection;
         hasSelectedProfile = true;
-        
+        console.log('[UIManager] [DEBUG] Set select value to target selection:', targetSelection);
       } else {
         // Fall back to default profile if target not available
         const defaultProfile = profiles.find(p => p.is_default);
         if (defaultProfile) {
           select.value = defaultProfile.profile_name;
           hasSelectedProfile = true;
-          
+          console.log('[UIManager] [DEBUG] Set select value to default profile:', defaultProfile.profile_name);
         }
       }
       
-      
+      console.log('[UIManager] [DEBUG] Final select value after update:', select.value);
     }
     
     // Update send button state if taskInput exists
@@ -2253,43 +2258,56 @@ class VibeSurfUIManager {
   // Restore LLM profile selection from user settings storage
   async restoreLlmProfileSelection() {
     try {
+      console.log('[UIManager] [DEBUG] Starting LLM profile restoration...');
+      console.log('[UIManager] [DEBUG] userSettingsStorage available:', !!this.userSettingsStorage);
+      console.log('[UIManager] [DEBUG] llmProfileSelect available:', !!this.elements.llmProfileSelect);
+      
       if (this.userSettingsStorage && this.elements.llmProfileSelect) {
-        const savedLlmProfile = await this.userSettingsStorage.getSelectedLlmProfile();
+        // Check current options available
+        const availableOptions = Array.from(this.elements.llmProfileSelect.options).map(opt => opt.value);
+        console.log('[UIManager] [DEBUG] Available LLM profile options:', availableOptions);
         
+        const savedLlmProfile = await this.userSettingsStorage.getSelectedLlmProfile();
+        console.log('[UIManager] [DEBUG] Retrieved saved LLM profile from storage:', savedLlmProfile);
         
         if (savedLlmProfile && savedLlmProfile.trim() !== '') {
           // Check if the saved profile exists in the current options
           const option = this.elements.llmProfileSelect.querySelector(`option[value="${savedLlmProfile}"]`);
+          console.log('[UIManager] [DEBUG] Found matching option for saved profile:', !!option);
+          
           if (option) {
+            console.log('[UIManager] [DEBUG] Setting LLM profile select value to:', savedLlmProfile);
             this.elements.llmProfileSelect.value = savedLlmProfile;
-            
+            console.log('[UIManager] [DEBUG] Actual select value after setting:', this.elements.llmProfileSelect.value);
           } else {
-            console.warn('[UIManager] Saved LLM profile not found in current options:', savedLlmProfile);
+            console.warn('[UIManager] [DEBUG] Saved LLM profile not found in current options:', savedLlmProfile);
           }
         } else {
-          
+          console.log('[UIManager] [DEBUG] No saved LLM profile, checking localStorage backup...');
           // Check localStorage backup for browser restart scenarios
           const backupProfile = localStorage.getItem('vibesurf-llm-profile-backup');
-          
+          console.log('[UIManager] [DEBUG] localStorage backup profile:', backupProfile);
           
           if (backupProfile) {
-            
+            console.log('[UIManager] [DEBUG] Found backup profile, attempting to restore:', backupProfile);
             const option = this.elements.llmProfileSelect.querySelector(`option[value="${backupProfile}"]`);
             if (option) {
               this.elements.llmProfileSelect.value = backupProfile;
-              
+              console.log('[UIManager] [DEBUG] Set LLM profile from backup, saving to Chrome storage...');
               // Also save it back to Chrome storage
               await this.userSettingsStorage.setSelectedLlmProfile(backupProfile);
+            } else {
+              console.warn('[UIManager] [DEBUG] Backup profile not found in current options:', backupProfile);
             }
           } else {
-            
+            console.log('[UIManager] [DEBUG] No backup profile found in localStorage');
           }
         }
       } else {
-        console.warn('[UIManager] userSettingsStorage or llmProfileSelect not available');
+        console.warn('[UIManager] [DEBUG] Required components not available - userSettingsStorage:', !!this.userSettingsStorage, 'llmProfileSelect:', !!this.elements.llmProfileSelect);
       }
     } catch (error) {
-      console.error('[UIManager] Failed to restore LLM profile selection:', error);
+      console.error('[UIManager] [DEBUG] Failed to restore LLM profile selection:', error);
     }
   }
 
@@ -2458,49 +2476,60 @@ class VibeSurfUIManager {
   // Restore agent mode selection from user settings storage
   async restoreAgentModeSelection() {
     try {
+      console.log('[UIManager] [DEBUG] Starting agent mode restoration...');
+      console.log('[UIManager] [DEBUG] userSettingsStorage available:', !!this.userSettingsStorage);
+      console.log('[UIManager] [DEBUG] agentModeSelect available:', !!this.elements.agentModeSelect);
+      
       if (this.userSettingsStorage && this.elements.agentModeSelect) {
+        // Check current options available
+        const availableOptions = Array.from(this.elements.agentModeSelect.options).map(opt => opt.value);
+        console.log('[UIManager] [DEBUG] Available agent mode options:', availableOptions);
+        
         const savedAgentMode = await this.userSettingsStorage.getSelectedAgentMode();
+        console.log('[UIManager] [DEBUG] Retrieved saved agent mode from storage:', savedAgentMode);
         
-        
-        if (savedAgentMode && savedAgentMode !== 'thinking') {
-          // Only restore if it's not the default value
+        if (savedAgentMode && savedAgentMode.trim() !== '') {
+          // Restore any saved agent mode, including 'thinking'
+          console.log('[UIManager] [DEBUG] Setting agent mode select value to:', savedAgentMode);
           this.elements.agentModeSelect.value = savedAgentMode;
-          
-          
+          console.log('[UIManager] [DEBUG] Actual agent mode select value after setting:', this.elements.agentModeSelect.value);
           
           // Ensure the option is actually selected
           const option = this.elements.agentModeSelect.querySelector(`option[value="${savedAgentMode}"]`);
+          console.log('[UIManager] [DEBUG] Found matching option for saved agent mode:', !!option);
           if (option) {
             option.selected = true;
-            
+            console.log('[UIManager] [DEBUG] Set option.selected = true for:', savedAgentMode);
+            console.log('[UIManager] Restored agent mode selection:', savedAgentMode);
           } else {
-            console.warn('[UIManager] Agent mode option not found:', savedAgentMode);
+            console.warn('[UIManager] [DEBUG] Agent mode option not found:', savedAgentMode);
           }
         } else {
-          
+          console.log('[UIManager] [DEBUG] No saved agent mode or default value, checking localStorage backup...');
           // Check localStorage backup for browser restart scenarios
           const backupMode = localStorage.getItem('vibesurf-agent-mode-backup');
-          
-          
+          console.log('[UIManager] [DEBUG] localStorage backup agent mode:', backupMode);
           
           if (backupMode) {
-            
+            console.log('[UIManager] [DEBUG] Found backup agent mode, attempting to restore:', backupMode);
             const option = this.elements.agentModeSelect.querySelector(`option[value="${backupMode}"]`);
             if (option) {
               this.elements.agentModeSelect.value = backupMode;
-              
+              console.log('[UIManager] [DEBUG] Set agent mode from backup, saving to Chrome storage...');
               // Also save it back to Chrome storage
               await this.userSettingsStorage.setSelectedAgentMode(backupMode);
+            } else {
+              console.warn('[UIManager] [DEBUG] Backup agent mode not found in current options:', backupMode);
             }
           } else {
-            
+            console.log('[UIManager] [DEBUG] No backup agent mode found in localStorage');
           }
         }
       } else {
-        console.warn('[UIManager] userSettingsStorage or agentModeSelect not available');
+        console.warn('[UIManager] [DEBUG] Required components not available - userSettingsStorage:', !!this.userSettingsStorage, 'agentModeSelect:', !!this.elements.agentModeSelect);
       }
     } catch (error) {
-      console.error('[UIManager] Failed to restore agent mode selection:', error);
+      console.error('[UIManager] [DEBUG] Failed to restore agent mode selection:', error);
     }
   }
 

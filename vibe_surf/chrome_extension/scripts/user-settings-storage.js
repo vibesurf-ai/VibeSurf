@@ -81,10 +81,29 @@ class VibeSurfUserSettingsStorage {
         }
       });
       
-      // If there are existing settings, save them to the new storage system
+      // If there are existing settings, merge them with current Chrome storage
       if (Object.keys(existingSettings).length > 0) {
         console.log('[UserSettingsStorage] Migrating existing settings:', existingSettings);
-        await this.saveSettings(existingSettings);
+        
+        // Get current Chrome storage settings to preserve them
+        const currentSettings = await this.getAllSettings();
+        
+        // Merge localStorage settings with existing Chrome storage (don't overwrite)
+        const mergedSettings = { ...currentSettings };
+        
+        // Only migrate localStorage values if they don't already exist in Chrome storage
+        Object.keys(existingSettings).forEach(key => {
+          if (!(key in mergedSettings)) {
+            mergedSettings[key] = existingSettings[key];
+            console.log(`[UserSettingsStorage] Migrated ${key}:`, existingSettings[key]);
+          }
+        });
+        
+        // Save merged settings only if something was actually migrated
+        if (Object.keys(mergedSettings).length !== Object.keys(currentSettings).length) {
+          await this.saveSettings(mergedSettings);
+          console.log('[UserSettingsStorage] Migration completed successfully');
+        }
       }
     } catch (error) {
       console.warn('[UserSettingsStorage] Failed to migrate existing settings:', error);
@@ -110,10 +129,7 @@ class VibeSurfUserSettingsStorage {
   // Get all settings from storage
   async getAllSettings() {
     try {
-      console.log('[UserSettingsStorage] getAllSettings called');
-      
       if (chrome && chrome.storage && chrome.storage.local) {
-        console.log('[UserSettingsStorage] Using Chrome storage API');
         // Use Chrome storage API with proper promise wrapping
         const result = await new Promise((resolve, reject) => {
           chrome.storage.local.get(this.storageKeys.userSettings, (result) => {
@@ -124,27 +140,27 @@ class VibeSurfUserSettingsStorage {
             }
           });
         });
-        const settings = result[this.storageKeys.userSettings] || {};
-        console.log('[UserSettingsStorage] Retrieved settings from Chrome storage:', settings);
-        return settings;
+        return result[this.storageKeys.userSettings] || {};
       } else {
-        console.log('[UserSettingsStorage] Using localStorage fallback');
+        
         // Fallback to localStorage
         const stored = localStorage.getItem(this.storageKeys.userSettings);
+        console.log('[UserSettingsStorage] [DEBUG] localStorage raw stored value:', stored);
         const settings = stored ? JSON.parse(stored) : {};
-        console.log('[UserSettingsStorage] Retrieved settings from localStorage:', settings);
+        console.log('[UserSettingsStorage] [DEBUG] Retrieved settings from localStorage:', settings);
         return settings;
       }
     } catch (error) {
-      console.error('[UserSettingsStorage] Failed to get all settings:', error);
+      console.error('[UserSettingsStorage] [DEBUG] Failed to get all settings:', error);
       // Fallback to localStorage if Chrome storage fails
       try {
+        console.log('[UserSettingsStorage] [DEBUG] Attempting localStorage fallback...');
         const stored = localStorage.getItem(this.storageKeys.userSettings);
         const settings = stored ? JSON.parse(stored) : {};
-        console.log('[UserSettingsStorage] Fallback to localStorage successful:', settings);
+        console.log('[UserSettingsStorage] [DEBUG] Fallback to localStorage successful:', settings);
         return settings;
       } catch (fallbackError) {
-        console.error('[UserSettingsStorage] localStorage fallback also failed:', fallbackError);
+        console.error('[UserSettingsStorage] [DEBUG] localStorage fallback also failed:', fallbackError);
         return {};
       }
     }
@@ -153,15 +169,14 @@ class VibeSurfUserSettingsStorage {
   // Save settings to storage
   async saveSettings(settings) {
     try {
-      console.log('[UserSettingsStorage] saveSettings called with:', settings);
-      
       if (chrome && chrome.storage && chrome.storage.local) {
-        console.log('[UserSettingsStorage] Using Chrome storage API for save');
+        // Get current settings first to merge
+        const currentSettings = await this.getAllSettings();
+        const mergedSettings = { ...currentSettings, ...settings };
+        
         // Use Chrome storage API with proper promise wrapping
         await new Promise((resolve, reject) => {
-          chrome.storage.local.set({
-            [this.storageKeys.userSettings]: settings
-          }, () => {
+          chrome.storage.local.set({ [this.storageKeys.userSettings]: mergedSettings }, () => {
             if (chrome.runtime.lastError) {
               reject(new Error(chrome.runtime.lastError.message));
             } else {
@@ -169,24 +184,26 @@ class VibeSurfUserSettingsStorage {
             }
           });
         });
-        console.log('[UserSettingsStorage] Settings saved to Chrome storage successfully');
+        
+        this.emit('settingsChanged', mergedSettings);
+        return mergedSettings;
       } else {
-        console.log('[UserSettingsStorage] Using localStorage for save');
         // Fallback to localStorage
-        localStorage.setItem(this.storageKeys.userSettings, JSON.stringify(settings));
-        console.log('[UserSettingsStorage] Settings saved to localStorage successfully');
+        const currentSettings = await this.getAllSettings();
+        const mergedSettings = { ...currentSettings, ...settings };
+        localStorage.setItem(this.storageKeys.userSettings, JSON.stringify(mergedSettings));
+        this.emit('settingsChanged', mergedSettings);
+        return mergedSettings;
       }
-      
-      console.log('[UserSettingsStorage] Settings saved:', settings);
-      this.emit('settingsChanged', settings);
     } catch (error) {
       console.error('[UserSettingsStorage] Failed to save settings:', error);
       // Fallback to localStorage if Chrome storage fails
       try {
-        console.log('[UserSettingsStorage] Attempting localStorage fallback for save');
-        localStorage.setItem(this.storageKeys.userSettings, JSON.stringify(settings));
-        console.log('[UserSettingsStorage] Settings saved to localStorage fallback successfully');
-        this.emit('settingsChanged', settings);
+        const currentSettings = await this.getAllSettings();
+        const mergedSettings = { ...currentSettings, ...settings };
+        localStorage.setItem(this.storageKeys.userSettings, JSON.stringify(mergedSettings));
+        this.emit('settingsChanged', mergedSettings);
+        return mergedSettings;
       } catch (fallbackError) {
         console.error('[UserSettingsStorage] localStorage fallback save also failed:', fallbackError);
         throw error; // Throw original error
@@ -277,28 +294,21 @@ class VibeSurfUserSettingsStorage {
 
   // LLM Profile settings
   async getSelectedLlmProfile() {
-    const profile = await this.getSetting('selectedLlmProfile');
-    console.log('[UserSettingsStorage] getSelectedLlmProfile returning:', profile);
-    return profile;
+    return await this.getSetting('selectedLlmProfile');
   }
 
   async setSelectedLlmProfile(profileName) {
-    console.log('[UserSettingsStorage] setSelectedLlmProfile called with:', profileName);
     await this.setSetting('selectedLlmProfile', profileName);
-    console.log('[UserSettingsStorage] setSelectedLlmProfile completed');
   }
 
   // Agent Mode settings
   async getSelectedAgentMode() {
-    const mode = await this.getSetting('selectedAgentMode');
-    console.log('[UserSettingsStorage] getSelectedAgentMode returning:', mode);
-    return mode;
+    return await this.getSetting('selectedAgentMode');
   }
 
   async setSelectedAgentMode(mode) {
-    console.log('[UserSettingsStorage] setSelectedAgentMode called with:', mode);
     await this.setSetting('selectedAgentMode', mode);
-    console.log('[UserSettingsStorage] setSelectedAgentMode completed');
+    console.log('[UserSettingsStorage] Setting updated: selectedAgentMode =', mode);
   }
 
   // Default Voice settings

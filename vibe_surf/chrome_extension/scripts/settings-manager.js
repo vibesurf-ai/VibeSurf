@@ -428,6 +428,9 @@ class VibeSurfSettingsManager {
       const savedAsrProfile = await this.userSettingsStorage.getDefaultAsr();
       const savedTtsProfile = await this.userSettingsStorage.getDefaultTts();
       
+      console.log('[SettingsManager] Restoring saved ASR profile:', savedAsrProfile);
+      console.log('[SettingsManager] Available ASR profiles:', asrProfiles.map(p => p.voice_profile_name));
+      
       // Check ASR profile
       if (!savedAsrProfile || !asrProfiles.find(p => p.voice_profile_name === savedAsrProfile)) {
         // No ASR profile selected or saved profile doesn't exist, select latest updated
@@ -454,7 +457,16 @@ class VibeSurfSettingsManager {
             type: 'info'
           });
         }
+      } else {
+        // Saved ASR profile exists and is valid - restore it to UI
+        console.log('[SettingsManager] Restoring saved ASR profile to UI:', savedAsrProfile);
+        if (this.elements.defaultAsrSelect) {
+          this.elements.defaultAsrSelect.value = savedAsrProfile;
+        }
       }
+      
+      console.log('[SettingsManager] Restoring saved TTS profile:', savedTtsProfile);
+      console.log('[SettingsManager] Available TTS profiles:', ttsProfiles.map(p => p.voice_profile_name));
       
       // Check TTS profile
       if (!savedTtsProfile || !ttsProfiles.find(p => p.voice_profile_name === savedTtsProfile)) {
@@ -481,6 +493,12 @@ class VibeSurfSettingsManager {
             message: `Auto-selected latest TTS profile: ${latestTtsProfile.voice_profile_name}`,
             type: 'info'
           });
+        }
+      } else {
+        // Saved TTS profile exists and is valid - restore it to UI
+        console.log('[SettingsManager] Restoring saved TTS profile to UI:', savedTtsProfile);
+        if (this.elements.defaultTtsSelect) {
+          this.elements.defaultTtsSelect.value = savedTtsProfile;
         }
       }
       
