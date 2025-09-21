@@ -3321,30 +3321,16 @@ class VibeSurfUIManager {
       console.log('[UIManager] Fetching skills from backend...');
       // Get all skills from backend
       const skills = await this.apiClient.getAllSkills();
-      
+
       console.log('[UIManager] Skills received from backend:', skills);
-      
+
       if (!skills || !Array.isArray(skills) || skills.length === 0) {
         console.warn('[UIManager] No skills returned from backend');
         this.skillSelectorState.allSkills = [];
         return;
       }
-      
-      this.skillSelectorState.allSkills = skills.map(skillName => ({
-        name: skillName,
-        displayName: skillName // Keep original skill name without transformation
-      }));
 
-      console.log('[UIManager] Processed skills:', this.skillSelectorState.allSkills);
-      
     } catch (error) {
-      console.error('[UIManager] Failed to populate skill selector:', error);
-      console.error('[UIManager] Error details:', {
-        message: error.message,
-        stack: error.stack,
-        response: error.response,
-        data: error.data
-      });
       
       // Show error to user
       this.showNotification(`Failed to load skills: ${error.message}`, 'error');
@@ -3352,6 +3338,7 @@ class VibeSurfUIManager {
       // Set empty array instead of fallback test data
       this.skillSelectorState.allSkills = [];
     }
+
   }
 
   filterSkills() {
