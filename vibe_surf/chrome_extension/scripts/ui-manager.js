@@ -1723,10 +1723,12 @@ class VibeSurfUIManager {
         
         // Remove href temporarily to prevent default browser behavior
         const originalHref = link.getAttribute('href');
+        const dataFilePath = link.getAttribute('data-file-path');
         link.setAttribute('href', '#');
         
-        const href = originalHref;
-        if (!href || href === '#') return;
+        // Use data-file-path if available (for file:// links), otherwise use href
+        const targetUrl = dataFilePath || originalHref;
+        if (!targetUrl || (targetUrl === '#' && !dataFilePath)) return;
         
         // Debounce - prevent rapid repeated clicks
         if (link.hasAttribute('data-link-processing')) {
@@ -1737,22 +1739,22 @@ class VibeSurfUIManager {
         link.setAttribute('data-link-processing', 'true');
         
         try {
-          console.log('[VibeSurf] Processing link:', href);
+          console.log('[VibeSurf] Processing link:', targetUrl);
           
           // Handle file:// links using existing logic
-          if (href.startsWith('file://')) {
-            await this.handleFileLinkClick(href);
+          if (targetUrl.startsWith('file://')) {
+            await this.handleFileLinkClick(targetUrl);
           }
           // Handle HTTP/HTTPS links
-          else if (href.startsWith('http://') || href.startsWith('https://')) {
-            await this.handleHttpLinkClick(href);
+          else if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+            await this.handleHttpLinkClick(targetUrl);
           }
           // Handle other protocols or relative URLs
           else {
-            await this.handleOtherLinkClick(href);
+            await this.handleOtherLinkClick(targetUrl);
           }
           
-          console.log('[VibeSurf] Link processed successfully:', href);
+          console.log('[VibeSurf] Link processed successfully:', targetUrl);
         } catch (error) {
           console.error('[VibeSurf] Error handling link click:', error);
           this.showNotification(`Failed to open link: ${error.message}`, 'error');
