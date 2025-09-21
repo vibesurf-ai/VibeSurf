@@ -498,6 +498,11 @@ class VibeSurfAPIClient {
     return this.get('/browser/all-tabs');
   }
 
+  // Agent APIs - Get available skills
+  async getAllSkills() {
+    return this.get('/agent/get_all_skills');
+  }
+
   // Utility methods
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
