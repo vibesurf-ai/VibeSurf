@@ -117,7 +117,6 @@ async def test_browser_state_capture(manager: BrowserManager):
     #         f"🔍 DIAGNOSIS: {agent_name} navigation completed at {task_end - start_time:.3f}s (duration: {task_end - task_start:.3f}s)")
     #     return None
 
-
     # Navigate to different pages
     await asyncio.gather(
         navigate_with_timing(agent1, "https://www.python.org", "agent1"),
@@ -240,6 +239,29 @@ async def test_browser_state_capture(manager: BrowserManager):
     print(main_tabs)
 
 
+async def get_all_css_selector(browser_session: AgentBrowserSession):
+    target_id = await browser_session.navigate_to_url("https://github.com/", new_tab=True)
+    result = await browser_session.cdp_client.send.Target.attachToTarget({'targetId': target_id, 'flatten': True})
+    session_id = result['sessionId']
+    doc_result = await browser_session.cdp_client.send.DOM.getDocument(session_id=session_id)
+    document_node_id = doc_result['root']['nodeId']
+    from browser_use.dom.service import DomService
+    dom_service = DomService(browser_session)
+    pdb.set_trace()
+    # Query selector all
+    query_params = {'nodeId': document_node_id}
+    result = await browser_session.cdp_client.send.DOM.querySelectorAll(query_params, session_id=session_id)
+
+    elements = []
+
+    # Convert node IDs to backend node IDs
+    for node_id in result['nodeIds']:
+        # Get backend node ID
+        describe_params = {'nodeId': node_id}
+        node_result = await browser_session.cdp_client.send.DOM.describeNode(describe_params, session_id=session_id)
+        pdb.set_trace()
+
+
 async def main():
     """
     Main function to run all browser session tests.
@@ -273,7 +295,8 @@ async def main():
             # await test_manual_page_assignment(manager)
             # await test_agent_cleanup(manager)
             # await test_agent_tab_isolation(manager)
-            await test_browser_state_capture(manager)
+            # await test_browser_state_capture(manager)
+            await get_all_css_selector(main_browser_session)
 
     except Exception as e:
         logging.error(f"An error occurred during tests: {e}", exc_info=True)

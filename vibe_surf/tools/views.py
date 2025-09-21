@@ -118,3 +118,63 @@ class VibeSurfDoneAction(BaseModel):
         description='Optional list of 1-3 suggested follow-up tasks. Each task can only be described in one sentence, and each task must be strongly related to or extended from the original task.',
         max_length=3,
     )
+
+
+class SkillSearchAction(BaseModel):
+    """Parameters for skill_search action"""
+    query: str = Field(
+        description='Search query to generate multiple search tasks and find relevant information',
+    )
+
+
+class SkillCrawlAction(BaseModel):
+    """Parameters for skill_crawl action"""
+    query: str = Field(
+        description='Query describing what structured information to extract from the webpage',
+    )
+    tab_id: str | None = Field(
+        default=None,
+        min_length=4,
+        max_length=4,
+        description='Optional 4 character Tab ID to extract from specific tab',
+    )
+
+
+class SkillSummaryAction(BaseModel):
+    """Parameters for skill_summary action"""
+    tab_id: str | None = Field(
+        default=None,
+        min_length=4,
+        max_length=4,
+        description='Optional 4 character Tab ID to summarize specific tab',
+    )
+
+
+class SkillTakeScreenshotAction(BaseModel):
+    """Parameters for skill_take_screenshot action"""
+    tab_id: str | None = Field(
+        default=None,
+        min_length=4,
+        max_length=4,
+        description='Optional 4 character Tab ID to take screenshot of specific tab',
+    )
+
+
+class SkillDeepResearchAction(BaseModel):
+    """Parameters for skill_deep_research action"""
+    topic: str = Field(
+        description='Research topic for deep investigation',
+    )
+
+
+class SkillCodeAction(BaseModel):
+    """Parameters for skill_code action"""
+    js_code: str = Field(
+        description='JavaScript code to execute on the current page',
+    )
+    tab_id: str | None = Field(
+        default=None,
+        min_length=4,
+        max_length=4,
+        description='Optional 4 character Tab ID to execute code on specific tab',
+    )
