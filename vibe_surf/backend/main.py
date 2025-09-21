@@ -21,6 +21,7 @@ from .api.activity import router as activity_router
 from .api.config import router as config_router
 from .api.browser import router as browser_router
 from .api.voices import router as voices_router
+from .api.agent import router as agent_router
 
 # Import shared state
 from . import shared_state
@@ -53,6 +54,7 @@ app.include_router(activity_router, prefix="/api", tags=["activity"])
 app.include_router(config_router, prefix="/api", tags=["config"])
 app.include_router(browser_router, prefix="/api", tags=["browser"])
 app.include_router(voices_router, prefix="/api", tags=["voices"])
+app.include_router(agent_router, prefix="/api", tags=["agent"])
 
 # Global variable to control browser monitoring task
 browser_monitor_task = None
