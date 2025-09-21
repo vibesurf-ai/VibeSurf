@@ -1479,8 +1479,9 @@ Please continue with your assigned work, incorporating this guidance only if it'
         """
         activity_entry = {
             "agent_name": 'user',
-            "agent_status": 'request',  # working, result, error
-            "agent_msg": f"{new_task}"
+            "agent_status": 'additional_request',  # working, result, error
+            "agent_msg": f"{new_task}",
+            "timestamp": datetime.now().isoformat()
         }
         self.activity_logs.append(activity_entry)
 

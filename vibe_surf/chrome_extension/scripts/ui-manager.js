@@ -962,8 +962,6 @@ class VibeSurfUIManager {
 
   async handleSendTask() {
     const taskDescription = this.elements.taskInput?.value.trim();
-    const taskStatus = this.sessionManager.getTaskStatus();
-    const isPaused = taskStatus === 'paused';
     
     if (!taskDescription) {
       this.showNotification('Please enter a task description', 'warning');
@@ -972,6 +970,12 @@ class VibeSurfUIManager {
     }
 
     try {
+      // Check task status from session manager first (more reliable than API check)
+      const sessionTaskStatus = this.sessionManager.getTaskStatus();
+      const isPaused = sessionTaskStatus === 'paused';
+
+      console.log('[UIManager] handleSendTask - session task status:', sessionTaskStatus, 'isPaused:', isPaused);
+
       if (isPaused) {
         // Handle adding new task to paused execution
         
@@ -988,7 +992,7 @@ class VibeSurfUIManager {
         return;
       }
       
-      // Original logic for new task submission
+      // For non-paused states, check if any task is running
       const statusCheck = await this.checkTaskStatus();
       if (statusCheck.isRunning) {
         const canProceed = await this.showTaskRunningWarning('send a new task');
@@ -1983,6 +1987,8 @@ class VibeSurfUIManager {
         return '🔄';
       case 'request':
         return '💡';
+      case 'additional_request':
+        return '➕';
       default:
         return '💡';
     }
