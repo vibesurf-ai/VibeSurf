@@ -586,7 +586,7 @@ class VibeSurfUIManager {
       } else if (isRunning) {
         this.elements.taskInput.placeholder = 'Task is running - please wait...';
       } else {
-        this.elements.taskInput.placeholder = 'Enter your task description...';
+        this.elements.taskInput.placeholder = 'Ask anything (/ for skills, @ to specify tab)';
       }
     }
     
