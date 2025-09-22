@@ -20,7 +20,7 @@ from browser_use.utils import time_execution_sync
 from browser_use.filesystem.file_system import FileSystem
 from browser_use.browser import BrowserSession
 from browser_use.llm.base import BaseChatModel
-from browser_use.llm.messages import UserMessage, ContentPartTextParam, ContentPartImageParam, ImageURL
+from browser_use.llm.messages import UserMessage, ContentPartTextParam, ContentPartImageParam, ImageURL, AssistantMessage
 from browser_use.dom.service import EnhancedDOMTreeNode
 from browser_use.browser.views import BrowserError
 from browser_use.mcp.client import MCPClient
@@ -463,8 +463,10 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
             page_extraction_llm: BaseChatModel,
         ):
             """
-            Skill: Generate and execute JavaScript code from functional requirements or code prompts
+            Skill: Generate and execute JavaScript code from functional requirements or code prompts with iterative retry logic
             """
+            MAX_ITERATIONS = 5
+            
             try:
                 if not page_extraction_llm:
                     raise RuntimeError("LLM is required for skill_code")
@@ -484,8 +486,8 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
                 # Get current page URL for context
                 current_url = await browser_session.get_current_page_url()
                 
-                # Create LLM prompt to generate JavaScript code
-                system_prompt = """You are an expert JavaScript developer specializing in browser automation and DOM manipulation.
+                # Create base system prompt for JavaScript code generation
+                base_system_prompt = """You are an expert JavaScript developer specializing in browser automation and DOM manipulation.
 
 You will be given a functional requirement or code prompt, along with the current page's DOM structure information.
 Your task is to generate valid, executable JavaScript code that accomplishes the specified requirement.
@@ -507,7 +509,6 @@ You can also use it to explore the website.
 - Don't write comments in here, no human reads that.
 - Write only valid js code.
 - use this to e.g. extract + filter links, convert the page to json into the format you need etc...
-
 
 - limit the output otherwise your context will explode
 - think if you deal with special elements like iframes / shadow roots etc
@@ -546,7 +547,12 @@ SHADOW DOM ACCESS EXAMPLE:
 OUTPUT FORMAT:
 Return ONLY the JavaScript code, no explanations or markdown formatting."""
 
-                user_prompt = f"""Current Page URL: {current_url}
+                # Initialize message history for iterative prompting
+                from browser_use.llm.messages import SystemMessage, UserMessage
+                message_history = [SystemMessage(content=base_system_prompt)]
+                
+                # Initial user prompt
+                initial_user_prompt = f"""Current Page URL: {current_url}
 
 USER REQUIREMENT: {params.code_requirement}
 
@@ -554,91 +560,166 @@ Web Page Elements Description:
 {web_page_description}
 
 Generate JavaScript code to fulfill the requirement:"""
-
-                # Generate JavaScript code using LLM
-                from browser_use.llm.messages import SystemMessage, UserMessage
-                response = await asyncio.wait_for(
-                    page_extraction_llm.ainvoke([
-                        SystemMessage(content=system_prompt),
-                        UserMessage(content=user_prompt)
-                    ]),
-                    timeout=60.0,
-                )
                 
-                generated_js_code = response.completion.strip()
+                message_history.append(UserMessage(content=initial_user_prompt))
                 
-                # Clean up the generated code (remove markdown if present)
-                if generated_js_code.startswith('```javascript'):
-                    generated_js_code = generated_js_code.replace('```javascript', '').replace('```', '').strip()
-                elif generated_js_code.startswith('```js'):
-                    generated_js_code = generated_js_code.replace('```js', '').replace('```', '').strip()
-                elif generated_js_code.startswith('```'):
-                    generated_js_code = generated_js_code.replace('```', '').strip()
-
-                # Execute the generated JavaScript code
+                # Get CDP session for JavaScript execution
                 cdp_session = await browser_session.get_or_create_cdp_session()
+                
+                # Iterative code generation and execution
+                for iteration in range(1, MAX_ITERATIONS + 1):
+                    try:
+                        logger.info(f'🔄 Skill Code iteration {iteration}/{MAX_ITERATIONS}')
+                        
+                        # Generate JavaScript code using LLM with message history
+                        response = await asyncio.wait_for(
+                            page_extraction_llm.ainvoke(message_history),
+                            timeout=60.0,
+                        )
+                        
+                        generated_js_code = response.completion.strip()
+                        message_history.append(AssistantMessage(content=generated_js_code))
+                        
+                        # Clean up the generated code (remove markdown if present)
+                        if generated_js_code.startswith('```javascript'):
+                            generated_js_code = generated_js_code.replace('```javascript', '').replace('```', '').strip()
+                        elif generated_js_code.startswith('```js'):
+                            generated_js_code = generated_js_code.replace('```js', '').replace('```', '').strip()
+                        elif generated_js_code.startswith('```'):
+                            generated_js_code = generated_js_code.replace('```', '').strip()
 
-                try:
-                    # Always use awaitPromise=True - it's ignored for non-promises
-                    result = await cdp_session.cdp_client.send.Runtime.evaluate(
-                        params={'expression': generated_js_code, 'returnByValue': True, 'awaitPromise': True},
-                        session_id=cdp_session.session_id,
-                    )
-
-                    # Check for JavaScript execution errors
-                    if result.get('exceptionDetails'):
-                        exception = result['exceptionDetails']
-                        error_msg = f'JavaScript execution error: {exception.get("text", "Unknown error")}'
-                        if 'lineNumber' in exception:
-                            error_msg += f' at line {exception["lineNumber"]}'
-                        msg = f'Requirement: {params.code_requirement}\n\nGenerated Code: {generated_js_code}\n\nError: {error_msg}'
-                        logger.info(msg)
-                        return ActionResult(error=msg)
-
-                    # Get the result data
-                    result_data = result.get('result', {})
-
-                    # Check for wasThrown flag (backup error detection)
-                    if result_data.get('wasThrown'):
-                        msg = f'Requirement: {params.code_requirement}\n\nGenerated Code: {generated_js_code}\n\nError: JavaScript execution failed (wasThrown=true)'
-                        logger.info(msg)
-                        return ActionResult(error=msg)
-
-                    # Get the actual value
-                    value = result_data.get('value')
-
-                    # Handle different value types
-                    if value is None:
-                        # Could be legitimate null/undefined result
-                        result_text = str(value) if 'value' in result_data else 'undefined'
-                    elif isinstance(value, (dict, list)):
-                        # Complex objects - should be serialized by returnByValue
+                        # Execute the generated JavaScript code
                         try:
-                            result_text = json.dumps(value, ensure_ascii=False)
-                        except (TypeError, ValueError):
-                            # Fallback for non-serializable objects
-                            result_text = str(value)
-                    else:
-                        # Primitive values (string, number, boolean)
-                        result_text = str(value)
+                            logger.debug(generated_js_code)
+                            # Always use awaitPromise=True - it's ignored for non-promises
+                            result = await cdp_session.cdp_client.send.Runtime.evaluate(
+                                params={'expression': generated_js_code, 'returnByValue': True, 'awaitPromise': True},
+                                session_id=cdp_session.session_id,
+                            )
 
-                    # Apply length limit with better truncation
-                    if len(result_text) > 20000:
-                        result_text = result_text[:19950] + '\n... [Truncated after 20000 characters]'
-                    
-                    msg = f'Requirement: {params.code_requirement}\n\nGenerated Code: {generated_js_code}\n\nResult: {result_text}'
-                    logger.info(msg)
-                    
-                    return ActionResult(
-                        extracted_content=msg,
-                        long_term_memory=f'Generated and executed JavaScript code for requirement: {params.code_requirement}',
-                    )
+                            logger.debug(result)
+                            # Check for JavaScript execution errors
+                            if result.get('exceptionDetails'):
+                                exception = result['exceptionDetails']
+                                error_msg = f'JavaScript execution error: {exception.get("text", "Unknown error")}'
+                                if 'lineNumber' in exception:
+                                    error_msg += f' at line {exception["lineNumber"]}'
+                                
+                                # Add error feedback to message history for next iteration
+                                if iteration < MAX_ITERATIONS:
+                                    error_feedback = f"""The previous JavaScript code failed with error:
+{error_msg}
 
-                except Exception as e:
-                    # CDP communication or other system errors
-                    error_msg = f'Requirement: {params.code_requirement}\n\nGenerated Code: {generated_js_code}\n\nError: Failed to execute JavaScript: {type(e).__name__}: {e}'
-                    logger.info(error_msg)
-                    return ActionResult(error=error_msg)
+Please fix the error and generate corrected JavaScript code:"""
+                                    message_history.append(UserMessage(content=error_feedback))
+                                    continue  # Try next iteration
+                                else:
+                                    # Final iteration, return error
+                                    msg = f'Requirement: {params.code_requirement}\n\nFinal Generated Code (Iteration {iteration}): {generated_js_code}\n\nError: {error_msg}'
+                                    logger.info(msg)
+                                    return ActionResult(error=msg)
+
+                            # Get the result data
+                            result_data = result.get('result', {})
+
+                            # Check for wasThrown flag (backup error detection)
+                            if result_data.get('wasThrown'):
+                                error_msg = 'JavaScript execution failed (wasThrown=true)'
+                                
+                                # Add error feedback to message history for next iteration
+                                if iteration < MAX_ITERATIONS:
+                                    error_feedback = f"""The previous JavaScript code failed with error:
+{error_msg}
+
+Please fix the error and generate corrected JavaScript code:"""
+                                    message_history.append(UserMessage(content=error_feedback))
+                                    continue  # Try next iteration
+                                else:
+                                    # Final iteration, return error
+                                    msg = f'Requirement: {params.code_requirement}\n\nFinal Generated Code (Iteration {iteration}): {generated_js_code}\n\nError: {error_msg}'
+                                    logger.info(msg)
+                                    return ActionResult(error=msg)
+
+                            # Get the actual value
+                            value = result_data.get('value')
+
+                            # Handle different value types
+                            if value is None:
+                                # Could be legitimate null/undefined result
+                                result_text = str(value) if 'value' in result_data else 'undefined'
+                            elif isinstance(value, (dict, list)):
+                                # Complex objects - should be serialized by returnByValue
+                                try:
+                                    result_text = json.dumps(value, ensure_ascii=False)
+                                except (TypeError, ValueError):
+                                    # Fallback for non-serializable objects
+                                    result_text = str(value)
+                            else:
+                                # Primitive values (string, number, boolean)
+                                result_text = str(value)
+
+                            # Check if result is empty or meaningless
+                            if (not result_text or
+                                result_text.strip() in ['', 'null', 'undefined', '[]', '{}'] or
+                                len(result_text.strip()) == 0):
+                                
+                                # Add empty result feedback to message history for next iteration
+                                if iteration < MAX_ITERATIONS:
+                                    empty_feedback = f"""The previous JavaScript code executed successfully but returned empty/meaningless result:
+Result: {result_text}
+
+The result is empty or not useful. Please generate improved JavaScript code that returns meaningful data:"""
+                                    message_history.append(UserMessage(content=empty_feedback))
+                                    continue  # Try next iteration
+                                else:
+                                    # Final iteration, return empty result with warning
+                                    msg = f'Requirement: {params.code_requirement}\n\nFinal Generated Code (Iteration {iteration}): {generated_js_code}\n\nWarning: Empty or meaningless result: {result_text}'
+                                    logger.info(msg)
+                                    return ActionResult(
+                                        extracted_content=msg,
+                                        long_term_memory=f'Generated JavaScript code (iteration {iteration}) for requirement: {params.code_requirement} - Empty result warning',
+                                    )
+
+                            # Apply length limit with better truncation
+                            if len(result_text) > 30000:
+                                result_text = result_text[:30000] + '\n... [Truncated after 30000 characters]'
+                            
+                            # Success! Return the result
+                            msg = f'Requirement: {params.code_requirement}\n\nGenerated Code (Iteration {iteration}): \n```javascript\n{generated_js_code}\n```\nResult: {result_text}'
+                            logger.info(f'✅ Skill Code succeeded on iteration {iteration}')
+                            
+                            return ActionResult(
+                                extracted_content=msg,
+                                long_term_memory=f'Generated and executed JavaScript code (iteration {iteration}) for requirement: {params.code_requirement}',
+                            )
+
+                        except Exception as e:
+                            # CDP communication or other system errors
+                            error_msg = f'Failed to execute JavaScript: {type(e).__name__}: {e}'
+                            
+                            # Add system error feedback to message history for next iteration
+                            if iteration < MAX_ITERATIONS:
+                                system_error_feedback = f"""The previous JavaScript code failed to execute due to system error:
+{error_msg}
+
+Please generate alternative JavaScript code that avoids this system error:"""
+                                message_history.append(UserMessage(content=system_error_feedback))
+                                continue  # Try next iteration
+                            else:
+                                # Final iteration, return system error
+                                error_msg = f'Requirement: {params.code_requirement}\n\nFinal Generated Code (Iteration {iteration}): {generated_js_code}\n\nError: {error_msg}'
+                                logger.info(error_msg)
+                                return ActionResult(error=error_msg)
+                                
+                    except Exception as e:
+                        # LLM generation error
+                        logger.error(f'❌ LLM generation failed on iteration {iteration}: {e}')
+                        if iteration == MAX_ITERATIONS:
+                            return ActionResult(error=f'LLM generation failed after {MAX_ITERATIONS} iterations: {str(e)}')
+                        continue  # Try next iteration with same message history
+                
+                # Should not reach here, but just in case
+                return ActionResult(error=f'Skill code failed after {MAX_ITERATIONS} iterations')
                 
             except Exception as e:
                 logger.error(f'❌ Skill Code failed: {e}')
