@@ -3318,24 +3318,39 @@ class VibeSurfUIManager {
 
   async populateSkillSelector() {
     try {
+      console.log('[UIManager] Fetching skills from backend...');
       // Get all skills from backend
       const skills = await this.apiClient.getAllSkills();
+      
+      console.log('[UIManager] Skills received from backend:', skills);
+      
+      if (!skills || !Array.isArray(skills) || skills.length === 0) {
+        console.warn('[UIManager] No skills returned from backend');
+        this.skillSelectorState.allSkills = [];
+        return;
+      }
       
       this.skillSelectorState.allSkills = skills.map(skillName => ({
         name: skillName,
         displayName: skillName // Keep original skill name without transformation
       }));
 
+      console.log('[UIManager] Processed skills:', this.skillSelectorState.allSkills);
+      
     } catch (error) {
       console.error('[UIManager] Failed to populate skill selector:', error);
-      // Add fallback test data if no skills returned
-      this.skillSelectorState.allSkills = [
-        { name: 'web_search', displayName: 'web_search' },
-        { name: 'data_analysis', displayName: 'data_analysis' },
-        { name: 'file_operations', displayName: 'file_operations' },
-        { name: 'browser_automation', displayName: 'browser_automation' },
-        { name: 'text_processing', displayName: 'text_processing' }
-      ];
+      console.error('[UIManager] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response,
+        data: error.data
+      });
+      
+      // Show error to user
+      this.showNotification(`Failed to load skills: ${error.message}`, 'error');
+      
+      // Set empty array instead of fallback test data
+      this.skillSelectorState.allSkills = [];
     }
   }
 
