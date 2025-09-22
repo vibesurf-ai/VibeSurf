@@ -479,6 +479,16 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                     llm=vibesurf_agent.llm,
                     file_system=vibesurf_agent.file_system,
                 )
+                if "skill_search" in action_name or "skill_crawl" in action_name or "skill_summary" in action_name:
+                    state.current_step = "END"
+                    # Format final response
+                    final_response = f"{result.extracted_content}"
+                    await log_agent_activity(state, agent_name, "result", final_response)
+                    state.final_response = final_response
+                    logger.debug(final_response)
+                    state.is_complete = True
+                    return state
+
                 state.current_step = "vibesurf_agent"
                 if result.extracted_content:
                     vibesurf_agent.message_history.append(

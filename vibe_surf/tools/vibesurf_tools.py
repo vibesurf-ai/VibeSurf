@@ -20,7 +20,8 @@ from browser_use.utils import time_execution_sync
 from browser_use.filesystem.file_system import FileSystem
 from browser_use.browser import BrowserSession
 from browser_use.llm.base import BaseChatModel
-from browser_use.llm.messages import UserMessage, ContentPartTextParam, ContentPartImageParam, ImageURL, AssistantMessage
+from browser_use.llm.messages import UserMessage, ContentPartTextParam, ContentPartImageParam, ImageURL, \
+    AssistantMessage
 from browser_use.dom.service import EnhancedDOMTreeNode
 from browser_use.browser.views import BrowserError
 from browser_use.mcp.client import MCPClient
@@ -33,7 +34,7 @@ from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.tools.vibesurf_registry import VibeSurfRegistry
-
+from bs4 import BeautifulSoup
 from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
@@ -43,40 +44,77 @@ Context = TypeVar('Context')
 T = TypeVar('T', bound=BaseModel)
 
 
+def clean_html_basic(page_html_content, max_text_length=100):
+    soup = BeautifulSoup(page_html_content, 'html.parser')
+
+    for script in soup(["script", "style"]):
+        script.decompose()
+
+    from bs4 import Comment
+    comments = soup.findAll(text=lambda text: isinstance(text, Comment))
+    for comment in comments:
+        comment.extract()
+
+    for text_node in soup.find_all(string=True):
+        if text_node.parent.name not in ['script', 'style']:
+            clean_text = ' '.join(text_node.split())
+
+            if len(clean_text) > max_text_length:
+                clean_text = clean_text[:max_text_length].rstrip() + "..."
+
+            if clean_text != text_node:
+                text_node.replace_with(clean_text)
+
+    important_attrs = ['id', 'class', 'name', 'role', 'type',
+                       'colspan', 'rowspan', 'headers', 'scope',
+                       'href', 'src', 'alt', 'title']
+
+    for tag in soup.find_all():
+        attrs_to_keep = {}
+        for attr in list(tag.attrs.keys()):
+            if (attr in important_attrs or
+                    attr.startswith('data-') or
+                    attr.startswith('aria-')):
+                attrs_to_keep[attr] = tag.attrs[attr]
+        tag.attrs = attrs_to_keep
+
+    return str(soup)
+
+
 def get_sibling_position(node: EnhancedDOMTreeNode) -> int:
     """Get the position of node among its siblings with the same tag"""
     if not node.parent_node:
         return 1
-    
+
     tag_name = node.tag_name
     position = 1
-    
+
     # Find siblings with same tag name before this node
     for sibling in node.parent_node.children:
         if sibling == node:
             break
         if sibling.tag_name == tag_name:
             position += 1
-    
+
     return position
 
 
 def extract_css_hints(node: EnhancedDOMTreeNode) -> dict:
     """Extract CSS selector construction hints"""
     hints = {}
-    
+
     if "id" in node.attributes:
         hints["id"] = f"#{node.attributes['id']}"
-    
+
     if "class" in node.attributes:
         classes = node.attributes["class"].split()
         hints["class"] = f".{'.'.join(classes[:3])}"  # Limit class count
-    
+
     # Attribute selector hints
     for attr in ["name", "data-testid", "type"]:
         if attr in node.attributes:
             hints[f"attr_{attr}"] = f"[{attr}='{node.attributes[attr]}']"
-    
+
     return hints
 
 
@@ -85,38 +123,38 @@ def convert_selector_map_for_llm(selector_map) -> dict:
     Convert complex selector_map to simplified format suitable for LLM understanding and JS code writing
     """
     simplified_elements = []
-    
+
     for element_index, node in selector_map.items():
         if node.is_visible and node.element_index is not None:  # Only include visible interactive elements
             element_info = {
                 "tag": node.tag_name,
                 "text": node.get_meaningful_text_for_llm()[:200],  # Limit text length
-                
+
                 # Selector information - most needed for JS code
                 "selectors": {
                     "xpath": node.xpath,
                     "css_hints": extract_css_hints(node),  # Extract id, class etc
                 },
-                
+
                 # Element semantics
                 "role": node.ax_node.role if node.ax_node else None,
                 "type": node.attributes.get("type"),
                 "aria_label": node.attributes.get("aria-label"),
-                
+
                 # Key attributes
                 "attributes": {k: v for k, v in node.attributes.items()
-                             if k in ["id", "class", "name", "href", "src", "value", "placeholder", "data-testid"]},
-                
+                               if k in ["id", "class", "name", "href", "src", "value", "placeholder", "data-testid"]},
+
                 # Interactivity
                 "is_clickable": node.snapshot_node.is_clickable if node.snapshot_node else False,
                 "is_input": node.tag_name.lower() in ["input", "textarea", "select"],
-                
+
                 # Structure information
                 "parent_tag": node.parent_node.tag_name if node.parent_node else None,
                 "position_info": f"{node.tag_name}[{get_sibling_position(node)}]"
             }
             simplified_elements.append(element_info)
-    
+
     return {
         "page_elements": simplified_elements,
         "total_elements": len(simplified_elements)
@@ -135,16 +173,15 @@ class VibeSurfTools:
         self.mcp_server_config = mcp_server_config
         self.mcp_clients: Dict[str, MCPClient] = {}
 
-
     def _register_skills(self):
         @self.registry.action(
             'Skill: Advanced parallel search - analyze user intent and generate 5 different search tasks, perform parallel Google searches, and return top 10 most relevant results',
             param_model=SkillSearchAction,
         )
         async def skill_search(
-            params: SkillSearchAction,
-            browser_manager: BrowserManager,
-            page_extraction_llm: BaseChatModel
+                params: SkillSearchAction,
+                browser_manager: BrowserManager,
+                page_extraction_llm: BaseChatModel
         ):
             """
             Skill: Advanced parallel search with LLM-generated search strategies
@@ -154,7 +191,7 @@ class VibeSurfTools:
             try:
                 if not llm:
                     raise RuntimeError("LLM is required for skill_search")
-                
+
                 # Step 1: Use LLM to analyze user intent and generate different search tasks
                 from datetime import datetime
                 analysis_prompt = f"""
@@ -178,7 +215,7 @@ Example format: ["query 1", "query 2", "query 3", "query 4", "query 5"]
                     SystemMessage(content="You are an expert at generating comprehensive search strategies."),
                     UserMessage(content=analysis_prompt)
                 ])
-                
+
                 # Parse the search queries
                 import json
                 try:
@@ -202,32 +239,32 @@ Example format: ["query 1", "query 2", "query 3", "query 4", "query 5"]
 
                 # Step 2: Create browser sessions for parallel searching
                 register_sessions = []
-                
+
                 for i, query in enumerate(search_queries):
                     agent_id = f"search_agent_{i + 1:03d}"
                     register_sessions.append(
                         browser_manager.register_agent(agent_id, target_id=None)
                     )
                     agent_ids.append(agent_id)
-                
+
                 agent_browser_sessions = await asyncio.gather(*register_sessions)
-                
+
                 # Step 3: Perform parallel Google searches
                 search_tasks = []
                 for i, (browser_session, query) in enumerate(zip(agent_browser_sessions, search_queries)):
                     search_tasks.append(self._perform_google_search(browser_session, query, llm))
-                
+
                 search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
-                
+
                 # Step 4: Aggregate and filter results
                 all_results = []
                 for i, result in enumerate(search_results):
                     if isinstance(result, Exception):
-                        logger.error(f"Search task {i+1} failed: {result}")
+                        logger.error(f"Search task {i + 1} failed: {result}")
                         continue
                     if result:
                         all_results.extend(result)
-                
+
                 # Step 5: Use LLM to deduplicate and rank top 10 results
                 if all_results:
                     ranking_prompt = f"""
@@ -246,12 +283,13 @@ Return the top 10 results as a JSON array, with each result containing:
 
 Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
 """
-                    
+
                     ranking_response = await llm.ainvoke([
-                        SystemMessage(content="You are an expert at evaluating and ranking search results for relevance and value."),
+                        SystemMessage(
+                            content="You are an expert at evaluating and ranking search results for relevance and value."),
                         UserMessage(content=ranking_prompt)
                     ])
-                    
+
                     try:
                         top_results = json.loads(ranking_response.completion.strip())
                         if not isinstance(top_results, list):
@@ -261,7 +299,7 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
                         top_results = all_results[:10]
                 else:
                     top_results = []
-                
+
                 # Format results for display
                 if top_results:
                     results_text = f"🔍 Advanced Search Results for '{params.query}':\n\n"
@@ -272,14 +310,14 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
                         results_text += f"{i}. **{title}**\n   URL: {url}\n   Summary: {summary}\n\n"
                 else:
                     results_text = f"No results found for query: {params.query}"
-                
+
                 logger.info(f'🔍 Skill Search completed for: {params.query}')
                 return ActionResult(
                     extracted_content=results_text,
                     include_extracted_content_only_once=True,
                     long_term_memory=f'Advanced search completed for: {params.query}, found {len(top_results)} relevant results',
                 )
-                
+
             except Exception as e:
                 logger.error(f'❌ Skill Search failed: {e}')
                 return ActionResult(error=f'Skill search failed: {str(e)}')
@@ -287,15 +325,14 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
                 for i, agent_id in enumerate(agent_ids):
                     await browser_manager.unregister_agent(agent_id, close_tabs=True)
 
-
         @self.registry.action(
             'Skill: Crawl a web page and extract structured information from a webpage with optional tab selection',
             param_model=SkillCrawlAction,
         )
         async def skill_crawl(
-            params: SkillCrawlAction,
-            browser_manager: BrowserManager,
-            page_extraction_llm: BaseChatModel
+                params: SkillCrawlAction,
+                browser_manager: BrowserManager,
+                page_extraction_llm: BaseChatModel
         ):
             """
             Skill: Extract structured content from current or specified webpage
@@ -304,23 +341,23 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
             try:
                 if not llm:
                     raise RuntimeError("LLM is required for skill_crawl")
-                
+
                 # Get browser session
                 browser_session = browser_manager.main_browser_session
-                
+
                 # If tab_id is provided, switch to that tab
                 if params.tab_id:
                     target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
-                
+
                 # Extract structured content using the existing method
                 extracted_content = await self._extract_structured_content(
                     browser_session, params.query, llm
                 )
-                
+
                 current_url = await browser_session.get_current_page_url()
-                result_text = f'<url>\n{current_url}\n</url>\n<query>\n{params.query}\n</query>\n<result>\n{extracted_content}\n</result>'
-                
+                result_text = f'### URL:{current_url}\n\n{extracted_content}'
+
                 # Handle memory storage
                 MAX_MEMORY_LENGTH = 1000
                 if len(result_text) < MAX_MEMORY_LENGTH:
@@ -329,14 +366,14 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
                 else:
                     memory = f'Extracted structured content from {current_url} for query: {params.query}'
                     include_extracted_content_only_once = True
-                
+
                 logger.info(f'📄 Skill Crawl completed for: {current_url}')
                 return ActionResult(
                     extracted_content=result_text,
                     include_extracted_content_only_once=include_extracted_content_only_once,
                     long_term_memory=memory,
                 )
-                
+
             except Exception as e:
                 logger.error(f'❌ Skill Crawl failed: {e}')
                 return ActionResult(error=f'Skill crawl failed: {str(e)}')
@@ -346,9 +383,9 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
             param_model=SkillSummaryAction,
         )
         async def skill_summary(
-            params: SkillSummaryAction,
-            browser_manager: BrowserManager,
-            page_extraction_llm: BaseChatModel
+                params: SkillSummaryAction,
+                browser_manager: BrowserManager,
+                page_extraction_llm: BaseChatModel
         ):
             """
             Skill: Summarize webpage content using LLM
@@ -357,23 +394,23 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
             try:
                 if not llm:
                     raise RuntimeError("LLM is required for skill_summary")
-                
+
                 # Get browser session
                 browser_session = browser_manager.main_browser_session
-                
+
                 # If tab_id is provided, switch to that tab
                 if params.tab_id:
                     target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
-                
+
                 # Extract and summarize content
                 summary = await self._extract_structured_content(
                     browser_session, "Provide a comprehensive summary of this webpage", llm
                 )
-                
+
                 current_url = await browser_session.get_current_page_url()
                 result_text = f'📝 Summary of {current_url}:\n\n{summary}'
-                
+
                 # Handle memory storage
                 MAX_MEMORY_LENGTH = 1000
                 if len(result_text) < MAX_MEMORY_LENGTH:
@@ -382,14 +419,14 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
                 else:
                     memory = f'Summarized webpage: {current_url}'
                     include_extracted_content_only_once = True
-                
+
                 logger.info(f'📝 Skill Summary completed for: {current_url}')
                 return ActionResult(
                     extracted_content=result_text,
                     include_extracted_content_only_once=include_extracted_content_only_once,
                     long_term_memory=memory,
                 )
-                
+
             except Exception as e:
                 logger.error(f'❌ Skill Summary failed: {e}')
                 return ActionResult(error=f'Skill summary failed: {str(e)}')
@@ -399,9 +436,9 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
             param_model=SkillTakeScreenshotAction,
         )
         async def skill_screenshot(
-            params: SkillTakeScreenshotAction,
-            browser_manager: BrowserManager,
-            file_system: CustomFileSystem
+                params: SkillTakeScreenshotAction,
+                browser_manager: BrowserManager,
+                file_system: CustomFileSystem
         ):
             """
             Skill: Take screenshot with optional tab selection
@@ -409,12 +446,12 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
             try:
                 # Get browser session
                 browser_session = browser_manager.main_browser_session
-                
+
                 # If tab_id is provided, switch to that tab
                 if params.tab_id:
                     target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
-                
+
                 # Take screenshot using browser session
                 screenshot = await browser_session.take_screenshot()
 
@@ -445,46 +482,50 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
                     include_in_memory=True,
                     long_term_memory=f'Screenshot saved to {str(filepath.relative_to(fs_dir))}',
                 )
-                
+
             except Exception as e:
                 error_msg = f'❌ Failed to take screenshot: {str(e)}'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg)
-
 
         @self.registry.action(
             'Skill: Execute JavaScript code on webpage with optional tab selection - accepts functional requirements, code prompts, or code snippets that will be processed by LLM to generate proper executable JavaScript',
             param_model=SkillCodeAction,
         )
         async def skill_code(
-            params: SkillCodeAction,
-            browser_manager: BrowserManager,
-            page_extraction_llm: BaseChatModel,
+                params: SkillCodeAction,
+                browser_manager: BrowserManager,
+                page_extraction_llm: BaseChatModel,
         ):
             """
             Skill: Generate and execute JavaScript code from functional requirements or code prompts with iterative retry logic
             """
             MAX_ITERATIONS = 5
-            
+
             try:
                 if not page_extraction_llm:
                     raise RuntimeError("LLM is required for skill_code")
-                
+
                 # Get browser session
                 browser_session = browser_manager.main_browser_session
-                
+
                 # If tab_id is provided, switch to that tab
                 if params.tab_id:
                     target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
-                
+
                 # Get browser state and convert for LLM
-                browser_state = await browser_session.get_browser_state_summary()
-                web_page_description = browser_state.dom_state.llm_representation()
-                
+                # browser_state = await browser_session.get_browser_state_summary()
+                # web_page_description = browser_state.dom_state.llm_representation()
+
+                page_html_content = await browser_session.get_html_content()
+                web_page_html = clean_html_basic(page_html_content)
+                if len(web_page_html) > 30000:
+                    web_page_html = web_page_html[:24000] + "..." + web_page_html[-6000:]
+
                 # Get current page URL for context
                 current_url = await browser_session.get_current_page_url()
-                
+
                 # Create base system prompt for JavaScript code generation
                 base_system_prompt = """You are an expert JavaScript developer specializing in browser automation and DOM manipulation.
 
@@ -549,39 +590,40 @@ Return ONLY the JavaScript code, no explanations or markdown formatting."""
                 # Initialize message history for iterative prompting
                 from browser_use.llm.messages import SystemMessage, UserMessage
                 message_history = [SystemMessage(content=base_system_prompt)]
-                
+
                 # Initial user prompt
                 initial_user_prompt = f"""Current Page URL: {current_url}
 
 USER REQUIREMENT: {params.code_requirement}
 
-Web Page Elements Description:
-{web_page_description}
+Web Page Html Content:
+{web_page_html}
 
 Generate JavaScript code to fulfill the requirement:"""
-                
+
                 message_history.append(UserMessage(content=initial_user_prompt))
-                
+
                 # Get CDP session for JavaScript execution
                 cdp_session = await browser_session.get_or_create_cdp_session()
-                
+
                 # Iterative code generation and execution
                 for iteration in range(1, MAX_ITERATIONS + 1):
                     try:
                         logger.info(f'🔄 Skill Code iteration {iteration}/{MAX_ITERATIONS}')
-                        
+
                         # Generate JavaScript code using LLM with message history
                         response = await asyncio.wait_for(
                             page_extraction_llm.ainvoke(message_history),
                             timeout=60.0,
                         )
-                        
+
                         generated_js_code = response.completion.strip()
                         message_history.append(AssistantMessage(content=generated_js_code))
-                        
+
                         # Clean up the generated code (remove markdown if present)
                         if generated_js_code.startswith('```javascript'):
-                            generated_js_code = generated_js_code.replace('```javascript', '').replace('```', '').strip()
+                            generated_js_code = generated_js_code.replace('```javascript', '').replace('```',
+                                                                                                       '').strip()
                         elif generated_js_code.startswith('```js'):
                             generated_js_code = generated_js_code.replace('```js', '').replace('```', '').strip()
                         elif generated_js_code.startswith('```'):
@@ -589,21 +631,21 @@ Generate JavaScript code to fulfill the requirement:"""
 
                         # Execute the generated JavaScript code
                         try:
-                            logger.debug(generated_js_code)
+                            logger.info(generated_js_code)
                             # Always use awaitPromise=True - it's ignored for non-promises
                             result = await cdp_session.cdp_client.send.Runtime.evaluate(
                                 params={'expression': generated_js_code, 'returnByValue': True, 'awaitPromise': True},
                                 session_id=cdp_session.session_id,
                             )
 
-                            logger.debug(result)
+                            logger.info(result)
                             # Check for JavaScript execution errors
                             if result.get('exceptionDetails'):
                                 exception = result['exceptionDetails']
                                 error_msg = f'JavaScript execution error: {exception.get("text", "Unknown error")}'
                                 if 'lineNumber' in exception:
                                     error_msg += f' at line {exception["lineNumber"]}'
-                                
+
                                 # Add error feedback to message history for next iteration
                                 if iteration < MAX_ITERATIONS:
                                     error_feedback = f"""The previous JavaScript code failed with error:
@@ -624,7 +666,7 @@ Please fix the error and generate corrected JavaScript code:"""
                             # Check for wasThrown flag (backup error detection)
                             if result_data.get('wasThrown'):
                                 error_msg = 'JavaScript execution failed (wasThrown=true)'
-                                
+
                                 # Add error feedback to message history for next iteration
                                 if iteration < MAX_ITERATIONS:
                                     error_feedback = f"""The previous JavaScript code failed with error:
@@ -659,9 +701,9 @@ Please fix the error and generate corrected JavaScript code:"""
 
                             # Check if result is empty or meaningless
                             if (not result_text or
-                                result_text.strip() in ['', 'null', 'undefined', '[]', '{}'] or
-                                len(result_text.strip()) == 0):
-                                
+                                    result_text.strip() in ['', 'null', 'undefined', '[]', '{}'] or
+                                    len(result_text.strip()) == 0):
+
                                 # Add empty result feedback to message history for next iteration
                                 if iteration < MAX_ITERATIONS:
                                     empty_feedback = f"""The previous JavaScript code executed successfully but returned empty/meaningless result:
@@ -682,11 +724,11 @@ The result is empty or not useful. Please generate improved JavaScript code that
                             # Apply length limit with better truncation
                             if len(result_text) > 30000:
                                 result_text = result_text[:30000] + '\n... [Truncated after 30000 characters]'
-                            
+
                             # Success! Return the result
                             msg = f'Requirement: {params.code_requirement}\n\nGenerated Code (Iteration {iteration}): \n```javascript\n{generated_js_code}\n```\nResult: {result_text}'
                             logger.info(f'✅ Skill Code succeeded on iteration {iteration}')
-                            
+
                             return ActionResult(
                                 extracted_content=msg,
                                 long_term_memory=f'Generated and executed JavaScript code (iteration {iteration}) for requirement: {params.code_requirement}',
@@ -695,7 +737,7 @@ The result is empty or not useful. Please generate improved JavaScript code that
                         except Exception as e:
                             # CDP communication or other system errors
                             error_msg = f'Failed to execute JavaScript: {type(e).__name__}: {e}'
-                            
+
                             # Add system error feedback to message history for next iteration
                             if iteration < MAX_ITERATIONS:
                                 system_error_feedback = f"""The previous JavaScript code failed to execute due to system error:
@@ -709,17 +751,18 @@ Please generate alternative JavaScript code that avoids this system error:"""
                                 error_msg = f'Requirement: {params.code_requirement}\n\nFinal Generated Code (Iteration {iteration}): {generated_js_code}\n\nError: {error_msg}'
                                 logger.info(error_msg)
                                 return ActionResult(error=error_msg)
-                                
+
                     except Exception as e:
                         # LLM generation error
                         logger.error(f'❌ LLM generation failed on iteration {iteration}: {e}')
                         if iteration == MAX_ITERATIONS:
-                            return ActionResult(error=f'LLM generation failed after {MAX_ITERATIONS} iterations: {str(e)}')
+                            return ActionResult(
+                                error=f'LLM generation failed after {MAX_ITERATIONS} iterations: {str(e)}')
                         continue  # Try next iteration with same message history
-                
+
                 # Should not reach here, but just in case
                 return ActionResult(error=f'Skill code failed after {MAX_ITERATIONS} iterations')
-                
+
             except Exception as e:
                 logger.error(f'❌ Skill Code failed: {e}')
                 return ActionResult(error=f'Skill code failed: {str(e)}')
@@ -781,10 +824,10 @@ Please generate alternative JavaScript code that avoids this system error:"""
             # Navigate to Google search
             search_url = f'https://www.google.com/search?q={query}&udm=14'
             await browser_session.navigate_to_url(search_url, new_tab=False)
-            
+
             # Wait a moment for page to load
             await asyncio.sleep(1)
-            
+
             # Extract structured content
             extraction_query = f"""
 Extract the top 5 search results from this Google search page. For each result, provide:
@@ -794,9 +837,9 @@ Extract the top 5 search results from this Google search page. For each result, 
 
 Return results as a JSON array: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
 """
-            
+
             results_text = await self._extract_structured_content(browser_session, extraction_query, llm)
-            
+
             # Try to parse JSON results
             import json
             try:
@@ -810,7 +853,7 @@ Return results as a JSON array: [{{"title": "...", "url": "...", "summary": "...
                         return results[:5]  # Ensure max 5 results
                 except Exception as e:
                     logger.warning(f"Failed to parse JSON from search results: {results_text}")
-            
+
             # Fallback: return raw text as single result
             current_url = await browser_session.get_current_page_url()
             return [{
@@ -818,7 +861,7 @@ Return results as a JSON array: [{{"title": "...", "url": "...", "summary": "...
                 "url": current_url,
                 "summary": results_text[:200] + "..." if len(results_text) > 200 else results_text
             }]
-            
+
         except Exception as e:
             logger.error(f"Google search failed for query '{query}': {e}")
             return []
@@ -880,7 +923,7 @@ You will be given a query and the markdown of a webpage that has been filtered t
             raise RuntimeError(str(e))
 
     async def extract_clean_markdown(
-        self, browser_session: BrowserSession, extract_links: bool = True
+            self, browser_session: BrowserSession, extract_links: bool = True
     ) -> tuple[str, dict[str, Any]]:
         """Extract clean markdown from the current page."""
         import re
