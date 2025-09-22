@@ -42,6 +42,86 @@ Context = TypeVar('Context')
 T = TypeVar('T', bound=BaseModel)
 
 
+def get_sibling_position(node: EnhancedDOMTreeNode) -> int:
+    """Get the position of node among its siblings with the same tag"""
+    if not node.parent_node:
+        return 1
+    
+    tag_name = node.tag_name
+    position = 1
+    
+    # Find siblings with same tag name before this node
+    for sibling in node.parent_node.children:
+        if sibling == node:
+            break
+        if sibling.tag_name == tag_name:
+            position += 1
+    
+    return position
+
+
+def extract_css_hints(node: EnhancedDOMTreeNode) -> dict:
+    """Extract CSS selector construction hints"""
+    hints = {}
+    
+    if "id" in node.attributes:
+        hints["id"] = f"#{node.attributes['id']}"
+    
+    if "class" in node.attributes:
+        classes = node.attributes["class"].split()
+        hints["class"] = f".{'.'.join(classes[:3])}"  # Limit class count
+    
+    # Attribute selector hints
+    for attr in ["name", "data-testid", "type"]:
+        if attr in node.attributes:
+            hints[f"attr_{attr}"] = f"[{attr}='{node.attributes[attr]}']"
+    
+    return hints
+
+
+def convert_selector_map_for_llm(selector_map) -> dict:
+    """
+    Convert complex selector_map to simplified format suitable for LLM understanding and JS code writing
+    """
+    simplified_elements = []
+    
+    for element_index, node in selector_map.items():
+        if node.is_visible and node.element_index is not None:  # Only include visible interactive elements
+            element_info = {
+                "tag": node.tag_name,
+                "text": node.get_meaningful_text_for_llm()[:200],  # Limit text length
+                
+                # Selector information - most needed for JS code
+                "selectors": {
+                    "xpath": node.xpath,
+                    "css_hints": extract_css_hints(node),  # Extract id, class etc
+                },
+                
+                # Element semantics
+                "role": node.ax_node.role if node.ax_node else None,
+                "type": node.attributes.get("type"),
+                "aria_label": node.attributes.get("aria-label"),
+                
+                # Key attributes
+                "attributes": {k: v for k, v in node.attributes.items()
+                             if k in ["id", "class", "name", "href", "src", "value", "placeholder", "data-testid"]},
+                
+                # Interactivity
+                "is_clickable": node.snapshot_node.is_clickable if node.snapshot_node else False,
+                "is_input": node.tag_name.lower() in ["input", "textarea", "select"],
+                
+                # Structure information
+                "parent_tag": node.parent_node.tag_name if node.parent_node else None,
+                "position_info": f"{node.tag_name}[{get_sibling_position(node)}]"
+            }
+            simplified_elements.append(element_info)
+    
+    return {
+        "page_elements": simplified_elements,
+        "total_elements": len(simplified_elements)
+    }
+
+
 class VibeSurfTools:
     def __init__(self, exclude_actions: list[str] = [], mcp_server_config: Optional[Dict[str, Any]] = None):
         self.registry = Registry(exclude_actions)
@@ -369,17 +449,21 @@ Format: [{"title": "...", "url": "...", "summary": "..."}, ...]
 
 
         @self.registry.action(
-            'Skill: Execute JavaScript code on webpage with optional tab selection',
+            'Skill: Execute JavaScript code on webpage with optional tab selection - accepts functional requirements, code prompts, or code snippets that will be processed by LLM to generate proper executable JavaScript',
             param_model=SkillCodeAction,
         )
         async def skill_code(
             params: SkillCodeAction,
             browser_manager: BrowserManager,
+            page_extraction_llm: BaseChatModel,
         ):
             """
-            Skill: Execute JavaScript code on current or specified webpage
+            Skill: Generate and execute JavaScript code from functional requirements or code prompts
             """
             try:
+                if not page_extraction_llm:
+                    raise RuntimeError("LLM is required for skill_code")
+                
                 # Get browser session
                 browser_session = browser_manager.main_browser_session
                 
@@ -388,13 +472,78 @@ Format: [{"title": "...", "url": "...", "summary": "..."}, ...]
                     target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
                 
-                # Execute JavaScript code
+                # Get browser state and convert for LLM
+                browser_state = await browser_session.get_browser_state_summary()
+                browser_selector_map = browser_state.dom_state.selector_map
+                simplified_dom = convert_selector_map_for_llm(browser_selector_map)
+                
+                # Get current page URL for context
+                current_url = await browser_session.get_current_page_url()
+                
+                # Create LLM prompt to generate JavaScript code
+                system_prompt = """You are an expert JavaScript developer specializing in browser automation and DOM manipulation.
+
+You will be given a functional requirement or code prompt, along with the current page's DOM structure information.
+Your task is to generate valid, executable JavaScript code that accomplishes the specified requirement.
+
+IMPORTANT GUIDELINES:
+- Generate ONLY valid JavaScript code that can be executed with Runtime.evaluate
+- Use 'returnByValue': True and 'awaitPromise': True for execution
+- Wrap your code in (function(){ ... })() or (async function(){ ... })() for async code
+- Wrap your code in a try-catch block to handle errors gracefully
+- Limit output size to prevent context explosion
+- Handle special elements like iframes, shadow roots appropriately
+- Adapt strategy for React Native Web, React, Angular, Vue, MUI pages etc.
+- Use synthetic events, keyboard simulation, shadow DOM when needed
+- For complex objects, use JSON.stringify() for return values
+- Do not write comments in the code - focus on clean, executable JavaScript
+- Think about the page structure and choose the most reliable selectors
+
+EXAMPLES OF GOOD CODE PATTERNS:
+- Extract data: JSON.stringify(Array.from(document.querySelectorAll('a')).map(el => el.textContent.trim()))
+- Click elements: document.querySelector('#button-id').click()
+- Fill forms: document.querySelector('input[name="email"]').value = 'test@example.com'
+- Extract prices: Array.from(document.querySelectorAll('.price')).map(el => parseFloat(el.textContent.replace(/[^0-9.]/g, '')))
+
+OUTPUT FORMAT:
+Return ONLY the JavaScript code, no explanations or markdown formatting."""
+
+                user_prompt = f"""Current Page URL: {current_url}
+
+USER REQUIREMENT: {params.code_requirement}
+
+AVAILABLE PAGE ELEMENTS:
+{json.dumps(simplified_dom, indent=2, ensure_ascii=False)}
+
+Generate JavaScript code to fulfill the requirement:"""
+
+                # Generate JavaScript code using LLM
+                from browser_use.llm.messages import SystemMessage, UserMessage
+                response = await asyncio.wait_for(
+                    page_extraction_llm.ainvoke([
+                        SystemMessage(content=system_prompt),
+                        UserMessage(content=user_prompt)
+                    ]),
+                    timeout=60.0,
+                )
+                
+                generated_js_code = response.completion.strip()
+                
+                # Clean up the generated code (remove markdown if present)
+                if generated_js_code.startswith('```javascript'):
+                    generated_js_code = generated_js_code.replace('```javascript', '').replace('```', '').strip()
+                elif generated_js_code.startswith('```js'):
+                    generated_js_code = generated_js_code.replace('```js', '').replace('```', '').strip()
+                elif generated_js_code.startswith('```'):
+                    generated_js_code = generated_js_code.replace('```', '').strip()
+
+                # Execute the generated JavaScript code
                 cdp_session = await browser_session.get_or_create_cdp_session()
 
                 try:
                     # Always use awaitPromise=True - it's ignored for non-promises
                     result = await cdp_session.cdp_client.send.Runtime.evaluate(
-                        params={'expression': params.js_code, 'returnByValue': True, 'awaitPromise': True},
+                        params={'expression': generated_js_code, 'returnByValue': True, 'awaitPromise': True},
                         session_id=cdp_session.session_id,
                     )
 
@@ -404,7 +553,7 @@ Format: [{"title": "...", "url": "...", "summary": "..."}, ...]
                         error_msg = f'JavaScript execution error: {exception.get("text", "Unknown error")}'
                         if 'lineNumber' in exception:
                             error_msg += f' at line {exception["lineNumber"]}'
-                        msg = f'Code: {params.js_code}\n\nError: {error_msg}'
+                        msg = f'Requirement: {params.code_requirement}\n\nGenerated Code: {generated_js_code}\n\nError: {error_msg}'
                         logger.info(msg)
                         return ActionResult(error=msg)
 
@@ -413,7 +562,7 @@ Format: [{"title": "...", "url": "...", "summary": "..."}, ...]
 
                     # Check for wasThrown flag (backup error detection)
                     if result_data.get('wasThrown'):
-                        msg = f'Code: {params.js_code}\n\nError: JavaScript execution failed (wasThrown=true)'
+                        msg = f'Requirement: {params.code_requirement}\n\nGenerated Code: {generated_js_code}\n\nError: JavaScript execution failed (wasThrown=true)'
                         logger.info(msg)
                         return ActionResult(error=msg)
 
@@ -438,17 +587,18 @@ Format: [{"title": "...", "url": "...", "summary": "..."}, ...]
                     # Apply length limit with better truncation
                     if len(result_text) > 20000:
                         result_text = result_text[:19950] + '\n... [Truncated after 20000 characters]'
-                    msg = f'Code: {params.js_code}\n\nResult: {result_text}'
+                    
+                    msg = f'Requirement: {params.code_requirement}\n\nGenerated Code: {generated_js_code}\n\nResult: {result_text}'
                     logger.info(msg)
                     
                     return ActionResult(
-                        extracted_content=f'Code: {params.js_code}\n\nResult: {result_text}',
-                        long_term_memory=f'Executed JavaScript code successfully',
+                        extracted_content=msg,
+                        long_term_memory=f'Generated and executed JavaScript code for requirement: {params.code_requirement}',
                     )
 
                 except Exception as e:
                     # CDP communication or other system errors
-                    error_msg = f'Code: {params.js_code}\n\nError: Failed to execute JavaScript: {type(e).__name__}: {e}'
+                    error_msg = f'Requirement: {params.code_requirement}\n\nGenerated Code: {generated_js_code}\n\nError: Failed to execute JavaScript: {type(e).__name__}: {e}'
                     logger.info(error_msg)
                     return ActionResult(error=error_msg)
                 

@@ -3360,8 +3360,8 @@ class VibeSurfUIManager {
       this.skillSelectorState.filteredSkills = this.skillSelectorState.allSkills;
     } else {
       this.skillSelectorState.filteredSkills = this.skillSelectorState.allSkills.filter(skill =>
-        skill.name.toLowerCase().includes(filter) ||
-        skill.displayName.toLowerCase().includes(filter)
+        skill.name.toLowerCase().startsWith(filter) ||
+        skill.displayName.toLowerCase().startsWith(filter)
       );
     }
 

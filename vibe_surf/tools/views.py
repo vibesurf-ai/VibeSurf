@@ -169,8 +169,8 @@ class SkillDeepResearchAction(BaseModel):
 
 class SkillCodeAction(BaseModel):
     """Parameters for skill_code action"""
-    js_code: str = Field(
-        description='JavaScript code to execute on the current page',
+    code_requirement: str = Field(
+        description='Functional requirement or code prompt describing what the JavaScript code should accomplish. Can be a description like "extract products with price over $100", requirements, or complete/incomplete JavaScript code snippets that will be processed by LLM to generate proper executable code.',
     )
     tab_id: str | None = Field(
         default=None,
