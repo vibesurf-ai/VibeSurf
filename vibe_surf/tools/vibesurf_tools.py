@@ -32,6 +32,7 @@ from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionA
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.browser.browser_manager import BrowserManager
+from vibe_surf.tools.vibesurf_registry import VibeSurfRegistry
 
 from vibe_surf.logger import get_logger
 
@@ -124,7 +125,7 @@ def convert_selector_map_for_llm(selector_map) -> dict:
 
 class VibeSurfTools:
     def __init__(self, exclude_actions: list[str] = [], mcp_server_config: Optional[Dict[str, Any]] = None):
-        self.registry = Registry(exclude_actions)
+        self.registry = VibeSurfRegistry(exclude_actions)
         self._register_file_actions()
         self._register_browser_use_agent()
         self._register_report_writer_agent()
@@ -149,6 +150,7 @@ class VibeSurfTools:
             Skill: Advanced parallel search with LLM-generated search strategies
             """
             llm = page_extraction_llm
+            agent_ids = []
             try:
                 if not llm:
                     raise RuntimeError("LLM is required for skill_search")
@@ -197,7 +199,6 @@ Example format: ["query 1", "query 2", "query 3", "query 4", "query 5"]
 
                 # Step 2: Create browser sessions for parallel searching
                 register_sessions = []
-                agent_ids = []
                 
                 for i, query in enumerate(search_queries):
                     agent_id = f"search_agent_{i + 1:03d}"
@@ -240,7 +241,7 @@ Return the top 10 results as a JSON array, with each result containing:
 - url: string
 - summary: string (brief description of why this result is valuable)
 
-Format: [{"title": "...", "url": "...", "summary": "..."}, ...]
+Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
 """
                     
                     ranking_response = await llm.ainvoke([
@@ -265,7 +266,7 @@ Format: [{"title": "...", "url": "...", "summary": "..."}, ...]
                 # Format results for display
                 if top_results:
                     results_text = f"🔍 Advanced Search Results for '{params.query}':\n\n"
-                    for i, result in enumerate(top_results[:10], 1):
+                    for i, result in enumerate(top_results[:10]):
                         title = result.get('title', 'Unknown Title')
                         url = result.get('url', 'No URL')
                         summary = result.get('summary', 'No summary available')
@@ -283,9 +284,13 @@ Format: [{"title": "...", "url": "...", "summary": "..."}, ...]
             except Exception as e:
                 logger.error(f'❌ Skill Search failed: {e}')
                 return ActionResult(error=f'Skill search failed: {str(e)}')
+            finally:
+                for i, agent_id in enumerate(agent_ids):
+                    await browser_manager.unregister_agent(agent_id, close_tabs=True)
+
 
         @self.registry.action(
-            'Skill: Extract structured information from a webpage with optional tab selection',
+            'Skill: Crawl a web page and extract structured information from a webpage with optional tab selection',
             param_model=SkillCrawlAction,
         )
         async def skill_crawl(
@@ -474,8 +479,7 @@ Format: [{"title": "...", "url": "...", "summary": "..."}, ...]
                 
                 # Get browser state and convert for LLM
                 browser_state = await browser_session.get_browser_state_summary()
-                browser_selector_map = browser_state.dom_state.selector_map
-                simplified_dom = convert_selector_map_for_llm(browser_selector_map)
+                web_page_description = browser_state.dom_state.llm_representation()
                 
                 # Get current page URL for context
                 current_url = await browser_session.get_current_page_url()
@@ -487,23 +491,57 @@ You will be given a functional requirement or code prompt, along with the curren
 Your task is to generate valid, executable JavaScript code that accomplishes the specified requirement.
 
 IMPORTANT GUIDELINES:
-- Generate ONLY valid JavaScript code that can be executed with Runtime.evaluate
-- Use 'returnByValue': True and 'awaitPromise': True for execution
-- Wrap your code in (function(){ ... })() or (async function(){ ... })() for async code
-- Wrap your code in a try-catch block to handle errors gracefully
-- Limit output size to prevent context explosion
-- Handle special elements like iframes, shadow roots appropriately
-- Adapt strategy for React Native Web, React, Angular, Vue, MUI pages etc.
-- Use synthetic events, keyboard simulation, shadow DOM when needed
-- For complex objects, use JSON.stringify() for return values
-- Do not write comments in the code - focus on clean, executable JavaScript
-- Think about the page structure and choose the most reliable selectors
+This JavaScript code gets executed with Runtime.evaluate and 'returnByValue': True, 'awaitPromise': True
 
-EXAMPLES OF GOOD CODE PATTERNS:
-- Extract data: JSON.stringify(Array.from(document.querySelectorAll('a')).map(el => el.textContent.trim()))
-- Click elements: document.querySelector('#button-id').click()
-- Fill forms: document.querySelector('input[name="email"]').value = 'test@example.com'
-- Extract prices: Array.from(document.querySelectorAll('.price')).map(el => parseFloat(el.textContent.replace(/[^0-9.]/g, '')))
+SYNTAX RULES - FAILURE TO FOLLOW CAUSES "Uncaught at line 0" ERRORS:
+- ALWAYS wrap your code in IIFE: (function(){ ... })() or (async function(){ ... })() for async code
+- ALWAYS add try-catch blocks to prevent execution errors
+- ALWAYS use proper semicolons and valid JavaScript syntax
+- NEVER write multiline code without proper IIFE wrapping
+- ALWAYS validate elements exist before accessing them
+
+EXAMPLES:
+Use this tool when other tools do not work on the first try as expected or when a more general tool is needed, e.g. for filling a form all at once, hovering, dragging, extracting only links, extracting content from the page, press and hold, hovering, clicking on coordinates, zooming, use this if the user provides custom selectors which you can otherwise not interact with ....
+You can also use it to explore the website.
+- Write code to solve problems you could not solve with other tools.
+- Don't write comments in here, no human reads that.
+- Write only valid js code.
+- use this to e.g. extract + filter links, convert the page to json into the format you need etc...
+
+
+- limit the output otherwise your context will explode
+- think if you deal with special elements like iframes / shadow roots etc
+- Adopt your strategy for React Native Web, React, Angular, Vue, MUI pages etc.
+- e.g. with  synthetic events, keyboard simulation, shadow DOM, etc.
+
+PROPER SYNTAX EXAMPLES:
+CORRECT: (function(){ try { const el = document.querySelector('#id'); return el ? el.value : 'not found'; } catch(e) { return 'Error: ' + e.message; } })()
+CORRECT: (async function(){ try { await new Promise(r => setTimeout(r, 100)); return 'done'; } catch(e) { return 'Error: ' + e.message; } })()
+
+WRONG: const el = document.querySelector('#id'); el ? el.value : '';
+WRONG: document.querySelector('#id').value
+WRONG: Multiline code without IIFE wrapping
+
+SHADOW DOM ACCESS EXAMPLE:
+(function(){
+    try {
+        const hosts = document.querySelectorAll('*');
+        for (let host of hosts) {
+            if (host.shadowRoot) {
+                const el = host.shadowRoot.querySelector('#target');
+                if (el) return el.textContent;
+            }
+        }
+        return 'Not found';
+    } catch(e) {
+        return 'Error: ' + e.message;
+    }
+})()
+
+## Return values:
+- Async functions (with await, promises, timeouts) are automatically handled
+- Returns strings, numbers, booleans, and serialized objects/arrays
+- Use JSON.stringify() for complex objects: JSON.stringify(Array.from(document.querySelectorAll('a')).map(el => el.textContent.trim()))
 
 OUTPUT FORMAT:
 Return ONLY the JavaScript code, no explanations or markdown formatting."""
@@ -512,8 +550,8 @@ Return ONLY the JavaScript code, no explanations or markdown formatting."""
 
 USER REQUIREMENT: {params.code_requirement}
 
-AVAILABLE PAGE ELEMENTS:
-{json.dumps(simplified_dom, indent=2, ensure_ascii=False)}
+Web Page Elements Description:
+{web_page_description}
 
 Generate JavaScript code to fulfill the requirement:"""
 
@@ -665,7 +703,7 @@ Generate JavaScript code to fulfill the requirement:"""
             await browser_session.navigate_to_url(search_url, new_tab=False)
             
             # Wait a moment for page to load
-            await asyncio.sleep(2)
+            await asyncio.sleep(1)
             
             # Extract structured content
             extraction_query = f"""
