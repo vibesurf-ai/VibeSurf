@@ -63,7 +63,7 @@ class VibeSurfTools:
         async def skill_search(
             params: SkillSearchAction,
             browser_manager: BrowserManager,
-            page_extraction_llm: BaseChatModel | None = None
+            page_extraction_llm: BaseChatModel
         ):
             """
             Skill: Advanced parallel search with LLM-generated search strategies
@@ -211,7 +211,7 @@ Format: [{"title": "...", "url": "...", "summary": "..."}, ...]
         async def skill_crawl(
             params: SkillCrawlAction,
             browser_manager: BrowserManager,
-            page_extraction_llm: BaseChatModel | None = None
+            page_extraction_llm: BaseChatModel
         ):
             """
             Skill: Extract structured content from current or specified webpage
@@ -264,7 +264,7 @@ Format: [{"title": "...", "url": "...", "summary": "..."}, ...]
         async def skill_summary(
             params: SkillSummaryAction,
             browser_manager: BrowserManager,
-            page_extraction_llm: BaseChatModel | None = None
+            page_extraction_llm: BaseChatModel
         ):
             """
             Skill: Summarize webpage content using LLM
