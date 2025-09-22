@@ -156,8 +156,11 @@ class VibeSurfTools:
                     raise RuntimeError("LLM is required for skill_search")
                 
                 # Step 1: Use LLM to analyze user intent and generate different search tasks
+                from datetime import datetime
                 analysis_prompt = f"""
 Analyze the user query and generate 5 different Google search strategies to comprehensively find relevant information.
+
+Current Time: {datetime.now().isoformat()}
 
 User Query: "{params.query}"
 
@@ -258,10 +261,6 @@ Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
                         top_results = all_results[:10]
                 else:
                     top_results = []
-                
-                # Cleanup browser sessions
-                cleanup_tasks = [browser_manager.unregister_agent(agent_id) for agent_id in agent_ids]
-                await asyncio.gather(*cleanup_tasks, return_exceptions=True)
                 
                 # Format results for display
                 if top_results:
