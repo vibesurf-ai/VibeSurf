@@ -407,11 +407,11 @@ class AgentBrowserSession(BrowserSession):
         self.logger.info('🚫 VibeSurfBrowserSession: AboutBlankWatchdog disabled - no DVD animation will be shown')
 
         # Initialize DownloadsWatchdog
-        DownloadsWatchdog.model_rebuild()
-        self._downloads_watchdog = DownloadsWatchdog(event_bus=self.event_bus, browser_session=self)
-        self._downloads_watchdog.attach_to_session()
-        if self.browser_profile.auto_download_pdfs:
-            self.logger.info('📄 PDF auto-download enabled for this session')
+        # DownloadsWatchdog.model_rebuild()
+        # self._downloads_watchdog = DownloadsWatchdog(event_bus=self.event_bus, browser_session=self)
+        # self._downloads_watchdog.attach_to_session()
+        # if self.browser_profile.auto_download_pdfs:
+        #     self.logger.info('📄 PDF auto-download enabled for this session')
 
         # Initialize LocalBrowserWatchdog
         LocalBrowserWatchdog.model_rebuild()

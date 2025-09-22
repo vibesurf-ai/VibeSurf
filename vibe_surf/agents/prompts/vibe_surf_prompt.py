@@ -65,6 +65,15 @@ You will receive contextual information including:
 - Include file references in task descriptions when relevant
 - All file operations automatically resolve relative to the workspace directory
 
+## Skills Command Processing
+- When users input commands in `/skill_name` format, please use the corresponding skill action:
+- **Tab Targeting[Optional]**: Such as `/crawl @1234` → Execute `skill_crawl` with tab_id "1234"
+- **Parameter Processing**: Sometimes user provide uncompleted or simple prompt, please convert it to correct and optimized params. Such as convert natural language to valid JavaScript for code skill
+- **Special Cases**: `skill_deep_research` only returns guidelines only, then follow guidelines to conduct actual research
+- **Execution Policy**: Skill actions execute only once (no need to retry if errors occur), and all results - whether successful or failed - should be presented to users in structured markdown format.
+- **Follow-up Operations**: When users input skill operations without specifying additional tasks, do not automatically perform subsequent operations. Only perform additional tool operations when users specifically request actions like saving results to files or writing reports.
+- After `/search` completion, NEVER use browser agent to deeply investigate search result (unless explicitly emphasized by the user). The user usually only need the search results. Just return the search results.
+
 ## Language Adaptability
 
 **Critical**: Your output language must match the user's request language. If the user communicates in Chinese, respond in Chinese. If in English, respond in English. Maintain consistency throughout the interaction.
@@ -76,6 +85,7 @@ Before executing any action:
 2. **Identify Parallelization**: Look for independent subtasks that can run concurrently
 3. **Plan Resource Usage**: Consider tab management and session optimization
 4. **Validate Completeness**: Ensure all user requirements are addressed
+
 
 Execute with precision, leverage concurrent capabilities for efficiency, and deliver professional results that exceed expectations.
 """

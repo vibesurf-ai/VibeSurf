@@ -27,6 +27,7 @@ class VibeSurfUIManager {
     
     this.bindElements();
     this.initializeTabSelector(); // Initialize tab selector before binding events
+    this.initializeSkillSelector(); // Initialize skill selector
     this.initializeManagers();
     this.bindEvents();
     this.setupSessionListeners();
@@ -66,6 +67,10 @@ class VibeSurfUIManager {
       tabSelectorConfirm: document.getElementById('tab-selector-confirm'),
       selectAllTabs: document.getElementById('select-all-tabs'),
       tabOptionsList: document.getElementById('tab-options-list'),
+      
+      // Skill selector elements
+      skillSelectorDropdown: document.getElementById('skill-selector-dropdown'),
+      skillOptionsList: document.getElementById('skill-options-list'),
       
       // Loading
       loadingOverlay: document.getElementById('loading-overlay')
@@ -581,7 +586,7 @@ class VibeSurfUIManager {
       } else if (isRunning) {
         this.elements.taskInput.placeholder = 'Task is running - please wait...';
       } else {
-        this.elements.taskInput.placeholder = 'Enter your task description...';
+        this.elements.taskInput.placeholder = 'Ask anything (/ for skills, @ to specify tab)';
       }
     }
     
@@ -962,8 +967,6 @@ class VibeSurfUIManager {
 
   async handleSendTask() {
     const taskDescription = this.elements.taskInput?.value.trim();
-    const taskStatus = this.sessionManager.getTaskStatus();
-    const isPaused = taskStatus === 'paused';
     
     if (!taskDescription) {
       this.showNotification('Please enter a task description', 'warning');
@@ -972,6 +975,12 @@ class VibeSurfUIManager {
     }
 
     try {
+      // Check task status from session manager first (more reliable than API check)
+      const sessionTaskStatus = this.sessionManager.getTaskStatus();
+      const isPaused = sessionTaskStatus === 'paused';
+
+      console.log('[UIManager] handleSendTask - session task status:', sessionTaskStatus, 'isPaused:', isPaused);
+
       if (isPaused) {
         // Handle adding new task to paused execution
         
@@ -988,7 +997,7 @@ class VibeSurfUIManager {
         return;
       }
       
-      // Original logic for new task submission
+      // For non-paused states, check if any task is running
       const statusCheck = await this.checkTaskStatus();
       if (statusCheck.isRunning) {
         const canProceed = await this.showTaskRunningWarning('send a new task');
@@ -1034,7 +1043,12 @@ class VibeSurfUIManager {
       const selectedTabsData = this.getSelectedTabsForTask();
       if (selectedTabsData) {
         taskData.selected_tabs = selectedTabsData;
-        
+      }
+      
+      // Add selected skills information if any
+      const selectedSkillsData = this.getSelectedSkillsForTask();
+      if (selectedSkillsData) {
+        taskData.selected_skills = selectedSkillsData;
       }
       
       
@@ -1105,6 +1119,19 @@ class VibeSurfUIManager {
         event.preventDefault();
         return;
       }
+      // Also handle skill token deletion
+      if (this.handleSkillTokenDeletion(event)) {
+        event.preventDefault();
+        return;
+      }
+    }
+
+    // Handle Tab key for skill auto-completion when only one skill matches
+    if (event.key === 'Tab' && this.skillSelectorState.isVisible) {
+      if (this.skillSelectorState.filteredSkills.length === 1) {
+        event.preventDefault();
+        this.selectSkill(this.skillSelectorState.filteredSkills[0]);
+      }
     }
   }
 
@@ -1136,6 +1163,60 @@ class VibeSurfUIManager {
     } else if (event.key === 'Delete') {
       // Only delete if cursor is directly adjacent to start of token
       // Check if the character immediately at cursor is a startMarker
+      if (cursorPos < text.length && text[cursorPos] === startMarker) {
+        tokenStart = cursorPos;
+        // Find the corresponding end marker forwards
+        for (let j = cursorPos + 1; j < text.length; j++) {
+          if (text[j] === endMarker) {
+            tokenEnd = j + 1; // Include the marker
+            break;
+          }
+        }
+      }
+    }
+    
+    // If we found a complete token, delete it
+    if (tokenStart !== -1 && tokenEnd !== -1) {
+      const beforeToken = text.substring(0, tokenStart);
+      const afterToken = text.substring(tokenEnd);
+      input.value = beforeToken + afterToken;
+      input.setSelectionRange(tokenStart, tokenStart);
+      
+      // Trigger input change event for validation
+      this.handleTaskInputChange({ target: input });
+      
+      return true; // Prevent default behavior
+    }
+    
+    return false; // Allow default behavior
+  }
+
+  handleSkillTokenDeletion(event) {
+    const input = event.target;
+    const cursorPos = input.selectionStart;
+    const text = input.value;
+    
+    // Unicode markers for skill tokens
+    const startMarker = '\u200D'; // Zero-width joiner
+    const endMarker = '\u200E';   // Left-to-right mark
+    
+    let tokenStart = -1;
+    let tokenEnd = -1;
+    
+    if (event.key === 'Backspace') {
+      // Only delete if cursor is directly adjacent to end of token
+      if (cursorPos > 0 && text[cursorPos - 1] === endMarker) {
+        tokenEnd = cursorPos; // Include the marker
+        // Find the corresponding start marker backwards
+        for (let j = cursorPos - 2; j >= 0; j--) {
+          if (text[j] === startMarker) {
+            tokenStart = j;
+            break;
+          }
+        }
+      }
+    } else if (event.key === 'Delete') {
+      // Only delete if cursor is directly adjacent to start of token
       if (cursorPos < text.length && text[cursorPos] === startMarker) {
         tokenStart = cursorPos;
         // Find the corresponding end marker forwards
@@ -1229,8 +1310,6 @@ class VibeSurfUIManager {
   }
 
   handleTaskInputChange(event) {
-    
-    
     const hasText = event.target.value.trim().length > 0;
     const textarea = event.target;
     const llmProfile = this.elements.llmProfileSelect?.value;
@@ -1240,6 +1319,9 @@ class VibeSurfUIManager {
     
     // Check for @ character to trigger tab selector
     this.handleTabSelectorInput(event);
+    
+    // Check for / character to trigger skill selector
+    this.handleSkillSelectorInput(event);
     
     // Update send button state - special handling for pause state
     if (this.elements.sendBtn) {
@@ -1723,10 +1805,12 @@ class VibeSurfUIManager {
         
         // Remove href temporarily to prevent default browser behavior
         const originalHref = link.getAttribute('href');
+        const dataFilePath = link.getAttribute('data-file-path');
         link.setAttribute('href', '#');
         
-        const href = originalHref;
-        if (!href || href === '#') return;
+        // Use data-file-path if available (for file:// links), otherwise use href
+        const targetUrl = dataFilePath || originalHref;
+        if (!targetUrl || (targetUrl === '#' && !dataFilePath)) return;
         
         // Debounce - prevent rapid repeated clicks
         if (link.hasAttribute('data-link-processing')) {
@@ -1737,22 +1821,22 @@ class VibeSurfUIManager {
         link.setAttribute('data-link-processing', 'true');
         
         try {
-          console.log('[VibeSurf] Processing link:', href);
+          console.log('[VibeSurf] Processing link:', targetUrl);
           
           // Handle file:// links using existing logic
-          if (href.startsWith('file://')) {
-            await this.handleFileLinkClick(href);
+          if (targetUrl.startsWith('file://')) {
+            await this.handleFileLinkClick(targetUrl);
           }
           // Handle HTTP/HTTPS links
-          else if (href.startsWith('http://') || href.startsWith('https://')) {
-            await this.handleHttpLinkClick(href);
+          else if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+            await this.handleHttpLinkClick(targetUrl);
           }
           // Handle other protocols or relative URLs
           else {
-            await this.handleOtherLinkClick(href);
+            await this.handleOtherLinkClick(targetUrl);
           }
           
-          console.log('[VibeSurf] Link processed successfully:', href);
+          console.log('[VibeSurf] Link processed successfully:', targetUrl);
         } catch (error) {
           console.error('[VibeSurf] Error handling link click:', error);
           this.showNotification(`Failed to open link: ${error.message}`, 'error');
@@ -1981,6 +2065,8 @@ class VibeSurfUIManager {
         return '🔄';
       case 'request':
         return '💡';
+      case 'additional_request':
+        return '➕';
       default:
         return '💡';
     }
@@ -3095,9 +3181,300 @@ class VibeSurfUIManager {
     
     return selectedTabsData;
   }
+
+  // Skill Selector Methods
+  initializeSkillSelector() {
+    // Initialize skill selector state
+    this.skillSelectorState = {
+      isVisible: false,
+      selectedSkills: [],
+      allSkills: [],
+      slashPosition: -1, // Position where / was typed
+      currentFilter: '', // Current filter text after /
+      filteredSkills: [] // Filtered skills based on current input
+    };
+
+    // Bind skill selector events
+    this.bindSkillSelectorEvents();
+  }
+
+  bindSkillSelectorEvents() {
+    // Hide on click outside
+    document.addEventListener('click', (event) => {
+      if (this.skillSelectorState.isVisible &&
+          this.elements.skillSelectorDropdown &&
+          !this.elements.skillSelectorDropdown.contains(event.target) &&
+          !this.elements.taskInput?.contains(event.target)) {
+        this.hideSkillSelector();
+      }
+    });
+  }
+
+  handleSkillSelectorInput(event) {
+    // Safety check - ensure skill selector state is initialized
+    if (!this.skillSelectorState) {
+      console.warn('[UIManager] Skill selector state not initialized');
+      return;
+    }
+
+    const inputValue = event.target.value;
+    const cursorPosition = event.target.selectionStart;
+
+    // Check if / was just typed
+    if (inputValue[cursorPosition - 1] === '/') {
+      this.skillSelectorState.slashPosition = cursorPosition - 1;
+      this.skillSelectorState.currentFilter = '';
+      this.showSkillSelector();
+    } else if (this.skillSelectorState.isVisible) {
+      // Check if / was deleted - hide skill selector immediately
+      if (this.skillSelectorState.slashPosition >= 0 &&
+          (this.skillSelectorState.slashPosition >= inputValue.length ||
+           inputValue[this.skillSelectorState.slashPosition] !== '/')) {
+        this.hideSkillSelector();
+        return;
+      }
+
+      // Update filter based on text after /
+      const textAfterSlash = inputValue.substring(this.skillSelectorState.slashPosition + 1, cursorPosition);
+      
+      // Only consider text up to the next space or special character
+      const filterText = textAfterSlash.split(/[\s@]/)[0];
+      
+      if (this.skillSelectorState.currentFilter !== filterText) {
+        this.skillSelectorState.currentFilter = filterText;
+        this.filterSkills();
+      }
+
+      // Hide skill selector if user typed a space or moved past the skill context
+      if (textAfterSlash.includes(' ') || textAfterSlash.includes('@')) {
+        this.hideSkillSelector();
+      }
+    }
+  }
+
+  async showSkillSelector() {
+    if (!this.elements.skillSelectorDropdown || !this.elements.taskInput) {
+      console.error('[UIManager] Skill selector elements not found', {
+        dropdown: this.elements.skillSelectorDropdown,
+        taskInput: this.elements.taskInput
+      });
+      return;
+    }
+
+    try {
+      // Fetch skill data from backend if not already cached
+      if (this.skillSelectorState.allSkills.length === 0) {
+        await this.populateSkillSelector();
+      }
+
+      // Filter skills based on current input
+      this.filterSkills();
+
+      // Position the dropdown relative to the input
+      this.positionSkillSelector();
+
+      // Show the dropdown with explicit visibility
+      this.elements.skillSelectorDropdown.classList.remove('hidden');
+      this.elements.skillSelectorDropdown.style.display = 'block';
+      this.elements.skillSelectorDropdown.style.visibility = 'visible';
+      this.elements.skillSelectorDropdown.style.opacity = '1';
+      this.skillSelectorState.isVisible = true;
+
+    } catch (error) {
+      console.error('[UIManager] Failed to show skill selector:', error);
+      this.showNotification('Failed to load skills', 'error');
+    }
+  }
+
+  hideSkillSelector() {
+    if (this.elements.skillSelectorDropdown) {
+      this.elements.skillSelectorDropdown.classList.add('hidden');
+      this.elements.skillSelectorDropdown.style.display = 'none';
+    }
+    this.skillSelectorState.isVisible = false;
+    this.skillSelectorState.slashPosition = -1;
+    this.skillSelectorState.currentFilter = '';
+    this.skillSelectorState.filteredSkills = [];
+  }
+
+  positionSkillSelector() {
+    if (!this.elements.skillSelectorDropdown || !this.elements.taskInput) return;
+
+    const inputRect = this.elements.taskInput.getBoundingClientRect();
+    const dropdown = this.elements.skillSelectorDropdown;
+
+    // Calculate 90% width of input
+    const dropdownWidth = inputRect.width * 0.9;
+
+    // Position dropdown ABOVE the input (not below)
+    dropdown.style.position = 'fixed';
+    dropdown.style.bottom = `${window.innerHeight - inputRect.top + 5}px`; // Above the input
+    dropdown.style.left = `${inputRect.left + (inputRect.width - dropdownWidth) / 2}px`; // Centered
+    dropdown.style.width = `${dropdownWidth}px`; // 90% of input width
+    dropdown.style.zIndex = '9999';
+    dropdown.style.maxHeight = '300px';
+    dropdown.style.overflowY = 'auto';
+  }
+
+  async populateSkillSelector() {
+    try {
+      console.log('[UIManager] Fetching skills from backend...');
+      // Get all skills from backend
+      const skills = await this.apiClient.getAllSkills();
+
+      console.log('[UIManager] Skills received from backend:', skills);
+
+      if (!skills || !Array.isArray(skills) || skills.length === 0) {
+        console.warn('[UIManager] No skills returned from backend');
+        this.skillSelectorState.allSkills = [];
+        return;
+      }
+
+      this.skillSelectorState.allSkills = skills.map(skillName => ({
+        name: skillName,
+        displayName: skillName // Keep original skill name without transformation
+      }));
+      console.log('[UIManager] Processed skills:', this.skillSelectorState.allSkills);
+
+    } catch (error) {
+      console.error('[UIManager] Failed to populate skill selector:', error);
+      console.error('[UIManager] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response,
+        data: error.data
+      });
+
+      // Show error to user
+      this.showNotification(`Failed to load skills: ${error.message}`, 'error');
+
+      // Set empty array instead of fallback test data
+      this.skillSelectorState.allSkills = [];
+    }
+  }
+
+  filterSkills() {
+    const filter = this.skillSelectorState.currentFilter.toLowerCase();
+    
+    if (!filter) {
+      this.skillSelectorState.filteredSkills = this.skillSelectorState.allSkills;
+    } else {
+      this.skillSelectorState.filteredSkills = this.skillSelectorState.allSkills.filter(skill =>
+        skill.name.toLowerCase().startsWith(filter) ||
+        skill.displayName.toLowerCase().startsWith(filter)
+      );
+    }
+
+    this.renderSkillOptions();
+  }
+
+  renderSkillOptions() {
+    if (!this.elements.skillOptionsList) return;
+
+    // Clear existing options
+    this.elements.skillOptionsList.innerHTML = '';
+
+    if (this.skillSelectorState.filteredSkills.length === 0) {
+      const noResults = document.createElement('div');
+      noResults.className = 'skill-option';
+      noResults.innerHTML = '<span class="skill-name">No skills found</span>';
+      noResults.style.opacity = '0.6';
+      noResults.style.cursor = 'not-allowed';
+      this.elements.skillOptionsList.appendChild(noResults);
+      return;
+    }
+
+    // Add skill options
+    this.skillSelectorState.filteredSkills.forEach((skill, index) => {
+      const option = this.createSkillOption(skill, index);
+      this.elements.skillOptionsList.appendChild(option);
+    });
+  }
+
+  createSkillOption(skill, index) {
+    const option = document.createElement('div');
+    option.className = 'skill-option';
+    option.dataset.skillName = skill.name;
+    option.dataset.skillIndex = index;
+
+    option.innerHTML = `
+      <span class="skill-name">${this.escapeHtml(skill.displayName)}</span>
+    `;
+
+    // Add click event for skill selection
+    option.addEventListener('click', () => {
+      this.selectSkill(skill);
+    });
+
+    return option;
+  }
+
+  selectSkill(skill) {
+    if (!this.elements.taskInput) return;
+
+    const input = this.elements.taskInput;
+    const currentValue = input.value;
+    const slashPosition = this.skillSelectorState.slashPosition;
+
+    // Use special Unicode characters as boundaries for easy deletion
+    const SKILL_START_MARKER = '\u200D'; // Zero-width joiner
+    const SKILL_END_MARKER = '\u200E';   // Left-to-right mark
+
+    // Create skill information string
+    const skillInfo = `${SKILL_START_MARKER}/${skill.name}${SKILL_END_MARKER}`;
+
+    // Replace / with skill selection
+    const beforeSlash = currentValue.substring(0, slashPosition);
+    const afterSlash = currentValue.substring(slashPosition + 1 + this.skillSelectorState.currentFilter.length);
+    const newValue = `${beforeSlash}${skillInfo} ${afterSlash}`;
+
+    input.value = newValue;
+
+    // Trigger input change event for validation
+    this.handleTaskInputChange({ target: input });
+
+    // Set cursor position after the inserted text
+    const newCursorPosition = beforeSlash.length + skillInfo.length + 1;
+    input.setSelectionRange(newCursorPosition, newCursorPosition);
+    input.focus();
+
+    // Hide the selector
+    this.hideSkillSelector();
+  }
+
+  getSelectedSkillsForTask() {
+    if (!this.elements.taskInput) return null;
+
+    const inputValue = this.elements.taskInput.value;
+    const SKILL_START_MARKER = '\u200D'; // Zero-width joiner
+    const SKILL_END_MARKER = '\u200E';   // Left-to-right mark
+
+    const skills = [];
+    let startIndex = 0;
+
+    while ((startIndex = inputValue.indexOf(SKILL_START_MARKER, startIndex)) !== -1) {
+      const endIndex = inputValue.indexOf(SKILL_END_MARKER, startIndex);
+      if (endIndex !== -1) {
+        const skillText = inputValue.substring(startIndex + 1, endIndex);
+        if (skillText.startsWith('/')) {
+          skills.push(skillText.substring(1)); // Remove the / prefix
+        }
+        startIndex = endIndex + 1;
+      } else {
+        break;
+      }
+    }
+
+    return skills.length > 0 ? skills : null;
+  }
+
+  // Export for use in other modules
+  static exportToWindow() {
+    if (typeof window !== 'undefined') {
+      window.VibeSurfUIManager = VibeSurfUIManager;
+    }
+  }
 }
 
-// Export for use in other modules
-if (typeof window !== 'undefined') {
-  window.VibeSurfUIManager = VibeSurfUIManager;
-}
+// Call the export method
+VibeSurfUIManager.exportToWindow();
