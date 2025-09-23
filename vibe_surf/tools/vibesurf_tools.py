@@ -1379,7 +1379,7 @@ You will be given a query and the markdown of a webpage that has been filtered t
         async def write_file(
                 file_path: str,
                 content: str,
-                file_system: FileSystem,
+                file_system: CustomFileSystem,
                 append: bool = False,
                 trailing_newline: bool = True,
                 leading_newline: bool = False,

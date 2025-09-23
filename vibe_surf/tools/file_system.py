@@ -224,9 +224,9 @@ class CustomFileSystem(FileSystem):
     def _is_valid_filename(self, file_name: str) -> bool:
         """Check if filename matches the required pattern: name.extension"""
         # Build extensions pattern from _file_types
-        file_name = os.path.basename(file_name)
+        file_name = os.path.splitext(file_name)[1]
         extensions = '|'.join(self._file_types.keys())
-        pattern = rf'^[a-zA-Z0-9_\-]+\.({extensions})$'
+        pattern = rf'\.({extensions})$'
         return bool(re.match(pattern, file_name))
 
     async def append_file(self, full_filename: str, content: str) -> str:
