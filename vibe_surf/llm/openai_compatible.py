@@ -76,6 +76,8 @@ class ChatOpenAICompatible(ChatOpenAI):
     The class automatically detects the model type and applies appropriate fixes.
     """
 
+    max_completion_tokens: int | None = 16000
+
     def _is_gemini_model(self) -> bool:
         """Check if the current model is a Gemini model."""
         return str(self.model).lower().startswith('gemini')
@@ -248,6 +250,7 @@ class ChatOpenAICompatible(ChatOpenAI):
 
             if self.max_completion_tokens is not None:
                 model_params['max_completion_tokens'] = self.max_completion_tokens
+                model_params['max_tokens'] = self.max_completion_tokens
 
             if self.top_p is not None:
                 model_params['top_p'] = self.top_p
@@ -334,6 +337,7 @@ class ChatOpenAICompatible(ChatOpenAI):
                 try:
                     parsed = output_format.model_validate_json(output_content)
                 except Exception as e:
+                    pdb.set_trace()
                     repair_content = repair_json(output_content)
                     parsed = output_format.model_validate_json(repair_content)
 
