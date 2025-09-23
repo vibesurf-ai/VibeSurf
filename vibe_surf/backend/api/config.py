@@ -234,7 +234,9 @@ async def update_llm_profile(
         
         # Return updated profile
         updated_profile = await LLMProfileQueries.get_profile(db, profile_name)
-        
+        from ..shared_state import current_llm_profile_name
+        if current_llm_profile_name != profile_name:
+            current_llm_profile_name = None
         # Use safe extraction to avoid greenlet issues
         return LLMProfileResponse(**_profile_to_response_dict(updated_profile))
         

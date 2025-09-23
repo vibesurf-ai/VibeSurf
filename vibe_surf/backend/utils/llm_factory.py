@@ -142,8 +142,9 @@ def create_llm_from_profile(llm_profile) -> BaseChatModel:
             )
 
         elif provider == "deepseek":
-            return ChatDeepSeek(
+            return ChatOpenAICompatible(
                 model=model,
+                base_url="https://api.deepseek.com",
                 api_key=api_key,
                 **common_params
             )

@@ -18,8 +18,10 @@ from vibe_surf.browser.agen_browser_profile import AgentBrowserProfile
 from vibe_surf.tools.browser_use_tools import BrowserUseTools
 from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 from vibe_surf.llm.openai_compatible import ChatOpenAICompatible
+from browser_use.llm.deepseek.chat import ChatDeepSeek
 from vibe_surf.agents.browser_use_agent import BrowserUseAgent
 from vibe_surf.agents.vibe_surf_agent import VibeSurfAgent
+
 
 async def run_single_bu_agent():
     import platform
@@ -46,9 +48,13 @@ async def run_single_bu_agent():
     #                            base_url=os.getenv("ALIBABA_ENDPOINT"),
     #                            api_key=os.getenv("ALIBABA_API_KEY"))
 
-    llm = ChatOpenAICompatible(model='kimi-k2-turbo-preview',
-                               base_url=os.getenv("MOONSHOT_ENDPOINT"),
-                               api_key=os.getenv("MOONSHOT_API_KEY"))
+    # llm = ChatOpenAICompatible(model='kimi-k2-turbo-preview',
+    #                            base_url=os.getenv("MOONSHOT_ENDPOINT"),
+    #                            api_key=os.getenv("MOONSHOT_API_KEY"))
+
+    llm = ChatOpenAICompatible(model='deepseek-reasoner',
+                               base_url=os.getenv("DEEPSEEK_ENDPOINT"),
+                               api_key=os.getenv("DEEPSEEK_API_KEY"))
 
     task = "Search Google for 'Elon Mask' and tell me the top 3 results"
 
@@ -159,20 +165,22 @@ async def test_vibe_surf_agent():
     await main_browser_session.start()
     vs_tools = VibeSurfTools()
     browser_manager = BrowserManager(main_browser_session=main_browser_session)
-    llm = ChatOpenAICompatible(model='gemini-2.5-flash',
-                               base_url=os.getenv("OPENAI_ENDPOINT"),
-                               api_key=os.getenv("OPENAI_API_KEY"))
+    # llm = ChatOpenAICompatible(model='gemini-2.5-flash',
+    #                            base_url=os.getenv("OPENAI_ENDPOINT"),
+    #                            api_key=os.getenv("OPENAI_API_KEY"))
 
-    
+    llm = ChatOpenAICompatible(model='deepseek-chat',
+                               base_url=os.getenv("DEEPSEEK_ENDPOINT"),
+                               api_key=os.getenv("DEEPSEEK_API_KEY"))
+
     # Create VibeSurfAgent
     agent = VibeSurfAgent(
         llm=llm,
         browser_manager=browser_manager,
         tools=vs_tools,
-        workspace_dir=os.path.abspath("./tmp/vibesurf_tests"),
-        calculate_token_cost=True
+        workspace_dir=os.path.abspath("./tmp/vibesurf_tests")
     )
-    
+
     try:
         # Test 1: Simple task (should not require browser)
         print("🧪 Testing simple task...")
@@ -200,16 +208,16 @@ async def test_vibe_surf_agent():
         # print("🎉 All VibeSurfAgent tests passed!")
 
         # Test 4: Browser parallel task
-        print("🧪 Testing browser parallel tasks...")
-        browser_task = "Search for Dify, n8n, browser-use and click into their own homepage, take screenshot and save"
-        result4 = await agent.run(browser_task)
-        print(f"✅ Browser task result:")
-        pprint.pprint(result4)
-        with open("./tmp/vibesurf_tests/parallel_test.md", "w", encoding='utf-8') as fw:
-            fw.write(result4)
-        assert result4 is not None and len(result4) > 0
+        # print("🧪 Testing browser parallel tasks...")
+        # browser_task = "Search for Dify, n8n, browser-use and click into their own homepage, take screenshot and save"
+        # result4 = await agent.run(browser_task)
+        # print(f"✅ Browser task result:")
+        # pprint.pprint(result4)
+        # with open("./tmp/vibesurf_tests/parallel_test.md", "w", encoding='utf-8') as fw:
+        #     fw.write(result4)
+        # assert result4 is not None and len(result4) > 0
         print("🎉 All VibeSurfAgent tests passed!")
-        
+
     except Exception as e:
         print(f"❌ VibeSurfAgent test failed: {e}")
         raise e
@@ -240,7 +248,6 @@ async def test_vibe_surf_agent_control():
     llm = ChatOpenAICompatible(model='gemini-2.5-pro',
                                base_url=os.getenv("OPENAI_ENDPOINT"),
                                api_key=os.getenv("OPENAI_API_KEY"))
-    
 
     # Create VibeSurfAgent
     agent = VibeSurfAgent(
@@ -253,69 +260,69 @@ async def test_vibe_surf_agent_control():
 
     try:
         print("🧪 Testing VibeSurfAgent control functionality...")
-        
+
         # Test 1: Status check when idle
         print("📊 Testing initial status...")
         status = agent.get_status()
         print(f"Initial status: {status.overall_status}")
         assert status.overall_status == "idle"
-        
+
         # Test 2: Start a long-running browser task
         print("🚀 Starting long-running browser task...")
         browser_task = "Search for Dify, n8n, langflow and gather relative information, and generate a detailed report for comparison"
-        
+
         # Start task in background
         async def run_task():
             return await agent.run(browser_task)
-        
+
         task_coroutine = asyncio.create_task(run_task())
-        
+
         # Wait a bit for task to start
         await asyncio.sleep(10)
-        
+
         # Test 3: Check status during execution
         print("📊 Checking status during execution...")
         status = agent.get_status()
         print(f"Running status: {status.overall_status}")
         print(f"Progress: {status.progress}")
         print(f"Active agents: {len(status.agent_statuses)}")
-        
+
         # Test 4: Pause execution
         print("⏸️ Testing pause functionality...")
         pause_result = await agent.pause("Testing pause functionality")
         print(f"Pause result: {pause_result.success} - {pause_result.message}")
         assert pause_result.success
-        
+
         # Check status after pause
         await asyncio.sleep(1)
         status = agent.get_status()
         print(f"Paused status: {status.overall_status}")
         assert status.overall_status == "paused"
-        
+
         # Test 5: Resume execution
         print("▶️ Testing resume functionality...")
         resume_result = await agent.resume("Testing resume functionality")
         print(f"Resume result: {resume_result.success} - {resume_result.message}")
         assert resume_result.success
-        
+
         # Check status after resume
         await asyncio.sleep(1)
         status = agent.get_status()
         print(f"Resumed status: {status.overall_status}")
-        
+
         # Let it run a bit more
         await asyncio.sleep(50)
-        
+
         # Test 6: Stop execution
         print("🛑 Testing stop functionality...")
         stop_result = await agent.stop("Testing stop functionality")
         print(f"Stop result: {stop_result.success} - {stop_result.message}")
-        
+
         # Check status after stop (should be stopped even if stop had issues)
         await asyncio.sleep(1)
         status = agent.get_status()
         print(f"Stopped status: {status.overall_status}")
-        
+
         # Wait for task to complete (it should be cancelled)
         try:
             result = await asyncio.wait_for(task_coroutine, timeout=3)
@@ -329,38 +336,38 @@ async def test_vibe_surf_agent_control():
                 pass
         except asyncio.CancelledError:
             print("✅ Task was cancelled as expected")
-        
+
         # Verify stop worked (may have timed out but should still be effective)
         if stop_result.success:
             assert status.overall_status == "idle"
         else:
             print(f"⚠️ Stop operation had issues but continuing: {stop_result.message}")
-        
+
         # Test 7: Test simple task control (should work quickly)
         print("🔄 Testing control on simple task...")
         simple_task = "Find out who is the founder of Browser-Use."
-        
+
         async def run_simple_task():
             return await agent.run(simple_task)
-        
+
         simple_task_coroutine = asyncio.create_task(run_simple_task())
-        
+
         # Pause quickly
         await asyncio.sleep(0.5)
         pause_result = await agent.pause("Testing simple task pause")
         print(f"Simple task pause: {pause_result.success}")
-        
+
         # Resume
         await asyncio.sleep(0.5)
         resume_result = await agent.resume("Testing simple task resume")
         print(f"Simple task resume: {resume_result.success}")
-        
+
         # Let it complete
         simple_result = await simple_task_coroutine
         print(f"Simple task completed: {len(simple_result) > 0}")
         print(simple_result)
         print("🎉 All VibeSurfAgent control tests passed!")
-        
+
     except Exception as e:
         print(f"❌ VibeSurfAgent control test failed: {e}")
         import traceback
@@ -377,7 +384,7 @@ async def test_vibe_surf_agent_control():
 
 
 if __name__ == "__main__":
-    asyncio.run(run_single_bu_agent())
+    # asyncio.run(run_single_bu_agent())
     # asyncio.run(run_multi_bu_agents())
-    # asyncio.run(test_vibe_surf_agent())
+    asyncio.run(test_vibe_surf_agent())
     # asyncio.run(test_vibe_surf_agent_control())

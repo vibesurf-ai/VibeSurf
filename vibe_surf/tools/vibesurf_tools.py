@@ -8,6 +8,8 @@ import json
 import enum
 import base64
 import mimetypes
+import yfinance as yf
+import pprint
 from json_repair import repair_json
 from datetime import datetime
 from typing import Optional, Type, Callable, Dict, Any, Union, Awaitable, TypeVar
@@ -29,7 +31,8 @@ from browser_use.tools.views import NoParamsAction
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, BrowserUseAgentExecution, \
     ReportWriterTask, TodoGenerateAction, TodoModifyAction, VibeSurfDoneAction, SkillSearchAction, SkillCrawlAction, \
-    SkillSummaryAction, SkillTakeScreenshotAction, SkillDeepResearchAction, SkillCodeAction
+    SkillSummaryAction, SkillTakeScreenshotAction, SkillDeepResearchAction, SkillCodeAction, SkillFinanceAction
+from vibe_surf.tools.finance_tools import FinanceDataRetriever, FinanceMarkdownFormatter, FinanceMethod
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.browser.browser_manager import BrowserManager
@@ -818,6 +821,92 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 include_extracted_content_only_once=True,
             )
 
+        @self.registry.action(
+            'Skill: Get comprehensive financial data for stocks - retrieve company information, historical prices, news, earnings, dividends, analyst recommendations and other financial data using Yahoo Finance. Available methods include: get_info (company info), get_history (price history), get_news (latest news), get_dividends (dividend history), get_earnings (earnings data), get_recommendations (analyst recommendations), get_balance_sheet (balance sheet data), get_income_stmt (income statement), get_cashflow (cash flow statement), get_fast_info (quick stats), get_institutional_holders (institutional ownership), get_major_holders (major shareholders), get_sustainability (ESG data), get_upgrades_downgrades (analyst upgrades/downgrades), and more. If no methods specified, defaults to get_info.',
+            param_model=SkillFinanceAction,
+        )
+        async def skill_finance(
+                params: SkillFinanceAction,
+        ):
+            """
+            Skill: Get comprehensive financial data using Yahoo Finance
+            
+            Available methods include:
+            - get_info: Company information including sector, industry, market cap, business summary
+            - get_history: Historical stock prices and volume data over time periods
+            - get_news: Latest news articles about the company
+            - get_dividends: Historical dividend payments and yield data
+            - get_earnings: Quarterly and annual earnings data and growth trends
+            - get_recommendations: Analyst recommendations, price targets, and ratings
+            - get_balance_sheet: Company balance sheet data (assets, liabilities, equity)
+            - get_income_stmt: Income statement data (revenue, expenses, profit)
+            - get_cashflow: Cash flow statement data (operating, investing, financing)
+            - get_fast_info: Quick statistics like current price, volume, market cap
+            - get_institutional_holders: Institutional ownership and holdings data
+            - get_major_holders: Major shareholders and insider ownership percentages
+            - get_sustainability: ESG (Environmental, Social, Governance) scores and data
+            - get_upgrades_downgrades: Recent analyst upgrades and downgrades
+            - get_splits: Historical stock splits and stock split dates
+            - get_actions: Corporate actions including dividends and splits
+            - get_sec_filings: Recent SEC filings and regulatory documents
+            - get_calendar: Upcoming earnings dates and events
+            - get_mutualfund_holders: Mutual fund ownership data
+            - get_insider_purchases: Recent insider buying activity
+            - get_insider_transactions: All insider trading transactions
+            - get_shares: Outstanding shares and float data
+            """
+            try:
+                # Default to get_info if no methods specified
+                methods = params.methods if params.methods else [FinanceMethod.GET_INFO]
+                
+                # Convert string methods to FinanceMethod enum if needed
+                if methods and isinstance(methods[0], str):
+                    try:
+                        methods = [FinanceMethod(method) for method in methods]
+                    except ValueError as e:
+                        available_methods = [method.value for method in FinanceMethod]
+                        return ActionResult(
+                            error=f'Invalid method in {methods}. Available methods: {available_methods}'
+                        )
+                
+                # Create data retriever with symbol
+                retriever = FinanceDataRetriever(params.symbol)
+                
+                # Convert FinanceMethod enum values to strings for the retriever
+                method_strings = [method.value for method in methods]
+                
+                # Retrieve financial data
+                financial_data = retriever.get_finance_data(
+                    methods=method_strings,
+                    period=getattr(params, 'period', '1y'),
+                    start_date=getattr(params, 'start_date', None),
+                    end_date=getattr(params, 'end_date', None),
+                    interval=getattr(params, 'interval', '1d'),
+                    num_news=getattr(params, 'num_news', 5)
+                )
+                
+                # Format as markdown using the static method
+                markdown_content = FinanceMarkdownFormatter.format_finance_data(
+                    symbol=params.symbol,
+                    results=financial_data,
+                    methods=method_strings
+                )
+                
+                method_names = [method.value for method in methods]
+                logger.info(f'💹 Comprehensive finance data retrieved for {params.symbol} with methods: {method_names}')
+                
+                return ActionResult(
+                    extracted_content=markdown_content,
+                    include_extracted_content_only_once=True,
+                    long_term_memory=f'Retrieved comprehensive financial data for {params.symbol} using methods: {", ".join(method_names)}',
+                )
+                
+            except Exception as e:
+                error_msg = f'❌ Failed to retrieve financial data for {params.symbol}: {str(e)}'
+                logger.error(error_msg)
+                return ActionResult(error=error_msg)
+
+
     async def _perform_google_search(self, browser_session, query: str, llm: BaseChatModel):
         """Helper method to perform Google search and extract top 5 results"""
         try:
@@ -1379,7 +1468,7 @@ You will be given a query and the markdown of a webpage that has been filtered t
         async def write_file(
                 file_path: str,
                 content: str,
-                file_system: FileSystem,
+                file_system: CustomFileSystem,
                 append: bool = False,
                 trailing_newline: bool = True,
                 leading_newline: bool = False,

@@ -479,7 +479,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                     llm=vibesurf_agent.llm,
                     file_system=vibesurf_agent.file_system,
                 )
-                if "skill_search" in action_name or "skill_crawl" in action_name or "skill_summary" in action_name:
+                if action_name in ["skill_search", "skill_crawl", "skill_summary", "skill_finance"]:
                     state.current_step = "END"
                     # Format final response
                     final_response = f"{result.extracted_content}"

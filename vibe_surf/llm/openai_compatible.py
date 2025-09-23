@@ -51,6 +51,8 @@ from browser_use.llm.openai.serializer import OpenAIMessageSerializer
 from browser_use.llm.schema import SchemaOptimizer
 from browser_use.llm.views import ChatInvokeCompletion, ChatInvokeUsage
 
+from json_repair import repair_json
+
 T = TypeVar('T', bound=BaseModel)
 
 from vibe_surf.logger import get_logger
@@ -74,6 +76,8 @@ class ChatOpenAICompatible(ChatOpenAI):
     The class automatically detects the model type and applies appropriate fixes.
     """
 
+    max_completion_tokens: int | None = 16000
+
     def _is_gemini_model(self) -> bool:
         """Check if the current model is a Gemini model."""
         return str(self.model).lower().startswith('gemini')
@@ -82,6 +86,11 @@ class ChatOpenAICompatible(ChatOpenAI):
         """Check if the current model is a Kimi/Moonshot model."""
         model_str = str(self.model).lower()
         return 'kimi' in model_str or 'moonshot' in model_str
+
+    def _is_deepseek_model(self) -> bool:
+        """Check if the current model is a Kimi/Moonshot model."""
+        model_str = str(self.model).lower()
+        return 'deepseek' in model_str
     
     def _is_qwen_model(self) -> bool:
         """Check if the current model is a Qwen model."""
@@ -223,10 +232,10 @@ class ChatOpenAICompatible(ChatOpenAI):
         """
         # If this is not a special model or no structured output is requested,
         # use the parent implementation directly
-        if self._is_qwen_model() or self._is_kimi_model():
+        if self._is_qwen_model() or self._is_kimi_model() or self._is_deepseek_model() :
             self.add_schema_to_system_prompt = True
 
-        if not (self._is_gemini_model() or self._is_kimi_model() or self._is_qwen_model()) or output_format is None:
+        if not (self._is_gemini_model() or self._is_kimi_model() or self._is_qwen_model() or self._is_deepseek_model()) or output_format is None:
             return await super().ainvoke(messages, output_format)
         openai_messages = OpenAIMessageSerializer.serialize_messages(messages)
 
@@ -241,6 +250,7 @@ class ChatOpenAICompatible(ChatOpenAI):
 
             if self.max_completion_tokens is not None:
                 model_params['max_completion_tokens'] = self.max_completion_tokens
+                model_params['max_tokens'] = self.max_completion_tokens
 
             if self.top_p is not None:
                 model_params['top_p'] = self.top_p
@@ -298,12 +308,22 @@ class ChatOpenAICompatible(ChatOpenAI):
                         ]
 
                 # Return structured response
-                response = await self.get_client().chat.completions.create(
-                    model=self.model,
-                    messages=openai_messages,
-                    response_format=ResponseFormatJSONSchema(json_schema=response_format, type='json_schema'),
-                    **model_params,
-                )
+                if self.add_schema_to_system_prompt:
+                    response = await self.get_client().chat.completions.create(
+                        model=self.model,
+                        messages=openai_messages,
+                        response_format={
+                            'type': 'json_object'
+                        },
+                        **model_params,
+                    )
+                else:
+                    response = await self.get_client().chat.completions.create(
+                        model=self.model,
+                        messages=openai_messages,
+                        response_format=ResponseFormatJSONSchema(json_schema=response_format, type='json_schema'),
+                        **model_params,
+                    )
 
                 if response.choices[0].message.content is None:
                     raise ModelProviderError(
@@ -313,8 +333,13 @@ class ChatOpenAICompatible(ChatOpenAI):
                     )
 
                 usage = self._get_usage(response)
-
-                parsed = output_format.model_validate_json(response.choices[0].message.content)
+                output_content = response.choices[0].message.content
+                try:
+                    parsed = output_format.model_validate_json(output_content)
+                except Exception as e:
+                    pdb.set_trace()
+                    repair_content = repair_json(output_content)
+                    parsed = output_format.model_validate_json(repair_content)
 
                 return ChatInvokeCompletion(
                     completion=parsed,
