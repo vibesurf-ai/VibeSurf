@@ -178,3 +178,36 @@ class SkillCodeAction(BaseModel):
         max_length=4,
         description='Optional 4 character Tab ID to execute code on specific tab',
     )
+
+
+class SkillFinanceAction(BaseModel):
+    """Parameters for skill_finance action"""
+    symbol: str = Field(
+        description='Stock symbol to retrieve financial data for (e.g., AAPL, GOOG, TSLA)',
+    )
+    methods: list[str] | None = Field(
+        default=None,
+        description='List of finance methods to retrieve. Common methods: get_info (basic company info), get_history (stock price history), get_news (latest news), get_dividends (dividend history), get_earnings (earnings data), get_fast_info (quick stats), get_recommendations (analyst recommendations), get_financials (income statement), get_balance_sheet (balance sheet), get_cashflow (cash flow). If empty, defaults to get_info. Full list available in FinanceMethod enum.',
+    )
+    period: str = Field(
+        default='1y',
+        description='Time period for historical data (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)',
+    )
+    start_date: str | None = Field(
+        default=None,
+        description='Start date for historical data (YYYY-MM-DD format). Use with end_date instead of period.',
+    )
+    end_date: str | None = Field(
+        default=None,
+        description='End date for historical data (YYYY-MM-DD format). Use with start_date instead of period.',
+    )
+    interval: str = Field(
+        default='1d',
+        description='Data interval for historical data (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo)',
+    )
+    num_news: int = Field(
+        default=5,
+        description='Number of news articles to retrieve when get_news method is selected',
+        ge=1,
+        le=20,
+    )

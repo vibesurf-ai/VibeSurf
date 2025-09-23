@@ -116,8 +116,19 @@ async def test_vibesurf_tools():
     print(tools.registry.registry.actions.keys())
 
 
+async def test_finance_tools():
+    from vibe_surf.tools.finance_tools import FinanceDataRetriever
+
+    retriever = FinanceDataRetriever('TSLA')
+
+    result = retriever.get_finance_data(["get_news"])
+
+    pdb.set_trace()
+
+
 if __name__ == '__main__':
     # asyncio.run(test_tools_with_mcp())
     # asyncio.run(test_filesystem())
     # asyncio.run(test_bu_tools())
-    asyncio.run(test_vibesurf_tools())
+    # asyncio.run(test_vibesurf_tools())
+    asyncio.run(test_finance_tools())
