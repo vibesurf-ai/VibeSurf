@@ -8,6 +8,8 @@ from typing import Dict, List, Any, Optional, Union
 from datetime import datetime, timedelta
 import yfinance as yf
 import pandas as pd
+from datetime import datetime
+
 from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
@@ -445,33 +447,58 @@ class FinanceMarkdownFormatter:
             return "No news available.\n"
             
         markdown = f"**Total News Articles:** {len(news)}\n\n"
-        pdb.set_trace()
         for i, article in enumerate(news, 1):
             if isinstance(article, dict):
-                # Try different possible field names for title
-                title = (article.get('title') or
-                        article.get('headline') or
-                        article.get('summary') or
+                # Handle new yfinance news structure with nested 'content'
+                content = article.get('content', article)  # Fallback to article itself for backwards compatibility
+                
+                # Extract title
+                title = (content.get('title') or
+                        content.get('headline') or
+                        content.get('summary') or
+                        article.get('title') or  # Fallback to old format
                         'No title available')
                 
-                # Try different possible field names for link/URL
-                link = (article.get('link') or
-                       article.get('url') or
-                       article.get('guid') or '')
+                # Extract content type if available
+                content_type = content.get('contentType', '')
+                type_emoji = "🎥" if content_type == "VIDEO" else "📰"
                 
-                # Try different possible field names for publisher
-                publisher = (article.get('publisher') or
-                           article.get('source') or
-                           article.get('author') or
-                           'Unknown')
+                # Extract link/URL - try new nested structure first
+                link = ''
+                if 'canonicalUrl' in content and isinstance(content['canonicalUrl'], dict):
+                    link = content['canonicalUrl'].get('url', '')
+                elif 'clickThroughUrl' in content and isinstance(content['clickThroughUrl'], dict):
+                    link = content['clickThroughUrl'].get('url', '')
+                else:
+                    # Fallback to old format
+                    link = (content.get('link') or
+                           content.get('url') or
+                           content.get('guid') or
+                           article.get('link') or '')
                 
-                # Try different possible field names for timestamp
-                publish_time = (article.get('providerPublishTime') or
-                              article.get('timestamp') or
-                              article.get('pubDate') or
-                              article.get('published') or '')
+                # Extract publisher - try new nested structure first
+                publisher = 'Unknown'
+                if 'provider' in content and isinstance(content['provider'], dict):
+                    publisher = content['provider'].get('displayName', 'Unknown')
+                else:
+                    # Fallback to old format
+                    publisher = (content.get('publisher') or
+                               content.get('source') or
+                               content.get('author') or
+                               article.get('publisher') or
+                               'Unknown')
                 
-                markdown += f"### {i}. {title}\n"
+                # Extract publication time
+                publish_time = (content.get('pubDate') or
+                              content.get('providerPublishTime') or
+                              content.get('timestamp') or
+                              content.get('published') or
+                              article.get('providerPublishTime') or '')
+                
+                # Format the article
+                markdown += f"### {type_emoji} {i}. {title}\n"
+                if content_type:
+                    markdown += f"**Type:** {content_type}\n"
                 markdown += f"**Publisher:** {publisher}\n"
                 
                 if publish_time:
@@ -481,11 +508,16 @@ class FinanceMarkdownFormatter:
                             dt = datetime.fromtimestamp(publish_time)
                             markdown += f"**Published:** {dt.strftime('%Y-%m-%d %H:%M')}\n"
                         elif isinstance(publish_time, str):
-                            # Try to parse string timestamp
+                            # Try to parse ISO format first (new format)
                             try:
-                                publish_time_int = int(float(publish_time))
-                                dt = datetime.fromtimestamp(publish_time_int)
-                                markdown += f"**Published:** {dt.strftime('%Y-%m-%d %H:%M')}\n"
+                                if publish_time.endswith('Z'):
+                                    dt = datetime.fromisoformat(publish_time.replace('Z', '+00:00'))
+                                    markdown += f"**Published:** {dt.strftime('%Y-%m-%d %H:%M UTC')}\n"
+                                else:
+                                    # Try to parse as Unix timestamp
+                                    publish_time_int = int(float(publish_time))
+                                    dt = datetime.fromtimestamp(publish_time_int)
+                                    markdown += f"**Published:** {dt.strftime('%Y-%m-%d %H:%M')}\n"
                             except:
                                 markdown += f"**Published:** {publish_time}\n"
                     except Exception as e:
@@ -496,14 +528,25 @@ class FinanceMarkdownFormatter:
                     markdown += f"**Link:** {link}\n"
                 
                 # Add summary or description if available
-                summary = (article.get('summary') or
-                          article.get('description') or
-                          article.get('snippet') or '')
+                summary = (content.get('summary') or
+                          content.get('description') or
+                          content.get('snippet') or
+                          article.get('summary') or '')
                 if summary and summary != title:
+                    # Clean HTML tags from description if present
+                    import re
+                    clean_summary = re.sub(r'<[^>]+>', '', summary)
+                    clean_summary = re.sub(r'\s+', ' ', clean_summary).strip()
+                    
                     # Limit summary length
-                    if len(summary) > 200:
-                        summary = summary[:200] + "..."
-                    markdown += f"**Summary:** {summary}\n"
+                    if len(clean_summary) > 300:
+                        clean_summary = clean_summary[:300] + "..."
+                    markdown += f"**Summary:** {clean_summary}\n"
+                
+                # Add metadata if available
+                if 'metadata' in content and isinstance(content['metadata'], dict):
+                    if content['metadata'].get('editorsPick'):
+                        markdown += f"**Editor's Pick:** ✅\n"
                 
                 markdown += "\n"
         
@@ -514,10 +557,10 @@ class FinanceMarkdownFormatter:
         """Format dividend data as markdown"""
         if dividends.empty:
             return "No dividend data available.\n"
-        
+
         markdown = f"**Total Dividends Recorded:** {len(dividends)}\n"
         markdown += f"**Date Range:** {dividends.index.min().strftime('%Y-%m-%d')} to {dividends.index.max().strftime('%Y-%m-%d')}\n\n"
-        
+
         # Recent dividends (last 10)
         recent_dividends = dividends.tail(10)
         markdown += "### 💰 Recent Dividends\n\n"
