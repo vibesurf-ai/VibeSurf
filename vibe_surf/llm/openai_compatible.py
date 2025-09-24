@@ -337,7 +337,6 @@ class ChatOpenAICompatible(ChatOpenAI):
                 try:
                     parsed = output_format.model_validate_json(output_content)
                 except Exception as e:
-                    pdb.set_trace()
                     repair_content = repair_json(output_content)
                     parsed = output_format.model_validate_json(repair_content)
 
