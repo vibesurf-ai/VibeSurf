@@ -262,6 +262,18 @@ async def get_all_css_selector(browser_session: AgentBrowserSession):
         pdb.set_trace()
 
 
+async def get_cookies(main_browser_session: AgentBrowserSession):
+    web_cookies = await main_browser_session._cdp_get_cookies()
+    await main_browser_session.navigate_to_url("https://www.xiaohongshu.com/")
+
+    from vibe_surf.tools.xhs.xhs_api import XhsApi
+
+    xhs_api = XhsApi()
+    result1 = await xhs_api.search_notes(main_browser_session, keywords="邓紫棋")
+    result2 = await xhs_api.home_feed(main_browser_session)
+    pdb.set_trace()
+
+
 async def main():
     """
     Main function to run all browser session tests.
@@ -296,7 +308,8 @@ async def main():
             # await test_agent_cleanup(manager)
             # await test_agent_tab_isolation(manager)
             # await test_browser_state_capture(manager)
-            await get_all_css_selector(main_browser_session)
+            # await get_all_css_selector(main_browser_session)
+            await get_cookies(main_browser_session)
 
     except Exception as e:
         logging.error(f"An error occurred during tests: {e}", exc_info=True)
