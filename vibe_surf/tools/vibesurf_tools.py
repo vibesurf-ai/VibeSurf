@@ -231,7 +231,9 @@ Example format: ["query 1", "query 2", "query 3", "query 4", "query 5", "query 6
                     # Fallback to simple queries if parsing fails
                     try:
                         from json_repair import repair_json
-                        search_queries = repair_json(response.completion.strip())
+                        search_queries_s = repair_json(response.completion.strip())
+                        search_queries = json.loads(search_queries_s)
+                        search_queries = search_queries[:query_num]
                     except Exception as e:
                         search_queries = [
                             params.query,
@@ -244,7 +246,7 @@ Example format: ["query 1", "query 2", "query 3", "query 4", "query 5", "query 6
                 # Step 2: Create browser sessions for parallel searching
                 register_sessions = []
 
-                for i, query in enumerate(search_queries):
+                for i, query in enumerate(search_queries[:query_num]):
                     agent_id = f"search_agent_{i + 1:03d}"
                     register_sessions.append(
                         browser_manager.register_agent(agent_id, target_id=None)

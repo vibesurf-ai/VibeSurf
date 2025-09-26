@@ -104,7 +104,7 @@ async def submit_task(
             logger.info("Using default empty MCP server configuration")
 
         # DEBUG: Log the type and content of mcp_server_config
-        logger.info(f"mcp_server_config type: {type(mcp_server_config)}, value: {mcp_server_config}")
+        logger.debug(f"mcp_server_config type: {type(mcp_server_config)}, value: {mcp_server_config}")
 
         # Create initial task record in database
         from ..database.queries import TaskQueries
