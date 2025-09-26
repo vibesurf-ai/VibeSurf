@@ -76,7 +76,7 @@ class ChatOpenAICompatible(ChatOpenAI):
     The class automatically detects the model type and applies appropriate fixes.
     """
 
-    max_completion_tokens: int | None = 16000
+    max_completion_tokens: int | None = 8192
 
     def _is_gemini_model(self) -> bool:
         """Check if the current model is a Gemini model."""

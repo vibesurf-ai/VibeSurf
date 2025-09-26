@@ -58,7 +58,7 @@ def create_llm_from_profile(llm_profile) -> BaseChatModel:
             "deepseek": ["temperature"],
             "aws_bedrock": ["temperature"],
             "anthropic_bedrock": ["temperature"],
-            "openai_compatible": ["temperature"]
+            "openai_compatible": ["temperature", "max_tokens"]
         }
 
         # Build common parameters based on provider support

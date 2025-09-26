@@ -486,13 +486,13 @@ class TaskQueries:
                 return existing_task
             else:
                 # DEBUG: Log the type and content of mcp_server_config before saving
-                logger.info(
+                logger.debug(
                     f"Creating task with mcp_server_config type: {type(mcp_server_config)}, value: {mcp_server_config}")
 
                 # Serialize mcp_server_config to JSON string if it's a dict
                 if isinstance(mcp_server_config, dict):
                     mcp_server_config_json = json.dumps(mcp_server_config)
-                    logger.info(f"Converted dict to JSON string: {mcp_server_config_json}")
+                    logger.debug(f"Converted dict to JSON string: {mcp_server_config_json}")
                 else:
                     mcp_server_config_json = mcp_server_config
 

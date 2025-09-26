@@ -325,7 +325,7 @@ def start_backend(port: int) -> None:
         console.print("[yellow]📝 Press Ctrl+C to stop the server[/yellow]\n")
         
         # Run the server
-        uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
+        uvicorn.run(app, host="127.0.0.1", port=port, log_level="error")
         
     except KeyboardInterrupt:
         console.print("\n[yellow]🛑 Server stopped by user[/yellow]")

@@ -231,7 +231,9 @@ Example format: ["query 1", "query 2", "query 3", "query 4", "query 5", "query 6
                     # Fallback to simple queries if parsing fails
                     try:
                         from json_repair import repair_json
-                        search_queries = repair_json(response.completion.strip())
+                        search_queries_s = repair_json(response.completion.strip())
+                        search_queries = json.loads(search_queries_s)
+                        search_queries = search_queries[:query_num]
                     except Exception as e:
                         search_queries = [
                             params.query,
@@ -244,7 +246,7 @@ Example format: ["query 1", "query 2", "query 3", "query 4", "query 5", "query 6
                 # Step 2: Create browser sessions for parallel searching
                 register_sessions = []
 
-                for i, query in enumerate(search_queries):
+                for i, query in enumerate(search_queries[:query_num]):
                     agent_id = f"search_agent_{i + 1:03d}"
                     register_sessions.append(
                         browser_manager.register_agent(agent_id, target_id=None)
@@ -278,41 +280,59 @@ Example format: ["query 1", "query 2", "query 3", "query 4", "query 5", "query 6
                 # Step 5: Use LLM only for final ranking and selection (much smaller dataset now)
                 if all_results and len(all_results) > 10:
                     # Only use LLM if we have more than 10 results to rank
+                    # Create indexed results for LLM prompt
+                    indexed_results = []
+                    for i, result in enumerate(all_results):
+                        indexed_results.append({
+                            "index": i,
+                            "title": result.get('title', 'Unknown Title'),
+                            "url": result.get('url', 'No URL'),
+                            "summary": result.get('summary', 'No summary available')
+                        })
+                    
                     ranking_prompt = f"""
 Rank these search results for the query "{params.query}" by relevance and value.
 Select the TOP 10 most relevant and valuable results.
 
-Search Results ({len(all_results)} total):
-{json.dumps(all_results, indent=2)}
+Search Results ({len(indexed_results)} total):
+{json.dumps(indexed_results, indent=2, ensure_ascii=False)}
 
-Return the top 10 results as a JSON array with each result containing:
-- title: string
-- url: string
-- summary: string (brief description of why this result is valuable)
+Return ONLY the indices of the top 10 results as a JSON array of numbers.
+For example: [0, 5, 2, 8, 1, 9, 3, 7, 4, 6]
 
-Format: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
+Format: [index1, index2, index3, ...]
 """
 
                     ranking_response = await llm.ainvoke([
                         SystemMessage(
-                            content="You are an expert at ranking search results for relevance and value."),
+                            content="You are an expert at ranking search results for relevance and value. Return only the indices of the top results."),
                         UserMessage(content=ranking_prompt)
                     ])
 
                     try:
-                        top_results = json.loads(ranking_response.completion.strip())
-                        if not isinstance(top_results, list):
+                        selected_indices = json.loads(ranking_response.completion.strip())
+                        if not isinstance(selected_indices, list):
                             raise ValueError("Invalid ranking results format")
-                        top_results = top_results[:10]  # Ensure max 10 results
+                        # Ensure indices are valid and limit to 10
+                        valid_indices = [i for i in selected_indices if isinstance(i, int) and 0 <= i < len(all_results)][:10]
+                        if valid_indices:
+                            top_results = [all_results[i] for i in valid_indices]
+                        else:
+                            top_results = all_results[:10]
                     except (json.JSONDecodeError, ValueError):
                         try:
-                            top_results = repair_json(ranking_response.completion.strip())
-                            if isinstance(top_results, list):
-                                top_results = top_results[:10]
+                            selected_indices_s = repair_json(ranking_response.completion.strip())
+                            selected_indices = json.loads(selected_indices_s)
+                            if isinstance(selected_indices, list):
+                                valid_indices = [i for i in selected_indices if isinstance(i, int) and 0 <= i < len(all_results)][:10]
+                                if valid_indices:
+                                    top_results = [all_results[i] for i in valid_indices]
+                                else:
+                                    top_results = all_results[:10]
                             else:
                                 top_results = all_results[:10]
                         except Exception:
-                            # Fallback to first 10 deduplicated results
+                            # Fallback to first 10 results
                             top_results = all_results[:10]
                 elif all_results:
                     # If we have 10 or fewer results, skip LLM ranking
@@ -1075,7 +1095,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
             results = await self._extract_google_results_rule_based(browser_session)
             if results and len(results) > 0:
                 # Rule-based extraction succeeded
-                logger.info(f"Rule-based extraction found {len(results)} results for query: {query}")
+                logger.debug(f"Rule-based extraction found {len(results)} results for query: {query}")
                 return results[:search_ret_len]  # Return top 6 results
             
             # Fallback to LLM extraction if rule-based fails
