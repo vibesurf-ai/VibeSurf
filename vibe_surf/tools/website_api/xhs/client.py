@@ -84,7 +84,6 @@ class XiaoHongShuApiClient:
         )
 
         encrypt_result = result.get('result', {}).get('value') if result else None
-        pdb.set_trace()
         if encrypt_result:
             # Get browser storage value
             b1_result = await cdp_session.cdp_client.send.Runtime.evaluate(
@@ -140,6 +139,7 @@ class XiaoHongShuApiClient:
             else:
                 self.target_id = await self.browser_session.navigate_to_url("https://www.xiaohongshu.com/",
                                                                             new_tab=True)
+                await asyncio.sleep(2)
 
             cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=target_id)
             result = await asyncio.wait_for(
