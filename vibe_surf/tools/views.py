@@ -211,3 +211,14 @@ class SkillFinanceAction(BaseModel):
         ge=1,
         le=20,
     )
+
+
+class DownloadMediaAction(BaseModel):
+    """Parameters for downloading media from URL"""
+    url: str = Field(
+        description='URL of the media to download',
+    )
+    filename: str | None = Field(
+        default=None,
+        description='Optional custom filename. If not provided, will auto-detect from URL or Content-Disposition header',
+    )

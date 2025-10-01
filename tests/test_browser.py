@@ -262,15 +262,18 @@ async def get_all_css_selector(browser_session: AgentBrowserSession):
         pdb.set_trace()
 
 
-async def get_cookies(main_browser_session: AgentBrowserSession):
+async def test_website_api(main_browser_session: AgentBrowserSession):
     from vibe_surf.tools.website_api.xhs.client import XiaoHongShuApiClient
     xhs_client = XiaoHongShuApiClient(browser_session=main_browser_session)
     await xhs_client.setup()
-    result1 = await xhs_client.search_content_by_keyword("browser-use")
+    user_info = await xhs_client.get_me()
+    user_id = user_info['user_id']
+    result1 = await xhs_client.fetch_user_content_list(user_id=user_id)
     pdb.set_trace()
-    result2 = await xhs_client.get_home_recommendations()
+    result2 = await xhs_client.search_content_by_keyword("browser-use")
     pdb.set_trace()
-
+    result3 = await xhs_client.get_home_recommendations()
+    pdb.set_trace()
 
 
 async def main():
@@ -308,7 +311,7 @@ async def main():
             # await test_agent_tab_isolation(manager)
             # await test_browser_state_capture(manager)
             # await get_all_css_selector(main_browser_session)
-            await get_cookies(main_browser_session)
+            await test_website_api(main_browser_session)
 
     except Exception as e:
         logging.error(f"An error occurred during tests: {e}", exc_info=True)

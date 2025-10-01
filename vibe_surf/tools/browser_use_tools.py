@@ -6,6 +6,9 @@ import enum
 import base64
 import mimetypes
 import datetime
+import aiohttp
+import re
+import urllib.parse
 from pathvalidate import sanitize_filename
 from typing import Optional, Type, Callable, Dict, Any, Union, Awaitable, TypeVar
 from pydantic import BaseModel
@@ -40,7 +43,7 @@ from browser_use.browser.views import BrowserError
 from browser_use.mcp.client import MCPClient
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction
+from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, DownloadMediaAction
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.logger import get_logger
@@ -501,3 +504,167 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 error_msg = f'❌ Failed to take screenshot: {str(e)}'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg)
+
+        @self.registry.action(
+            'Download media from URL and save to filesystem downloads folder',
+            param_model=DownloadMediaAction
+        )
+        async def download_media(params: DownloadMediaAction, file_system: FileSystem):
+            """Download media from URL with automatic file format detection"""
+            try:
+                # Get file system directory path (Path type)
+                fs_dir = file_system.get_dir()
+                
+                # Create downloads directory if it doesn't exist
+                downloads_dir = fs_dir / "downloads"
+                downloads_dir.mkdir(exist_ok=True)
+                
+                # Download the file and detect format
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(params.url) as response:
+                        if response.status != 200:
+                            raise Exception(f"HTTP {response.status}: Failed to download from {params.url}")
+                        
+                        # Get content
+                        content = await response.read()
+                        
+                        # Detect file format and extension
+                        file_extension = await self._detect_file_format(params.url, response.headers, content)
+                        
+                        # Generate filename
+                        if params.filename:
+                            # Use provided filename, add extension if missing
+                            filename = params.filename
+                            if not filename.endswith(file_extension):
+                                filename = f"{filename}{file_extension}"
+                        else:
+                            # Generate filename from URL or timestamp
+                            url_path = urllib.parse.urlparse(params.url).path
+                            url_filename = os.path.basename(url_path)
+                            
+                            if url_filename and not url_filename.startswith('.'):
+                                # Use URL filename, ensure correct extension
+                                filename = url_filename
+                                if not filename.endswith(file_extension):
+                                    base_name = os.path.splitext(filename)[0]
+                                    filename = f"{base_name}{file_extension}"
+                            else:
+                                # Generate timestamp-based filename
+                                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                                filename = f"media_{timestamp}{file_extension}"
+                        
+                        # Sanitize filename
+                        filename = sanitize_filename(filename)
+                        filepath = downloads_dir / filename
+                        
+                        # Save file
+                        with open(filepath, "wb") as f:
+                            f.write(content)
+                        
+                        # Calculate file size for display
+                        file_size = len(content)
+                        size_str = self._format_file_size(file_size)
+                        
+                        msg = f'📥 Downloaded media to: {str(filepath.relative_to(fs_dir))} ({size_str})'
+                        logger.info(msg)
+                        return ActionResult(
+                            extracted_content=msg,
+                            include_in_memory=True,
+                            long_term_memory=f'Downloaded media from {params.url} to {str(filepath.relative_to(fs_dir))}',
+                        )
+                        
+            except Exception as e:
+                error_msg = f'❌ Failed to download media: {str(e)}'
+                logger.error(error_msg)
+                return ActionResult(error=error_msg)
+
+        async def _detect_file_format(self, url: str, headers: dict, content: bytes) -> str:
+            """Detect file format from URL, headers, and content"""
+            
+            # Try Content-Type header first
+            content_type = headers.get('content-type', '').lower()
+            if content_type:
+                # Common image formats
+                if 'image/jpeg' in content_type or 'image/jpg' in content_type:
+                    return '.jpg'
+                elif 'image/png' in content_type:
+                    return '.png'
+                elif 'image/gif' in content_type:
+                    return '.gif'
+                elif 'image/webp' in content_type:
+                    return '.webp'
+                elif 'image/svg' in content_type:
+                    return '.svg'
+                elif 'image/bmp' in content_type:
+                    return '.bmp'
+                elif 'image/tiff' in content_type:
+                    return '.tiff'
+                # Video formats
+                elif 'video/mp4' in content_type:
+                    return '.mp4'
+                elif 'video/webm' in content_type:
+                    return '.webm'
+                elif 'video/avi' in content_type:
+                    return '.avi'
+                elif 'video/mov' in content_type or 'video/quicktime' in content_type:
+                    return '.mov'
+                # Audio formats
+                elif 'audio/mpeg' in content_type or 'audio/mp3' in content_type:
+                    return '.mp3'
+                elif 'audio/wav' in content_type:
+                    return '.wav'
+                elif 'audio/ogg' in content_type:
+                    return '.ogg'
+                elif 'audio/webm' in content_type:
+                    return '.webm'
+            
+            # Try magic number detection
+            if len(content) >= 8:
+                # JPEG
+                if content.startswith(b'\xff\xd8\xff'):
+                    return '.jpg'
+                # PNG
+                elif content.startswith(b'\x89PNG\r\n\x1a\n'):
+                    return '.png'
+                # GIF
+                elif content.startswith(b'GIF87a') or content.startswith(b'GIF89a'):
+                    return '.gif'
+                # WebP
+                elif content[8:12] == b'WEBP':
+                    return '.webp'
+                # BMP
+                elif content.startswith(b'BM'):
+                    return '.bmp'
+                # TIFF
+                elif content.startswith(b'II*\x00') or content.startswith(b'MM\x00*'):
+                    return '.tiff'
+                # MP4
+                elif b'ftyp' in content[4:12]:
+                    return '.mp4'
+                # PDF
+                elif content.startswith(b'%PDF'):
+                    return '.pdf'
+            
+            # Try URL path extension
+            url_path = urllib.parse.urlparse(url).path
+            if url_path:
+                ext = os.path.splitext(url_path)[1].lower()
+                if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.tiff',
+                          '.mp4', '.webm', '.avi', '.mov', '.wmv', '.flv',
+                          '.mp3', '.wav', '.ogg', '.aac', '.flac',
+                          '.pdf', '.doc', '.docx', '.txt']:
+                    return ext
+            
+            # Default fallback
+            return '.bin'
+
+        def _format_file_size(self, size_bytes: int) -> str:
+            """Format file size in human readable format"""
+            if size_bytes == 0:
+                return "0 B"
+            size_names = ["B", "KB", "MB", "GB", "TB"]
+            i = 0
+            while size_bytes >= 1024.0 and i < len(size_names) - 1:
+                size_bytes /= 1024.0
+                i += 1
+            return f"{size_bytes:.1f} {size_names[i]}"

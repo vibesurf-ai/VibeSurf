@@ -96,7 +96,6 @@ class XiaoHongShuApiClient:
             )
 
             b1_storage = b1_result.get('result', {}).get('value') if b1_result else None
-
             # Create signature headers
             signature_headers = create_signature_headers(
                 a1=self.cookies.get('a1', ''),
