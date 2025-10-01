@@ -264,9 +264,8 @@ async def get_all_css_selector(browser_session: AgentBrowserSession):
 
 async def get_cookies(main_browser_session: AgentBrowserSession):
     from vibe_surf.tools.website_api.xhs.client import XiaoHongShuApiClient
-    await main_browser_session.navigate_to_url("https://www.xiaohongshu.com/")
-
-    xhs_client = XiaoHongShuApiClient(main_browser_session)
+    xhs_client = XiaoHongShuApiClient(browser_session=main_browser_session)
+    await xhs_client.setup()
     result1 = await xhs_client.search_content_by_keyword("browser-use")
     pdb.set_trace()
     result2 = await xhs_client.get_home_recommendations()
