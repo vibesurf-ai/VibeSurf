@@ -278,7 +278,7 @@ class DouyinApiClient:
         sort_type: SearchSortType = SearchSortType.GENERAL,
         publish_time: PublishTimeType = PublishTimeType.UNLIMITED,
         search_id: str = "",
-    ) -> Dict:
+    ) -> List[Dict]:
         """
         Search content by keyword using Douyin Web Search API
         
@@ -291,7 +291,7 @@ class DouyinApiClient:
             search_id: Search session ID
             
         Returns:
-            Search results data
+            List of simplified aweme data
         """
         query_params = {
             'search_channel': search_channel.value,
@@ -304,7 +304,6 @@ class DouyinApiClient:
             'count': '15',
             'need_filter_settings': '1',
             'list_type': 'multi',
-            'from_group_id': '7378810571505847586',
             'search_id': search_id,
         }
         
@@ -317,11 +316,49 @@ class DouyinApiClient:
             query_params["is_filter_search"] = 1
             query_params["search_source"] = "tab_search"
 
-        referer_url = f"https://www.douyin.com/search/{keyword}?aid=f594bbd9-a0e2-4651-9319-ebe3cb6298c1&type=general"
+        referer_url = create_referer_url(keyword=keyword)
         headers = copy.copy(self.default_headers)
-        headers["Referer"] = urllib.parse.quote(referer_url, safe=':/')
+        headers["Referer"] = referer_url
         
-        return await self.get_request("/aweme/v1/web/general/search/single/", query_params, headers)
+        search_result = await self.get_request("/aweme/v1/web/general/search/single/", query_params, headers)
+        
+        # Return simplified aweme list
+        aweme_list = []
+        for post_item in search_result.get("data", []):
+            try:
+                aweme_info: Dict = (post_item.get("aweme_info") or post_item.get("aweme_mix_info", {}).get("mix_items")[0])
+            except (TypeError, IndexError):
+                continue
+                
+            if not aweme_info or not aweme_info.get("aweme_id"):
+                continue
+                
+            user_info = aweme_info.get("author", {})
+            interact_info = aweme_info.get("statistics", {})
+            
+            # Simplified aweme data
+            aweme_data = {
+                "aweme_id": aweme_info.get("aweme_id"),
+                "aweme_type": str(aweme_info.get("aweme_type", "")),
+                "title": aweme_info.get("desc", ""),
+                "desc": aweme_info.get("desc", ""),
+                "create_time": aweme_info.get("create_time"),
+                "user_id": user_info.get("uid"),
+                "sec_uid": user_info.get("sec_uid"),
+                "short_user_id": user_info.get("short_id"),
+                "user_unique_id": user_info.get("unique_id"),
+                "nickname": user_info.get("nickname"),
+                "avatar": user_info.get("avatar_thumb", {}).get("url_list", [""])[0],
+                "liked_count": str(interact_info.get("digg_count", 0)),
+                "collected_count": str(interact_info.get("collect_count", 0)),
+                "comment_count": str(interact_info.get("comment_count", 0)),
+                "share_count": str(interact_info.get("share_count", 0)),
+                "ip_location": aweme_info.get("ip_label", ""),
+                "aweme_url": f"https://www.douyin.com/video/{aweme_info.get('aweme_id')}",
+            }
+            aweme_list.append(aweme_data)
+            
+        return aweme_list
 
     async def fetch_video_details(self, aweme_id: str) -> Dict:
         """
@@ -331,7 +368,7 @@ class DouyinApiClient:
             aweme_id: Video ID
             
         Returns:
-            Video details data
+            Simplified video details data
         """
         params = {"aweme_id": aweme_id}
         headers = copy.copy(self.default_headers)
@@ -339,9 +376,35 @@ class DouyinApiClient:
             del headers["Origin"]
             
         response = await self.get_request("/aweme/v1/web/aweme/detail/", params, headers)
-        return response.get("aweme_detail", {})
+        aweme_detail = response.get("aweme_detail", {})
+        
+        if not aweme_detail:
+            return {}
+            
+        user_info = aweme_detail.get("author", {})
+        interact_info = aweme_detail.get("statistics", {})
+        
+        return {
+            "aweme_id": aweme_detail.get("aweme_id"),
+            "aweme_type": str(aweme_detail.get("aweme_type", "")),
+            "title": aweme_detail.get("desc", ""),
+            "desc": aweme_detail.get("desc", ""),
+            "create_time": aweme_detail.get("create_time"),
+            "user_id": user_info.get("uid"),
+            "sec_uid": user_info.get("sec_uid"),
+            "short_user_id": user_info.get("short_id"),
+            "user_unique_id": user_info.get("unique_id"),
+            "nickname": user_info.get("nickname"),
+            "avatar": user_info.get("avatar_thumb", {}).get("url_list", [""])[0],
+            "liked_count": str(interact_info.get("digg_count", 0)),
+            "collected_count": str(interact_info.get("collect_count", 0)),
+            "comment_count": str(interact_info.get("comment_count", 0)),
+            "share_count": str(interact_info.get("share_count", 0)),
+            "ip_location": aweme_detail.get("ip_label", ""),
+            "aweme_url": f"https://www.douyin.com/video/{aweme_detail.get('aweme_id')}",
+        }
 
-    async def fetch_video_comments(self, aweme_id: str, cursor: int = 0) -> Dict:
+    async def fetch_video_comments(self, aweme_id: str, cursor: int = 0) -> List[Dict]:
         """
         Fetch video comments with pagination
         
@@ -350,7 +413,7 @@ class DouyinApiClient:
             cursor: Pagination cursor
             
         Returns:
-            Comments data
+            List of simplified comments data
         """
         uri = "/aweme/v1/web/comment/list/"
         params = {
@@ -363,9 +426,41 @@ class DouyinApiClient:
         headers = copy.copy(self.default_headers)
         headers["Referer"] = create_referer_url(aweme_id=aweme_id)
         
-        return await self.get_request(uri, params, headers)
+        response = await self.get_request(uri, params, headers)
+        
+        # Return simplified comments
+        comments = []
+        for comment_item in response.get("comments", []):
+            if not comment_item.get("cid"):
+                continue
+                
+            user_info = comment_item.get("user", {})
+            avatar_info = (user_info.get("avatar_medium", {}) or 
+                          user_info.get("avatar_300x300", {}) or 
+                          user_info.get("avatar_168x168", {}) or 
+                          user_info.get("avatar_thumb", {}) or {})
+            
+            comment_data = {
+                "comment_id": comment_item.get("cid"),
+                "create_time": comment_item.get("create_time"),
+                "ip_location": comment_item.get("ip_label", ""),
+                "aweme_id": aweme_id,
+                "content": comment_item.get("text"),
+                "user_id": user_info.get("uid"),
+                "sec_uid": user_info.get("sec_uid"),
+                "short_user_id": user_info.get("short_id"),
+                "user_unique_id": user_info.get("unique_id"),
+                "nickname": user_info.get("nickname"),
+                "avatar": avatar_info.get("url_list", [""])[0],
+                "sub_comment_count": str(comment_item.get("reply_comment_total", 0)),
+                "like_count": comment_item.get("digg_count", 0),
+                "parent_comment_id": comment_item.get("reply_id", "0"),
+            }
+            comments.append(comment_data)
+            
+        return comments
 
-    async def fetch_comment_replies(self, aweme_id: str, comment_id: str, cursor: int = 0) -> Dict:
+    async def fetch_comment_replies(self, aweme_id: str, comment_id: str, cursor: int = 0) -> List[Dict]:
         """
         Fetch replies to a specific comment
         
@@ -375,7 +470,7 @@ class DouyinApiClient:
             cursor: Pagination cursor
             
         Returns:
-            Reply comments data
+            List of simplified reply comments data
         """
         uri = "/aweme/v1/web/comment/list/reply/"
         params = {
@@ -389,7 +484,39 @@ class DouyinApiClient:
         headers = copy.copy(self.default_headers)
         headers["Referer"] = create_referer_url(aweme_id=aweme_id)
         
-        return await self.get_request(uri, params, headers)
+        response = await self.get_request(uri, params, headers)
+        
+        # Return simplified reply comments
+        replies = []
+        for comment_item in response.get("comments", []):
+            if not comment_item.get("cid"):
+                continue
+                
+            user_info = comment_item.get("user", {})
+            avatar_info = (user_info.get("avatar_medium", {}) or 
+                          user_info.get("avatar_300x300", {}) or 
+                          user_info.get("avatar_168x168", {}) or 
+                          user_info.get("avatar_thumb", {}) or {})
+            
+            reply_data = {
+                "comment_id": comment_item.get("cid"),
+                "create_time": comment_item.get("create_time"),
+                "ip_location": comment_item.get("ip_label", ""),
+                "aweme_id": aweme_id,
+                "content": comment_item.get("text"),
+                "user_id": user_info.get("uid"),
+                "sec_uid": user_info.get("sec_uid"),
+                "short_user_id": user_info.get("short_id"),
+                "user_unique_id": user_info.get("unique_id"),
+                "nickname": user_info.get("nickname"),
+                "avatar": avatar_info.get("url_list", [""])[0],
+                "sub_comment_count": str(comment_item.get("reply_comment_total", 0)),
+                "like_count": comment_item.get("digg_count", 0),
+                "parent_comment_id": comment_id,
+            }
+            replies.append(reply_data)
+            
+        return replies
 
     async def fetch_all_video_comments(
         self,
@@ -410,19 +537,59 @@ class DouyinApiClient:
             max_comments: Maximum comments to fetch
             
         Returns:
-            List of all comments
+            List of all simplified comments
         """
         all_comments = []
         has_more = True
         cursor = 0
         
         while has_more and len(all_comments) < max_comments:
-            comments_data = await self.fetch_video_comments(aweme_id, cursor)
+            uri = "/aweme/v1/web/comment/list/"
+            params = {
+                "aweme_id": aweme_id, 
+                "cursor": cursor, 
+                "count": 20, 
+                "item_type": 0
+            }
+            
+            headers = copy.copy(self.default_headers)
+            headers["Referer"] = create_referer_url(aweme_id=aweme_id)
+            
+            comments_data = await self.get_request(uri, params, headers)
             has_more = comments_data.get("has_more", False)
             cursor = comments_data.get("cursor", 0)
-            comments = comments_data.get("comments", [])
             
-            if not comments:
+            # Get simplified comments from this batch
+            batch_comments = []
+            for comment_item in comments_data.get("comments", []):
+                if not comment_item.get("cid"):
+                    continue
+                    
+                user_info = comment_item.get("user", {})
+                avatar_info = (user_info.get("avatar_medium", {}) or 
+                              user_info.get("avatar_300x300", {}) or 
+                              user_info.get("avatar_168x168", {}) or 
+                              user_info.get("avatar_thumb", {}) or {})
+                
+                comment_data = {
+                    "comment_id": comment_item.get("cid"),
+                    "create_time": comment_item.get("create_time"),
+                    "ip_location": comment_item.get("ip_label", ""),
+                    "aweme_id": aweme_id,
+                    "content": comment_item.get("text"),
+                    "user_id": user_info.get("uid"),
+                    "sec_uid": user_info.get("sec_uid"),
+                    "short_user_id": user_info.get("short_id"),
+                    "user_unique_id": user_info.get("unique_id"),
+                    "nickname": user_info.get("nickname"),
+                    "avatar": avatar_info.get("url_list", [""])[0],
+                    "sub_comment_count": str(comment_item.get("reply_comment_total", 0)),
+                    "like_count": comment_item.get("digg_count", 0),
+                    "parent_comment_id": comment_item.get("reply_id", "0"),
+                }
+                batch_comments.append(comment_data)
+            
+            if not batch_comments:
                 break
                 
             # Limit comments to max_comments
@@ -430,41 +597,30 @@ class DouyinApiClient:
             if remaining_slots <= 0:
                 break
                 
-            if len(comments) > remaining_slots:
-                comments = comments[:remaining_slots]
+            if len(batch_comments) > remaining_slots:
+                batch_comments = batch_comments[:remaining_slots]
                 
-            all_comments.extend(comments)
+            all_comments.extend(batch_comments)
             
             if progress_callback:
-                await progress_callback(aweme_id, comments)
+                await progress_callback(aweme_id, batch_comments)
                 
             await asyncio.sleep(fetch_interval)
             
             # Fetch replies if requested
             if include_replies:
-                for comment in comments:
-                    reply_count = comment.get("reply_comment_total", 0)
+                for comment in batch_comments:
+                    reply_count = int(comment.get("sub_comment_count", 0))
                     
                     if reply_count > 0:
-                        comment_id = comment.get("cid")
-                        reply_cursor = 0
-                        reply_has_more = True
+                        comment_id = comment.get("comment_id")
+                        replies = await self.fetch_comment_replies(aweme_id, comment_id, 0)
+                        all_comments.extend(replies)
                         
-                        while reply_has_more:
-                            replies_data = await self.fetch_comment_replies(aweme_id, comment_id, reply_cursor)
-                            reply_has_more = replies_data.get("has_more", False)
-                            reply_cursor = replies_data.get("cursor", 0)
-                            replies = replies_data.get("comments", [])
+                        if progress_callback:
+                            await progress_callback(aweme_id, replies)
                             
-                            if not replies:
-                                break
-                                
-                            all_comments.extend(replies)
-                            
-                            if progress_callback:
-                                await progress_callback(aweme_id, replies)
-                                
-                            await asyncio.sleep(fetch_interval)
+                        await asyncio.sleep(fetch_interval)
                             
         logger.info(f"Fetched {len(all_comments)} comments for video {aweme_id}")
         return all_comments
@@ -477,7 +633,7 @@ class DouyinApiClient:
             sec_user_id: User's security ID
             
         Returns:
-            User information data
+            Simplified user information data
         """
         uri = "/aweme/v1/web/user/profile/other/"
         params = {
@@ -485,9 +641,29 @@ class DouyinApiClient:
             "publish_video_strategy_type": 2,
             "personal_center_strategy": 1,
         }
-        return await self.get_request(uri, params)
+        response = await self.get_request(uri, params)
+        
+        user_data = response.get("user", {})
+        if not user_data:
+            return {}
+            
+        gender_map = {0: "未知", 1: "男", 2: "女"}
+        avatar_uri = user_data.get("avatar_300x300", {}).get("uri", "")
+        
+        return {
+            "user_id": user_data.get("uid"),
+            "nickname": user_data.get("nickname"),
+            "gender": gender_map.get(user_data.get("gender"), "未知"),
+            "avatar": f"https://p3-pc.douyinpic.com/img/{avatar_uri}~c5_300x300.jpeg?from=2956013662" if avatar_uri else "",
+            "desc": user_data.get("signature"),
+            "ip_location": user_data.get("ip_location"),
+            "follows": user_data.get("following_count", 0),
+            "fans": user_data.get("max_follower_count", 0),
+            "interaction": user_data.get("total_favorited", 0),
+            "videos_count": user_data.get("aweme_count", 0),
+        }
 
-    async def fetch_user_videos(self, sec_user_id: str, max_cursor: str = "") -> Dict:
+    async def fetch_user_videos(self, sec_user_id: str, max_cursor: str = "") -> List[Dict]:
         """
         Fetch user's videos with pagination
         
@@ -496,7 +672,7 @@ class DouyinApiClient:
             max_cursor: Pagination cursor
             
         Returns:
-            User videos data
+            List of simplified user videos data
         """
         uri = "/aweme/v1/web/aweme/post/"
         params = {
@@ -506,7 +682,39 @@ class DouyinApiClient:
             "locate_query": "false",
             "publish_video_strategy_type": 2,
         }
-        return await self.get_request(uri, params)
+        response = await self.get_request(uri, params)
+        
+        # Return simplified aweme list
+        aweme_list = []
+        for aweme_info in response.get("aweme_list", []):
+            if not aweme_info.get("aweme_id"):
+                continue
+                
+            user_info = aweme_info.get("author", {})
+            interact_info = aweme_info.get("statistics", {})
+            
+            aweme_data = {
+                "aweme_id": aweme_info.get("aweme_id"),
+                "aweme_type": str(aweme_info.get("aweme_type", "")),
+                "title": aweme_info.get("desc", ""),
+                "desc": aweme_info.get("desc", ""),
+                "create_time": aweme_info.get("create_time"),
+                "user_id": user_info.get("uid"),
+                "sec_uid": user_info.get("sec_uid"),
+                "short_user_id": user_info.get("short_id"),
+                "user_unique_id": user_info.get("unique_id"),
+                "nickname": user_info.get("nickname"),
+                "avatar": user_info.get("avatar_thumb", {}).get("url_list", [""])[0],
+                "liked_count": str(interact_info.get("digg_count", 0)),
+                "collected_count": str(interact_info.get("collect_count", 0)),
+                "comment_count": str(interact_info.get("comment_count", 0)),
+                "share_count": str(interact_info.get("share_count", 0)),
+                "ip_location": aweme_info.get("ip_label", ""),
+                "aweme_url": f"https://www.douyin.com/video/{aweme_info.get('aweme_id')}",
+            }
+            aweme_list.append(aweme_data)
+            
+        return aweme_list
 
     async def fetch_all_user_videos(
         self, 
@@ -523,65 +731,74 @@ class DouyinApiClient:
             max_videos: Maximum videos to fetch
             
         Returns:
-            List of all user videos
+            List of all simplified user videos
         """
         all_videos = []
         has_more = True
         max_cursor = ""
         
         while has_more and len(all_videos) < max_videos:
-            videos_data = await self.fetch_user_videos(sec_user_id, max_cursor)
+            uri = "/aweme/v1/web/aweme/post/"
+            params = {
+                "sec_user_id": sec_user_id,
+                "count": 18,
+                "max_cursor": max_cursor,
+                "locate_query": "false",
+                "publish_video_strategy_type": 2,
+            }
+            videos_data = await self.get_request(uri, params)
             has_more = videos_data.get("has_more", False)
             max_cursor = videos_data.get("max_cursor", "")
-            videos = videos_data.get("aweme_list", [])
             
-            if not videos:
+            # Get simplified videos from this batch
+            batch_videos = []
+            for aweme_info in videos_data.get("aweme_list", []):
+                if not aweme_info.get("aweme_id"):
+                    continue
+                    
+                user_info = aweme_info.get("author", {})
+                interact_info = aweme_info.get("statistics", {})
+                
+                aweme_data = {
+                    "aweme_id": aweme_info.get("aweme_id"),
+                    "aweme_type": str(aweme_info.get("aweme_type", "")),
+                    "title": aweme_info.get("desc", ""),
+                    "desc": aweme_info.get("desc", ""),
+                    "create_time": aweme_info.get("create_time"),
+                    "user_id": user_info.get("uid"),
+                    "sec_uid": user_info.get("sec_uid"),
+                    "short_user_id": user_info.get("short_id"),
+                    "user_unique_id": user_info.get("unique_id"),
+                    "nickname": user_info.get("nickname"),
+                    "avatar": user_info.get("avatar_thumb", {}).get("url_list", [""])[0],
+                    "liked_count": str(interact_info.get("digg_count", 0)),
+                    "collected_count": str(interact_info.get("collect_count", 0)),
+                    "comment_count": str(interact_info.get("comment_count", 0)),
+                    "share_count": str(interact_info.get("share_count", 0)),
+                    "ip_location": aweme_info.get("ip_label", ""),
+                    "aweme_url": f"https://www.douyin.com/video/{aweme_info.get('aweme_id')}",
+                }
+                batch_videos.append(aweme_data)
+            
+            if not batch_videos:
                 break
                 
             remaining_slots = max_videos - len(all_videos)
             if remaining_slots <= 0:
                 break
                 
-            if len(videos) > remaining_slots:
-                videos = videos[:remaining_slots]
+            if len(batch_videos) > remaining_slots:
+                batch_videos = batch_videos[:remaining_slots]
                 
-            all_videos.extend(videos)
-            logger.info(f"Fetched {len(videos)} videos for user {sec_user_id}, total: {len(all_videos)}")
+            all_videos.extend(batch_videos)
+            logger.info(f"Fetched {len(batch_videos)} videos for user {sec_user_id}, total: {len(all_videos)}")
             
             if progress_callback:
-                await progress_callback(videos)
+                await progress_callback(batch_videos)
                 
             await asyncio.sleep(1.0)  # Rate limiting
             
         return all_videos
-
-    async def download_media(self, url: str) -> Optional[bytes]:
-        """
-        Download media content from URL
-        
-        Args:
-            url: Media URL
-            
-        Returns:
-            Media content as bytes or None if failed
-        """
-        try:
-            async with httpx.AsyncClient(proxy=self.proxy) as client:
-                response = await client.get(url, timeout=self.timeout, follow_redirects=True)
-                response.raise_for_status()
-                
-                if response.status_code == 200:
-                    return response.content
-                else:
-                    logger.error(f"Failed to download media from {url}, status: {response.status_code}")
-                    return None
-                    
-        except httpx.HTTPError as e:
-            logger.error(f"HTTP error downloading media from {url}: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Unexpected error downloading media from {url}: {e}")
-            return None
 
     async def check_login_status(self) -> bool:
         """

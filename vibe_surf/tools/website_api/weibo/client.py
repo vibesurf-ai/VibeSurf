@@ -21,10 +21,7 @@ from .helpers import (
     extract_redirect_url_from_html, decode_chinese_html,
     WeiboError, NetworkError, DataExtractionError,
     AuthenticationError, RateLimitError, ContentNotFoundError,
-    get_mobile_user_agent, transform_weibo_search_results,
-    transform_weibo_post_detail, transform_weibo_comments_response,
-    transform_weibo_user_info, transform_weibo_user_posts_response,
-    transform_weibo_trending_response
+    get_mobile_user_agent
 )
 
 logger = get_logger(__name__)
@@ -287,7 +284,7 @@ class WeiboApiClient:
         keyword: str,
         page: int = 1,
         search_type: SearchType = SearchType.DEFAULT,
-    ):
+    ) -> List[Dict]:
         """
         Search Weibo posts by keyword
         
@@ -297,24 +294,7 @@ class WeiboApiClient:
             search_type: Search type filter
             
         Returns:
-            List of structured post information
-            Example:
-            [
-                {
-                    "mid": "5217191324549344",
-                    "text": "OpenAI最新发布模型Sora2",
-                    "created_at": "Thu Oct 02 06:46:45 +0800 2025",
-                    "reposts_count": 2,
-                    "comments_count": 48,
-                    "attitudes_count": 88,
-                    "user": {
-                        "id": 2657837537,
-                        "screen_name": "ZS水木嘉华",
-                        "followers_count": 112000
-                    },
-                    "page_info": {"type": "video"}
-                }
-            ]
+            List of simplified post information
         """
         endpoint = "/api/container/getIndex"
         container_id = create_container_id(search_type, keyword)
@@ -327,10 +307,38 @@ class WeiboApiClient:
         
         raw_response = await self._get_request(endpoint, params)
         
-        # Transform raw response into structured posts
-        structured_posts = transform_weibo_search_results(raw_response)
+        # Return simplified posts
+        posts = []
+        cards = raw_response.get("cards", [])
+        for card in cards:
+            card_group = card.get("card_group", [])
+            for group_item in card_group:
+                if group_item.get("card_type") == 9:  # Weibo post card type
+                    mblog = group_item.get("mblog", {})
+                    if not mblog.get("id"):
+                        continue
+                    
+                    user_info = mblog.get("user", {})
+                    clean_text = re.sub(r"<.*?>", "", mblog.get("text", ""))
+                    
+                    post = {
+                        "note_id": mblog.get("id"),
+                        "content": clean_text,
+                        "created_at": mblog.get("created_at"),
+                        "liked_count": str(mblog.get("attitudes_count", 0)),
+                        "comments_count": str(mblog.get("comments_count", 0)),
+                        "shared_count": str(mblog.get("reposts_count", 0)),
+                        "ip_location": mblog.get("region_name", "").replace("发布于 ", ""),
+                        "note_url": f"https://m.weibo.cn/detail/{mblog.get('id')}",
+                        "user_id": str(user_info.get("id", "")),
+                        "nickname": user_info.get("screen_name", ""),
+                        "gender": user_info.get("gender", ""),
+                        "profile_url": user_info.get("profile_url", ""),
+                        "avatar": user_info.get("profile_image_url", ""),
+                    }
+                    posts.append(post)
         
-        return structured_posts
+        return posts
 
     async def get_post_detail(self, mid: str) -> Optional[Dict]:
         """
@@ -340,22 +348,7 @@ class WeiboApiClient:
             mid: Weibo post ID
             
         Returns:
-            Structured post detail information
-            Example:
-            {
-                "mid": "5217191324549344",
-                "text": "OpenAI最新发布模型Sora2",
-                "created_at": "Thu Oct 02 06:46:45 +0800 2025",
-                "user": {
-                    "id": 2657837537,
-                    "screen_name": "ZS水木嘉华",
-                    "verified": True,
-                    "description": "名副其实的射手座！！！"
-                },
-                "is_long_text": False,
-                "favorited": False,
-                "video_info": {"title": "视频标题", "duration": 70.798}
-            }
+            Simplified post detail information
         """
         url = f"{self._api_base}/detail/{mid}"
 
@@ -367,10 +360,24 @@ class WeiboApiClient:
         if render_data:
             note_detail = render_data.get("status")
             if note_detail:
-                raw_detail = {"mblog": note_detail}
-                # Transform raw response into structured post detail
-                structured_detail = transform_weibo_post_detail(raw_detail)
-                return structured_detail
+                user_info = note_detail.get("user", {})
+                clean_text = re.sub(r"<.*?>", "", note_detail.get("text", ""))
+                
+                return {
+                    "note_id": note_detail.get("id"),
+                    "content": clean_text,
+                    "created_at": note_detail.get("created_at"),
+                    "liked_count": str(note_detail.get("attitudes_count", 0)),
+                    "comments_count": str(note_detail.get("comments_count", 0)),
+                    "shared_count": str(note_detail.get("reposts_count", 0)),
+                    "ip_location": note_detail.get("region_name", "").replace("发布于 ", ""),
+                    "note_url": f"https://m.weibo.cn/detail/{note_detail.get('id')}",
+                    "user_id": str(user_info.get("id", "")),
+                    "nickname": user_info.get("screen_name", ""),
+                    "gender": user_info.get("gender", ""),
+                    "profile_url": user_info.get("profile_url", ""),
+                    "avatar": user_info.get("profile_image_url", ""),
+                }
         
         logger.warning(f"Could not extract render data for post {mid}")
         return None
@@ -390,22 +397,7 @@ class WeiboApiClient:
             max_id_type: Pagination type parameter
             
         Returns:
-            List of structured comment information
-            Example:
-            [
-                {
-                    "id": "4889543210987654",
-                    "text": "这个视频太棒了！",
-                    "created_at": "Thu Oct 02 07:30:15 +0800 2025",
-                    "like_count": 12,
-                    "user": {
-                        "id": 1234567890,
-                        "screen_name": "评论用户",
-                        "verified": False
-                    },
-                    "floor_number": 1
-                }
-            ]
+            List of simplified comment information
         """
         endpoint = "/comments/hotflow"
         
@@ -424,10 +416,32 @@ class WeiboApiClient:
         
         raw_response = await self._get_request(endpoint, params, headers)
         
-        # Transform raw response into structured comments
-        structured_comments = transform_weibo_comments_response(raw_response)
+        # Return simplified comments
+        comments = []
+        for comment in raw_response.get("data", []):
+            if not comment.get("id"):
+                continue
+                
+            user_info = comment.get("user", {})
+            clean_text = re.sub(r"<.*?>", "", comment.get("text", ""))
+            
+            comment_data = {
+                "comment_id": str(comment.get("id")),
+                "content": clean_text,
+                "created_at": comment.get("created_at"),
+                "comment_like_count": str(comment.get("like_count", 0)),
+                "sub_comment_count": str(comment.get("total_number", 0)),
+                "ip_location": comment.get("source", "").replace("来自", ""),
+                "parent_comment_id": comment.get("rootid", ""),
+                "user_id": str(user_info.get("id", "")),
+                "nickname": user_info.get("screen_name", ""),
+                "gender": user_info.get("gender", ""),
+                "profile_url": user_info.get("profile_url", ""),
+                "avatar": user_info.get("profile_image_url", ""),
+            }
+            comments.append(comment_data)
         
-        return structured_comments
+        return comments
 
     async def get_all_post_comments(
         self,
@@ -448,8 +462,7 @@ class WeiboApiClient:
             max_comments: Maximum comments to fetch
             
         Returns:
-            List of all structured comments (same format as get_post_comments)
-            Example: Same as get_post_comments but with all comments from all pages
+            List of all simplified comments
         """
         all_comments = []
         is_end = False
@@ -480,47 +493,44 @@ class WeiboApiClient:
             max_id_type = raw_response.get("max_id_type", 0)
             is_end = max_id == 0
             
-            # Transform raw response to structured comments
-            structured_comments = transform_weibo_comments_response(raw_response)
+            # Transform to simplified comments
+            batch_comments = []
+            for comment in raw_response.get("data", []):
+                if not comment.get("id"):
+                    continue
+                    
+                user_info = comment.get("user", {})
+                clean_text = re.sub(r"<.*?>", "", comment.get("text", ""))
+                
+                comment_data = {
+                    "comment_id": str(comment.get("id")),
+                    "content": clean_text,
+                    "created_at": comment.get("created_at"),
+                    "comment_like_count": str(comment.get("like_count", 0)),
+                    "sub_comment_count": str(comment.get("total_number", 0)),
+                    "ip_location": comment.get("source", "").replace("来自", ""),
+                    "parent_comment_id": comment.get("rootid", ""),
+                    "user_id": str(user_info.get("id", "")),
+                    "nickname": user_info.get("screen_name", ""),
+                    "gender": user_info.get("gender", ""),
+                    "profile_url": user_info.get("profile_url", ""),
+                    "avatar": user_info.get("profile_image_url", ""),
+                }
+                batch_comments.append(comment_data)
             
             # Limit comments if approaching max
             remaining_slots = max_comments - len(all_comments)
-            if len(structured_comments) > remaining_slots:
-                structured_comments = structured_comments[:remaining_slots]
+            if len(batch_comments) > remaining_slots:
+                batch_comments = batch_comments[:remaining_slots]
             
             if progress_callback:
-                await progress_callback(mid, structured_comments)
+                await progress_callback(mid, batch_comments)
             
             await asyncio.sleep(fetch_interval)
-            all_comments.extend(structured_comments)
-            
-            # Extract sub-comments if enabled
-            if include_sub_comments:
-                sub_comments = await self._extract_sub_comments(
-                    mid, structured_comments, progress_callback
-                )
-                all_comments.extend(sub_comments)
+            all_comments.extend(batch_comments)
 
         logger.info(f"Fetched {len(all_comments)} comments for post {mid}")
         return all_comments
-
-    async def _extract_sub_comments(
-        self,
-        mid: str,
-        comment_list: List[Dict],
-        progress_callback: Optional[Callable] = None,
-    ) -> List[Dict]:
-        """Extract sub-comments from comment list"""
-        sub_comments = []
-        
-        for comment in comment_list:
-            comments_data = comment.get("comments")
-            if comments_data and isinstance(comments_data, list):
-                if progress_callback:
-                    await progress_callback(mid, comments_data)
-                sub_comments.extend(comments_data)
-                
-        return sub_comments
 
     async def get_user_info(self, user_id: str) -> Optional[Dict]:
         """
@@ -530,21 +540,7 @@ class WeiboApiClient:
             user_id: User ID
             
         Returns:
-            Structured user profile information
-            Example:
-            {
-                "id": 2657837537,
-                "screen_name": "ZS水木嘉华",
-                "followers_count": 112000,
-                "friends_count": 2555,
-                "statuses_count": 3904,
-                "verified": True,
-                "description": "名副其实的射手座！！！",
-                "tabs_info": {
-                    "selected_tab": 1,
-                    "tabs": [{"title": "微博", "tab_key": "weibo"}]
-                }
-            }
+            Simplified user profile information
         """
         endpoint = "/api/container/getIndex"
         
@@ -563,66 +559,38 @@ class WeiboApiClient:
             user_data = await self._get_request(endpoint, params, headers)
             
             # Extract user info from cards if available
-            raw_user_info = None
+            user_info = {}
             if "cards" in user_data and user_data["cards"]:
                 # Look for user card in the response
                 for card in user_data["cards"]:
                     if card.get("card_type") == 10:  # User info card type
                         user_info = card.get("user", {})
-                        if user_info:
-                            raw_user_info = {
-                                "user": user_info,
-                                "containerid": f"100505{user_id}",
-                                "tabsInfo": user_data.get("tabsInfo", {})
-                            }
-                            break
+                        break
             
             # Fallback: try to get user info from the first available card
-            if not raw_user_info and "cards" in user_data and user_data["cards"]:
+            if not user_info and "cards" in user_data and user_data["cards"]:
                 first_card = user_data["cards"][0]
                 if "user" in first_card:
-                    raw_user_info = {
-                        "user": first_card["user"],
-                        "containerid": f"100505{user_id}",
-                        "tabsInfo": user_data.get("tabsInfo", {})
-                    }
+                    user_info = first_card["user"]
             
-            # If no user data found, create basic structure
-            if not raw_user_info:
-                raw_user_info = {
-                    "user": {"id": user_id},
-                    "containerid": f"100505{user_id}",
-                    "tabsInfo": user_data.get("tabsInfo", {})
+            if user_info:
+                return {
+                    "user_id": str(user_info.get("id", user_id)),
+                    "nickname": user_info.get("screen_name", ""),
+                    "gender": '女' if user_info.get('gender') == "f" else '男',
+                    "avatar": user_info.get("avatar_hd", user_info.get("profile_image_url", "")),
+                    "desc": user_info.get("description", ""),
+                    "ip_location": user_info.get("location", ""),
+                    "follows": user_info.get("friends_count", 0),
+                    "fans": user_info.get("followers_count", 0),
+                    "tag_list": "",
                 }
             
-            # Transform raw response into structured user info
-            structured_user_info = transform_weibo_user_info(raw_user_info)
-            return structured_user_info
+            return None
             
         except Exception as e:
             logger.error(f"Failed to get user info for {user_id}: {e}")
-            # Try alternative approach using direct API call
-            try:
-                alt_params = {
-                    "containerid": f"230283{user_id}",  # Alternative container ID
-                    "featurecode": "20000320",
-                    "lfid": f"100505{user_id}",
-                    "uid": user_id
-                }
-                alt_data = await self._get_request(endpoint, alt_params, headers)
-                
-                # Transform alternative response too
-                alt_user_info = {
-                    "user": alt_data.get("user", {"id": user_id}),
-                    "containerid": f"100505{user_id}",
-                    "tabsInfo": alt_data.get("tabsInfo", {})
-                }
-                structured_alt_info = transform_weibo_user_info(alt_user_info)
-                return structured_alt_info
-                
-            except Exception as alt_e:
-                logger.error(f"Alternative user info request also failed: {alt_e}")
-                raise DataExtractionError(f"Failed to get user info for {user_id}: {e}")
+            return None
 
     async def get_user_posts(
         self,
@@ -637,20 +605,7 @@ class WeiboApiClient:
             since_id: Pagination parameter (last post ID from previous page)
             
         Returns:
-            Structured user posts data
-            Example:
-            {
-                "user": {"id": 2657837537, "screen_name": "ZS水木嘉华"},
-                "posts": [
-                    {
-                        "mid": "5217191324549344",
-                        "text": "今天发布的内容",
-                        "user": {"id": 2657837537}
-                    }
-                ],
-                "pagination": {"since_id": "5217191324549344", "total": 100},
-                "tabs_info": {"selected_tab": 1}
-            }
+            Simplified user posts data
         """
         endpoint = "/api/container/getIndex"
         
@@ -664,10 +619,42 @@ class WeiboApiClient:
         
         raw_response = await self._get_request(endpoint, params)
         
-        # Transform raw response into structured user posts info
-        structured_user_posts = transform_weibo_user_posts_response(raw_response)
+        # Transform to simplified posts
+        posts = []
+        cards = raw_response.get("cards", [])
+        for card in cards:
+            if card.get("card_type") == 9:  # Weibo post card type
+                mblog = card.get("mblog", {})
+                if not mblog.get("id"):
+                    continue
+                
+                user_info = mblog.get("user", {})
+                clean_text = re.sub(r"<.*?>", "", mblog.get("text", ""))
+                
+                post = {
+                    "note_id": mblog.get("id"),
+                    "content": clean_text,
+                    "created_at": mblog.get("created_at"),
+                    "liked_count": str(mblog.get("attitudes_count", 0)),
+                    "comments_count": str(mblog.get("comments_count", 0)),
+                    "shared_count": str(mblog.get("reposts_count", 0)),
+                    "ip_location": mblog.get("region_name", "").replace("发布于 ", ""),
+                    "note_url": f"https://m.weibo.cn/detail/{mblog.get('id')}",
+                    "user_id": str(user_info.get("id", "")),
+                    "nickname": user_info.get("screen_name", ""),
+                    "gender": user_info.get("gender", ""),
+                    "profile_url": user_info.get("profile_url", ""),
+                    "avatar": user_info.get("profile_image_url", ""),
+                }
+                posts.append(post)
         
-        return structured_user_posts
+        return {
+            "posts": posts,
+            "pagination": {
+                "since_id": raw_response.get("cardlistInfo", {}).get("since_id", ""),
+                "total": raw_response.get("cardlistInfo", {}).get("total", 0)
+            }
+        }
 
     async def get_all_user_posts(
         self,
@@ -686,8 +673,7 @@ class WeiboApiClient:
             max_posts: Maximum posts to fetch
             
         Returns:
-            List of all structured user posts
-            Example: List of post objects (same format as posts in get_user_posts)
+            List of all simplified user posts
         """
         all_posts = []
         has_more = True
@@ -719,12 +705,34 @@ class WeiboApiClient:
                 logger.info(f"No posts found in response for user {user_id}")
                 break
             
-            # Transform raw response to get structured posts
-            structured_posts_data = transform_weibo_user_posts_response(raw_posts_data)
-            if not structured_posts_data:
-                break
-                
-            posts = structured_posts_data.get("posts", [])
+            # Transform to simplified posts
+            posts = []
+            cards = raw_posts_data.get("cards", [])
+            for card in cards:
+                if card.get("card_type") == 9:  # Weibo post card type
+                    mblog = card.get("mblog", {})
+                    if not mblog.get("id"):
+                        continue
+                    
+                    user_info = mblog.get("user", {})
+                    clean_text = re.sub(r"<.*?>", "", mblog.get("text", ""))
+                    
+                    post = {
+                        "note_id": mblog.get("id"),
+                        "content": clean_text,
+                        "created_at": mblog.get("created_at"),
+                        "liked_count": str(mblog.get("attitudes_count", 0)),
+                        "comments_count": str(mblog.get("comments_count", 0)),
+                        "shared_count": str(mblog.get("reposts_count", 0)),
+                        "ip_location": mblog.get("region_name", "").replace("发布于 ", ""),
+                        "note_url": f"https://m.weibo.cn/detail/{mblog.get('id')}",
+                        "user_id": str(user_info.get("id", "")),
+                        "nickname": user_info.get("screen_name", ""),
+                        "gender": user_info.get("gender", ""),
+                        "profile_url": user_info.get("profile_url", ""),
+                        "avatar": user_info.get("profile_image_url", ""),
+                    }
+                    posts.append(post)
             
             logger.info(f"Fetched {len(posts)} posts for user {user_id}")
             
@@ -752,22 +760,7 @@ class WeiboApiClient:
         Get Weibo trending list (热搜榜)
         
         Returns:
-            List of structured trending post information
-            Example:
-            [
-                {
-                    "mid": "5217229748568891",
-                    "text": "田栩宁 光因焰而炽，焰随心而生",
-                    "created_at": "Thu Oct 02 09:19:26 +0800 2025",
-                    "reposts_count": 127939,
-                    "attitudes_count": 921739,
-                    "user": {
-                        "id": 8008393378,
-                        "screen_name": "田栩宁工作室",
-                        "verified": True
-                    }
-                }
-            ]
+            List of simplified trending post information
         """
         endpoint = "/api/feed/trendtop"
         params = {
@@ -776,18 +769,45 @@ class WeiboApiClient:
         
         raw_response = await self._get_request(endpoint, params)
         
-        # Transform raw response into structured posts
-        structured_posts = transform_weibo_trending_response(raw_response)
+        # Transform to simplified posts
+        posts = []
+        cards = raw_response.get("cards", [])
+        for card in cards:
+            card_group = card.get("card_group", [])
+            for group_item in card_group:
+                if group_item.get("card_type") == 9:  # Weibo post card type
+                    mblog = group_item.get("mblog", {})
+                    if not mblog.get("id"):
+                        continue
+                    
+                    user_info = mblog.get("user", {})
+                    clean_text = re.sub(r"<.*?>", "", mblog.get("text", ""))
+                    
+                    post = {
+                        "note_id": mblog.get("id"),
+                        "content": clean_text,
+                        "created_at": mblog.get("created_at"),
+                        "liked_count": str(mblog.get("attitudes_count", 0)),
+                        "comments_count": str(mblog.get("comments_count", 0)),
+                        "shared_count": str(mblog.get("reposts_count", 0)),
+                        "ip_location": mblog.get("region_name", "").replace("发布于 ", ""),
+                        "note_url": f"https://m.weibo.cn/detail/{mblog.get('id')}",
+                        "user_id": str(user_info.get("id", "")),
+                        "nickname": user_info.get("screen_name", ""),
+                        "gender": user_info.get("gender", ""),
+                        "profile_url": user_info.get("profile_url", ""),
+                        "avatar": user_info.get("profile_image_url", ""),
+                    }
+                    posts.append(post)
         
-        return structured_posts
+        return posts
 
     async def get_hot_posts(self) -> List[Dict]:
         """
         Get Weibo hot posts (热门推荐)
         
         Returns:
-            List of structured hot post information
-            Example: Same format as search_posts_by_keyword results
+            List of simplified hot post information
         """
         endpoint = "/api/container/getIndex"
         params = {
@@ -797,7 +817,35 @@ class WeiboApiClient:
         
         raw_response = await self._get_request(endpoint, params)
         
-        # Transform raw response into structured posts (same structure as search results)
-        structured_posts = transform_weibo_search_results(raw_response)
+        # Transform to simplified posts (same structure as search results)
+        posts = []
+        cards = raw_response.get("cards", [])
+        for card in cards:
+            card_group = card.get("card_group", [])
+            for group_item in card_group:
+                if group_item.get("card_type") == 9:  # Weibo post card type
+                    mblog = group_item.get("mblog", {})
+                    if not mblog.get("id"):
+                        continue
+                    
+                    user_info = mblog.get("user", {})
+                    clean_text = re.sub(r"<.*?>", "", mblog.get("text", ""))
+                    
+                    post = {
+                        "note_id": mblog.get("id"),
+                        "content": clean_text,
+                        "created_at": mblog.get("created_at"),
+                        "liked_count": str(mblog.get("attitudes_count", 0)),
+                        "comments_count": str(mblog.get("comments_count", 0)),
+                        "shared_count": str(mblog.get("reposts_count", 0)),
+                        "ip_location": mblog.get("region_name", "").replace("发布于 ", ""),
+                        "note_url": f"https://m.weibo.cn/detail/{mblog.get('id')}",
+                        "user_id": str(user_info.get("id", "")),
+                        "nickname": user_info.get("screen_name", ""),
+                        "gender": user_info.get("gender", ""),
+                        "profile_url": user_info.get("profile_url", ""),
+                        "avatar": user_info.get("profile_image_url", ""),
+                    }
+                    posts.append(post)
         
-        return structured_posts
+        return posts

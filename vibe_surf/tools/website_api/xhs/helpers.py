@@ -2,6 +2,7 @@ import hashlib
 import random
 import time
 import json
+import re
 import urllib.parse
 from typing import Dict, List, Tuple, Optional
 
@@ -23,21 +24,21 @@ def encode_base36(number: int, alphabet: str = '0123456789ABCDEFGHIJKLMNOPQRSTUV
     """Convert integer to base36 string"""
     if not isinstance(number, int):
         raise TypeError('Input must be an integer')
-    
+
     if number == 0:
         return alphabet[0]
-    
+
     result = ''
     sign = ''
-    
+
     if number < 0:
         sign = '-'
         number = -number
-    
+
     while number:
         number, remainder = divmod(number, len(alphabet))
         result = alphabet[remainder] + result
-    
+
     return sign + result
 
 
@@ -93,11 +94,11 @@ def compute_hash(data: str) -> int:
         601450431, 3009837614, 3294710456, 1567103746, 711928724, 3020668471,
         3272380065, 1510334235, 755167117,
     ]
-    
+
     hash_val = -1
     for i in range(min(57, len(data))):
         hash_val = hash_table[(hash_val & 255) ^ ord(data[i])] ^ (hash_val >> 8)
-    
+
     return hash_val ^ -1 ^ 3988292384
 
 
@@ -113,10 +114,10 @@ ENCODING_CHARS = [
 def encode_triplet(triplet: int) -> str:
     """Encode 3-byte triplet to 4-character string"""
     return (
-        ENCODING_CHARS[63 & (triplet >> 18)] +
-        ENCODING_CHARS[63 & (triplet >> 12)] +
-        ENCODING_CHARS[(triplet >> 6) & 63] +
-        ENCODING_CHARS[triplet & 63]
+            ENCODING_CHARS[63 & (triplet >> 18)] +
+            ENCODING_CHARS[63 & (triplet >> 12)] +
+            ENCODING_CHARS[(triplet >> 6) & 63] +
+            ENCODING_CHARS[triplet & 63]
     )
 
 
@@ -135,31 +136,31 @@ def custom_base64_encode(data: List[int]) -> str:
     remainder = length % 3
     chunks = []
     chunk_size = 16383
-    
+
     main_length = length - remainder
     offset = 0
-    
+
     while offset < main_length:
         end = min(offset + chunk_size, main_length)
         chunks.append(encode_chunk(data, offset, end))
         offset += chunk_size
-    
+
     if remainder == 1:
         last_byte = data[length - 1]
         chunks.append(
-            ENCODING_CHARS[last_byte >> 2] + 
-            ENCODING_CHARS[(last_byte << 4) & 63] + 
+            ENCODING_CHARS[last_byte >> 2] +
+            ENCODING_CHARS[(last_byte << 4) & 63] +
             "=="
         )
     elif remainder == 2:
         last_two = (data[length - 2] << 8) | data[length - 1]
         chunks.append(
-            ENCODING_CHARS[last_two >> 10] + 
-            ENCODING_CHARS[(last_two >> 4) & 63] + 
-            ENCODING_CHARS[(last_two << 2) & 63] + 
+            ENCODING_CHARS[last_two >> 10] +
+            ENCODING_CHARS[(last_two >> 4) & 63] +
+            ENCODING_CHARS[(last_two << 2) & 63] +
             "="
         )
-    
+
     return "".join(chunks)
 
 
@@ -168,7 +169,7 @@ def utf8_encode(text: str) -> List[int]:
     encoded_text = urllib.parse.quote(text, safe='~()*!.\'')
     bytes_array = []
     i = 0
-    
+
     while i < len(encoded_text):
         char = encoded_text[i]
         if char == "%":
@@ -179,7 +180,7 @@ def utf8_encode(text: str) -> List[int]:
         else:
             bytes_array.append(ord(char))
             i += 1
-    
+
     return bytes_array
 
 
@@ -200,12 +201,12 @@ def create_signature_headers(a1: str = "", b1: str = "", x_s: str = "", x_t: str
         "x9": compute_hash(x_t + x_s + b1),
         "x10": 154,
     }
-    
+
     json_data = json.dumps(common_data, separators=(',', ':'))
     encoded_bytes = utf8_encode(json_data)
     x_s_common = custom_base64_encode(encoded_bytes)
     trace_id = generate_trace_id()
-    
+
     return {
         "x-s": x_s,
         "x-t": x_t,
@@ -218,25 +219,25 @@ def extract_cookies_from_browser(web_cookies: List[Dict]) -> Tuple[str, Dict[str
     """Extract and format cookies from browser, filtering only XiaoHongShu related cookies"""
     cookie_dict = {}
     cookie_parts = []
-    
+
     # XiaoHongShu domain patterns to filter
     xhs_domains = [
         '.xiaohongshu.com',
         'www.xiaohongshu.com',
         'edith.xiaohongshu.com'
     ]
-    
+
     for cookie in web_cookies:
         if 'name' in cookie and 'value' in cookie and 'domain' in cookie:
             domain = cookie['domain']
-            
+
             # Filter only XiaoHongShu related cookies
             if any(xhs_domain in domain for xhs_domain in xhs_domains):
                 name = cookie['name']
                 value = cookie['value']
                 cookie_dict[name] = value
                 cookie_parts.append(f"{name}={value}")
-    
+
     cookie_string = "; ".join(cookie_parts)
     return cookie_string, cookie_dict
 
@@ -244,7 +245,7 @@ def extract_cookies_from_browser(web_cookies: List[Dict]) -> Tuple[str, Dict[str
 # Image CDN configurations
 IMAGE_CDNS = [
     "https://sns-img-qc.xhscdn.com",
-    "https://sns-img-hw.xhscdn.com",  
+    "https://sns-img-hw.xhscdn.com",
     "https://sns-img-bd.xhscdn.com",
     "https://sns-img-qn.xhscdn.com",
 ]
@@ -266,6 +267,18 @@ def extract_trace_id_from_url(image_url: str) -> str:
     if "spectrum" in image_url:
         return f"spectrum/{image_url.split('/')[-1]}"
     return image_url.split("/")[-1]
+
+
+def extract_user_info_from_html(html: str) -> Optional[Dict]:
+    match = re.search(
+        r"<script>window.__INITIAL_STATE__=(.+)<\/script>", html, re.M
+    )
+    if match is None:
+        return None
+    info = json.loads(match.group(1).replace(":undefined", ":null"), strict=False)
+    if info is None:
+        return None
+    return info.get("user").get("userPageData")
 
 
 class XHSError(Exception):

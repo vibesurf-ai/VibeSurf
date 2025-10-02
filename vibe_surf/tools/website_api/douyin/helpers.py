@@ -131,8 +131,8 @@ def extract_cookies_from_browser(web_cookies: List[Dict]) -> Tuple[str, Dict[str
     # Douyin domain patterns to filter
     douyin_domains = [
         '.douyin.com',
-        'www.douyin.com',
-        'sso.douyin.com'
+        # 'www.douyin.com',
+        # 'sso.douyin.com'
     ]
     
     for cookie in web_cookies:

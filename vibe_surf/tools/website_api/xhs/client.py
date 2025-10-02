@@ -15,7 +15,7 @@ from vibe_surf.logger import get_logger
 from .helpers import (
     generate_trace_id, create_session_id, create_signature_headers,
     extract_cookies_from_browser, XHSError, NetworkError,
-    DataExtractionError, AuthenticationError
+    DataExtractionError, AuthenticationError, extract_user_info_from_html
 )
 
 logger = get_logger(__name__)
@@ -266,7 +266,7 @@ class XiaoHongShuApiClient:
             page_size: int = 20,
             sort_type: str = SearchType.GENERAL,
             content_type: int = ContentType.ALL,
-    ) -> List:
+    ) -> List[Dict]:
         """
         Search content by keyword
 
@@ -279,7 +279,7 @@ class XiaoHongShuApiClient:
             content_type: Content type filter
 
         Returns:
-            Search results
+            List of simplified search results
         """
         if session_id is None:
             session_id = create_session_id()
@@ -294,7 +294,41 @@ class XiaoHongShuApiClient:
             "note_type": content_type,
         }
         result = await self._post_request(endpoint, payload)
-        return result.get('items', [])
+        # Return simplified note list
+        note_list = []
+        for item in result.get('items', []):
+            if not item.get('id'):
+                continue
+
+            note_card = item.get("note_card", {})
+            user_info = note_card.get('user', {})
+            interact_info = note_card.get('interact_info', {})
+            image_list = note_card.get('image_list', [])
+            tag_list = note_card.get('tag_list', [])
+
+            note_data = {
+                "note_id": note_card.get("note_id"),
+                "type": note_card.get("type"),
+                "title": note_card.get("title", "")[:255],
+                "desc": note_card.get("desc", ""),
+                "time": note_card.get("time"),
+                "last_update_time": note_card.get("last_update_time", 0),
+                "user_id": user_info.get("user_id"),
+                "nickname": user_info.get("nickname"),
+                "avatar": user_info.get("avatar"),
+                "liked_count": interact_info.get("liked_count", 0),
+                "collected_count": interact_info.get("collected_count", 0),
+                "comment_count": interact_info.get("comment_count", 0),
+                "share_count": interact_info.get("share_count", 0),
+                "ip_location": note_card.get("ip_location", ""),
+                "image_list": ','.join([img.get('url', '') for img in image_list]),
+                "tag_list": ','.join([tag.get('name', '') for tag in tag_list if tag.get('type') == 'topic']),
+                "note_url": f"https://www.xiaohongshu.com/explore/{item.get('id')}",
+                "xsec_token": item.get("xsec_token", ""),
+            }
+            note_list.append(note_data)
+
+        return note_list
 
     async def fetch_content_details(
             self,
@@ -311,7 +345,7 @@ class XiaoHongShuApiClient:
             security_token: Security token
 
         Returns:
-            Content details
+            Simplified content details
         """
         payload = {
             "source_note_id": content_id,
@@ -324,7 +358,34 @@ class XiaoHongShuApiClient:
         result = await self._post_request(endpoint, payload)
 
         if result and result.get("items"):
-            return result["items"][0]["note_card"]
+            note_item = result.get("items")[0]
+            pdb.set_trace()
+            note_card = note_item.get("note_card", {})
+            user_info = note_card.get('user', {})
+            interact_info = note_card.get('interact_info', {})
+            image_list = note_card.get('image_list', [])
+            tag_list = note_card.get('tag_list', [])
+
+            return {
+                "note_id": note_card.get("note_id"),
+                "type": note_card.get("type"),
+                "title": note_card.get("title", ""),
+                "desc": note_card.get("desc", ""),
+                "time": note_card.get("time"),
+                "last_update_time": note_card.get("last_update_time", 0),
+                "user_id": user_info.get("user_id"),
+                "nickname": user_info.get("nickname"),
+                "avatar": user_info.get("avatar"),
+                "liked_count": interact_info.get("liked_count", 0),
+                "collected_count": interact_info.get("collected_count", 0),
+                "comment_count": interact_info.get("comment_count", 0),
+                "share_count": interact_info.get("share_count", 0),
+                "ip_location": note_card.get("ip_location", ""),
+                "image_list": ','.join([img.get('url', '') for img in image_list]),
+                "tag_list": ','.join([tag.get('name', '') for tag in tag_list if tag.get('type') == 'topic']),
+                "note_url": f"https://www.xiaohongshu.com/explore/{note_card.get('note_id')}",
+                "xsec_token": xsec_token,
+            }
 
         logger.error(f"Failed to fetch content {content_id}, response: {result}")
         return {}
@@ -334,7 +395,7 @@ class XiaoHongShuApiClient:
             content_id: str,
             xsec_token: str,
             cursor: str = "",
-    ) -> Dict:
+    ) -> List[Dict]:
         """
         Fetch content comments (first level)
 
@@ -344,7 +405,7 @@ class XiaoHongShuApiClient:
             cursor: Pagination cursor
 
         Returns:
-            Comments data
+            List of simplified comments data
         """
         endpoint = "/api/sns/web/v2/comment/page"
         params = {
@@ -354,7 +415,35 @@ class XiaoHongShuApiClient:
             "image_formats": "jpg,webp,avif",
             "xsec_token": xsec_token,
         }
-        return await self._get_request(endpoint, params)
+        response = await self._get_request(endpoint, params)
+
+        # Return simplified comments
+        comments = []
+        for comment_item in response.get("comments", []):
+            if not comment_item.get("id"):
+                continue
+
+            user_info = comment_item.get("user_info", {})
+            comment_pictures = [item.get("url_default", "") for item in comment_item.get("pictures", [])]
+            target_comment = comment_item.get("target_comment", {})
+
+            comment_data = {
+                "comment_id": comment_item.get("id"),
+                "create_time": comment_item.get("create_time"),
+                "ip_location": comment_item.get("ip_location"),
+                "note_id": content_id,
+                "content": comment_item.get("content"),
+                "user_id": user_info.get("user_id"),
+                "nickname": user_info.get("nickname"),
+                "avatar": user_info.get("image"),
+                "sub_comment_count": comment_item.get("sub_comment_count", 0),
+                "pictures": ",".join(comment_pictures),
+                "parent_comment_id": target_comment.get("id", 0),
+                "like_count": comment_item.get("like_count", 0),
+            }
+            comments.append(comment_data)
+
+        return comments
 
     async def fetch_all_content_comments(
             self,
@@ -375,26 +464,57 @@ class XiaoHongShuApiClient:
             max_comments: Maximum comments to fetch
 
         Returns:
-            List of all comments
+            List of all simplified comments
         """
         all_comments = []
         has_more = True
         cursor = ""
 
         while has_more and len(all_comments) < max_comments:
-            comments_data = await self.fetch_content_comments(
-                content_id, xsec_token, cursor
-            )
+            endpoint = "/api/sns/web/v2/comment/page"
+            params = {
+                "note_id": content_id,
+                "cursor": cursor,
+                "top_comment_id": "",
+                "image_formats": "jpg,webp,avif",
+                "xsec_token": xsec_token,
+            }
+            comments_data = await self._get_request(endpoint, params)
             has_more = comments_data.get("has_more", False)
             cursor = comments_data.get("cursor", "")
 
+            pdb.set_trace()
             if "comments" not in comments_data:
                 logger.info(f"No more comments found: {comments_data}")
                 break
 
-            batch_comments = comments_data["comments"]
-            remaining_slots = max_comments - len(all_comments)
+            # Get simplified comments from this batch
+            batch_comments = []
+            for comment_item in comments_data["comments"]:
+                if not comment_item.get("id"):
+                    continue
 
+                user_info = comment_item.get("user_info", {})
+                comment_pictures = [item.get("url_default", "") for item in comment_item.get("pictures", [])]
+                target_comment = comment_item.get("target_comment", {})
+
+                comment_data = {
+                    "comment_id": comment_item.get("id"),
+                    "create_time": comment_item.get("create_time"),
+                    "ip_location": comment_item.get("ip_location"),
+                    "note_id": content_id,
+                    "content": comment_item.get("content"),
+                    "user_id": user_info.get("user_id"),
+                    "nickname": user_info.get("nickname"),
+                    "avatar": user_info.get("image"),
+                    "sub_comment_count": comment_item.get("sub_comment_count", 0),
+                    "pictures": ",".join(comment_pictures),
+                    "parent_comment_id": target_comment.get("id", 0),
+                    "like_count": comment_item.get("like_count", 0),
+                }
+                batch_comments.append(comment_data)
+
+            remaining_slots = max_comments - len(all_comments)
             if remaining_slots <= 0:
                 break
 
@@ -418,7 +538,7 @@ class XiaoHongShuApiClient:
             user_id: User ID
 
         Returns:
-            User profile data
+            Simplified user profile data
         """
         endpoint = f"/user/profile/{user_id}"
         try:
@@ -429,25 +549,22 @@ class XiaoHongShuApiClient:
 
             # Extract user info from HTML response
             if "window.__INITIAL_STATE__" in html_response:
-                profile_data = {
-                    "user_id": user_id,
-                    "status": "active",
-                    "response_length": len(html_response)
-                }
-                return profile_data
+                # For now, return basic info since full extraction would need HTML parsing
+                user_info = extract_user_info_from_html(html_response)
+                return user_info
             else:
-                return {"user_id": user_id, "error": "Failed to extract profile data"}
+                return {}
 
         except Exception as e:
             logger.error(f"Failed to get user profile for {user_id}: {e}")
-            return {"user_id": user_id, "error": str(e)}
+            return {}
 
     async def fetch_user_content(
             self,
             user_id: str,
             cursor: str = "",
             page_size: int = 30,
-    ) -> Dict:
+    ) -> List[Dict]:
         """
         Fetch content by user
 
@@ -457,7 +574,7 @@ class XiaoHongShuApiClient:
             page_size: Number of items per page
 
         Returns:
-            User content data
+            List of simplified user content data
         """
         endpoint = "/api/sns/web/v1/user_posted"
         params = {
@@ -466,7 +583,42 @@ class XiaoHongShuApiClient:
             "num": page_size,
             "image_formats": "jpg,webp,avif",
         }
-        return await self._get_request(endpoint, params)
+        response = await self._get_request(endpoint, params)
+
+        # Return simplified note list
+        note_list = []
+        for note_item in response.get("notes", []):
+            if not note_item.get('id'):
+                continue
+
+            user_info = note_item.get('user', {})
+            interact_info = note_item.get('interact_info', {})
+            image_list = note_item.get('image_list', [])
+            tag_list = note_item.get('tag_list', [])
+
+            note_data = {
+                "note_id": note_item.get("id"),
+                "type": note_item.get("type"),
+                "title": note_item.get("display_title", "")[:255],
+                "desc": note_item.get("desc", ""),
+                "time": note_item.get("time"),
+                "last_update_time": note_item.get("last_update_time", 0),
+                "user_id": user_info.get("user_id"),
+                "nickname": user_info.get("nickname"),
+                "avatar": user_info.get("avatar"),
+                "liked_count": interact_info.get("liked_count", 0),
+                "collected_count": interact_info.get("collected_count", 0),
+                "comment_count": interact_info.get("comment_count", 0),
+                "share_count": interact_info.get("share_count", 0),
+                "ip_location": note_item.get("ip_location", ""),
+                "image_list": ','.join([img.get('url', '') for img in image_list]),
+                "tag_list": ','.join([tag.get('name', '') for tag in tag_list if tag.get('type') == 'topic']),
+                "note_url": f"https://www.xiaohongshu.com/explore/{note_item.get('id')}",
+                "xsec_token": note_item.get("xsec_token", ""),
+            }
+            note_list.append(note_data)
+
+        return note_list
 
     async def fetch_all_user_content(
             self,
@@ -485,14 +637,21 @@ class XiaoHongShuApiClient:
             max_content: Maximum content items to fetch
 
         Returns:
-            List of all user content
+            List of all simplified user content
         """
         all_content = []
         has_more = True
         cursor = ""
 
         while has_more and len(all_content) < max_content:
-            content_data = await self.fetch_user_content(user_id, cursor)
+            endpoint = "/api/sns/web/v1/user_posted"
+            params = {
+                "user_id": user_id,
+                "cursor": cursor,
+                "num": 30,
+                "image_formats": "jpg,webp,avif",
+            }
+            content_data = await self._get_request(endpoint, params)
             if not content_data:
                 logger.error(f"User {user_id} may be restricted or data unavailable")
                 break
@@ -504,7 +663,39 @@ class XiaoHongShuApiClient:
                 logger.info(f"No content found: {content_data}")
                 break
 
-            batch_content = content_data["notes"]
+            # Get simplified content from this batch
+            batch_content = []
+            for note_item in content_data["notes"]:
+                if not note_item.get('note_id'):
+                    continue
+
+                user_info = note_item.get('user', {})
+                interact_info = note_item.get('interact_info', {})
+                image_list = note_item.get('image_list', [])
+                tag_list = note_item.get('tag_list', [])
+
+                note_data = {
+                    "note_id": note_item.get("note_id"),
+                    "type": note_item.get("type"),
+                    "title": note_item.get("display_title", ""),
+                    "desc": note_item.get("desc", ""),
+                    "time": note_item.get("time"),
+                    "last_update_time": note_item.get("last_update_time", 0),
+                    "user_id": user_info.get("user_id"),
+                    "nickname": user_info.get("nickname"),
+                    "avatar": user_info.get("avatar"),
+                    "liked_count": interact_info.get("liked_count", 0),
+                    "collected_count": interact_info.get("collected_count", 0),
+                    "comment_count": interact_info.get("comment_count", 0),
+                    "share_count": interact_info.get("share_count", 0),
+                    "ip_location": note_item.get("ip_location", ""),
+                    "image_list": ','.join([img.get('url', '') for img in image_list]),
+                    "tag_list": ','.join([tag.get('name', '') for tag in tag_list if tag.get('type') == 'topic']),
+                    "note_url": f"https://www.xiaohongshu.com/explore/{note_item.get('note_id')}",
+                    "xsec_token": note_item.get("xsec_token", ""),
+                }
+                batch_content.append(note_data)
+
             logger.info(f"Fetched {len(batch_content)} content items for user {user_id}")
 
             remaining_slots = max_content - len(all_content)
@@ -521,12 +712,12 @@ class XiaoHongShuApiClient:
         logger.info(f"Fetched {len(all_content)} content items for user {user_id}")
         return all_content
 
-    async def get_home_recommendations(self) -> List:
+    async def get_home_recommendations(self) -> List[Dict]:
         """
         Get home feed recommendations with proper header signature
 
         Returns:
-            Home feed data
+            List of simplified home feed data
         """
         payload = {
             "category": "homefeed_recommend",
@@ -553,7 +744,41 @@ class XiaoHongShuApiClient:
             "POST", f"{self._api_base}{endpoint}",
             data=json_payload, headers=headers
         )
-        return result.get("items", [])
+
+        # Return simplified note list
+        note_list = []
+        for item in result.get("items", []):
+            if not item.get('id'):
+                continue
+            note_card = item.get('note_card', {})
+            user_info = note_card.get('user', {})
+            interact_info = note_card.get('interact_info', {})
+            image_list = note_card.get('image_list', [])
+            tag_list = note_card.get('tag_list', [])
+
+            note_data = {
+                "note_id": item.get("id"),
+                "type": note_card.get("type"),
+                "title": note_card.get("display_title", ""),
+                "desc": note_card.get("desc", ""),
+                "time": note_card.get("time"),
+                "last_update_time": note_card.get("last_update_time", 0),
+                "user_id": user_info.get("user_id"),
+                "nickname": user_info.get("nickname"),
+                "avatar": user_info.get("avatar"),
+                "liked_count": interact_info.get("liked_count", 0),
+                "collected_count": interact_info.get("collected_count", 0),
+                "comment_count": interact_info.get("comment_count", 0),
+                "share_count": interact_info.get("share_count", 0),
+                "ip_location": note_card.get("ip_location", ""),
+                "image_list": ','.join([img.get('url', '') for img in image_list]),
+                "tag_list": ','.join([tag.get('name', '') for tag in tag_list if tag.get('type') == 'topic']),
+                "note_url": f"https://www.xiaohongshu.com/explore/{item.get('id')}",
+                "xsec_token": item.get("xsec_token", ""),
+            }
+            note_list.append(note_data)
+
+        return note_list
 
     async def submit_comment(self, content_id: str, comment_text: str) -> Dict:
         """
