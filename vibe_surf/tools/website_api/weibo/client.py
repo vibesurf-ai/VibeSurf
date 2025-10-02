@@ -8,6 +8,7 @@ import urllib.parse
 from typing import Dict, List, Optional, Callable, Union, Any
 import httpx
 from tenacity import retry, stop_after_attempt, wait_fixed
+from urllib.parse import parse_qs, unquote, urlencode
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.logger import get_logger
@@ -256,7 +257,7 @@ class WeiboApiClient:
         except json.JSONDecodeError:
             raise DataExtractionError(f"Invalid JSON response: {response.text[:200]}")
 
-    async def _get_request(self, endpoint: str, params: Optional[Dict] = None, headers: Optional[Dict] = None) -> Dict:
+    async def _get_request(self, endpoint: str, params: Optional[Dict] = None, headers: Optional[Dict] = None, **kwargs) -> Dict:
         """Make GET request with proper headers and parameters"""
         final_endpoint = endpoint
         if params:
@@ -266,7 +267,8 @@ class WeiboApiClient:
         
         return await self._make_request(
             "GET", f"{self._api_base}{final_endpoint}",
-            headers=request_headers
+            headers=request_headers,
+            **kwargs
         )
 
     async def _post_request(self, endpoint: str, data: Dict, headers: Optional[Dict] = None) -> Dict:
@@ -306,37 +308,32 @@ class WeiboApiClient:
         }
         
         raw_response = await self._get_request(endpoint, params)
-        
-        # Return simplified posts
         posts = []
         cards = raw_response.get("cards", [])
         for card in cards:
-            card_group = card.get("card_group", [])
-            for group_item in card_group:
-                if group_item.get("card_type") == 9:  # Weibo post card type
-                    mblog = group_item.get("mblog", {})
-                    if not mblog.get("id"):
-                        continue
-                    
-                    user_info = mblog.get("user", {})
-                    clean_text = re.sub(r"<.*?>", "", mblog.get("text", ""))
-                    
-                    post = {
-                        "note_id": mblog.get("id"),
-                        "content": clean_text,
-                        "created_at": mblog.get("created_at"),
-                        "liked_count": str(mblog.get("attitudes_count", 0)),
-                        "comments_count": str(mblog.get("comments_count", 0)),
-                        "shared_count": str(mblog.get("reposts_count", 0)),
-                        "ip_location": mblog.get("region_name", "").replace("发布于 ", ""),
-                        "note_url": f"https://m.weibo.cn/detail/{mblog.get('id')}",
-                        "user_id": str(user_info.get("id", "")),
-                        "nickname": user_info.get("screen_name", ""),
-                        "gender": user_info.get("gender", ""),
-                        "profile_url": user_info.get("profile_url", ""),
-                        "avatar": user_info.get("profile_image_url", ""),
-                    }
-                    posts.append(post)
+            mblog = card.get("mblog", {})
+            if not mblog.get("id"):
+                continue
+
+            user_info = mblog.get("user", {})
+            clean_text = re.sub(r"<.*?>", "", mblog.get("text", ""))
+
+            post = {
+                "note_id": mblog.get("id"),
+                "content": clean_text,
+                "created_at": mblog.get("created_at"),
+                "liked_count": str(mblog.get("attitudes_count", 0)),
+                "comments_count": str(mblog.get("comments_count", 0)),
+                "shared_count": str(mblog.get("reposts_count", 0)),
+                "ip_location": mblog.get("region_name", "").replace("发布于 ", ""),
+                "note_url": f"https://m.weibo.cn/detail/{mblog.get('id')}",
+                "user_id": str(user_info.get("id", "")),
+                "nickname": user_info.get("screen_name", ""),
+                "gender": user_info.get("gender", ""),
+                "profile_url": user_info.get("profile_url", ""),
+                "avatar": user_info.get("profile_image_url", ""),
+            }
+            posts.append(post)
         
         return posts
 
@@ -557,36 +554,10 @@ class WeiboApiClient:
         
         try:
             user_data = await self._get_request(endpoint, params, headers)
-            
             # Extract user info from cards if available
-            user_info = {}
-            if "cards" in user_data and user_data["cards"]:
-                # Look for user card in the response
-                for card in user_data["cards"]:
-                    if card.get("card_type") == 10:  # User info card type
-                        user_info = card.get("user", {})
-                        break
-            
-            # Fallback: try to get user info from the first available card
-            if not user_info and "cards" in user_data and user_data["cards"]:
-                first_card = user_data["cards"][0]
-                if "user" in first_card:
-                    user_info = first_card["user"]
-            
-            if user_info:
-                return {
-                    "user_id": str(user_info.get("id", user_id)),
-                    "nickname": user_info.get("screen_name", ""),
-                    "gender": '女' if user_info.get('gender') == "f" else '男',
-                    "avatar": user_info.get("avatar_hd", user_info.get("profile_image_url", "")),
-                    "desc": user_info.get("description", ""),
-                    "ip_location": user_info.get("location", ""),
-                    "follows": user_info.get("friends_count", 0),
-                    "fans": user_info.get("followers_count", 0),
-                    "tag_list": "",
-                }
-            
-            return None
+            user_info = user_data.get('userInfo', {})
+            user_info["user_id"] = user_info.get("id", user_id)
+            return user_info
             
         except Exception as e:
             logger.error(f"Failed to get user info for {user_id}: {e}")
@@ -608,7 +579,12 @@ class WeiboApiClient:
             Simplified user posts data
         """
         endpoint = "/api/container/getIndex"
-        
+
+        # response = await self._get_request(f"/u/{user_id}", raw_response=True)
+        # m_weibocn_params = response.cookies.get("M_WEIBOCN_PARAMS")
+        # m_weibocn_params_dict = parse_qs(unquote(m_weibocn_params))
+        # containerid = m_weibocn_params_dict['fid'][0]
+
         params = {
             "jumpfrom": "weibocom",
             "type": "uid",
@@ -617,11 +593,27 @@ class WeiboApiClient:
             "since_id": since_id,
         }
         
-        raw_response = await self._get_request(endpoint, params)
-        
+        response = await self._get_request(endpoint, params)
+        containerid = f"100505{user_id}"
+        if response.get("tabsInfo"):
+            tabs: List[Dict] = response.get("tabsInfo", {}).get("tabs", [])
+            for tab in tabs:
+                if tab.get("tabKey") == "weibo":
+                    containerid = tab.get("containerid")
+                    break
+        params = {
+            "jumpfrom": "weibocom",
+            "type": "uid",
+            "value": user_id,
+            "containerid": containerid,
+            "since_id": since_id,
+        }
+
+        response = await self._get_request(endpoint, params)
+
         # Transform to simplified posts
         posts = []
-        cards = raw_response.get("cards", [])
+        cards = response.get("cards", [])
         for card in cards:
             if card.get("card_type") == 9:  # Weibo post card type
                 mblog = card.get("mblog", {})
@@ -651,8 +643,8 @@ class WeiboApiClient:
         return {
             "posts": posts,
             "pagination": {
-                "since_id": raw_response.get("cardlistInfo", {}).get("since_id", ""),
-                "total": raw_response.get("cardlistInfo", {}).get("total", 0)
+                "since_id": response.get("cardlistInfo", {}).get("since_id", ""),
+                "total": response.get("cardlistInfo", {}).get("total", 0)
             }
         }
 
@@ -700,7 +692,7 @@ class WeiboApiClient:
             
             # Extract pagination info from raw response
             since_id = raw_posts_data.get("cardlistInfo", {}).get("since_id", "0")
-            
+            pdb.set_trace()
             if "cards" not in raw_posts_data:
                 logger.info(f"No posts found in response for user {user_id}")
                 break
@@ -771,34 +763,30 @@ class WeiboApiClient:
         
         # Transform to simplified posts
         posts = []
-        cards = raw_response.get("cards", [])
-        for card in cards:
-            card_group = card.get("card_group", [])
-            for group_item in card_group:
-                if group_item.get("card_type") == 9:  # Weibo post card type
-                    mblog = group_item.get("mblog", {})
-                    if not mblog.get("id"):
-                        continue
-                    
-                    user_info = mblog.get("user", {})
-                    clean_text = re.sub(r"<.*?>", "", mblog.get("text", ""))
-                    
-                    post = {
-                        "note_id": mblog.get("id"),
-                        "content": clean_text,
-                        "created_at": mblog.get("created_at"),
-                        "liked_count": str(mblog.get("attitudes_count", 0)),
-                        "comments_count": str(mblog.get("comments_count", 0)),
-                        "shared_count": str(mblog.get("reposts_count", 0)),
-                        "ip_location": mblog.get("region_name", "").replace("发布于 ", ""),
-                        "note_url": f"https://m.weibo.cn/detail/{mblog.get('id')}",
-                        "user_id": str(user_info.get("id", "")),
-                        "nickname": user_info.get("screen_name", ""),
-                        "gender": user_info.get("gender", ""),
-                        "profile_url": user_info.get("profile_url", ""),
-                        "avatar": user_info.get("profile_image_url", ""),
-                    }
-                    posts.append(post)
+        cards = raw_response.get("statuses", [])
+        for mblog in cards:
+            if not mblog.get("id"):
+                continue
+
+            user_info = mblog.get("user", {})
+            clean_text = re.sub(r"<.*?>", "", mblog.get("text", ""))
+
+            post = {
+                "note_id": mblog.get("id"),
+                "content": clean_text,
+                "created_at": mblog.get("created_at"),
+                "liked_count": str(mblog.get("attitudes_count", 0)),
+                "comments_count": str(mblog.get("comments_count", 0)),
+                "shared_count": str(mblog.get("reposts_count", 0)),
+                "ip_location": mblog.get("region_name", "").replace("发布于 ", ""),
+                "note_url": f"https://m.weibo.cn/detail/{mblog.get('id')}",
+                "user_id": str(user_info.get("id", "")),
+                "nickname": user_info.get("screen_name", ""),
+                "gender": user_info.get("gender", ""),
+                "profile_url": user_info.get("profile_url", ""),
+                "avatar": user_info.get("profile_image_url", ""),
+            }
+            posts.append(post)
         
         return posts
 
@@ -821,31 +809,29 @@ class WeiboApiClient:
         posts = []
         cards = raw_response.get("cards", [])
         for card in cards:
-            card_group = card.get("card_group", [])
-            for group_item in card_group:
-                if group_item.get("card_type") == 9:  # Weibo post card type
-                    mblog = group_item.get("mblog", {})
-                    if not mblog.get("id"):
-                        continue
-                    
-                    user_info = mblog.get("user", {})
-                    clean_text = re.sub(r"<.*?>", "", mblog.get("text", ""))
-                    
-                    post = {
-                        "note_id": mblog.get("id"),
-                        "content": clean_text,
-                        "created_at": mblog.get("created_at"),
-                        "liked_count": str(mblog.get("attitudes_count", 0)),
-                        "comments_count": str(mblog.get("comments_count", 0)),
-                        "shared_count": str(mblog.get("reposts_count", 0)),
-                        "ip_location": mblog.get("region_name", "").replace("发布于 ", ""),
-                        "note_url": f"https://m.weibo.cn/detail/{mblog.get('id')}",
-                        "user_id": str(user_info.get("id", "")),
-                        "nickname": user_info.get("screen_name", ""),
-                        "gender": user_info.get("gender", ""),
-                        "profile_url": user_info.get("profile_url", ""),
-                        "avatar": user_info.get("profile_image_url", ""),
-                    }
-                    posts.append(post)
+            if card.get("card_type") == 9:  # Weibo post card type
+                mblog = card.get("mblog", {})
+                if not mblog.get("id"):
+                    continue
+
+                user_info = mblog.get("user", {})
+                clean_text = re.sub(r"<.*?>", "", mblog.get("text", ""))
+
+                post = {
+                    "note_id": mblog.get("id"),
+                    "content": clean_text,
+                    "created_at": mblog.get("created_at"),
+                    "liked_count": str(mblog.get("attitudes_count", 0)),
+                    "comments_count": str(mblog.get("comments_count", 0)),
+                    "shared_count": str(mblog.get("reposts_count", 0)),
+                    "ip_location": mblog.get("region_name", "").replace("发布于 ", ""),
+                    "note_url": f"https://m.weibo.cn/detail/{mblog.get('id')}",
+                    "user_id": str(user_info.get("id", "")),
+                    "nickname": user_info.get("screen_name", ""),
+                    "gender": user_info.get("gender", ""),
+                    "profile_url": user_info.get("profile_url", ""),
+                    "avatar": user_info.get("profile_image_url", ""),
+                }
+                posts.append(post)
         
         return posts
