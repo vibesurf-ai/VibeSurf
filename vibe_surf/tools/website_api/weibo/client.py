@@ -21,7 +21,10 @@ from .helpers import (
     extract_redirect_url_from_html, decode_chinese_html,
     WeiboError, NetworkError, DataExtractionError,
     AuthenticationError, RateLimitError, ContentNotFoundError,
-    get_mobile_user_agent
+    get_mobile_user_agent, transform_weibo_search_results,
+    transform_weibo_post_detail, transform_weibo_comments_response,
+    transform_weibo_user_info, transform_weibo_user_posts_response,
+    transform_weibo_trending_response
 )
 
 logger = get_logger(__name__)
@@ -205,10 +208,7 @@ class WeiboApiClient:
         async with httpx.AsyncClient(proxy=self.proxy, timeout=self.timeout) as client:
             response = await client.request(method, url, **kwargs)
         # Handle common error status codes
-        if response.status_code == 302:
-            logger.warning(f"302 redirect detected for {url}, final URL: {response.url}")
-            # Don't raise error for 302, let it follow redirects and check final response
-        elif response.status_code == 403:
+        if response.status_code == 403:
             raise AuthenticationError("Access forbidden - may need login or verification")
         elif response.status_code == 429:
             raise RateLimitError("Rate limit exceeded")
@@ -272,7 +272,7 @@ class WeiboApiClient:
         keyword: str,
         page: int = 1,
         search_type: SearchType = SearchType.DEFAULT,
-    ) -> Dict:
+    ):
         """
         Search Weibo posts by keyword
         
@@ -282,7 +282,7 @@ class WeiboApiClient:
             search_type: Search type filter
             
         Returns:
-            Search results containing posts
+            List of structured post information
         """
         endpoint = "/api/container/getIndex"
         container_id = create_container_id(search_type, keyword)
@@ -293,19 +293,24 @@ class WeiboApiClient:
             "page": str(page),
         }
         
-        return await self._get_request(endpoint, params)
+        raw_response = await self._get_request(endpoint, params)
+        
+        # Transform raw response into structured posts
+        structured_posts = transform_weibo_search_results(raw_response)
+        
+        return structured_posts
 
-    async def get_post_detail(self, mid_id: str) -> Dict:
+    async def get_post_detail(self, mid: str) -> Optional[Dict]:
         """
         Get detailed post information by mid ID
         
         Args:
-            mid_id: Weibo post ID
+            mid: Weibo post ID
             
         Returns:
-            Post detail information
+            Structured post detail information
         """
-        url = f"{self._api_base}/detail/{mid_id}"
+        url = f"{self._api_base}/detail/{mid}"
 
         response = await self._make_request(
             "GET", url, headers=self.default_headers, raw_response=True,
@@ -315,33 +320,36 @@ class WeiboApiClient:
         if render_data:
             note_detail = render_data.get("status")
             if note_detail:
-                return {"mblog": note_detail}
+                raw_detail = {"mblog": note_detail}
+                # Transform raw response into structured post detail
+                structured_detail = transform_weibo_post_detail(raw_detail)
+                return structured_detail
         
-        logger.warning(f"Could not extract render data for post {mid_id}")
-        return {}
+        logger.warning(f"Could not extract render data for post {mid}")
+        return None
 
     async def get_post_comments(
-        self, 
-        mid_id: str, 
-        max_id: int = 0, 
+        self,
+        mid: str,
+        max_id: int = 0,
         max_id_type: int = 0
-    ) -> Dict:
+    ) -> List[Dict]:
         """
         Get comments for a Weibo post
         
         Args:
-            mid_id: Weibo post ID
+            post_id: Weibo post ID
             max_id: Pagination parameter
             max_id_type: Pagination type parameter
             
         Returns:
-            Comments data
+            List of structured comment information
         """
         endpoint = "/comments/hotflow"
         
         params = {
-            "id": mid_id,
-            "mid": mid_id,
+            "id": mid,
+            "mid": mid,
             "max_id_type": str(max_id_type),
         }
         
@@ -350,13 +358,18 @@ class WeiboApiClient:
         
         # Set referer for comment requests
         headers = copy.deepcopy(self.default_headers)
-        headers["Referer"] = f"https://m.weibo.cn/detail/{mid_id}"
+        headers["Referer"] = f"https://m.weibo.cn/detail/{mid}"
         
-        return await self._get_request(endpoint, params, headers)
+        raw_response = await self._get_request(endpoint, params, headers)
+        
+        # Transform raw response into structured comments
+        structured_comments = transform_weibo_comments_response(raw_response)
+        
+        return structured_comments
 
     async def get_all_post_comments(
         self,
-        post_id: str,
+        mid: str,
         fetch_interval: float = 1.0,
         include_sub_comments: bool = False,
         progress_callback: Optional[Callable] = None,
@@ -373,7 +386,7 @@ class WeiboApiClient:
             max_comments: Maximum comments to fetch
             
         Returns:
-            List of all comments
+            List of all structured comments
         """
         all_comments = []
         is_end = False
@@ -381,37 +394,56 @@ class WeiboApiClient:
         max_id_type = 0
 
         while not is_end and len(all_comments) < max_comments:
-            comments_data = await self.get_post_comments(post_id, max_id, max_id_type)
+            # Get raw response to access pagination info
+            endpoint = "/comments/hotflow"
             
-            max_id = comments_data.get("max_id", 0)
-            max_id_type = comments_data.get("max_id_type", 0)
-            comment_list = comments_data.get("data", [])
+            params = {
+                "id": mid,
+                "mid": mid,
+                "max_id_type": str(max_id_type),
+            }
+            
+            if max_id > 0:
+                params["max_id"] = str(max_id)
+            
+            # Set referer for comment requests
+            headers = copy.deepcopy(self.default_headers)
+            headers["Referer"] = f"https://m.weibo.cn/detail/{mid}"
+            
+            raw_response = await self._get_request(endpoint, params, headers)
+            
+            # Extract pagination info from raw response
+            max_id = raw_response.get("max_id", 0)
+            max_id_type = raw_response.get("max_id_type", 0)
             is_end = max_id == 0
+            
+            # Transform raw response to structured comments
+            structured_comments = transform_weibo_comments_response(raw_response)
             
             # Limit comments if approaching max
             remaining_slots = max_comments - len(all_comments)
-            if len(comment_list) > remaining_slots:
-                comment_list = comment_list[:remaining_slots]
+            if len(structured_comments) > remaining_slots:
+                structured_comments = structured_comments[:remaining_slots]
             
             if progress_callback:
-                await progress_callback(post_id, comment_list)
+                await progress_callback(mid, structured_comments)
             
             await asyncio.sleep(fetch_interval)
-            all_comments.extend(comment_list)
+            all_comments.extend(structured_comments)
             
             # Extract sub-comments if enabled
             if include_sub_comments:
                 sub_comments = await self._extract_sub_comments(
-                    post_id, comment_list, progress_callback
+                    mid, structured_comments, progress_callback
                 )
                 all_comments.extend(sub_comments)
 
-        logger.info(f"Fetched {len(all_comments)} comments for post {post_id}")
+        logger.info(f"Fetched {len(all_comments)} comments for post {mid}")
         return all_comments
 
     async def _extract_sub_comments(
         self,
-        post_id: str,
+        mid: str,
         comment_list: List[Dict],
         progress_callback: Optional[Callable] = None,
     ) -> List[Dict]:
@@ -422,52 +454,12 @@ class WeiboApiClient:
             comments_data = comment.get("comments")
             if comments_data and isinstance(comments_data, list):
                 if progress_callback:
-                    await progress_callback(post_id, comments_data)
+                    await progress_callback(mid, comments_data)
                 sub_comments.extend(comments_data)
                 
         return sub_comments
 
-    async def get_user_container_info(self, user_id: str) -> Dict:
-        """
-        Get user container information for API requests
-        
-        Args:
-            user_id: User ID
-            
-        Returns:
-            Container information with fid and lfid
-        """
-        # Use the correct mobile API endpoint for user profile
-        headers = copy.deepcopy(self.default_headers)
-        headers["Referer"] = f"{self._api_base}/u/{user_id}"
-        
-        response = await self._make_request(
-            "GET", f"{self._api_base}/api/container/getIndex",
-            params={
-                "type": "uid",
-                "value": user_id,
-                "containerid": f"100505{user_id}"  # Standard user profile container ID
-            },
-            headers=headers, raw_response=True
-        )
-        
-        # Extract container info from cookies if available
-        m_weibocn_params = None
-        for cookie in response.cookies:
-            if cookie.name == "M_WEIBOCN_PARAMS":
-                m_weibocn_params = cookie.value
-                break
-        
-        if m_weibocn_params:
-            return extract_container_params(m_weibocn_params)
-        else:
-            # Fallback to standard container IDs
-            return {
-                "fid_container_id": f"100505{user_id}",
-                "lfid_container_id": f"100505{user_id}"
-            }
-
-    async def get_user_info(self, user_id: str) -> Dict:
+    async def get_user_info(self, user_id: str) -> Optional[Dict]:
         """
         Get user profile information
         
@@ -475,7 +467,7 @@ class WeiboApiClient:
             user_id: User ID
             
         Returns:
-            User profile data with container information
+            Structured user profile information
         """
         endpoint = "/api/container/getIndex"
         
@@ -494,34 +486,41 @@ class WeiboApiClient:
             user_data = await self._get_request(endpoint, params, headers)
             
             # Extract user info from cards if available
+            raw_user_info = None
             if "cards" in user_data and user_data["cards"]:
                 # Look for user card in the response
                 for card in user_data["cards"]:
                     if card.get("card_type") == 10:  # User info card type
                         user_info = card.get("user", {})
                         if user_info:
-                            return {
+                            raw_user_info = {
                                 "user": user_info,
                                 "containerid": f"100505{user_id}",
                                 "tabsInfo": user_data.get("tabsInfo", {})
                             }
+                            break
             
             # Fallback: try to get user info from the first available card
-            if "cards" in user_data and user_data["cards"]:
+            if not raw_user_info and "cards" in user_data and user_data["cards"]:
                 first_card = user_data["cards"][0]
                 if "user" in first_card:
-                    return {
+                    raw_user_info = {
                         "user": first_card["user"],
                         "containerid": f"100505{user_id}",
                         "tabsInfo": user_data.get("tabsInfo", {})
                     }
             
-            # If no user data found, return basic structure
-            return {
-                "user": {"id": user_id},
-                "containerid": f"100505{user_id}",
-                "tabsInfo": user_data.get("tabsInfo", {})
-            }
+            # If no user data found, create basic structure
+            if not raw_user_info:
+                raw_user_info = {
+                    "user": {"id": user_id},
+                    "containerid": f"100505{user_id}",
+                    "tabsInfo": user_data.get("tabsInfo", {})
+                }
+            
+            # Transform raw response into structured user info
+            structured_user_info = transform_weibo_user_info(raw_user_info)
+            return structured_user_info
             
         except Exception as e:
             logger.error(f"Failed to get user info for {user_id}: {e}")
@@ -534,7 +533,16 @@ class WeiboApiClient:
                     "uid": user_id
                 }
                 alt_data = await self._get_request(endpoint, alt_params, headers)
-                return alt_data
+                
+                # Transform alternative response too
+                alt_user_info = {
+                    "user": alt_data.get("user", {"id": user_id}),
+                    "containerid": f"100505{user_id}",
+                    "tabsInfo": alt_data.get("tabsInfo", {})
+                }
+                structured_alt_info = transform_weibo_user_info(alt_user_info)
+                return structured_alt_info
+                
             except Exception as alt_e:
                 logger.error(f"Alternative user info request also failed: {alt_e}")
                 raise DataExtractionError(f"Failed to get user info for {user_id}: {e}")
@@ -542,19 +550,17 @@ class WeiboApiClient:
     async def get_user_posts(
         self,
         user_id: str,
-        container_id: str,
         since_id: str = "0",
-    ) -> Dict:
+    ) -> Optional[Dict]:
         """
         Get posts by user
         
         Args:
             user_id: User ID
-            container_id: Container ID for the user
             since_id: Pagination parameter (last post ID from previous page)
             
         Returns:
-            User posts data
+            Structured user posts data
         """
         endpoint = "/api/container/getIndex"
         
@@ -562,16 +568,20 @@ class WeiboApiClient:
             "jumpfrom": "weibocom",
             "type": "uid",
             "value": user_id,
-            "containerid": container_id,
+            "containerid": f"100505{user_id}",
             "since_id": since_id,
         }
         
-        return await self._get_request(endpoint, params)
+        raw_response = await self._get_request(endpoint, params)
+        
+        # Transform raw response into structured user posts info
+        structured_user_posts = transform_weibo_user_posts_response(raw_response)
+        
+        return structured_user_posts
 
     async def get_all_user_posts(
         self,
         user_id: str,
-        container_id: str,
         fetch_interval: float = 1.0,
         progress_callback: Optional[Callable] = None,
         max_posts: int = 1000,
@@ -581,13 +591,12 @@ class WeiboApiClient:
         
         Args:
             user_id: User ID
-            container_id: Container ID for the user
             fetch_interval: Interval between requests in seconds
             progress_callback: Callback function for progress updates
             max_posts: Maximum posts to fetch
             
         Returns:
-            List of all user posts
+            List of all structured user posts
         """
         all_posts = []
         has_more = True
@@ -595,21 +604,36 @@ class WeiboApiClient:
         crawler_total_count = 0
 
         while has_more and len(all_posts) < max_posts:
-            posts_data = await self.get_user_posts(user_id, container_id, since_id)
+            # Get raw response to access pagination info and then transform
+            endpoint = "/api/container/getIndex"
             
-            if not posts_data:
+            params = {
+                "jumpfrom": "weibocom",
+                "type": "uid",
+                "value": user_id,
+                "containerid": f"100505{user_id}",
+                "since_id": since_id,
+            }
+            
+            raw_posts_data = await self._get_request(endpoint, params)
+            
+            if not raw_posts_data:
                 logger.error(f"User {user_id} may be restricted or data unavailable")
                 break
             
-            since_id = posts_data.get("cardlistInfo", {}).get("since_id", "0")
+            # Extract pagination info from raw response
+            since_id = raw_posts_data.get("cardlistInfo", {}).get("since_id", "0")
             
-            if "cards" not in posts_data:
+            if "cards" not in raw_posts_data:
                 logger.info(f"No posts found in response for user {user_id}")
                 break
             
-            posts = posts_data["cards"]
-            # Filter only card_type=9 (actual posts)
-            posts = [post for post in posts if post.get("card_type") == 9]
+            # Transform raw response to get structured posts
+            structured_posts_data = transform_weibo_user_posts_response(raw_posts_data)
+            if not structured_posts_data:
+                break
+                
+            posts = structured_posts_data.get("posts", [])
             
             logger.info(f"Fetched {len(posts)} posts for user {user_id}")
             
@@ -626,76 +650,37 @@ class WeiboApiClient:
             await asyncio.sleep(fetch_interval)
             
             crawler_total_count += 10
-            total_available = posts_data.get("cardlistInfo", {}).get("total", 0)
-            has_more = total_available > crawler_total_count
+            total_available = raw_posts_data.get("cardlistInfo", {}).get("total", 0)
+            has_more = total_available > crawler_total_count and since_id != "0"
 
         logger.info(f"Fetched total {len(all_posts)} posts for user {user_id}")
         return all_posts
 
-    async def extract_post_info(self, post_data: Dict) -> Dict:
-        """
-        Extract useful information from Weibo post data
-        
-        Args:
-            post_data: Raw post data from API
-            
-        Returns:
-            Processed post information
-        """
-        mblog = post_data.get("mblog", {})
-        
-        if not validate_weibo_data(mblog):
-            raise DataExtractionError("Invalid Weibo post data structure")
-        
-        try:
-            user = mblog.get("user", {})
-            
-            post_info = {
-                "mid": mblog.get("id"),
-                "text": process_weibo_text(mblog.get("text", "")),
-                "created_at": mblog.get("created_at"),
-                "source": mblog.get("source"),
-                "reposts_count": mblog.get("reposts_count", 0),
-                "comments_count": mblog.get("comments_count", 0),
-                "attitudes_count": mblog.get("attitudes_count", 0),
-                "user": {
-                    "id": user.get("id"),
-                    "screen_name": user.get("screen_name"),
-                    "profile_image_url": user.get("profile_image_url"),
-                    "followers_count": user.get("followers_count", 0),
-                    "friends_count": user.get("friends_count", 0),
-                    "statuses_count": user.get("statuses_count", 0),
-                },
-                "pics": mblog.get("pics", []),
-                "page_info": mblog.get("page_info", {}),  # Video info if present
-            }
-            
-            return post_info
-            
-        except Exception as e:
-            logger.error(f"Failed to extract post info: {e}")
-            raise DataExtractionError(f"Failed to process post data: {e}")
-
-    async def get_trending_list(self) -> Dict:
+    async def get_trending_list(self) -> List[Dict]:
         """
         Get Weibo trending list (热搜榜)
         
         Returns:
-            Trending list data containing hot topics
+            List of structured trending post information
         """
         endpoint = "/api/feed/trendtop"
         params = {
             "containerid": TrendingConstants.TRENDING_CONTAINER_ID
         }
         
-        return await self._get_request(endpoint, params)
+        raw_response = await self._get_request(endpoint, params)
+        
+        # Transform raw response into structured posts
+        structured_posts = transform_weibo_trending_response(raw_response)
+        
+        return structured_posts
 
-    async def get_hot_posts(self) -> Dict:
+    async def get_hot_posts(self) -> List[Dict]:
         """
         Get Weibo hot posts (热门推荐)
         
         Returns:
-            Hot posts data containing recommended content
+            List of structured hot post information
         """
         endpoint = "/api/container/getIndex"
         params = {
@@ -703,4 +688,9 @@ class WeiboApiClient:
             "openApp": TrendingConstants.OPEN_APP
         }
         
-        return await self._get_request(endpoint, params)
+        raw_response = await self._get_request(endpoint, params)
+        
+        # Transform raw response into structured posts (same structure as search results)
+        structured_posts = transform_weibo_search_results(raw_response)
+        
+        return structured_posts

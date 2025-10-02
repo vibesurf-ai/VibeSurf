@@ -276,18 +276,30 @@ async def test_website_api(main_browser_session: AgentBrowserSession):
     # pdb.set_trace()
 
     from vibe_surf.tools.website_api.weibo.client import WeiboApiClient
+    from vibe_surf.tools.website_api.weibo.helpers import SearchType
 
     wb_client = WeiboApiClient(browser_session=main_browser_session)
     await wb_client.setup()
-    # ret1 = await wb_client.search_posts_by_keyword("Sora2")
-    # ret2 = await wb_client.get_hot_posts()
-    # ret3 = await wb_client.get_trending_list()
-    ret7 = await wb_client.get_post_detail(mid_id='5216993615547091')
+    ret = await wb_client.search_posts_by_keyword("Sora2", search_type=SearchType.POPULAR)
     pdb.set_trace()
-    ret5 = await wb_client.get_post_comments(mid_id='5216993615547091')
+    ret = await wb_client.get_post_detail(mid='5216993615547091')
     pdb.set_trace()
-    ret4 = await wb_client.get_user_info(user_id='2258727970')
+    ret = await wb_client.get_post_comments(mid='5216993615547091')
     pdb.set_trace()
+    ret = await wb_client.get_all_post_comments(mid='5216993615547091')
+    pdb.set_trace()
+    ret = await wb_client.get_user_info(user_id='2258727970')
+    pdb.set_trace()
+    ret = await wb_client.get_user_posts(user_id='2258727970')
+    pdb.set_trace()
+    ret = await wb_client.get_all_user_posts(user_id='2258727970')
+    pdb.set_trace()
+    ret = await wb_client.get_hot_posts()
+    pdb.set_trace()
+    ret = await wb_client.get_trending_list()
+    pdb.set_trace()
+
+
 
 async def main():
     """

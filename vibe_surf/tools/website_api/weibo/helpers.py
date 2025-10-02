@@ -1,9 +1,3 @@
-# Disclaimer: This code is for educational and research purposes only. Users should follow these principles:
-# 1. Not for any commercial use.
-# 2. Follow target platform's terms of service and robots.txt rules.
-# 3. No large-scale crawling or operational interference.
-# 4. Control request frequency reasonably to avoid unnecessary burden.
-# 5. Not for any illegal or inappropriate purposes.
 import pdb
 import random
 import time
@@ -18,9 +12,9 @@ from urllib.parse import parse_qs, unquote
 class SearchType(Enum):
     """Search type enumeration for Weibo"""
     DEFAULT = "1"
-    REAL_TIME = "11"
-    POPULAR = "12"
-    VIDEO = "14"
+    REAL_TIME = "61"
+    POPULAR = "60"
+    VIDEO = "64"
 
 
 class TrendingType(Enum):
@@ -343,3 +337,661 @@ def get_mobile_user_agent() -> str:
         "Mozilla/5.0 (Linux; Android 10; JNY-LX1; HMSCore 6.11.0.302) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.88 HuaweiBrowser/13.0.5.303 Mobile Safari/537.36"
     ]
     return random.choice(ua_list)
+
+
+def transform_weibo_post_data(card_data: Dict) -> Optional[Dict]:
+    """
+    Transform raw Weibo card data into structured post information
+    
+    Args:
+        card_data: Raw card data from Weibo API
+        
+    Returns:
+        Structured post information or None if invalid data
+    """
+    if not isinstance(card_data, dict) or card_data.get("card_type") != 9:
+        return None
+    
+    mblog = card_data.get("mblog", {})
+    if not mblog:
+        return None
+    
+    user = mblog.get("user", {})
+    if not user:
+        return None
+    
+    try:
+        post_info = {
+            "mid": mblog.get("id"),
+            "text": process_weibo_text(mblog.get("text", "")),
+            "created_at": mblog.get("created_at"),
+            "source": mblog.get("source"),
+            "reposts_count": mblog.get("reposts_count", 0),
+            "comments_count": mblog.get("comments_count", 0),
+            "attitudes_count": mblog.get("attitudes_count", 0),
+            "user": {
+                "id": user.get("id"),
+                "screen_name": user.get("screen_name"),
+                "profile_image_url": user.get("profile_image_url"),
+                "followers_count": user.get("followers_count", 0),
+                "friends_count": user.get("friends_count", 0),
+                "statuses_count": user.get("statuses_count", 0),
+            },
+            "pics": mblog.get("pics", []),
+            "page_info": mblog.get("page_info", {}),  # Video info if present
+        }
+        
+        # Clean up followers_count if it's a string with suffix
+        followers_count = user.get("followers_count", 0)
+        if isinstance(followers_count, str):
+            # Handle cases like "11.2万"
+            if "万" in followers_count:
+                try:
+                    num_str = followers_count.replace("万", "")
+                    post_info["user"]["followers_count"] = int(float(num_str) * 10000)
+                except (ValueError, TypeError):
+                    post_info["user"]["followers_count"] = 0
+            else:
+                try:
+                    post_info["user"]["followers_count"] = int(followers_count)
+                except (ValueError, TypeError):
+                    post_info["user"]["followers_count"] = 0
+        
+        # Validate essential fields
+        if not post_info["mid"] or not post_info["user"]["id"]:
+            return None
+            
+        return post_info
+        
+    except Exception as e:
+        # Log error but don't fail completely
+        return None
+
+
+def transform_weibo_search_results(api_response: Dict) -> List[Dict]:
+    """
+    Transform raw Weibo search API response into list of structured posts
+    
+    Args:
+        api_response: Raw API response from search_posts_by_keyword
+        
+    Returns:
+        List of structured post information
+    """
+    if not isinstance(api_response, dict):
+        return []
+    
+    cards = api_response.get("cards", [])
+    if not isinstance(cards, list):
+        return []
+    
+    # Filter and transform cards
+    filtered_cards = filter_search_result_card(cards)
+    structured_posts = []
+    
+    for card in filtered_cards:
+        post_info = transform_weibo_post_data(card)
+        if post_info:
+            structured_posts.append(post_info)
+    
+    return structured_posts
+
+
+def transform_weibo_post_detail(detail_response: Dict) -> Optional[Dict]:
+    """
+    Transform raw Weibo post detail response into structured post information
+    
+    Args:
+        detail_response: Raw response from get_post_detail
+        
+    Returns:
+        Structured post detail information or None if invalid data
+    """
+    if not isinstance(detail_response, dict):
+        return None
+    
+    mblog = detail_response.get("mblog", {})
+    if not mblog:
+        return None
+    
+    user = mblog.get("user", {})
+    if not user:
+        return None
+    
+    try:
+        post_detail = {
+            "mid": mblog.get("id"),
+            "text": process_weibo_text(mblog.get("text", "")),
+            "created_at": mblog.get("created_at"),
+            "source": mblog.get("source"),
+            "reposts_count": mblog.get("reposts_count", 0),
+            "comments_count": mblog.get("comments_count", 0),
+            "attitudes_count": mblog.get("attitudes_count", 0),
+            "user": {
+                "id": user.get("id"),
+                "screen_name": user.get("screen_name"),
+                "profile_image_url": user.get("profile_image_url"),
+                "followers_count": user.get("followers_count", 0),
+                "friends_count": user.get("follow_count", 0),  # Note: different field name
+                "statuses_count": user.get("statuses_count", 0),
+                "verified": user.get("verified", False),
+                "verified_type": user.get("verified_type", 0),
+                "verified_reason": user.get("verified_reason", ""),
+                "description": user.get("description", ""),
+            },
+            "pics": mblog.get("pic_ids", []),
+            "pic_num": mblog.get("pic_num", 0),
+            "page_info": mblog.get("page_info", {}),  # Video info if present
+            "is_long_text": mblog.get("isLongText", False),
+            "favorited": mblog.get("favorited", False),
+            "can_edit": mblog.get("can_edit", False),
+            "visible": mblog.get("visible", {}),
+            "bid": mblog.get("bid", ""),
+            "status_title": mblog.get("status_title", ""),
+        }
+        
+        # Clean up followers_count if it's a string with suffix
+        followers_count = user.get("followers_count", 0)
+        if isinstance(followers_count, str):
+            # Handle cases like "3800.8万"
+            if "万" in followers_count:
+                try:
+                    num_str = followers_count.replace("万", "")
+                    post_detail["user"]["followers_count"] = int(float(num_str) * 10000)
+                except (ValueError, TypeError):
+                    post_detail["user"]["followers_count"] = 0
+            else:
+                try:
+                    post_detail["user"]["followers_count"] = int(followers_count)
+                except (ValueError, TypeError):
+                    post_detail["user"]["followers_count"] = 0
+        
+        # Process video information if present
+        page_info = mblog.get("page_info", {})
+        if page_info and page_info.get("type") == "video":
+            post_detail["video_info"] = {
+                "title": page_info.get("title", ""),
+                "page_title": page_info.get("page_title", ""),
+                "object_id": page_info.get("object_id", ""),
+                "page_url": page_info.get("page_url", ""),
+                "duration": page_info.get("media_info", {}).get("duration", 0),
+                "video_orientation": page_info.get("video_orientation", ""),
+                "urls": page_info.get("urls", {}),
+                "cover_image": {
+                    "url": page_info.get("page_pic", {}).get("url", ""),
+                    "width": page_info.get("page_pic", {}).get("width", ""),
+                    "height": page_info.get("page_pic", {}).get("height", ""),
+                }
+            }
+        
+        # Validate essential fields
+        if not post_detail["mid"] or not post_detail["user"]["id"]:
+            return None
+            
+        return post_detail
+        
+    except Exception as e:
+        # Log error but don't fail completely
+        return None
+
+
+def transform_weibo_comment_data(comment_data: Dict) -> Optional[Dict]:
+    """
+    Transform raw Weibo comment data into structured comment information
+    
+    Args:
+        comment_data: Raw comment data from Weibo API
+        
+    Returns:
+        Structured comment information or None if invalid data
+    """
+    if not isinstance(comment_data, dict):
+        return None
+    
+    user = comment_data.get("user", {})
+    if not user:
+        return None
+    
+    try:
+        comment_info = {
+            "id": comment_data.get("id"),
+            "text": process_weibo_text(comment_data.get("text", "")),
+            "created_at": comment_data.get("created_at"),
+            "source": comment_data.get("source"),
+            "floor_number": comment_data.get("floor_number", 0),
+            "like_count": comment_data.get("like_count", 0),
+            "liked": comment_data.get("liked", False),
+            "user": {
+                "id": user.get("id"),
+                "screen_name": user.get("screen_name"),
+                "profile_image_url": user.get("profile_image_url"),
+                "followers_count": user.get("followers_count", 0),
+                "follow_count": user.get("follow_count", 0),
+                "statuses_count": user.get("statuses_count", 0),
+                "verified": user.get("verified", False),
+                "verified_type": user.get("verified_type", -1),
+                "verified_reason": user.get("verified_reason", ""),
+                "description": user.get("description", ""),
+                "gender": user.get("gender", ""),
+            },
+            "rootid": comment_data.get("rootid"),
+            "disable_reply": comment_data.get("disable_reply", 0),
+            "isLikedByMblogAuthor": comment_data.get("isLikedByMblogAuthor", False),
+            "bid": comment_data.get("bid", ""),
+            # Sub-comments information
+            "has_sub_comments": comment_data.get("comments", False),
+            "sub_comments_count": comment_data.get("total_number", 0),
+        }
+        
+        # Clean up followers_count if it's a string with suffix
+        followers_count = user.get("followers_count", 0)
+        if isinstance(followers_count, str):
+            # Handle cases like "115", "11万", etc.
+            if "万" in followers_count:
+                try:
+                    num_str = followers_count.replace("万", "")
+                    comment_info["user"]["followers_count"] = int(float(num_str) * 10000)
+                except (ValueError, TypeError):
+                    comment_info["user"]["followers_count"] = 0
+            else:
+                try:
+                    comment_info["user"]["followers_count"] = int(followers_count)
+                except (ValueError, TypeError):
+                    comment_info["user"]["followers_count"] = 0
+        
+        # Validate essential fields
+        if not comment_info["id"] or not comment_info["user"]["id"]:
+            return None
+            
+        return comment_info
+        
+    except Exception as e:
+        # Log error but don't fail completely
+        return None
+
+
+def transform_weibo_comments_response(comments_response: Dict) -> List[Dict]:
+    """
+    Transform raw Weibo comments API response into list of structured comments
+    
+    Args:
+        comments_response: Raw API response from get_post_comments
+        
+    Returns:
+        List of structured comment information
+    """
+    if not isinstance(comments_response, dict):
+        return []
+    
+    comments_data = comments_response.get("data", [])
+    if not isinstance(comments_data, list):
+        return []
+    
+    structured_comments = []
+    
+    for comment in comments_data:
+        comment_info = transform_weibo_comment_data(comment)
+        if comment_info:
+            structured_comments.append(comment_info)
+    
+    return structured_comments
+
+
+def transform_weibo_user_info(user_response: Dict) -> Optional[Dict]:
+    """
+    Transform raw Weibo user info response into structured user information
+    
+    Args:
+        user_response: Raw response from get_user_info
+        
+    Returns:
+        Structured user information or None if invalid data
+    """
+    if not isinstance(user_response, dict):
+        return None
+    
+    user = user_response.get("user", {})
+    if not user or not user.get("id"):
+        return None
+    
+    try:
+        user_info = {
+            "id": user.get("id"),
+            "screen_name": user.get("screen_name", ""),
+            "profile_image_url": user.get("profile_image_url", ""),
+            "followers_count": user.get("followers_count", 0),
+            "friends_count": user.get("friends_count", 0),
+            "statuses_count": user.get("statuses_count", 0),
+            "verified": user.get("verified", False),
+            "verified_type": user.get("verified_type", -1),
+            "verified_reason": user.get("verified_reason", ""),
+            "description": user.get("description", ""),
+            "gender": user.get("gender", ""),
+            "location": user.get("location", ""),
+            "created_at": user.get("created_at", ""),
+            "profile_url": user.get("profile_url", ""),
+            "cover_image_phone": user.get("cover_image_phone", ""),
+            "avatar_hd": user.get("avatar_hd", ""),
+            # Container and navigation info
+            "containerid": user_response.get("containerid", ""),
+            "tabs_info": {
+                "selected_tab": user_response.get("tabsInfo", {}).get("selectedTab", 1),
+                "tabs": []
+            }
+        }
+        
+        # Process tabs information
+        tabs = user_response.get("tabsInfo", {}).get("tabs", [])
+        for tab in tabs:
+            if isinstance(tab, dict):
+                tab_info = {
+                    "id": tab.get("id"),
+                    "tab_key": tab.get("tabKey", ""),
+                    "title": tab.get("title", ""),
+                    "tab_type": tab.get("tab_type", ""),
+                    "containerid": tab.get("containerid", ""),
+                    "must_show": tab.get("must_show", 0),
+                    "hidden": tab.get("hidden", 0),
+                }
+                
+                # Add optional fields if present
+                if "apipath" in tab:
+                    tab_info["apipath"] = tab["apipath"]
+                if "headSubTitleText" in tab:
+                    tab_info["head_subtitle_text"] = tab["headSubTitleText"]
+                if "tab_icon" in tab:
+                    tab_info["tab_icon"] = tab["tab_icon"]
+                if "tab_icon_dark" in tab:
+                    tab_info["tab_icon_dark"] = tab["tab_icon_dark"]
+                if "url" in tab:
+                    tab_info["url"] = tab["url"]
+                
+                user_info["tabs_info"]["tabs"].append(tab_info)
+        
+        # Clean up followers_count if it's a string with suffix
+        followers_count = user.get("followers_count", 0)
+        if isinstance(followers_count, str):
+            if "万" in followers_count:
+                try:
+                    num_str = followers_count.replace("万", "")
+                    user_info["followers_count"] = int(float(num_str) * 10000)
+                except (ValueError, TypeError):
+                    user_info["followers_count"] = 0
+            else:
+                try:
+                    user_info["followers_count"] = int(followers_count)
+                except (ValueError, TypeError):
+                    user_info["followers_count"] = 0
+        
+        return user_info
+        
+    except Exception as e:
+        # Log error but don't fail completely
+        return None
+
+
+def transform_weibo_user_posts_response(user_posts_response: Dict) -> Optional[Dict]:
+    """
+    Transform raw Weibo user posts response into structured information
+    
+    Args:
+        user_posts_response: Raw response from get_user_posts
+        
+    Returns:
+        Structured user posts information or None if invalid data
+    """
+    if not isinstance(user_posts_response, dict):
+        return None
+    
+    user_info = user_posts_response.get("userInfo", {})
+    if not user_info:
+        return None
+    
+    try:
+        user_posts_info = {
+            "user": {
+                "id": user_info.get("id"),
+                "screen_name": user_info.get("screen_name", ""),
+                "profile_image_url": user_info.get("profile_image_url", ""),
+                "followers_count": user_info.get("followers_count", 0),
+                "follow_count": user_info.get("follow_count", 0),
+                "statuses_count": user_info.get("statuses_count", 0),
+                "verified": user_info.get("verified", False),
+                "verified_type": user_info.get("verified_type", -1),
+                "verified_reason": user_info.get("verified_reason", ""),
+                "description": user_info.get("description", ""),
+                "gender": user_info.get("gender", ""),
+                "profile_url": user_info.get("profile_url", ""),
+                "cover_image_phone": user_info.get("cover_image_phone", ""),
+                "avatar_hd": user_info.get("avatar_hd", ""),
+                "mbtype": user_info.get("mbtype", 0),
+                "svip": user_info.get("svip", 0),
+                "urank": user_info.get("urank", 0),
+                "mbrank": user_info.get("mbrank", 0),
+            },
+            "style_config": {
+                "is_video_cover_style": user_posts_response.get("isVideoCoverStyle", 0),
+                "is_star_style": user_posts_response.get("isStarStyle", 0),
+            },
+            "navigation": {
+                "fans_scheme": user_posts_response.get("fans_scheme", ""),
+                "follow_scheme": user_posts_response.get("follow_scheme", ""),
+                "profile_scheme": user_posts_response.get("scheme", ""),
+            },
+            "tabs_info": {
+                "selected_tab": user_posts_response.get("tabsInfo", {}).get("selectedTab", 1),
+                "tabs": []
+            },
+            "toolbar_menus": [],
+            "profile_ext": user_posts_response.get("profile_ext", ""),
+            "show_app_tips": user_posts_response.get("showAppTips", 0),
+            # Posts data if present
+            "posts": [],
+            "pagination": {
+                "since_id": user_posts_response.get("cardlistInfo", {}).get("since_id", ""),
+                "total": user_posts_response.get("cardlistInfo", {}).get("total", 0),
+            }
+        }
+        
+        # Process tabs information
+        tabs = user_posts_response.get("tabsInfo", {}).get("tabs", [])
+        for tab in tabs:
+            if isinstance(tab, dict):
+                tab_info = {
+                    "id": tab.get("id"),
+                    "tab_key": tab.get("tabKey", ""),
+                    "title": tab.get("title", ""),
+                    "tab_type": tab.get("tab_type", ""),
+                    "containerid": tab.get("containerid", ""),
+                    "must_show": tab.get("must_show", 0),
+                    "hidden": tab.get("hidden", 0),
+                }
+                
+                # Add optional fields if present
+                if "apipath" in tab:
+                    tab_info["apipath"] = tab["apipath"]
+                if "headSubTitleText" in tab:
+                    tab_info["head_subtitle_text"] = tab["headSubTitleText"]
+                if "tab_icon" in tab:
+                    tab_info["tab_icon"] = tab["tab_icon"]
+                if "tab_icon_dark" in tab:
+                    tab_info["tab_icon_dark"] = tab["tab_icon_dark"]
+                if "url" in tab:
+                    tab_info["url"] = tab["url"]
+                
+                user_posts_info["tabs_info"]["tabs"].append(tab_info)
+        
+        # Process toolbar menus
+        toolbar_menus = user_info.get("toolbar_menus", [])
+        for menu in toolbar_menus:
+            if isinstance(menu, dict):
+                menu_info = {
+                    "type": menu.get("type", ""),
+                    "name": menu.get("name", ""),
+                    "params": menu.get("params", {}),
+                    "scheme": menu.get("scheme", ""),
+                }
+                user_posts_info["toolbar_menus"].append(menu_info)
+        
+        # Process posts if present in cards
+        cards = user_posts_response.get("cards", [])
+        if isinstance(cards, list):
+            for card in cards:
+                if card.get("card_type") == 9:  # Regular post card
+                    post_info = transform_weibo_post_data(card)
+                    if post_info:
+                        user_posts_info["posts"].append(post_info)
+        
+        # Clean up followers_count if it's a string with suffix
+        followers_count = user_info.get("followers_count", 0)
+        if isinstance(followers_count, str):
+            if "万" in followers_count:
+                try:
+                    num_str = followers_count.replace("万", "")
+                    user_posts_info["user"]["followers_count"] = int(float(num_str) * 10000)
+                except (ValueError, TypeError):
+                    user_posts_info["user"]["followers_count"] = 0
+            else:
+                try:
+                    user_posts_info["user"]["followers_count"] = int(followers_count)
+                except (ValueError, TypeError):
+                    user_posts_info["user"]["followers_count"] = 0
+        
+        # Validate essential fields
+        if not user_posts_info["user"]["id"]:
+            return None
+            
+        return user_posts_info
+        
+    except Exception as e:
+        # Log error but don't fail completely
+        return None
+
+
+def transform_weibo_trending_response(trending_response: Dict) -> List[Dict]:
+    """
+    Transform raw Weibo trending API response into list of structured posts
+    
+    Args:
+        trending_response: Raw API response from get_trending_list
+        
+    Returns:
+        List of structured post information
+    """
+    if not isinstance(trending_response, dict):
+        return []
+    
+    statuses = trending_response.get("statuses", [])
+    if not isinstance(statuses, list):
+        return []
+    
+    structured_posts = []
+    
+    for status in statuses:
+        post_info = transform_weibo_status_data(status)
+        if post_info:
+            structured_posts.append(post_info)
+    
+    return structured_posts
+
+
+def transform_weibo_status_data(status_data: Dict) -> Optional[Dict]:
+    """
+    Transform raw Weibo status data into structured post information
+    (for trending list and similar direct status responses)
+    
+    Args:
+        status_data: Raw status data from Weibo API
+        
+    Returns:
+        Structured post information or None if invalid data
+    """
+    if not isinstance(status_data, dict):
+        return None
+    
+    user = status_data.get("user", {})
+    if not user:
+        return None
+    
+    try:
+        post_info = {
+            "mid": status_data.get("id"),
+            "text": process_weibo_text(status_data.get("text", "")),
+            "created_at": status_data.get("created_at"),
+            "source": status_data.get("source"),
+            "reposts_count": status_data.get("reposts_count", 0),
+            "comments_count": status_data.get("comments_count", 0),
+            "attitudes_count": status_data.get("attitudes_count", 0),
+            "user": {
+                "id": user.get("id"),
+                "screen_name": user.get("screen_name"),
+                "profile_image_url": user.get("profile_image_url"),
+                "followers_count": user.get("followers_count", 0),
+                "friends_count": user.get("follow_count", 0),  # Note: different field name
+                "statuses_count": user.get("statuses_count", 0),
+                "verified": user.get("verified", False),
+                "verified_type": user.get("verified_type", 0),
+                "verified_reason": user.get("verified_reason", ""),
+                "description": user.get("description", ""),
+                "gender": user.get("gender", ""),
+                "mbtype": user.get("mbtype", 0),
+                "svip": user.get("svip", 0),
+                "urank": user.get("urank", 0),
+                "mbrank": user.get("mbrank", 0),
+            },
+            "pics": status_data.get("pic_ids", []),
+            "pic_num": status_data.get("pic_num", 0),
+            "page_info": status_data.get("page_info", {}),  # Video info if present
+            "is_long_text": status_data.get("isLongText", False),
+            "favorited": status_data.get("favorited", False),
+            "can_edit": status_data.get("can_edit", False),
+            "visible": status_data.get("visible", {}),
+            "bid": status_data.get("bid", ""),
+            "mixed_count": status_data.get("mixed_count", 0),
+            "pending_approval_count": status_data.get("pending_approval_count", 0),
+            "floor_number": status_data.get("floor_number", 0),
+        }
+        
+        # Clean up followers_count if it's a string with suffix
+        followers_count = user.get("followers_count", 0)
+        if isinstance(followers_count, str):
+            # Handle cases like "83.2万"
+            if "万" in followers_count:
+                try:
+                    num_str = followers_count.replace("万", "")
+                    post_info["user"]["followers_count"] = int(float(num_str) * 10000)
+                except (ValueError, TypeError):
+                    post_info["user"]["followers_count"] = 0
+            else:
+                try:
+                    post_info["user"]["followers_count"] = int(followers_count)
+                except (ValueError, TypeError):
+                    post_info["user"]["followers_count"] = 0
+        
+        # Process video information if present
+        page_info = status_data.get("page_info", {})
+        if page_info and page_info.get("type") == "video":
+            post_info["video_info"] = {
+                "title": page_info.get("title", ""),
+                "page_title": page_info.get("page_title", ""),
+                "object_id": page_info.get("object_id", ""),
+                "page_url": page_info.get("page_url", ""),
+                "duration": page_info.get("media_info", {}).get("duration", 0),
+                "video_orientation": page_info.get("video_orientation", ""),
+                "urls": page_info.get("urls", {}),
+                "cover_image": {
+                    "url": page_info.get("page_pic", {}).get("url", ""),
+                    "width": page_info.get("page_pic", {}).get("width", ""),
+                    "height": page_info.get("page_pic", {}).get("height", ""),
+                }
+            }
+        
+        # Validate essential fields
+        if not post_info["mid"] or not post_info["user"]["id"]:
+            return None
+            
+        return post_info
+        
+    except Exception as e:
+        # Log error but don't fail completely
+        return None
