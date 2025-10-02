@@ -157,6 +157,18 @@ class XiaoHongShuApiClient:
             if not self.cookies:
                 raise AuthenticationError("No valid cookies found! Please Login first!")
 
+            user_agent_result = await cdp_session.cdp_client.send.Runtime.evaluate(
+                params={
+                    'expression': "navigator.userAgent",
+                    'returnByValue': True,
+                    'awaitPromise': True
+                },
+                session_id=cdp_session.session_id,
+            )
+            user_agent = user_agent_result.get('result', {}).get('value')
+            if user_agent:
+                self.default_headers["User-Agent"] = user_agent
+
             user_info = await self.get_me()
             if not user_info or 'user_id' not in user_info:
                 self.cookies = {}

@@ -97,6 +97,18 @@ class WeiboApiClient:
             self.default_headers["Cookie"] = cookie_str
             self.cookies = cookie_dict
 
+            user_agent_result = await cdp_session.cdp_client.send.Runtime.evaluate(
+                params={
+                    'expression': "navigator.userAgent",
+                    'returnByValue': True,
+                    'awaitPromise': True
+                },
+                session_id=cdp_session.session_id,
+            )
+            user_agent = user_agent_result.get('result', {}).get('value')
+            if user_agent:
+                self.default_headers["User-Agent"] = user_agent
+
             # Check if user is logged in
             is_logged_in = await self.pong()
 
