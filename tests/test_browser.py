@@ -263,42 +263,39 @@ async def get_all_css_selector(browser_session: AgentBrowserSession):
 
 
 async def test_website_api(main_browser_session: AgentBrowserSession):
-    # from vibe_surf.tools.website_api.xhs.client import XiaoHongShuApiClient
-    # xhs_client = XiaoHongShuApiClient(browser_session=main_browser_session)
-    # await xhs_client.setup()
-    # user_info = await xhs_client.get_me()
-    # user_id = user_info['user_id']
-    # result1 = await xhs_client.fetch_user_content_list(user_id=user_id)
-    # pdb.set_trace()
-    # result2 = await xhs_client.search_content_by_keyword("browser-use")
-    # pdb.set_trace()
-    # result3 = await xhs_client.get_home_recommendations()
-    # pdb.set_trace()
+    from vibe_surf.tools.website_api.xhs.client import XiaoHongShuApiClient, SearchType
+    xhs_client = XiaoHongShuApiClient(browser_session=main_browser_session)
+    await xhs_client.setup()
+    user_info = await xhs_client.get_me()
+    user_id = user_info['user_id']
 
-    from vibe_surf.tools.website_api.weibo.client import WeiboApiClient
-    from vibe_surf.tools.website_api.weibo.helpers import SearchType
-
-    wb_client = WeiboApiClient(browser_session=main_browser_session)
-    await wb_client.setup()
-    ret = await wb_client.search_posts_by_keyword("Sora2", search_type=SearchType.POPULAR)
+    ret = await xhs_client.search_content_by_keyword("browser-use", sort_type=SearchType.POPULAR)
     pdb.set_trace()
-    ret = await wb_client.get_post_detail(mid='5216993615547091')
-    pdb.set_trace()
-    ret = await wb_client.get_post_comments(mid='5216993615547091')
-    pdb.set_trace()
-    ret = await wb_client.get_all_post_comments(mid='5216993615547091')
-    pdb.set_trace()
-    ret = await wb_client.get_user_info(user_id='2258727970')
-    pdb.set_trace()
-    ret = await wb_client.get_user_posts(user_id='2258727970')
-    pdb.set_trace()
-    ret = await wb_client.get_all_user_posts(user_id='2258727970')
-    pdb.set_trace()
-    ret = await wb_client.get_hot_posts()
-    pdb.set_trace()
-    ret = await wb_client.get_trending_list()
+    # ret = await xhs_client.get_home_recommendations()
+    # pdb.set_trace()
+    # ret = await xhs_client.get_user_profile(user_id=user_id)
+    # pdb.set_trace()
+    # ret = await xhs_client.fetch_all_user_content(user_id=user_id)
+    # pdb.set_trace()
+    # ret1 = await xhs_client.fetch_content_details(content_id=ret[0]['note_id'], xsec_token=ret[0]['xsec_token'])
+    # pdb.set_trace()
+    ret2 = await xhs_client.fetch_all_content_comments(content_id=ret[0]['id'], xsec_token=ret[0]['xsec_token'])
     pdb.set_trace()
 
+    # from vibe_surf.tools.website_api.weibo.client import WeiboApiClient
+    # from vibe_surf.tools.website_api.weibo.helpers import SearchType
+    #
+    # wb_client = WeiboApiClient(browser_session=main_browser_session)
+    # await wb_client.setup()
+    # ret = await wb_client.search_posts_by_keyword("Sora2", search_type=SearchType.POPULAR)
+    # ret = await wb_client.get_post_detail(mid='5216993615547091')
+    # ret = await wb_client.get_post_comments(mid='5216993615547091')
+    # ret = await wb_client.get_all_post_comments(mid='5216993615547091')
+    # ret = await wb_client.get_user_info(user_id='2258727970')
+    # ret = await wb_client.get_user_posts(user_id='2258727970')
+    # ret = await wb_client.get_all_user_posts(user_id='2258727970')
+    # ret = await wb_client.get_hot_posts()
+    # ret = await wb_client.get_trending_list()
 
 
 async def main():

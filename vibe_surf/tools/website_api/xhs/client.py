@@ -133,6 +133,10 @@ class XiaoHongShuApiClient:
             AuthenticationError: If user is not logged in
         """
         try:
+            if self.target_id and self.cookies:
+                logger.info("Already setup. Return!")
+                return
+
             if target_id:
                 self.target_id = target_id
             else:
@@ -250,7 +254,7 @@ class XiaoHongShuApiClient:
             page_size: int = 20,
             sort_type: str = SearchType.GENERAL,
             content_type: int = ContentType.ALL,
-    ) -> Dict:
+    ) -> List:
         """
         Search content by keyword
 
@@ -277,13 +281,14 @@ class XiaoHongShuApiClient:
             "sort": sort_type,
             "note_type": content_type,
         }
-        return await self._post_request(endpoint, payload)
+        result = await self._post_request(endpoint, payload)
+        return result.get('items', [])
 
     async def fetch_content_details(
             self,
             content_id: str,
+            xsec_token: str,
             source_channel: str = "pc_search",
-            security_token: str = "",
     ) -> Dict:
         """
         Fetch detailed content information
@@ -301,7 +306,7 @@ class XiaoHongShuApiClient:
             "image_formats": ["jpg", "webp", "avif"],
             "extra": {"need_body_topic": 1},
             "xsec_source": source_channel,
-            "xsec_token": security_token,
+            "xsec_token": xsec_token,
         }
         endpoint = "/api/sns/web/v1/feed"
         result = await self._post_request(endpoint, payload)
@@ -315,7 +320,7 @@ class XiaoHongShuApiClient:
     async def fetch_content_comments(
             self,
             content_id: str,
-            security_token: str,
+            xsec_token: str,
             cursor: str = "",
     ) -> Dict:
         """
@@ -335,14 +340,14 @@ class XiaoHongShuApiClient:
             "cursor": cursor,
             "top_comment_id": "",
             "image_formats": "jpg,webp,avif",
-            "xsec_token": security_token,
+            "xsec_token": xsec_token,
         }
         return await self._get_request(endpoint, params)
 
     async def fetch_all_content_comments(
             self,
             content_id: str,
-            security_token: str,
+            xsec_token: str,
             fetch_interval: float = 1.0,
             progress_callback: Optional[Callable] = None,
             max_comments: int = 1000,
@@ -366,7 +371,7 @@ class XiaoHongShuApiClient:
 
         while has_more and len(all_comments) < max_comments:
             comments_data = await self.fetch_content_comments(
-                content_id, security_token, cursor
+                content_id, xsec_token, cursor
             )
             has_more = comments_data.get("has_more", False)
             cursor = comments_data.get("cursor", "")
@@ -425,14 +430,14 @@ class XiaoHongShuApiClient:
             logger.error(f"Failed to get user profile for {user_id}: {e}")
             return {"user_id": user_id, "error": str(e)}
 
-    async def fetch_user_content_list(
+    async def fetch_user_content(
             self,
             user_id: str,
             cursor: str = "",
             page_size: int = 30,
     ) -> Dict:
         """
-        Fetch content list by user
+        Fetch content by user
 
         Args:
             user_id: User ID
@@ -475,7 +480,7 @@ class XiaoHongShuApiClient:
         cursor = ""
 
         while has_more and len(all_content) < max_content:
-            content_data = await self.fetch_user_content_list(user_id, cursor)
+            content_data = await self.fetch_user_content(user_id, cursor)
             if not content_data:
                 logger.error(f"User {user_id} may be restricted or data unavailable")
                 break
@@ -504,7 +509,7 @@ class XiaoHongShuApiClient:
         logger.info(f"Fetched {len(all_content)} content items for user {user_id}")
         return all_content
 
-    async def get_home_recommendations(self) -> Dict:
+    async def get_home_recommendations(self) -> List:
         """
         Get home feed recommendations with proper header signature
 
@@ -532,10 +537,11 @@ class XiaoHongShuApiClient:
 
         # Make the request with proper headers
         json_payload = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
-        return await self._make_request(
+        result = await self._make_request(
             "POST", f"{self._api_base}{endpoint}",
             data=json_payload, headers=headers
         )
+        return result.get("items", [])
 
     async def submit_comment(self, content_id: str, comment_text: str) -> Dict:
         """

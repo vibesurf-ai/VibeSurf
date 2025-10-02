@@ -73,6 +73,9 @@ class WeiboApiClient:
             AuthenticationError: If setup fails or user is not logged in
         """
         try:
+            if self.target_id and self.cookies:
+                logger.info("Already setup. Return!")
+                return
             if target_id:
                 self.target_id = target_id
             else:
@@ -283,6 +286,23 @@ class WeiboApiClient:
             
         Returns:
             List of structured post information
+            Example:
+            [
+                {
+                    "mid": "5217191324549344",
+                    "text": "OpenAI最新发布模型Sora2",
+                    "created_at": "Thu Oct 02 06:46:45 +0800 2025",
+                    "reposts_count": 2,
+                    "comments_count": 48,
+                    "attitudes_count": 88,
+                    "user": {
+                        "id": 2657837537,
+                        "screen_name": "ZS水木嘉华",
+                        "followers_count": 112000
+                    },
+                    "page_info": {"type": "video"}
+                }
+            ]
         """
         endpoint = "/api/container/getIndex"
         container_id = create_container_id(search_type, keyword)
@@ -309,6 +329,21 @@ class WeiboApiClient:
             
         Returns:
             Structured post detail information
+            Example:
+            {
+                "mid": "5217191324549344",
+                "text": "OpenAI最新发布模型Sora2",
+                "created_at": "Thu Oct 02 06:46:45 +0800 2025",
+                "user": {
+                    "id": 2657837537,
+                    "screen_name": "ZS水木嘉华",
+                    "verified": True,
+                    "description": "名副其实的射手座！！！"
+                },
+                "is_long_text": False,
+                "favorited": False,
+                "video_info": {"title": "视频标题", "duration": 70.798}
+            }
         """
         url = f"{self._api_base}/detail/{mid}"
 
@@ -338,12 +373,27 @@ class WeiboApiClient:
         Get comments for a Weibo post
         
         Args:
-            post_id: Weibo post ID
+            mid: Weibo post ID
             max_id: Pagination parameter
             max_id_type: Pagination type parameter
             
         Returns:
             List of structured comment information
+            Example:
+            [
+                {
+                    "id": "4889543210987654",
+                    "text": "这个视频太棒了！",
+                    "created_at": "Thu Oct 02 07:30:15 +0800 2025",
+                    "like_count": 12,
+                    "user": {
+                        "id": 1234567890,
+                        "screen_name": "评论用户",
+                        "verified": False
+                    },
+                    "floor_number": 1
+                }
+            ]
         """
         endpoint = "/comments/hotflow"
         
@@ -379,14 +429,15 @@ class WeiboApiClient:
         Fetch all comments for a post including sub-comments
         
         Args:
-            post_id: Weibo post ID
+            mid: Weibo post ID
             fetch_interval: Interval between requests in seconds
             include_sub_comments: Whether to include sub-comments
             progress_callback: Callback function for progress updates
             max_comments: Maximum comments to fetch
             
         Returns:
-            List of all structured comments
+            List of all structured comments (same format as get_post_comments)
+            Example: Same as get_post_comments but with all comments from all pages
         """
         all_comments = []
         is_end = False
@@ -468,6 +519,20 @@ class WeiboApiClient:
             
         Returns:
             Structured user profile information
+            Example:
+            {
+                "id": 2657837537,
+                "screen_name": "ZS水木嘉华",
+                "followers_count": 112000,
+                "friends_count": 2555,
+                "statuses_count": 3904,
+                "verified": True,
+                "description": "名副其实的射手座！！！",
+                "tabs_info": {
+                    "selected_tab": 1,
+                    "tabs": [{"title": "微博", "tab_key": "weibo"}]
+                }
+            }
         """
         endpoint = "/api/container/getIndex"
         
@@ -561,6 +626,19 @@ class WeiboApiClient:
             
         Returns:
             Structured user posts data
+            Example:
+            {
+                "user": {"id": 2657837537, "screen_name": "ZS水木嘉华"},
+                "posts": [
+                    {
+                        "mid": "5217191324549344",
+                        "text": "今天发布的内容",
+                        "user": {"id": 2657837537}
+                    }
+                ],
+                "pagination": {"since_id": "5217191324549344", "total": 100},
+                "tabs_info": {"selected_tab": 1}
+            }
         """
         endpoint = "/api/container/getIndex"
         
@@ -597,6 +675,7 @@ class WeiboApiClient:
             
         Returns:
             List of all structured user posts
+            Example: List of post objects (same format as posts in get_user_posts)
         """
         all_posts = []
         has_more = True
@@ -662,6 +741,21 @@ class WeiboApiClient:
         
         Returns:
             List of structured trending post information
+            Example:
+            [
+                {
+                    "mid": "5217229748568891",
+                    "text": "田栩宁 光因焰而炽，焰随心而生",
+                    "created_at": "Thu Oct 02 09:19:26 +0800 2025",
+                    "reposts_count": 127939,
+                    "attitudes_count": 921739,
+                    "user": {
+                        "id": 8008393378,
+                        "screen_name": "田栩宁工作室",
+                        "verified": True
+                    }
+                }
+            ]
         """
         endpoint = "/api/feed/trendtop"
         params = {
@@ -681,6 +775,7 @@ class WeiboApiClient:
         
         Returns:
             List of structured hot post information
+            Example: Same format as search_posts_by_keyword results
         """
         endpoint = "/api/container/getIndex"
         params = {
