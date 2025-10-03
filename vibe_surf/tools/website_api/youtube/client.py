@@ -458,29 +458,31 @@ class YouTubeApiClient:
     async def get_video_comments(
             self,
             video_id: str,
+            max_comments: int = 200,
             continuation_token: Optional[str] = None,
-            sort_by: int = 1  # 0 = popular, 1 = recent
+            sort_by: int = 0,  # 0 = popular, 1 = recent
+            sleep_time: float = 0.1
     ) -> List[Dict]:
         """
-        Get comments for a YouTube video
+        Get comments for a YouTube video with full pagination support
 
         Args:
             video_id: YouTube video ID
-            max_comments: Maximum number of comments to fetch
+            max_comments: Maximum number of comments to fetch (0 for all)
             continuation_token: Token for pagination
             sort_by: Comment sorting (0=popular, 1=recent)
+            sleep_time: Sleep time between requests
 
         Returns:
             List of simplified comment information
         """
         try:
             comments = []
-            comments_fetched = 0
-
+            continuations = []
+            
             if continuation_token:
-                # Use continuation token for pagination
-                data = {"continuation": continuation_token}
-                endpoint = "next"
+                # Use provided continuation token
+                continuations.append(continuation_token)
             else:
                 # Initial request - need to navigate to video page first to get comments section
                 video_url = f"https://www.youtube.com/watch?v={video_id}"
@@ -499,45 +501,95 @@ class YouTubeApiClient:
                     logger.warning(f"No comments found for video {video_id}")
                     return []
 
-                data = {"continuation": continuation_endpoint}
-                endpoint = "next"
+                continuations.append(continuation_endpoint)
 
-            # Make API request for comments
-            response = await self._make_api_request(endpoint, data)
+            # Process all continuation tokens
+            while continuations:
+                if max_comments > 0 and len(comments) >= max_comments:
+                    break
+                    
+                current_continuation = continuations.pop(0)
+                # Make API request for comments
+                data = {"continuation": current_continuation}
+                response = await self._make_api_request("next", data)
 
-            if not response:
-                return []
+                if not response:
+                    break
 
-            # Check for errors
-            error_message = self._search_dict_recursive(response, 'externalErrorMessage')
-            if error_message:
-                logger.error(f"YouTube API error: {error_message}")
-                return []
+                # Check for errors
+                error_messages = self._search_dict_recursive(response, 'externalErrorMessage')
+                if error_messages:
+                    logger.error(f"YouTube API error: {error_messages[0]}")
+                    break
 
-            # Process response actions
-            actions = []
-            actions.extend(self._search_dict_recursive(response, 'reloadContinuationItemsCommand'))
-            actions.extend(self._search_dict_recursive(response, 'appendContinuationItemsAction'))
+                # Process response actions to find more comments and continuations
+                actions = []
+                actions.extend(self._search_dict_recursive(response, 'reloadContinuationItemsCommand'))
+                actions.extend(self._search_dict_recursive(response, 'appendContinuationItemsAction'))
 
-            # Extract comment entity payloads for new comment format
-            comment_entities = {}
-            for payload in self._search_dict_recursive(response, 'commentEntityPayload'):
-                if 'properties' in payload and 'commentId' in payload['properties']:
-                    comment_id = payload['properties']['commentId']
-                    comment_entities[comment_id] = payload
+                # Process each action to extract comments and find new continuations
+                for action in actions:
+                    target_id = action.get('targetId', '')
+                    continuation_items = action.get('continuationItems', [])
+                    
+                    # Process continuations for comments and replies
+                    if target_id in ['comments-section', 'engagement-panel-comments-section', 'shorts-engagement-panel-comments-section']:
+                        for item in continuation_items:
+                            # Look for continuation endpoints for more comments
+                            continuation_endpoints = self._search_dict_recursive(item, 'continuationEndpoint')
+                            for endpoint in continuation_endpoints:
+                                if 'continuationCommand' in endpoint:
+                                    token = endpoint['continuationCommand']['token']
+                                    if token not in continuations:
+                                        continuations.insert(0, token)  # Insert at beginning for breadth-first
+                    
+                    # Process 'Show more replies' buttons
+                    elif target_id.startswith('comment-replies-item'):
+                        for item in continuation_items:
+                            if 'continuationItemRenderer' in item:
+                                button_renderers = self._search_dict_recursive(item, 'buttonRenderer')
+                                for button in button_renderers:
+                                    command = button.get('command', {})
+                                    if 'continuationCommand' in command:
+                                        token = command['continuationCommand']['token']
+                                        if token not in continuations:
+                                            continuations.append(token)
 
-            # Extract toolbar states
-            toolbar_states = {}
-            for payload in self._search_dict_recursive(response, 'engagementToolbarStateEntityPayload'):
-                if 'key' in payload:
-                    toolbar_states[payload['key']] = payload
-            for comment_id in comment_entities:
-                entity = comment_entities[comment_id]
-                comment_info = self._extract_comment_from_entity(entity, toolbar_states)
-                if comment_info:
-                    comments.append(comment_info)
-                    comments_fetched += 1
-            return comments
+                # Extract comment entity payloads for new comment format
+                comment_entities = {}
+                for payload in self._search_dict_recursive(response, 'commentEntityPayload'):
+                    if 'properties' in payload and 'commentId' in payload['properties']:
+                        comment_id = payload['properties']['commentId']
+                        comment_entities[comment_id] = payload
+
+                # Extract toolbar states
+                toolbar_states = {}
+                for payload in self._search_dict_recursive(response, 'engagementToolbarStateEntityPayload'):
+                    if 'key' in payload:
+                        toolbar_states[payload['key']] = payload
+
+                # Process comment entities and extract comment information
+                batch_comments = []
+                for comment_id in comment_entities:
+                    if max_comments > 0 and len(comments) + len(batch_comments) >= max_comments:
+                        break
+                        
+                    entity = comment_entities[comment_id]
+                    comment_info = self._extract_comment_from_entity(entity, toolbar_states)
+                    if comment_info:
+                        batch_comments.append(comment_info)
+
+                # Reverse to maintain chronological order (YouTube returns in reverse)
+                batch_comments.reverse()
+                comments.extend(batch_comments)
+                
+                logger.info(f"Fetched {len(batch_comments)} comments, total: {len(comments)}")
+                
+                # Sleep between requests to avoid rate limiting
+                if continuations and sleep_time > 0:
+                    await asyncio.sleep(sleep_time)
+
+            return comments[:max_comments] if max_comments > 0 else comments
 
         except Exception as e:
             logger.error(f"Failed to get comments for video {video_id}: {e}")
@@ -696,6 +748,59 @@ class YouTubeApiClient:
             return None
         except Exception:
             return None
+
+    async def get_all_video_comments(
+            self,
+            video_id: str,
+            sort_by: int = 1,  # 0 = popular, 1 = recent
+            sleep_time: float = 0.1
+    ) -> List[Dict]:
+        """
+        Get all comments for a YouTube video (no limit)
+
+        Args:
+            video_id: YouTube video ID
+            sort_by: Comment sorting (0=popular, 1=recent)
+            sleep_time: Sleep time between requests
+
+        Returns:
+            List of all comments for the video
+        """
+        return await self.get_video_comments(
+            video_id=video_id,
+            max_comments=0,  # 0 means no limit
+            sort_by=sort_by,
+            sleep_time=sleep_time
+        )
+
+    def _extract_continuation_tokens(self, data: Any) -> List[str]:
+        """
+        Extract all continuation tokens from YouTube API response
+
+        Args:
+            data: YouTube API response data
+
+        Returns:
+            List of continuation tokens
+        """
+        tokens = []
+        
+        # Search for continuation endpoints
+        continuation_endpoints = self._search_dict_recursive(data, 'continuationEndpoint')
+        for endpoint in continuation_endpoints:
+            if 'continuationCommand' in endpoint:
+                token = endpoint['continuationCommand']['token']
+                if token and token not in tokens:
+                    tokens.append(token)
+        
+        # Search for continuation commands
+        continuation_commands = self._search_dict_recursive(data, 'continuationCommand')
+        for command in continuation_commands:
+            token = command.get('token')
+            if token and token not in tokens:
+                tokens.append(token)
+                
+        return tokens
 
     def _extract_comment_info(self, comment_data: Dict) -> Optional[Dict]:
         """Extract simplified comment information from traditional YouTube comment data"""
