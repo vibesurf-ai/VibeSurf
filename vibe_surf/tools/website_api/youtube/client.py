@@ -955,11 +955,10 @@ class YouTubeApiClient:
         """
         try:
             # Navigate to channel page to get information
-            channel_url = f"https://www.youtube.com/channel/{channel_id}"
+            channel_url = f"https://www.youtube.com/@{channel_id}"
             response = await self._make_request(
                 "GET", channel_url, headers=self.default_headers, raw_response=True
             )
-
             html_content = response.text
             initial_data = extract_initial_data(html_content)
 
@@ -969,7 +968,6 @@ class YouTubeApiClient:
             # Extract channel information from initial data
             metadata = initial_data.get("metadata", {}).get("channelMetadataRenderer", {})
             header = initial_data.get("header", {})
-
             # Try different header types
             channel_header = (header.get("c4TabbedHeaderRenderer") or
                               header.get("pageHeaderRenderer") or
@@ -978,12 +976,26 @@ class YouTubeApiClient:
             title = metadata.get("title", "") or channel_header.get("title", "")
             description = metadata.get("description", "")
 
-            # Extract subscriber count
-            subscriber_text = ""
-            if "subscriberCountText" in channel_header:
-                subscriber_text = channel_header["subscriberCountText"].get("simpleText", "")
-
-            subscriber_count = format_view_count(subscriber_text)
+            # Extract subscriber count and video count from pageHeaderRenderer if available
+            subscriber_count = 0
+            video_count = 0
+            
+            if "pageHeaderRenderer" in header:
+                page_header = header["pageHeaderRenderer"]
+                metadata_rows = page_header.get("content", {}).get("pageHeaderViewModel", {}).get("metadata", {}).get("contentMetadataViewModel", {}).get("metadataRows", [])
+                
+                if len(metadata_rows) > 1:
+                    # Second row contains subscriber and video counts
+                    metadata_parts = metadata_rows[1].get("metadataParts", [])
+                    if len(metadata_parts) > 0:
+                        # Subscriber count (e.g., "21.2万位订阅者")
+                        subscriber_text = metadata_parts[0].get("text", {}).get("content", "")
+                        subscriber_count = subscriber_text.replace("位订阅者", "").replace("订阅者", "").replace("subscribers", "").strip()
+                    
+                    if len(metadata_parts) > 1:
+                        # Video count (e.g., "67 个视频")
+                        video_text = metadata_parts[1].get("text", {}).get("content", "")
+                        video_count = video_text.replace("个视频", "").replace("视频", "").replace("videos", "").strip()
 
             # Extract avatar
             avatar_thumbnails = channel_header.get("avatar", {}).get("thumbnails", [])
@@ -998,8 +1010,7 @@ class YouTubeApiClient:
                 "title": process_youtube_text(title),
                 "description": process_youtube_text(description),
                 "subscriber_count": subscriber_count,
-                "video_count": 0,  # Would need additional processing
-                "view_count": 0,  # Would need additional processing
+                "video_count": video_count,
                 "avatar_url": avatar_url,
                 "banner_url": banner_url,
                 "channel_url": channel_url,
