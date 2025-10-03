@@ -469,8 +469,8 @@ class YouTubeApiClient:
     async def get_video_comments(
             self,
             video_id: str,
-            max_comments: int = 30,
-            continuation_token: Optional[str] = None
+            continuation_token: Optional[str] = None,
+            sort_by: int = 1  # 0 = popular, 1 = recent
     ) -> List[Dict]:
         """
         Get comments for a YouTube video
@@ -479,57 +479,237 @@ class YouTubeApiClient:
             video_id: YouTube video ID
             max_comments: Maximum number of comments to fetch
             continuation_token: Token for pagination
+            sort_by: Comment sorting (0=popular, 1=recent)
             
         Returns:
             List of simplified comment information
         """
         try:
+            comments = []
+            comments_fetched = 0
+            
             if continuation_token:
+                # Use continuation token for pagination
                 data = {"continuation": continuation_token}
+                endpoint = "next"
             else:
-                data = {
-                    "videoId": video_id,
-                    "params": "Eg0SC3dhdGNoLW5leHQYAyAAMAY%3D"  # Default params for comments
-                }
+                # Initial request - need to navigate to video page first to get comments section
+                video_url = f"https://www.youtube.com/watch?v={video_id}"
+                response = await self._make_request("GET", video_url, headers=self.default_headers, raw_response=True)
+                html_content = response.text
+                
+                # Extract initial data from the page
+                initial_data = self._extract_initial_data_from_html(html_content)
+                if not initial_data:
+                    logger.error("Failed to extract initial data from video page")
+                    return []
+                
+                # Find comments section
+                continuation_endpoint = self._find_comments_continuation(initial_data, sort_by)
+                if not continuation_endpoint:
+                    logger.warning(f"No comments found for video {video_id}")
+                    return []
+                
+                data = {"continuation": continuation_endpoint}
+                endpoint = "next"
 
-            endpoint = "next"
+            # Make API request for comments
             response = await self._make_api_request(endpoint, data)
 
-            comments = []
+            if not response:
+                return []
 
-            # Navigate the complex YouTube response structure
-            contents_path = ["contents", "twoColumnWatchNextResults", "results", "results", "contents"]
-            if continuation_token:
-                contents_path = ["onResponseReceivedEndpoints"]
+            # Check for errors
+            error_message = self._search_dict_recursive(response, 'externalErrorMessage')
+            if error_message:
+                logger.error(f"YouTube API error: {error_message}")
+                return []
 
-            current = response
-            for key in contents_path:
-                if isinstance(current, dict) and key in current:
-                    current = current[key]
-                else:
-                    current = []
-                    break
-
-            # Extract comments from the response
-            pdb.set_trace()
-            if isinstance(current, list):
-                for item in current:
-                    comment_thread = item.get("commentThreadRenderer")
-                    if comment_thread:
-                        comment_data = comment_thread.get("comment", {}).get("commentRenderer", {})
-                        if comment_data:
-                            comment_info = self._extract_comment_info(comment_data)
-                            if comment_info and len(comments) < max_comments:
-                                comments.append(comment_info)
-
+            # Process response actions
+            actions = []
+            actions.extend(self._search_dict_recursive(response, 'reloadContinuationItemsCommand'))
+            actions.extend(self._search_dict_recursive(response, 'appendContinuationItemsAction'))
+            
+            # Extract comment entity payloads for new comment format
+            comment_entities = {}
+            for payload in self._search_dict_recursive(response, 'commentEntityPayload'):
+                if 'properties' in payload and 'commentId' in payload['properties']:
+                    comment_id = payload['properties']['commentId']
+                    comment_entities[comment_id] = payload
+            
+            # Extract toolbar states
+            toolbar_states = {}
+            for payload in self._search_dict_recursive(response, 'engagementToolbarStateEntityPayload'):
+                if 'key' in payload:
+                    toolbar_states[payload['key']] = payload
+            for comment_id in comment_entities:
+                entity = comment_entities[comment_id]
+                comment_info = self._extract_comment_from_entity(entity, toolbar_states)
+                if comment_info:
+                    comments.append(comment_info)
+                    comments_fetched += 1
             return comments
 
         except Exception as e:
             logger.error(f"Failed to get comments for video {video_id}: {e}")
             return []
+    
+    def _extract_initial_data_from_html(self, html_content: str) -> Optional[Dict]:
+        """Extract ytInitialData from HTML content"""
+        try:
+            # Pattern for ytInitialData
+            pattern = r'(?:window\s*\[\s*["\']ytInitialData["\']\s*\]|ytInitialData)\s*=\s*({.+?})\s*;\s*(?:var\s+meta|</script|\n)'
+            match = re.search(pattern, html_content)
+            if match:
+                return json.loads(match.group(1))
+            return None
+        except Exception as e:
+            logger.error(f"Failed to extract initial data: {e}")
+            return None
+    
+    def _find_comments_continuation(self, initial_data: Dict, sort_by: int = 1) -> Optional[str]:
+        """Find comments section continuation token"""
+        try:
+            # Look for itemSectionRenderer in the data
+            for item_section in self._search_dict_recursive(initial_data, 'itemSectionRenderer'):
+                for continuation_renderer in self._search_dict_recursive(item_section, 'continuationItemRenderer'):
+                    continuation_endpoint = continuation_renderer.get('continuationEndpoint', {})
+                    if continuation_endpoint:
+                        # Check if we need to handle sort menu
+                        sort_menu = None
+                        for sort_filter in self._search_dict_recursive(initial_data, 'sortFilterSubMenuRenderer'):
+                            sort_menu = sort_filter.get('subMenuItems', [])
+                            break
+                        
+                        if sort_menu and sort_by < len(sort_menu):
+                            # Use the specified sort option
+                            sort_endpoint = sort_menu[sort_by].get('serviceEndpoint', {})
+                            if 'continuationCommand' in sort_endpoint:
+                                return sort_endpoint['continuationCommand']['token']
+                        
+                        # Fallback to default continuation
+                        if 'continuationCommand' in continuation_endpoint:
+                            return continuation_endpoint['continuationCommand']['token']
+            
+            return None
+        except Exception as e:
+            logger.error(f"Failed to find comments continuation: {e}")
+            return None
+    
+    def _search_dict_recursive(self, data: Any, search_key: str) -> List[Any]:
+        """Recursively search for a key in nested dict/list structure"""
+        results = []
+        stack = [data]
+        
+        while stack:
+            current = stack.pop()
+            if isinstance(current, dict):
+                for key, value in current.items():
+                    if key == search_key:
+                        results.append(value)
+                    else:
+                        stack.append(value)
+            elif isinstance(current, list):
+                stack.extend(current)
+        
+        return results
+    
+    def _extract_comment_from_entity(self, entity: Dict, toolbar_states: Dict) -> Optional[Dict]:
+        """Extract comment info from commentEntityPayload format"""
+        try:
+            properties = entity.get('properties', {})
+            author = entity.get('author', {})
+            toolbar = entity.get('toolbar', {})
+            
+            comment_id = properties.get('commentId', '')
+            content = properties.get('content', {}).get('content', '')
+            published_time = properties.get('publishedTime', '')
+            
+            # Author info
+            author_name = author.get('displayName', '')
+            author_channel_id = author.get('channelId', '')
+            author_avatar = author.get('avatarThumbnailUrl', '')
+            
+            # Engagement info
+            like_count_text = toolbar.get('likeCountNotliked', '0').strip() or "0"
+            like_count = self._parse_count_string(like_count_text)
+            reply_count = toolbar.get('replyCount', 0)
+            
+            # Check if comment is hearted
+            toolbar_state_key = properties.get('toolbarStateKey', '')
+            is_hearted = False
+            if toolbar_state_key in toolbar_states:
+                heart_state = toolbar_states[toolbar_state_key].get('heartState', '')
+                is_hearted = heart_state == 'TOOLBAR_HEART_STATE_HEARTED'
+            
+            # Check if it's a reply (comment ID contains '.')
+            is_reply = '.' in comment_id
+            
+            return {
+                "comment_id": comment_id,
+                "content": process_youtube_text(content),
+                "author_name": author_name,
+                "author_channel_id": author_channel_id,
+                "author_avatar": author_avatar,
+                "like_count": like_count,
+                "reply_count": reply_count,
+                "published_time": published_time,
+                "is_hearted": is_hearted,
+                "is_reply": is_reply,
+                "time_parsed": self._parse_time_string(published_time)
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to extract comment from entity: {e}")
+            return None
+    
+    def _parse_count_string(self, count_str: str) -> int:
+        """Parse YouTube count strings like '1.2K', '500', etc."""
+        try:
+            if not count_str or count_str == '0':
+                return 0
+            
+            count_str = count_str.strip().upper()
+            
+            # Handle K, M, B suffixes
+            multipliers = {'K': 1000, 'M': 1000000, 'B': 1000000000}
+            
+            for suffix, multiplier in multipliers.items():
+                if count_str.endswith(suffix):
+                    number_part = count_str[:-1]
+                    return int(float(number_part) * multiplier)
+            
+            # Handle comma-separated numbers
+            count_str = count_str.replace(',', '')
+            return int(count_str)
+            
+        except (ValueError, AttributeError):
+            return 0
+    
+    def _parse_time_string(self, time_str: str) -> Optional[float]:
+        """Parse time string and return timestamp"""
+        try:
+            if not time_str:
+                return None
+            
+            # Remove any parenthetical content
+            clean_time = time_str.split('(')[0].strip()
+            
+            # Try to parse with dateparser if available
+            try:
+                import dateparser
+                parsed = dateparser.parse(clean_time)
+                if parsed:
+                    return parsed.timestamp()
+            except ImportError:
+                pass
+            
+            return None
+        except Exception:
+            return None
 
     def _extract_comment_info(self, comment_data: Dict) -> Optional[Dict]:
-        """Extract simplified comment information from YouTube comment data"""
+        """Extract simplified comment information from traditional YouTube comment data"""
         try:
             # Extract comment ID
             comment_id = comment_data.get("commentId", "")
@@ -546,22 +726,56 @@ class YouTubeApiClient:
             author_text = comment_data.get("authorText", {}).get("simpleText", "")
             author_thumbnail = comment_data.get("authorThumbnail", {}).get("thumbnails", [])
             author_avatar = extract_thumbnail_url(author_thumbnail)
+            
+            # Extract author channel ID if available
+            author_endpoint = comment_data.get("authorEndpoint", {}).get("commandMetadata", {}).get("webCommandMetadata", {})
+            author_url = author_endpoint.get("url", "")
+            author_channel_id = extract_channel_id_from_url(author_url) if author_url else ""
 
             # Extract like count
             like_count_text = comment_data.get("voteCount", {}).get("simpleText", "0")
-            like_count = format_view_count(like_count_text)
+            like_count = self._parse_count_string(like_count_text)
 
             # Extract published time
-            published_time = comment_data.get("publishedTimeText", {}).get("runs", [{}])[0].get("text", "")
+            published_time_data = comment_data.get("publishedTimeText", {})
+            published_time = ""
+            if "runs" in published_time_data:
+                published_time = published_time_data["runs"][0].get("text", "")
+            elif "simpleText" in published_time_data:
+                published_time = published_time_data["simpleText"]
+
+            # Extract reply count
+            reply_count = 0
+            reply_text = comment_data.get("replyCount", 0)
+            if isinstance(reply_text, dict):
+                reply_text = reply_text.get("simpleText", "0")
+            if isinstance(reply_text, str):
+                reply_count = self._parse_count_string(reply_text)
+            elif isinstance(reply_text, int):
+                reply_count = reply_text
+
+            # Check if comment is hearted by creator
+            is_hearted = False
+            if "actionButtons" in comment_data:
+                buttons = comment_data["actionButtons"].get("commentActionButtonsRenderer", {})
+                heart_button = buttons.get("creatorHeart", {})
+                is_hearted = bool(heart_button.get("creatorHeartRenderer", {}))
+
+            # Check if it's a reply (comment ID contains '.')
+            is_reply = '.' in comment_id
 
             return {
                 "comment_id": comment_id,
                 "content": process_youtube_text(text),
                 "author_name": author_text,
+                "author_channel_id": author_channel_id,
                 "author_avatar": author_avatar,
                 "like_count": like_count,
+                "reply_count": reply_count,
                 "published_time": published_time,
-                "reply_count": 0,  # Would need additional processing
+                "is_hearted": is_hearted,
+                "is_reply": is_reply,
+                "time_parsed": self._parse_time_string(published_time)
             }
 
         except Exception as e:
@@ -589,7 +803,6 @@ class YouTubeApiClient:
             html_content = response.text
             initial_data = extract_initial_data(html_content)
 
-            pdb.set_trace()
             if not initial_data:
                 return None
 
