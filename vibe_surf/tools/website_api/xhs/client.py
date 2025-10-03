@@ -177,7 +177,7 @@ class XiaoHongShuApiClient:
 
         except Exception as e:
             logger.error(f"Failed to get XiaoHongShu cookies: {e}")
-            raise
+            raise e
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(1))
     async def _make_request(self, method: str, url: str, **kwargs) -> Union[str, Dict]:
@@ -309,7 +309,7 @@ class XiaoHongShuApiClient:
             note_data = {
                 "note_id": note_card.get("note_id"),
                 "type": note_card.get("type"),
-                "title": note_card.get("title", "")[:255],
+                "title": note_card.get("display_title", "")[:255],
                 "desc": note_card.get("desc", ""),
                 "time": note_card.get("time"),
                 "last_update_time": note_card.get("last_update_time", 0),

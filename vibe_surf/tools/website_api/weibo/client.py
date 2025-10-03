@@ -108,24 +108,21 @@ class WeiboApiClient:
                 self.default_headers["User-Agent"] = user_agent
 
             # Check if user is logged in
-            is_logged_in = await self.pong()
-
-            if not is_logged_in:
-                logger.warning("User is not logged in to Weibo, redirecting to login page")
-
-                # Navigate to Weibo SSO login page
-                weibo_sso_login_url = "https://passport.weibo.com/sso/signin?entry=miniblog&source=miniblog"
-                await self.browser_session.navigate_to_url(weibo_sso_login_url, new_tab=True)
-
-                # Raise authentication error to inform user they need to login
-                raise AuthenticationError(
-                    "User is not logged in to Weibo. Please complete login process and try again.")
+            # is_logged_in = await self.pong()
+            #
+            # if not is_logged_in:
+            #     logger.warning("User is not logged in to Weibo, redirecting to login page")
+            #
+            #     # Navigate to Weibo SSO login page
+            #     weibo_sso_login_url = "https://passport.weibo.com/sso/signin?entry=miniblog&source=miniblog"
+            #     await self.browser_session.navigate_to_url(weibo_sso_login_url, new_tab=True)
+            #
+            #     # Raise authentication error to inform user they need to login
+            #     raise AuthenticationError(
+            #         "User is not logged in to Weibo. Please complete login process and try again.")
 
             logger.info("Weibo client setup completed successfully")
 
-        except AuthenticationError:
-            # Re-raise authentication errors as-is
-            raise
         except Exception as e:
             logger.error(f"Failed to setup Weibo client: {e}")
             raise AuthenticationError(f"Setup failed: {e}")
@@ -302,15 +299,18 @@ class WeiboApiClient:
         endpoint = "/api/container/getIndex"
         container_id = create_container_id(search_type, keyword)
 
-        params = {
-            "containerid": container_id,
-            "page_type": "searchall",
-            "page": str(page),
-        }
-
-        raw_response = await self._get_request(endpoint, params)
+        cards = []
         posts = []
-        cards = raw_response.get("cards", [])
+        for page_num in range(page):
+            params = {
+                "containerid": container_id,
+                "page_type": "searchall",
+                "page": page_num,
+            }
+
+            raw_response = await self._get_request(endpoint, params)
+            cards.extend(raw_response.get("cards", []))
+
         for card in cards:
             mblog = card.get("mblog", {})
             if not mblog.get("id"):
@@ -747,9 +747,9 @@ class WeiboApiClient:
         logger.info(f"Fetched total {len(all_posts)} posts for user {user_id}")
         return all_posts
 
-    async def get_trending_list(self) -> List[Dict]:
+    async def get_trending_posts(self) -> List[Dict]:
         """
-        Get Weibo trending list (热搜榜)
+        Get Weibo trending posts (热搜榜)
         
         Returns:
             List of simplified trending post information

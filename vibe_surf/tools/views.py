@@ -228,7 +228,7 @@ class SkillXhsAction(BaseModel):
     """Parameters for skill_xhs action - Xiaohongshu API skill"""
     method: str = Field(
         description='''Xiaohongshu API method name. Available methods:
-        - search_content_by_keyword: Search content by keyword, params required: {"keyword": "search keyword", "sort_type": "general/time/popularity_descending", "page": 1, "page_size": 20}
+        - search_content_by_keyword: Search content by keyword, params required: {"keyword": "search keyword", "page": 1, "page_size": 20}
         - fetch_content_details: Get content details, params required: {"content_id": "content ID", "xsec_token": "security token"}
         - fetch_all_content_comments: Get all comments for content, params required: {"content_id": "content ID", "xsec_token": "security token", "max_comments": 100}
         - get_user_profile: Get user profile, params required: {"user_id": "user ID"}
@@ -236,7 +236,7 @@ class SkillXhsAction(BaseModel):
         - get_home_recommendations: Get home page recommendations, params: {}'''
     )
     params: str = Field(
-        description='JSON string of method parameters, provide corresponding parameters according to the method parameter. Example: {"keyword": "food", "sort_type": "general"}'
+        description='JSON string of method parameters, provide corresponding parameters according to the method parameter. Example: {"keyword": "food"}'
     )
 
 
@@ -244,16 +244,16 @@ class SkillWeiboAction(BaseModel):
     """Parameters for skill_weibo action - Weibo API skill"""
     method: str = Field(
         description='''Weibo API method name. Available methods:
-        - search_posts_by_keyword: Search posts by keyword, params required: {"keyword": "search keyword", "page": 1, "search_type": "default/popular/realtime"}
+        - search_posts_by_keyword: Search posts by keyword, params required: {"keyword": "search keyword", "page": 1}
         - get_post_detail: Get post details, params required: {"mid": "post ID"}
         - get_all_post_comments: Get all comments for post, params required: {"mid": "post ID", "max_comments": 100}
         - get_user_info: Get user information, params required: {"user_id": "user ID"}
         - get_all_user_posts: Get all posts by user, params required: {"user_id": "user ID", "max_posts": 100}
-        - get_hot_posts: Get hot posts, params: {}
-        - get_trending_list: Get trending list, params: {}'''
+        - get_hot_posts: Get hot posts(推荐榜）, params: {}
+        - get_trending_posts: Get trending posts(热搜榜）, params: {}'''
     )
     params: str = Field(
-        description='JSON string of method parameters, provide corresponding parameters according to the method parameter. Example: {"keyword": "trending", "search_type": "popular"}'
+        description='JSON string of method parameters, provide corresponding parameters according to the method parameter. Example: {"keyword": "AI trending"}'
     )
 
 
@@ -261,14 +261,14 @@ class SkillDouyinAction(BaseModel):
     """Parameters for skill_douyin action - Douyin API skill"""
     method: str = Field(
         description='''Douyin API method name. Available methods:
-        - search_content_by_keyword: Search videos by keyword, params required: {"keyword": "search keyword", "offset": 0, "search_channel": "general", "sort_type": "general"}
+        - search_content_by_keyword: Search videos by keyword, params required: {"keyword": "search keyword", "offset": 0}
         - fetch_video_details: Get video details, params required: {"aweme_id": "video ID"}
         - fetch_all_video_comments: Get all comments for video, params required: {"aweme_id": "video ID", "max_comments": 100}
         - fetch_user_info: Get user information, params required: {"sec_user_id": "user security ID"}
         - fetch_all_user_videos: Get all videos by user, params required: {"sec_user_id": "user security ID", "max_videos": 100}'''
     )
     params: str = Field(
-        description='JSON string of method parameters, provide corresponding parameters according to the method parameter. Example: {"keyword": "music", "sort_type": "general"}'
+        description='JSON string of method parameters, provide corresponding parameters according to the method parameter. Example: {"keyword": "music"}'
     )
 
 

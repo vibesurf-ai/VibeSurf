@@ -269,7 +269,9 @@ async def test_website_api(main_browser_session: AgentBrowserSession):
     # user_info = await xhs_client.get_me()
     # user_id = user_info['user_id']
     # ret = await xhs_client.search_content_by_keyword("browser-use", sort_type=SearchType.POPULAR)
+    # pdb.set_trace()
     # ret = await xhs_client.get_home_recommendations()
+    # pdb.set_trace()
     # ret = await xhs_client.get_user_profile(user_id=user_id)
     # ret = await xhs_client.fetch_all_user_content(user_id=user_id)
     # note_id = ret[1]['note_id']
@@ -279,12 +281,12 @@ async def test_website_api(main_browser_session: AgentBrowserSession):
     # ret2 = await xhs_client.fetch_all_content_comments(content_id=note_id, xsec_token=xsec_token)
     # pdb.set_trace()
 
-    # from vibe_surf.tools.website_api.weibo.client import WeiboApiClient
-    # from vibe_surf.tools.website_api.weibo.helpers import SearchType
-    # wb_client = WeiboApiClient(browser_session=main_browser_session)
-    # await wb_client.setup()
-    # ret = await wb_client.search_posts_by_keyword("Sora2", search_type=SearchType.POPULAR)
-    # # pdb.set_trace()
+    from vibe_surf.tools.website_api.weibo.client import WeiboApiClient
+    from vibe_surf.tools.website_api.weibo.helpers import SearchType
+    wb_client = WeiboApiClient(browser_session=main_browser_session)
+    await wb_client.setup()
+    # ret = await wb_client.search_posts_by_keyword("邓紫棋", page=4, search_type=SearchType.POPULAR)
+    # pdb.set_trace()
     # mid = ret[0]['note_id']
     # user_id = ret[0]['user_id']
     # ret = await wb_client.get_post_detail(mid=mid)
@@ -294,10 +296,10 @@ async def test_website_api(main_browser_session: AgentBrowserSession):
     # ret1 = await wb_client.get_user_info(user_id=user_id)
     # ret3 = await wb_client.get_all_user_posts(user_id=user_id)
     # pdb.set_trace()
-    # ret = await wb_client.get_hot_posts()
-    # pdb.set_trace()
-    # ret = await wb_client.get_trending_list()
-    # pdb.set_trace()
+    ret = await wb_client.get_hot_posts()
+    pdb.set_trace()
+    ret = await wb_client.get_trending_posts()
+    pdb.set_trace()
 
     # from vibe_surf.tools.website_api.douyin.client import DouyinApiClient
     #
@@ -312,14 +314,12 @@ async def test_website_api(main_browser_session: AgentBrowserSession):
     # ret3 = await dy_client.fetch_user_videos(sec_user_id=user_id)
     # pdb.set_trace()
 
-    from vibe_surf.tools.website_api.youtube.client import YouTubeApiClient
-
-    yt_client = YouTubeApiClient(browser_session=main_browser_session)
-    await yt_client.setup()
-
+    # from vibe_surf.tools.website_api.youtube.client import YouTubeApiClient
+    # yt_client = YouTubeApiClient(browser_session=main_browser_session)
+    # await yt_client.setup()
     # ret = await yt_client.get_trending_videos()
     # pdb.set_trace()
-    ret = await yt_client.search_videos(query="何同学", max_results=30)
+    # ret = await yt_client.search_videos(query="何同学", max_results=30)
     # pdb.set_trace()
     # ret = await yt_client.get_video_details(ret[0]['video_id'])
     # pdb.set_trace()
@@ -327,8 +327,8 @@ async def test_website_api(main_browser_session: AgentBrowserSession):
     # pdb.set_trace()
     # ret = await yt_client.get_channel_info(ret[0]['channel_id'])
     # pdb.set_trace()
-    ret = await yt_client.get_channel_videos(ret[0]['channel_id'], max_videos=50)
-    pdb.set_trace()
+    # ret = await yt_client.get_channel_videos(ret[0]['channel_id'], max_videos=50)
+    # pdb.set_trace()
 
 
 async def main():

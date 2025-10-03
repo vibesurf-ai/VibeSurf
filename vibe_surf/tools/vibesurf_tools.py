@@ -943,7 +943,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
             except Exception as e:
                 error_msg = f'❌ Failed to retrieve financial data for {params.symbol}: {str(e)}'
                 logger.error(error_msg)
-                return ActionResult(error=error_msg)
+                return ActionResult(error=error_msg, extracted_content=error_msg)
 
 
         @self.registry.action(
@@ -1009,12 +1009,14 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 
                 # Format result as markdown
                 if isinstance(result, list):
-                    display_count = min(10, len(result))
+                    display_count = min(5, len(result))
                     md_content = f"## Xiaohongshu {params.method.replace('_', ' ').title()}\n\n"
                     md_content += f"Showing {display_count} of {len(result)} results:\n\n"
-                    for i, item in enumerate(result[:10]):
+                    for i, item in enumerate(result[:display_count]):
                         md_content += f"### Result {i+1}\n"
                         for key, value in item.items():
+                            if not value:
+                                continue
                             if isinstance(value, str) and len(value) > 200:
                                 md_content += f"- **{key}**: {value[:200]}...\n"
                             else:
@@ -1040,19 +1042,17 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 await xhs_client.close()
                 
                 return ActionResult(
-                    extracted_content=md_content,
-                    include_extracted_content_only_once=True,
-                    long_term_memory=f'Retrieved Xiaohongshu data using method: {params.method}',
+                    extracted_content=md_content
                 )
                 
             except Exception as e:
                 error_msg = f'❌ Failed to retrieve Xiaohongshu data: {str(e)}'
                 logger.error(error_msg)
-                return ActionResult(error=error_msg)
+                return ActionResult(error=error_msg, extracted_content=error_msg)
 
 
         @self.registry.action(
-            'Skill: Weibo API - Access Weibo platform data including search, post details, comments, user profiles, hot posts, and trending lists. Methods: search_posts_by_keyword, get_post_detail, get_all_post_comments, get_user_info, get_all_user_posts, get_hot_posts, get_trending_list.',
+            'Skill: Weibo API - Access Weibo platform data including search, post details, comments, user profiles, hot posts, and trending lists. Methods: search_posts_by_keyword, get_post_detail, get_all_post_comments, get_user_info, get_all_user_posts, get_hot_posts（推荐榜）, get_trending_posts(热搜榜）.',
             param_model=SkillWeiboAction,
         )
         async def skill_weibo(
@@ -1101,8 +1101,8 @@ Please generate alternative JavaScript code that avoids this system error:"""
                     result = await wb_client.get_all_user_posts(**method_params)
                 elif params.method == "get_hot_posts":
                     result = await wb_client.get_hot_posts()
-                elif params.method == "get_trending_list":
-                    result = await wb_client.get_trending_list()
+                elif params.method == "get_trending_posts":
+                    result = await wb_client.get_trending_posts()
                 else:
                     return ActionResult(error=f"Unknown method: {params.method}")
                 
@@ -1114,15 +1114,16 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 
                 with open(filepath, "w", encoding="utf-8") as f:
                     json.dump(result, f, ensure_ascii=False, indent=2)
-                
                 # Format result as markdown
                 if isinstance(result, list):
-                    display_count = min(10, len(result))
+                    display_count = min(5, len(result))
                     md_content = f"## Weibo {params.method.replace('_', ' ').title()}\n\n"
                     md_content += f"Showing {display_count} of {len(result)} results:\n\n"
-                    for i, item in enumerate(result[:10]):
+                    for i, item in enumerate(result[:display_count]):
                         md_content += f"### Result {i+1}\n"
                         for key, value in item.items():
+                            if not value:
+                                continue
                             if isinstance(value, str) and len(value) > 200:
                                 md_content += f"- **{key}**: {value[:200]}...\n"
                             else:
@@ -1148,15 +1149,15 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 await wb_client.close()
                 
                 return ActionResult(
-                    extracted_content=md_content,
-                    include_extracted_content_only_once=True,
-                    long_term_memory=f'Retrieved Weibo data using method: {params.method}',
+                    extracted_content=md_content
                 )
                 
             except Exception as e:
-                error_msg = f'❌ Failed to retrieve Weibo data: {str(e)}'
+                import traceback
+                traceback.print_exc()
+                error_msg = f'❌ Failed to retrieve Weibo data: {str(e)}. \nMost likely you are not login, please go to: [Weibo login page](https://passport.weibo.com/sso/signin?entry=miniblog&source=miniblog) and login.'
                 logger.error(error_msg)
-                return ActionResult(error=error_msg)
+                return ActionResult(error=error_msg, extracted_content=error_msg)
 
 
         @self.registry.action(
@@ -1219,12 +1220,14 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 
                 # Format result as markdown
                 if isinstance(result, list):
-                    display_count = min(10, len(result))
+                    display_count = min(5, len(result))
                     md_content = f"## Douyin {params.method.replace('_', ' ').title()}\n\n"
                     md_content += f"Showing {display_count} of {len(result)} results:\n\n"
-                    for i, item in enumerate(result[:10]):
+                    for i, item in enumerate(result[:display_count]):
                         md_content += f"### Result {i+1}\n"
                         for key, value in item.items():
+                            if not value:
+                                continue
                             if isinstance(value, str) and len(value) > 200:
                                 md_content += f"- **{key}**: {value[:200]}...\n"
                             else:
@@ -1250,15 +1253,13 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 await dy_client.close()
                 
                 return ActionResult(
-                    extracted_content=md_content,
-                    include_extracted_content_only_once=True,
-                    long_term_memory=f'Retrieved Douyin data using method: {params.method}',
+                    extracted_content=md_content
                 )
                 
             except Exception as e:
                 error_msg = f'❌ Failed to retrieve Douyin data: {str(e)}'
                 logger.error(error_msg)
-                return ActionResult(error=error_msg)
+                return ActionResult(error=error_msg, extracted_content=error_msg)
 
 
         @self.registry.action(
@@ -1324,12 +1325,14 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 
                 # Format result as markdown
                 if isinstance(result, list):
-                    display_count = min(10, len(result))
+                    display_count = min(5, len(result))
                     md_content = f"## YouTube {params.method.replace('_', ' ').title()}\n\n"
                     md_content += f"Showing {display_count} of {len(result)} results:\n\n"
-                    for i, item in enumerate(result[:10]):
+                    for i, item in enumerate(result[:display_count]):
                         md_content += f"### Result {i+1}\n"
                         for key, value in item.items():
+                            if not value:
+                                continue
                             if isinstance(value, str) and len(value) > 200:
                                 md_content += f"- **{key}**: {value[:200]}...\n"
                             else:
@@ -1355,15 +1358,13 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 await yt_client.close()
                 
                 return ActionResult(
-                    extracted_content=md_content,
-                    include_extracted_content_only_once=True,
-                    long_term_memory=f'Retrieved YouTube data using method: {params.method}',
+                    extracted_content=md_content
                 )
                 
             except Exception as e:
                 error_msg = f'❌ Failed to retrieve YouTube data: {str(e)}'
                 logger.error(error_msg)
-                return ActionResult(error=error_msg)
+                return ActionResult(error=error_msg, extracted_content=error_msg)
 
 
     async def _extract_google_results_rule_based(self, browser_session):
