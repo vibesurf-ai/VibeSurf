@@ -38,7 +38,7 @@ class YouTubeApiClient:
     def __init__(self, browser_session: AgentBrowserSession, timeout: int = 60, proxy: Optional[str] = None):
         """
         Initialize the YouTube API client
-        
+
         Args:
             browser_session: Browser session for authentication
             timeout: Request timeout in seconds
@@ -68,10 +68,10 @@ class YouTubeApiClient:
     async def setup(self, target_id: Optional[str] = None):
         """
         Setup YouTube client by navigating to the site and extracting cookies
-        
+
         Args:
             target_id: Specific browser target ID to use
-            
+
         Raises:
             AuthenticationError: If setup fails
         """
@@ -183,12 +183,12 @@ class YouTubeApiClient:
     async def _make_request(self, method: str, url: str, **kwargs):
         """
         Make HTTP request with error handling and retry logic
-        
+
         Args:
             method: HTTP method
             url: Request URL
             **kwargs: Additional request parameters
-            
+
         Returns:
             Response data
         """
@@ -253,23 +253,21 @@ class YouTubeApiClient:
             **kwargs
         )
 
-    def _find_video_renderers(self, data: Any, max_results: int = None) -> List[Dict]:
+    def _find_video_renderers(self, data: Any) -> List[Dict]:
         """
         Recursively find all videoRenderer objects in the YouTube API response
-        
+
         Args:
             data: YouTube API response data (can be dict, list, or any type)
             max_results: Maximum number of video renderers to find
-            
+
         Returns:
             List of videoRenderer data
         """
         video_renderers = []
-        
+
         def recursive_search(obj, current_count=0):
-            if max_results and current_count >= max_results:
-                return current_count
-                
+
             if isinstance(obj, dict):
                 # Check if this dict contains a videoRenderer
                 if "videoRenderer" in obj:
@@ -277,41 +275,34 @@ class YouTubeApiClient:
                     if video_data and isinstance(video_data, dict):
                         video_renderers.append(video_data)
                         current_count += 1
-                        if max_results and current_count >= max_results:
-                            return current_count
-                
+
                 # Recursively search all values in the dict
                 for value in obj.values():
                     current_count = recursive_search(value, current_count)
-                    if max_results and current_count >= max_results:
-                        return current_count
-                        
+
             elif isinstance(obj, list):
                 # Recursively search all items in the list
                 for item in obj:
                     current_count = recursive_search(item, current_count)
-                    if max_results and current_count >= max_results:
-                        return current_count
-            
+
             return current_count
-        
+
         recursive_search(data)
         return video_renderers
 
     async def search_videos(
             self,
             query: str,
-            max_results: int = 30,
             continuation_token: Optional[str] = None
     ) -> List[Dict]:
         """
         Search YouTube videos
-        
+
         Args:
             query: Search query
             max_results: Maximum number of results
             continuation_token: Token for pagination
-            
+
         Returns:
             List of simplified video information
         """
@@ -324,13 +315,11 @@ class YouTubeApiClient:
             response = await self._make_api_request("search", data)
 
             # Use recursive search to find all videoRenderer objects
-            video_renderers = self._find_video_renderers(response, max_results)
-            
+            video_renderers = self._find_video_renderers(response)
+
             # Extract video information from each videoRenderer
             videos = []
             for video_data in video_renderers:
-                if len(videos) >= max_results:
-                    break
                 video_info = self._extract_video_info(video_data)
                 if video_info:
                     videos.append(video_info)
@@ -412,10 +401,10 @@ class YouTubeApiClient:
     async def get_video_details(self, video_id: str) -> Optional[Dict]:
         """
         Get detailed video information
-        
+
         Args:
             video_id: YouTube video ID
-            
+
         Returns:
             Detailed video information
         """
@@ -474,20 +463,20 @@ class YouTubeApiClient:
     ) -> List[Dict]:
         """
         Get comments for a YouTube video
-        
+
         Args:
             video_id: YouTube video ID
             max_comments: Maximum number of comments to fetch
             continuation_token: Token for pagination
             sort_by: Comment sorting (0=popular, 1=recent)
-            
+
         Returns:
             List of simplified comment information
         """
         try:
             comments = []
             comments_fetched = 0
-            
+
             if continuation_token:
                 # Use continuation token for pagination
                 data = {"continuation": continuation_token}
@@ -497,19 +486,19 @@ class YouTubeApiClient:
                 video_url = f"https://www.youtube.com/watch?v={video_id}"
                 response = await self._make_request("GET", video_url, headers=self.default_headers, raw_response=True)
                 html_content = response.text
-                
+
                 # Extract initial data from the page
                 initial_data = self._extract_initial_data_from_html(html_content)
                 if not initial_data:
                     logger.error("Failed to extract initial data from video page")
                     return []
-                
+
                 # Find comments section
                 continuation_endpoint = self._find_comments_continuation(initial_data, sort_by)
                 if not continuation_endpoint:
                     logger.warning(f"No comments found for video {video_id}")
                     return []
-                
+
                 data = {"continuation": continuation_endpoint}
                 endpoint = "next"
 
@@ -529,14 +518,14 @@ class YouTubeApiClient:
             actions = []
             actions.extend(self._search_dict_recursive(response, 'reloadContinuationItemsCommand'))
             actions.extend(self._search_dict_recursive(response, 'appendContinuationItemsAction'))
-            
+
             # Extract comment entity payloads for new comment format
             comment_entities = {}
             for payload in self._search_dict_recursive(response, 'commentEntityPayload'):
                 if 'properties' in payload and 'commentId' in payload['properties']:
                     comment_id = payload['properties']['commentId']
                     comment_entities[comment_id] = payload
-            
+
             # Extract toolbar states
             toolbar_states = {}
             for payload in self._search_dict_recursive(response, 'engagementToolbarStateEntityPayload'):
@@ -916,7 +905,7 @@ class YouTubeApiClient:
             logger.error(f"Failed to get channel videos for {channel_id}: {e}")
             return []
 
-    async def get_trending_videos(self, max_videos: int = 30) -> List[Dict]:
+    async def get_trending_videos(self) -> List[Dict]:
         """
         Get trending YouTube videos
         
@@ -949,7 +938,7 @@ class YouTubeApiClient:
                             video_data = (item.get("videoRenderer") or
                                           item.get("compactVideoRenderer") or
                                           item.get("gridVideoRenderer"))
-                            if video_data and len(videos) < max_videos:
+                            if video_data:
                                 video_info = self._extract_video_info(video_data)
                                 if video_info:
                                     videos.append(video_info)
