@@ -85,7 +85,7 @@ uv run vibesurf
 
 ## 📝 许可证
 
-根据 [Apache 许可证 2.0](LICENSE) 授权。
+本仓库采用 VibeSurf 开源许可证，基于 Apache 2.0 并附加额外条款。
 
 ## 👏 致谢
 

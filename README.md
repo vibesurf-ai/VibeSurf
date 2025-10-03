@@ -85,7 +85,7 @@ We're building VibeSurf to be your ultimate AI browser companion. Here's what's 
 
 ## 📝 License
 
-Licensed under the [Apache License 2.0](LICENSE).
+This repository is licensed under the VibeSurf Open Source License, based on Apache 2.0 with additional conditions.
 
 ## 👏 Acknowledgments
 
