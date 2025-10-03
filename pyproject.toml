@@ -59,16 +59,7 @@ requires = ["setuptools>=61.0", "setuptools-scm>=6.2", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = [
-    "vibe_surf",
-    "vibe_surf.agents",
-    "vibe_surf.agents.prompts",
-    "vibe_surf.browser",
-    "vibe_surf.browser.watchdogs",
-    "vibe_surf.tools",
-    "vibe_surf.llm",
-    "vibe_surf.backend"
-]
+packages = { find = { where = ["."], include = ["vibe_surf*"] } }
 
 [tool.setuptools.package-data]
 "vibe_surf" = [
