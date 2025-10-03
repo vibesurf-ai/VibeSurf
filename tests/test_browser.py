@@ -332,7 +332,7 @@ async def test_website_api(main_browser_session: AgentBrowserSession):
     # pdb.set_trace()
     # ret = await yt_client.get_channel_info(ret[0]['channel_id'])
     # pdb.set_trace()
-    ret = await yt_client.get_channel_videos(ret[0]['channel_id'])
+    ret = await yt_client.get_channel_videos(ret[0]['channel_id'], max_videos=50)
     pdb.set_trace()
 
 

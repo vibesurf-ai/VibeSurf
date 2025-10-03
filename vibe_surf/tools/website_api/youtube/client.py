@@ -1025,48 +1025,122 @@ class YouTubeApiClient:
     async def get_channel_videos(
             self,
             channel_id: str,
-            max_videos: int = 20
+            max_videos: int = 20,
+            continuation_token: Optional[str] = None,
+            sleep_time: float = 0.1
     ) -> List[Dict]:
         """
-        Get videos from a YouTube channel by extracting from HTML page initial_data
+        Get videos from a YouTube channel with pagination support
         
         Args:
             channel_id: YouTube channel ID (can be UC... format, @username, or custom name)
-            max_videos: Maximum number of videos to fetch
+            max_videos: Maximum number of videos to fetch (0 for all available)
+            continuation_token: Token for pagination
+            sleep_time: Sleep time between requests
             
         Returns:
             List of simplified video information
         """
         try:
-            videos_url = f"https://www.youtube.com/@{channel_id}/videos"
-
-            # Make request to videos page
-            response = await self._make_request(
-                "GET", videos_url, headers=self.default_headers, raw_response=True
-            )
-            
-            html_content = response.text
-            initial_data = extract_initial_data(html_content)
-            if not initial_data:
-                logger.error("Failed to extract initial data from videos page")
-                return []
-            
-            # Find video renderers in the page data using existing method
-            video_renderers = self._find_video_renderers(initial_data)
-            
             videos = []
-            for video_data in video_renderers[:max_videos]:
-                video_info = self._extract_video_info(video_data)
-                video_info['channel_id'] = channel_id
-                if video_info:
-                    videos.append(video_info)
+            continuations = []
             
-            logger.info(f"Successfully extracted {len(videos)} videos from HTML initial_data")
-            return videos
+            if continuation_token:
+                # Use provided continuation token
+                continuations.append(continuation_token)
+            else:
+                # Initial request to get videos page and extract initial data
+                videos_url = f"https://www.youtube.com/@{channel_id}/videos"
+                response = await self._make_request(
+                    "GET", videos_url, headers=self.default_headers, raw_response=True
+                )
+                
+                html_content = response.text
+                initial_data = extract_initial_data(html_content)
+                if not initial_data:
+                    logger.error("Failed to extract initial data from videos page")
+                    return []
+                
+                # Find video renderers in the initial page data
+                video_renderers = self._find_video_renderers(initial_data)
+                
+                for video_data in video_renderers:
+                    if max_videos > 0 and len(videos) >= max_videos:
+                        break
+                    video_info = self._extract_video_info(video_data)
+                    if video_info:
+                        video_info['channel_id'] = channel_id
+                        videos.append(video_info)
+                
+                # Extract continuation tokens for more results
+                continuation_tokens = self._extract_continuation_tokens(initial_data)
+                continuations.extend(continuation_tokens)
+                
+                logger.info(f"Initial page: extracted {len(videos)} videos, found {len(continuations)} continuation tokens")
+            
+            # Process continuation tokens for more videos
+            while continuations and (max_videos == 0 or len(videos) < max_videos):
+                current_continuation = continuations.pop(0)
+                
+                # Make API request with continuation token
+                data = {"continuation": current_continuation}
+                response = await self._make_api_request("browse", data)
+                
+                if not response:
+                    break
+                
+                # Extract videos from continuation response
+                video_renderers = self._find_video_renderers(response)
+                batch_videos = []
+                
+                for video_data in video_renderers:
+                    if max_videos > 0 and len(videos) + len(batch_videos) >= max_videos:
+                        break
+                    video_info = self._extract_video_info(video_data)
+                    if video_info:
+                        video_info['channel_id'] = channel_id
+                        batch_videos.append(video_info)
+                
+                videos.extend(batch_videos)
+                
+                # Look for more continuation tokens
+                continuation_tokens = self._extract_continuation_tokens(response)
+                for token in continuation_tokens:
+                    if token not in continuations:
+                        continuations.append(token)
+                
+                logger.info(f"Continuation batch: fetched {len(batch_videos)} videos, total: {len(videos)}")
+                
+                # Sleep between requests to avoid rate limiting
+                if continuations and sleep_time > 0:
+                    await asyncio.sleep(sleep_time)
+            
+            return videos[:max_videos] if max_videos > 0 else videos
             
         except Exception as e:
             logger.error(f"Failed to get channel videos for {channel_id}: {e}")
             return []
+
+    async def get_all_channel_videos(
+            self,
+            channel_id: str,
+            sleep_time: float = 0.1
+    ) -> List[Dict]:
+        """
+        Get all available videos from a YouTube channel (no limit)
+        
+        Args:
+            channel_id: YouTube channel ID (can be UC... format, @username, or custom name)
+            sleep_time: Sleep time between requests
+            
+        Returns:
+            List of all available video information
+        """
+        return await self.get_channel_videos(
+            channel_id=channel_id,
+            max_videos=0,  # 0 means no limit
+            sleep_time=sleep_time
+        )
 
     async def get_trending_videos(self) -> List[Dict]:
         """
