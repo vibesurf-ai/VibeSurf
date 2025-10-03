@@ -6,6 +6,8 @@ VibeSurf is an open-source AI agentic browser that revolutionizes browser automa
 
 If you're as excited about open-source AI browsing as I am, give it a star! ⭐
 
+[中文](README_zh.md) | [English](README.md)
+
 ## ✨ Key Features
 
 - 🧠 **Advanced AI Automation**: Beyond browser automation, VibeSurf performs deep research, intelligent crawling, content summarization, and more to exploration.
@@ -42,11 +44,29 @@ uv pip install vibesurf -U
 uv run vibesurf
 ```
 
-## 🗺️ Roadmap
+## 👩‍💻 For Contributors
+
+Want to contribute to VibeSurf? Here are two ways to set up your development environment:
+
+### Method 1: Direct Server Run
+Run the backend server directly using uvicorn:
+```bash
+uvicorn vibe_surf.backend.main:app --host 127.0.0.1 --port 9335
+```
+
+### Method 2: Editable Installation
+Install the package in editable mode and run using the CLI:
+```bash
+uv pip install -e .
+uv run vibesurf
+```
+
+Choose the method that works best for your development workflow!
+## �️ Roadmap
 
 We're building VibeSurf to be your ultimate AI browser companion. Here's what's coming next:
 
-- [ ] **Smart Skills System**: Add `/search` for quick information search and `/crawl` for automatic website data extraction
+- [x] **Smart Skills System**: Add `/search` for quick information search and `/crawl` for automatic website data extraction
 - [ ] **Powerful Coding Agent**: Build a comprehensive coding assistant for data processing and analysis directly in your browser
 - [ ] **Third-Party Integrations**: Connect with n8n workflows and other tools to combine browsing with automation
 - [ ] **Custom Workflow Templates**: Create reusable templates for auto-login, data collection, and complex browser automation

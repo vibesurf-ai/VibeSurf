@@ -281,22 +281,17 @@ async def test_website_api(main_browser_session: AgentBrowserSession):
 
     # from vibe_surf.tools.website_api.weibo.client import WeiboApiClient
     # from vibe_surf.tools.website_api.weibo.helpers import SearchType
-    #
     # wb_client = WeiboApiClient(browser_session=main_browser_session)
     # await wb_client.setup()
     # ret = await wb_client.search_posts_by_keyword("Sora2", search_type=SearchType.POPULAR)
     # # pdb.set_trace()
     # mid = ret[0]['note_id']
     # user_id = ret[0]['user_id']
-
     # ret = await wb_client.get_post_detail(mid=mid)
-    # pdb.set_trace()
-    # ret = await wb_client.get_post_comments(mid=mid)
     # pdb.set_trace()
     # ret = await wb_client.get_all_post_comments(mid=mid)
     # pdb.set_trace()
     # ret1 = await wb_client.get_user_info(user_id=user_id)
-    # ret2 = await wb_client.get_user_posts(user_id=user_id)
     # ret3 = await wb_client.get_all_user_posts(user_id=user_id)
     # pdb.set_trace()
     # ret = await wb_client.get_hot_posts()
