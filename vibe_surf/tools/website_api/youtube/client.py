@@ -5,6 +5,7 @@ import re
 import copy
 import time
 import urllib.parse
+import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Callable, Union, Any
 import httpx
 from tenacity import retry, stop_after_attempt, wait_fixed
@@ -1024,65 +1025,45 @@ class YouTubeApiClient:
     async def get_channel_videos(
             self,
             channel_id: str,
-            max_videos: int = 20,
-            continuation_token: Optional[str] = None
+            max_videos: int = 20
     ) -> List[Dict]:
         """
-        Get videos from a YouTube channel
+        Get videos from a YouTube channel by extracting from HTML page initial_data
         
         Args:
-            channel_id: YouTube channel ID
+            channel_id: YouTube channel ID (can be UC... format, @username, or custom name)
             max_videos: Maximum number of videos to fetch
-            continuation_token: Token for pagination
             
         Returns:
             List of simplified video information
         """
         try:
-            # Use browse API to get channel videos
-            if continuation_token:
-                data = {"continuation": continuation_token}
-            else:
-                data = {
-                    "browseId": channel_id,
-                    "params": "EgZ2aWRlb3MYAiAAOgIIAQ%3D%3D"  # Videos tab params
-                }
+            videos_url = f"https://www.youtube.com/@{channel_id}/videos"
 
-            response = await self._make_api_request("browse", data)
-
+            # Make request to videos page
+            response = await self._make_request(
+                "GET", videos_url, headers=self.default_headers, raw_response=True
+            )
+            
+            html_content = response.text
+            initial_data = extract_initial_data(html_content)
+            if not initial_data:
+                logger.error("Failed to extract initial data from videos page")
+                return []
+            
+            # Find video renderers in the page data using existing method
+            video_renderers = self._find_video_renderers(initial_data)
+            
             videos = []
-
-            # Navigate to video list in response
-            if continuation_token:
-                # Handle continuation response
-                endpoints = response.get("onResponseReceivedActions", [])
-                for endpoint in endpoints:
-                    items = endpoint.get("appendContinuationItemsAction", {}).get("continuationItems", [])
-                    for item in items:
-                        video_data = item.get("gridVideoRenderer", {})
-                        if video_data and len(videos) < max_videos:
-                            video_info = self._extract_video_info(video_data)
-                            if video_info:
-                                videos.append(video_info)
-            else:
-                # Handle initial response
-                contents = response.get("contents", {}).get("twoColumnBrowseResultsRenderer", {}).get("tabs", [])
-                for tab in contents:
-                    tab_renderer = tab.get("tabRenderer", {})
-                    if tab_renderer.get("title") == "Videos":
-                        items = tab_renderer.get("content", {}).get("sectionListRenderer", {}).get("contents", [])
-                        for section in items:
-                            grid_items = section.get("itemSectionRenderer", {}).get("contents", [{}])[0].get(
-                                "gridRenderer", {}).get("items", [])
-                            for item in grid_items:
-                                video_data = item.get("gridVideoRenderer", {})
-                                if video_data and len(videos) < max_videos:
-                                    video_info = self._extract_video_info(video_data)
-                                    if video_info:
-                                        videos.append(video_info)
-
+            for video_data in video_renderers[:max_videos]:
+                video_info = self._extract_video_info(video_data)
+                video_info['channel_id'] = channel_id
+                if video_info:
+                    videos.append(video_info)
+            
+            logger.info(f"Successfully extracted {len(videos)} videos from HTML initial_data")
             return videos
-
+            
         except Exception as e:
             logger.error(f"Failed to get channel videos for {channel_id}: {e}")
             return []
