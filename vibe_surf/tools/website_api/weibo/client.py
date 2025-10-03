@@ -112,13 +112,14 @@ class WeiboApiClient:
 
             if not is_logged_in:
                 logger.warning("User is not logged in to Weibo, redirecting to login page")
-                
+
                 # Navigate to Weibo SSO login page
                 weibo_sso_login_url = "https://passport.weibo.com/sso/signin?entry=miniblog&source=miniblog"
                 await self.browser_session.navigate_to_url(weibo_sso_login_url, new_tab=True)
 
                 # Raise authentication error to inform user they need to login
-                raise AuthenticationError("User is not logged in to Weibo. Please complete login process and try again.")
+                raise AuthenticationError(
+                    "User is not logged in to Weibo. Please complete login process and try again.")
 
             logger.info("Weibo client setup completed successfully")
 
@@ -128,7 +129,6 @@ class WeiboApiClient:
         except Exception as e:
             logger.error(f"Failed to setup Weibo client: {e}")
             raise AuthenticationError(f"Setup failed: {e}")
-
 
     async def pong(self) -> bool:
         """Check if login state is valid using multiple methods"""
@@ -217,7 +217,7 @@ class WeiboApiClient:
             Response data
         """
         raw_response = kwargs.pop("raw_response", False)
-        
+
         async with httpx.AsyncClient(proxy=self.proxy, timeout=self.timeout) as client:
             response = await client.request(method, url, **kwargs)
         # Handle common error status codes
@@ -235,7 +235,7 @@ class WeiboApiClient:
 
         try:
             data = response.json()
-            
+
             # Check Weibo API response format
             if isinstance(data, dict):
                 ok_code = data.get("ok")
@@ -251,20 +251,21 @@ class WeiboApiClient:
                     error_msg = data.get("msg", "Unknown error")
                     logger.error(f"Weibo API unknown error: {error_msg}")
                     raise DataExtractionError(error_msg)
-            
+
             return data
-            
+
         except json.JSONDecodeError:
             raise DataExtractionError(f"Invalid JSON response: {response.text[:200]}")
 
-    async def _get_request(self, endpoint: str, params: Optional[Dict] = None, headers: Optional[Dict] = None, **kwargs) -> Dict:
+    async def _get_request(self, endpoint: str, params: Optional[Dict] = None, headers: Optional[Dict] = None,
+                           **kwargs) -> Dict:
         """Make GET request with proper headers and parameters"""
         final_endpoint = endpoint
         if params:
             final_endpoint = f"{endpoint}?{urllib.parse.urlencode(params)}"
-        
+
         request_headers = headers or self.default_headers
-        
+
         return await self._make_request(
             "GET", f"{self._api_base}{final_endpoint}",
             headers=request_headers,
@@ -275,17 +276,17 @@ class WeiboApiClient:
         """Make POST request with proper headers and data"""
         request_headers = headers or self.default_headers
         json_payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
-        
+
         return await self._make_request(
             "POST", f"{self._api_base}{endpoint}",
             data=json_payload, headers=request_headers
         )
 
     async def search_posts_by_keyword(
-        self,
-        keyword: str,
-        page: int = 1,
-        search_type: SearchType = SearchType.DEFAULT,
+            self,
+            keyword: str,
+            page: int = 1,
+            search_type: SearchType = SearchType.DEFAULT,
     ) -> List[Dict]:
         """
         Search Weibo posts by keyword
@@ -300,13 +301,13 @@ class WeiboApiClient:
         """
         endpoint = "/api/container/getIndex"
         container_id = create_container_id(search_type, keyword)
-        
+
         params = {
             "containerid": container_id,
             "page_type": "searchall",
             "page": str(page),
         }
-        
+
         raw_response = await self._get_request(endpoint, params)
         posts = []
         cards = raw_response.get("cards", [])
@@ -334,7 +335,7 @@ class WeiboApiClient:
                 "avatar": user_info.get("profile_image_url", ""),
             }
             posts.append(post)
-        
+
         return posts
 
     async def get_post_detail(self, mid: str) -> Optional[Dict]:
@@ -359,7 +360,7 @@ class WeiboApiClient:
             if note_detail:
                 user_info = note_detail.get("user", {})
                 clean_text = re.sub(r"<.*?>", "", note_detail.get("text", ""))
-                
+
                 return {
                     "note_id": note_detail.get("id"),
                     "content": clean_text,
@@ -375,15 +376,15 @@ class WeiboApiClient:
                     "profile_url": user_info.get("profile_url", ""),
                     "avatar": user_info.get("profile_image_url", ""),
                 }
-        
+
         logger.warning(f"Could not extract render data for post {mid}")
         return None
 
     async def get_post_comments(
-        self,
-        mid: str,
-        max_id: int = 0,
-        max_id_type: int = 0
+            self,
+            mid: str,
+            max_id: int = 0,
+            max_id_type: int = 0
     ) -> List[Dict]:
         """
         Get comments for a Weibo post
@@ -397,31 +398,31 @@ class WeiboApiClient:
             List of simplified comment information
         """
         endpoint = "/comments/hotflow"
-        
+
         params = {
             "id": mid,
             "mid": mid,
             "max_id_type": str(max_id_type),
         }
-        
+
         if max_id > 0:
             params["max_id"] = str(max_id)
-        
+
         # Set referer for comment requests
         headers = copy.deepcopy(self.default_headers)
         headers["Referer"] = f"https://m.weibo.cn/detail/{mid}"
-        
+
         raw_response = await self._get_request(endpoint, params, headers)
-        
+
         # Return simplified comments
         comments = []
         for comment in raw_response.get("data", []):
             if not comment.get("id"):
                 continue
-                
+
             user_info = comment.get("user", {})
             clean_text = re.sub(r"<.*?>", "", comment.get("text", ""))
-            
+
             comment_data = {
                 "comment_id": str(comment.get("id")),
                 "content": clean_text,
@@ -437,16 +438,16 @@ class WeiboApiClient:
                 "avatar": user_info.get("profile_image_url", ""),
             }
             comments.append(comment_data)
-        
+
         return comments
 
     async def get_all_post_comments(
-        self,
-        mid: str,
-        fetch_interval: float = 1.0,
-        include_sub_comments: bool = False,
-        progress_callback: Optional[Callable] = None,
-        max_comments: int = 1000,
+            self,
+            mid: str,
+            fetch_interval: float = 1.0,
+            include_sub_comments: bool = False,
+            progress_callback: Optional[Callable] = None,
+            max_comments: int = 1000,
     ) -> List[Dict]:
         """
         Fetch all comments for a post including sub-comments
@@ -469,36 +470,36 @@ class WeiboApiClient:
         while not is_end and len(all_comments) < max_comments:
             # Get raw response to access pagination info
             endpoint = "/comments/hotflow"
-            
+
             params = {
                 "id": mid,
                 "mid": mid,
                 "max_id_type": str(max_id_type),
             }
-            
+
             if max_id > 0:
                 params["max_id"] = str(max_id)
-            
+
             # Set referer for comment requests
             headers = copy.deepcopy(self.default_headers)
             headers["Referer"] = f"https://m.weibo.cn/detail/{mid}"
-            
+
             raw_response = await self._get_request(endpoint, params, headers)
-            
+
             # Extract pagination info from raw response
             max_id = raw_response.get("max_id", 0)
             max_id_type = raw_response.get("max_id_type", 0)
             is_end = max_id == 0
-            
+
             # Transform to simplified comments
             batch_comments = []
             for comment in raw_response.get("data", []):
                 if not comment.get("id"):
                     continue
-                    
+
                 user_info = comment.get("user", {})
                 clean_text = re.sub(r"<.*?>", "", comment.get("text", ""))
-                
+
                 comment_data = {
                     "comment_id": str(comment.get("id")),
                     "content": clean_text,
@@ -514,15 +515,15 @@ class WeiboApiClient:
                     "avatar": user_info.get("profile_image_url", ""),
                 }
                 batch_comments.append(comment_data)
-            
+
             # Limit comments if approaching max
             remaining_slots = max_comments - len(all_comments)
             if len(batch_comments) > remaining_slots:
                 batch_comments = batch_comments[:remaining_slots]
-            
+
             if progress_callback:
                 await progress_callback(mid, batch_comments)
-            
+
             await asyncio.sleep(fetch_interval)
             all_comments.extend(batch_comments)
 
@@ -540,33 +541,33 @@ class WeiboApiClient:
             Simplified user profile information
         """
         endpoint = "/api/container/getIndex"
-        
+
         # Set proper headers for user info request
         headers = copy.deepcopy(self.default_headers)
         headers["Referer"] = f"{self._api_base}/u/{user_id}"
-        
+
         # Use standard user profile container ID
         params = {
             "type": "uid",
             "value": user_id,
             "containerid": f"100505{user_id}",  # Standard user profile container
         }
-        
+
         try:
             user_data = await self._get_request(endpoint, params, headers)
             # Extract user info from cards if available
             user_info = user_data.get('userInfo', {})
             user_info["user_id"] = user_info.get("id", user_id)
             return user_info
-            
+
         except Exception as e:
             logger.error(f"Failed to get user info for {user_id}: {e}")
             return None
 
     async def get_user_posts(
-        self,
-        user_id: str,
-        since_id: str = "0",
+            self,
+            user_id: str,
+            since_id: str = "0",
     ) -> Optional[Dict]:
         """
         Get posts by user
@@ -592,7 +593,7 @@ class WeiboApiClient:
             "containerid": f"100505{user_id}",
             "since_id": since_id,
         }
-        
+
         response = await self._get_request(endpoint, params)
         containerid = f"100505{user_id}"
         if response.get("tabsInfo"):
@@ -619,10 +620,10 @@ class WeiboApiClient:
                 mblog = card.get("mblog", {})
                 if not mblog.get("id"):
                     continue
-                
+
                 user_info = mblog.get("user", {})
                 clean_text = re.sub(r"<.*?>", "", mblog.get("text", ""))
-                
+
                 post = {
                     "note_id": mblog.get("id"),
                     "content": clean_text,
@@ -639,7 +640,7 @@ class WeiboApiClient:
                     "avatar": user_info.get("profile_image_url", ""),
                 }
                 posts.append(post)
-        
+
         return {
             "posts": posts,
             "pagination": {
@@ -649,11 +650,11 @@ class WeiboApiClient:
         }
 
     async def get_all_user_posts(
-        self,
-        user_id: str,
-        fetch_interval: float = 1.0,
-        progress_callback: Optional[Callable] = None,
-        max_posts: int = 1000,
+            self,
+            user_id: str,
+            fetch_interval: float = 1.0,
+            progress_callback: Optional[Callable] = None,
+            max_posts: int = 1000,
     ) -> List[Dict]:
         """
         Fetch all posts by a user
@@ -675,7 +676,7 @@ class WeiboApiClient:
         while has_more and len(all_posts) < max_posts:
             # Get raw response to access pagination info and then transform
             endpoint = "/api/container/getIndex"
-            
+
             params = {
                 "jumpfrom": "weibocom",
                 "type": "uid",
@@ -683,20 +684,19 @@ class WeiboApiClient:
                 "containerid": f"100505{user_id}",
                 "since_id": since_id,
             }
-            
+
             raw_posts_data = await self._get_request(endpoint, params)
-            
+
             if not raw_posts_data:
                 logger.error(f"User {user_id} may be restricted or data unavailable")
                 break
-            
+
             # Extract pagination info from raw response
             since_id = raw_posts_data.get("cardlistInfo", {}).get("since_id", "0")
-            pdb.set_trace()
             if "cards" not in raw_posts_data:
                 logger.info(f"No posts found in response for user {user_id}")
                 break
-            
+
             # Transform to simplified posts
             posts = []
             cards = raw_posts_data.get("cards", [])
@@ -705,10 +705,10 @@ class WeiboApiClient:
                     mblog = card.get("mblog", {})
                     if not mblog.get("id"):
                         continue
-                    
+
                     user_info = mblog.get("user", {})
                     clean_text = re.sub(r"<.*?>", "", mblog.get("text", ""))
-                    
+
                     post = {
                         "note_id": mblog.get("id"),
                         "content": clean_text,
@@ -725,21 +725,21 @@ class WeiboApiClient:
                         "avatar": user_info.get("profile_image_url", ""),
                     }
                     posts.append(post)
-            
+
             logger.info(f"Fetched {len(posts)} posts for user {user_id}")
-            
+
             remaining_slots = max_posts - len(all_posts)
             if remaining_slots <= 0:
                 break
-                
+
             posts_to_add = posts[:remaining_slots]
-            
+
             if progress_callback:
                 await progress_callback(posts_to_add)
-            
+
             all_posts.extend(posts_to_add)
             await asyncio.sleep(fetch_interval)
-            
+
             crawler_total_count += 10
             total_available = raw_posts_data.get("cardlistInfo", {}).get("total", 0)
             has_more = total_available > crawler_total_count and since_id != "0"
@@ -758,9 +758,9 @@ class WeiboApiClient:
         params = {
             "containerid": TrendingConstants.TRENDING_CONTAINER_ID
         }
-        
+
         raw_response = await self._get_request(endpoint, params)
-        
+
         # Transform to simplified posts
         posts = []
         cards = raw_response.get("statuses", [])
@@ -787,7 +787,7 @@ class WeiboApiClient:
                 "avatar": user_info.get("profile_image_url", ""),
             }
             posts.append(post)
-        
+
         return posts
 
     async def get_hot_posts(self) -> List[Dict]:
@@ -802,9 +802,9 @@ class WeiboApiClient:
             "containerid": TrendingConstants.HOT_POSTS_CONTAINER_ID,
             "openApp": TrendingConstants.OPEN_APP
         }
-        
+
         raw_response = await self._get_request(endpoint, params)
-        
+
         # Transform to simplified posts (same structure as search results)
         posts = []
         cards = raw_response.get("cards", [])
@@ -833,5 +833,14 @@ class WeiboApiClient:
                     "avatar": user_info.get("profile_image_url", ""),
                 }
                 posts.append(post)
-        
+
         return posts
+
+    async def close(self):
+        if self.browser_session and self.target_id:
+            try:
+                logger.info(f"Close target id: {self.target_id}")
+                await self.browser_session.cdp_client.send.Target.closeTarget(params={'targetId': self.target_id})
+            except Exception as e:
+                logger.warning(f"Error closing target {self.target_id}: {e}")
+

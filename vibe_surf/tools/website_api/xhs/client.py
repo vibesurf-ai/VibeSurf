@@ -359,7 +359,6 @@ class XiaoHongShuApiClient:
 
         if result and result.get("items"):
             note_item = result.get("items")[0]
-            pdb.set_trace()
             note_card = note_item.get("note_card", {})
             user_info = note_card.get('user', {})
             interact_info = note_card.get('interact_info', {})
@@ -483,7 +482,6 @@ class XiaoHongShuApiClient:
             has_more = comments_data.get("has_more", False)
             cursor = comments_data.get("cursor", "")
 
-            pdb.set_trace()
             if "comments" not in comments_data:
                 logger.info(f"No more comments found: {comments_data}")
                 break
@@ -798,3 +796,12 @@ class XiaoHongShuApiClient:
             "at_users": []
         }
         return await self._post_request(endpoint, payload)
+
+    async def close(self):
+        if self.browser_session and self.target_id:
+            try:
+                logger.info(f"Close target id: {self.target_id}")
+                await self.browser_session.cdp_client.send.Target.closeTarget(params={'targetId': self.target_id})
+            except Exception as e:
+                logger.warning(f"Error closing target {self.target_id}: {e}")
+

@@ -12,6 +12,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 
 try:
     import execjs
+
     HAS_EXECJS = True
 except ImportError:
     HAS_EXECJS = False
@@ -51,7 +52,7 @@ class DouyinApiClient:
         self.proxy = proxy
         self.timeout = timeout
         self._host = "https://www.douyin.com"
-        
+
         # Default headers
         self.default_headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -87,7 +88,7 @@ class DouyinApiClient:
 
             cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
             result = await asyncio.wait_for(
-                cdp_session.cdp_client.send.Storage.getCookies(session_id=cdp_session.session_id), 
+                cdp_session.cdp_client.send.Storage.getCookies(session_id=cdp_session.session_id),
                 timeout=8.0
             )
             web_cookies = result.get('cookies', [])
@@ -135,16 +136,16 @@ class DouyinApiClient:
         if not HAS_EXECJS:
             logger.warning("execjs not available, signature generation disabled")
             return None
-            
+
         try:
             js_file_path = os.path.join(os.path.dirname(__file__), 'douyin.js')
             if not os.path.exists(js_file_path):
                 logger.warning(f"douyin.js file not found at {js_file_path}")
                 return None
-                
+
             with open(js_file_path, 'r', encoding='utf-8-sig') as f:
                 js_content = f.read()
-                
+
             return execjs.compile(js_content)
         except Exception as e:
             logger.error(f"Failed to initialize JS context: {e}")
@@ -165,28 +166,28 @@ class DouyinApiClient:
         try:
             if not hasattr(self, '_js_context'):
                 self._js_context = self._init_js_context()
-                
+
             if not self._js_context:
                 return ""
-                
+
             user_agent = self.default_headers.get('User-Agent', '')
-            
+
             # Determine the signature function name based on URI
             sign_function_name = "sign_datail"
             if "/reply" in uri:
                 sign_function_name = "sign_reply"
-                
+
             # Call the JavaScript function
             a_bogus = self._js_context.call(sign_function_name, params, user_agent)
             return a_bogus or ""
-            
+
         except Exception as e:
             logger.warning(f"Failed to generate a-bogus signature: {e}")
             return ""
 
     async def _prepare_request_params(self, uri: str, params: Optional[Dict] = None,
-                                    headers: Optional[Dict] = None, request_method: str = "GET",
-                                    post_data: Optional[Dict] = None):
+                                      headers: Optional[Dict] = None, request_method: str = "GET",
+                                      post_data: Optional[Dict] = None):
         """
         Prepare request parameters with common Douyin parameters and signatures
         
@@ -199,28 +200,28 @@ class DouyinApiClient:
         """
         if not params:
             params = {}
-            
+
         headers = headers or copy.deepcopy(self.default_headers)
-        
+
         # Add common parameters
         common_params = create_common_params()
-        
+
         # Add msToken from local storage
         ms_token = await self._get_local_storage_token()
         if ms_token:
             common_params["msToken"] = ms_token
-            
+
         params.update(common_params)
-        
+
         # Generate query string
         query_string = urllib.parse.urlencode(params)
-        
+
         # Get a-bogus signature
         post_data = post_data or {}
         a_bogus = await self._get_a_bogus_signature(uri, query_string, post_data)
         if a_bogus:
             params["a_bogus"] = a_bogus
-            
+
         return params, headers
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
@@ -246,14 +247,14 @@ class DouyinApiClient:
 
         try:
             data = response.json()
-            
+
             # Check for successful response
             if response.status_code == 200:
                 return data
             else:
                 error_msg = data.get("message", "Request failed")
                 raise DataExtractionError(f"API error: {error_msg}")
-                
+
         except json.JSONDecodeError:
             if response.status_code == 200:
                 return response.text
@@ -271,13 +272,13 @@ class DouyinApiClient:
         return await self._make_request("POST", f"{self._host}{uri}", data=data, headers=headers)
 
     async def search_content_by_keyword(
-        self,
-        keyword: str,
-        offset: int = 0,
-        search_channel: SearchChannelType = SearchChannelType.GENERAL,
-        sort_type: SearchSortType = SearchSortType.GENERAL,
-        publish_time: PublishTimeType = PublishTimeType.UNLIMITED,
-        search_id: str = "",
+            self,
+            keyword: str,
+            offset: int = 0,
+            search_channel: SearchChannelType = SearchChannelType.GENERAL,
+            sort_type: SearchSortType = SearchSortType.GENERAL,
+            publish_time: PublishTimeType = PublishTimeType.UNLIMITED,
+            search_id: str = "",
     ) -> List[Dict]:
         """
         Search content by keyword using Douyin Web Search API
@@ -306,11 +307,11 @@ class DouyinApiClient:
             'list_type': 'multi',
             'search_id': search_id,
         }
-        
+
         # Add filters if not default
         if sort_type.value != SearchSortType.GENERAL.value or publish_time.value != PublishTimeType.UNLIMITED.value:
             query_params["filter_selected"] = json.dumps({
-                "sort_type": str(sort_type.value), 
+                "sort_type": str(sort_type.value),
                 "publish_time": str(publish_time.value)
             })
             query_params["is_filter_search"] = 1
@@ -319,23 +320,24 @@ class DouyinApiClient:
         referer_url = create_referer_url(keyword=keyword)
         headers = copy.copy(self.default_headers)
         headers["Referer"] = referer_url
-        
+
         search_result = await self.get_request("/aweme/v1/web/general/search/single/", query_params, headers)
-        
+
         # Return simplified aweme list
         aweme_list = []
         for post_item in search_result.get("data", []):
             try:
-                aweme_info: Dict = (post_item.get("aweme_info") or post_item.get("aweme_mix_info", {}).get("mix_items")[0])
+                aweme_info: Dict = (
+                            post_item.get("aweme_info") or post_item.get("aweme_mix_info", {}).get("mix_items")[0])
             except (TypeError, IndexError):
                 continue
-                
+
             if not aweme_info or not aweme_info.get("aweme_id"):
                 continue
-                
+
             user_info = aweme_info.get("author", {})
             interact_info = aweme_info.get("statistics", {})
-            
+
             # Simplified aweme data
             aweme_data = {
                 "aweme_id": aweme_info.get("aweme_id"),
@@ -357,7 +359,7 @@ class DouyinApiClient:
                 "aweme_url": f"https://www.douyin.com/video/{aweme_info.get('aweme_id')}",
             }
             aweme_list.append(aweme_data)
-            
+
         return aweme_list
 
     async def fetch_video_details(self, aweme_id: str) -> Dict:
@@ -374,16 +376,16 @@ class DouyinApiClient:
         headers = copy.copy(self.default_headers)
         if "Origin" in headers:
             del headers["Origin"]
-            
+
         response = await self.get_request("/aweme/v1/web/aweme/detail/", params, headers)
         aweme_detail = response.get("aweme_detail", {})
-        
+
         if not aweme_detail:
             return {}
-            
+
         user_info = aweme_detail.get("author", {})
         interact_info = aweme_detail.get("statistics", {})
-        
+
         return {
             "aweme_id": aweme_detail.get("aweme_id"),
             "aweme_type": str(aweme_detail.get("aweme_type", "")),
@@ -417,29 +419,29 @@ class DouyinApiClient:
         """
         uri = "/aweme/v1/web/comment/list/"
         params = {
-            "aweme_id": aweme_id, 
-            "cursor": cursor, 
-            "count": 20, 
+            "aweme_id": aweme_id,
+            "cursor": cursor,
+            "count": 20,
             "item_type": 0
         }
-        
+
         headers = copy.copy(self.default_headers)
         headers["Referer"] = create_referer_url(aweme_id=aweme_id)
-        
+
         response = await self.get_request(uri, params, headers)
-        
+
         # Return simplified comments
         comments = []
         for comment_item in response.get("comments", []):
             if not comment_item.get("cid"):
                 continue
-                
+
             user_info = comment_item.get("user", {})
-            avatar_info = (user_info.get("avatar_medium", {}) or 
-                          user_info.get("avatar_300x300", {}) or 
-                          user_info.get("avatar_168x168", {}) or 
-                          user_info.get("avatar_thumb", {}) or {})
-            
+            avatar_info = (user_info.get("avatar_medium", {}) or
+                           user_info.get("avatar_300x300", {}) or
+                           user_info.get("avatar_168x168", {}) or
+                           user_info.get("avatar_thumb", {}) or {})
+
             comment_data = {
                 "comment_id": comment_item.get("cid"),
                 "create_time": comment_item.get("create_time"),
@@ -457,7 +459,7 @@ class DouyinApiClient:
                 "parent_comment_id": comment_item.get("reply_id", "0"),
             }
             comments.append(comment_data)
-            
+
         return comments
 
     async def fetch_comment_replies(self, aweme_id: str, comment_id: str, cursor: int = 0) -> List[Dict]:
@@ -480,24 +482,24 @@ class DouyinApiClient:
             "item_type": 0,
             "item_id": aweme_id,
         }
-        
+
         headers = copy.copy(self.default_headers)
         headers["Referer"] = create_referer_url(aweme_id=aweme_id)
-        
+
         response = await self.get_request(uri, params, headers)
-        
+
         # Return simplified reply comments
         replies = []
         for comment_item in response.get("comments", []):
             if not comment_item.get("cid"):
                 continue
-                
+
             user_info = comment_item.get("user", {})
-            avatar_info = (user_info.get("avatar_medium", {}) or 
-                          user_info.get("avatar_300x300", {}) or 
-                          user_info.get("avatar_168x168", {}) or 
-                          user_info.get("avatar_thumb", {}) or {})
-            
+            avatar_info = (user_info.get("avatar_medium", {}) or
+                           user_info.get("avatar_300x300", {}) or
+                           user_info.get("avatar_168x168", {}) or
+                           user_info.get("avatar_thumb", {}) or {})
+
             reply_data = {
                 "comment_id": comment_item.get("cid"),
                 "create_time": comment_item.get("create_time"),
@@ -515,16 +517,16 @@ class DouyinApiClient:
                 "parent_comment_id": comment_id,
             }
             replies.append(reply_data)
-            
+
         return replies
 
     async def fetch_all_video_comments(
-        self,
-        aweme_id: str,
-        fetch_interval: float = 1.0,
-        include_replies: bool = False,
-        progress_callback: Optional[Callable] = None,
-        max_comments: int = 1000,
+            self,
+            aweme_id: str,
+            fetch_interval: float = 1.0,
+            include_replies: bool = False,
+            progress_callback: Optional[Callable] = None,
+            max_comments: int = 1000,
     ) -> List[Dict]:
         """
         Fetch all comments for a video, including replies if requested
@@ -542,35 +544,35 @@ class DouyinApiClient:
         all_comments = []
         has_more = True
         cursor = 0
-        
+
         while has_more and len(all_comments) < max_comments:
             uri = "/aweme/v1/web/comment/list/"
             params = {
-                "aweme_id": aweme_id, 
-                "cursor": cursor, 
-                "count": 20, 
+                "aweme_id": aweme_id,
+                "cursor": cursor,
+                "count": 20,
                 "item_type": 0
             }
-            
+
             headers = copy.copy(self.default_headers)
             headers["Referer"] = create_referer_url(aweme_id=aweme_id)
-            
+
             comments_data = await self.get_request(uri, params, headers)
             has_more = comments_data.get("has_more", False)
             cursor = comments_data.get("cursor", 0)
-            
+
             # Get simplified comments from this batch
             batch_comments = []
             for comment_item in comments_data.get("comments", []):
                 if not comment_item.get("cid"):
                     continue
-                    
+
                 user_info = comment_item.get("user", {})
-                avatar_info = (user_info.get("avatar_medium", {}) or 
-                              user_info.get("avatar_300x300", {}) or 
-                              user_info.get("avatar_168x168", {}) or 
-                              user_info.get("avatar_thumb", {}) or {})
-                
+                avatar_info = (user_info.get("avatar_medium", {}) or
+                               user_info.get("avatar_300x300", {}) or
+                               user_info.get("avatar_168x168", {}) or
+                               user_info.get("avatar_thumb", {}) or {})
+
                 comment_data = {
                     "comment_id": comment_item.get("cid"),
                     "create_time": comment_item.get("create_time"),
@@ -588,40 +590,40 @@ class DouyinApiClient:
                     "parent_comment_id": comment_item.get("reply_id", "0"),
                 }
                 batch_comments.append(comment_data)
-            
+
             if not batch_comments:
                 break
-                
+
             # Limit comments to max_comments
             remaining_slots = max_comments - len(all_comments)
             if remaining_slots <= 0:
                 break
-                
+
             if len(batch_comments) > remaining_slots:
                 batch_comments = batch_comments[:remaining_slots]
-                
+
             all_comments.extend(batch_comments)
-            
+
             if progress_callback:
                 await progress_callback(aweme_id, batch_comments)
-                
+
             await asyncio.sleep(fetch_interval)
-            
+
             # Fetch replies if requested
             if include_replies:
                 for comment in batch_comments:
                     reply_count = int(comment.get("sub_comment_count", 0))
-                    
+
                     if reply_count > 0:
                         comment_id = comment.get("comment_id")
                         replies = await self.fetch_comment_replies(aweme_id, comment_id, 0)
                         all_comments.extend(replies)
-                        
+
                         if progress_callback:
                             await progress_callback(aweme_id, replies)
-                            
+
                         await asyncio.sleep(fetch_interval)
-                            
+
         logger.info(f"Fetched {len(all_comments)} comments for video {aweme_id}")
         return all_comments
 
@@ -642,14 +644,14 @@ class DouyinApiClient:
             "personal_center_strategy": 1,
         }
         response = await self.get_request(uri, params)
-        
+
         user_data = response.get("user", {})
         if not user_data:
             return {}
-            
+
         gender_map = {0: "未知", 1: "男", 2: "女"}
         avatar_uri = user_data.get("avatar_300x300", {}).get("uri", "")
-        
+
         return {
             "user_id": user_data.get("uid"),
             "nickname": user_data.get("nickname"),
@@ -683,16 +685,16 @@ class DouyinApiClient:
             "publish_video_strategy_type": 2,
         }
         response = await self.get_request(uri, params)
-        
+
         # Return simplified aweme list
         aweme_list = []
         for aweme_info in response.get("aweme_list", []):
             if not aweme_info.get("aweme_id"):
                 continue
-                
+
             user_info = aweme_info.get("author", {})
             interact_info = aweme_info.get("statistics", {})
-            
+
             aweme_data = {
                 "aweme_id": aweme_info.get("aweme_id"),
                 "aweme_type": str(aweme_info.get("aweme_type", "")),
@@ -713,14 +715,14 @@ class DouyinApiClient:
                 "aweme_url": f"https://www.douyin.com/video/{aweme_info.get('aweme_id')}",
             }
             aweme_list.append(aweme_data)
-            
+
         return aweme_list
 
     async def fetch_all_user_videos(
-        self, 
-        sec_user_id: str, 
-        progress_callback: Optional[Callable] = None,
-        max_videos: int = 1000
+            self,
+            sec_user_id: str,
+            progress_callback: Optional[Callable] = None,
+            max_videos: int = 1000
     ) -> List[Dict]:
         """
         Fetch all videos from a user
@@ -736,7 +738,7 @@ class DouyinApiClient:
         all_videos = []
         has_more = True
         max_cursor = ""
-        
+
         while has_more and len(all_videos) < max_videos:
             uri = "/aweme/v1/web/aweme/post/"
             params = {
@@ -749,16 +751,16 @@ class DouyinApiClient:
             videos_data = await self.get_request(uri, params)
             has_more = videos_data.get("has_more", False)
             max_cursor = videos_data.get("max_cursor", "")
-            
+
             # Get simplified videos from this batch
             batch_videos = []
             for aweme_info in videos_data.get("aweme_list", []):
                 if not aweme_info.get("aweme_id"):
                     continue
-                    
+
                 user_info = aweme_info.get("author", {})
                 interact_info = aweme_info.get("statistics", {})
-                
+
                 aweme_data = {
                     "aweme_id": aweme_info.get("aweme_id"),
                     "aweme_type": str(aweme_info.get("aweme_type", "")),
@@ -779,25 +781,25 @@ class DouyinApiClient:
                     "aweme_url": f"https://www.douyin.com/video/{aweme_info.get('aweme_id')}",
                 }
                 batch_videos.append(aweme_data)
-            
+
             if not batch_videos:
                 break
-                
+
             remaining_slots = max_videos - len(all_videos)
             if remaining_slots <= 0:
                 break
-                
+
             if len(batch_videos) > remaining_slots:
                 batch_videos = batch_videos[:remaining_slots]
-                
+
             all_videos.extend(batch_videos)
             logger.info(f"Fetched {len(batch_videos)} videos for user {sec_user_id}, total: {len(all_videos)}")
-            
+
             if progress_callback:
                 await progress_callback(batch_videos)
-                
+
             await asyncio.sleep(1.0)  # Rate limiting
-            
+
         return all_videos
 
     async def check_login_status(self) -> bool:
@@ -810,9 +812,9 @@ class DouyinApiClient:
         try:
             if not self.target_id:
                 return False
-                
+
             cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
-            
+
             # Check localStorage for login status
             result = await cdp_session.cdp_client.send.Runtime.evaluate(
                 params={
@@ -821,14 +823,23 @@ class DouyinApiClient:
                 },
                 session_id=cdp_session.session_id,
             )
-            
+
             has_user_login = result.get('result', {}).get('value')
             if has_user_login == "1":
                 return True
-                
+
             # Also check cookies for LOGIN_STATUS
             return self.cookies.get("LOGIN_STATUS") == "1"
-            
+
         except Exception as e:
             logger.error(f"Failed to check login status: {e}")
             return False
+
+    async def close(self):
+        if self.browser_session and self.target_id:
+            try:
+                logger.info(f"Close target id: {self.target_id}")
+                await self.browser_session.cdp_client.send.Target.closeTarget(params={'targetId': self.target_id})
+            except Exception as e:
+                logger.warning(f"Error closing target {self.target_id}: {e}")
+

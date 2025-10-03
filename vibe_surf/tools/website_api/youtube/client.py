@@ -313,7 +313,7 @@ class YouTubeApiClient:
         try:
             videos = []
             continuations = []
-            
+
             if continuation_token:
                 # Use provided continuation token
                 continuations.append(continuation_token)
@@ -321,7 +321,7 @@ class YouTubeApiClient:
                 # Initial search request
                 data = {"query": query}
                 response = await self._make_api_request("search", data)
-                
+
                 # Extract videos from initial response
                 video_renderers = self._find_video_renderers(response)
                 for video_data in video_renderers:
@@ -330,7 +330,7 @@ class YouTubeApiClient:
                     video_info = self._extract_video_info(video_data)
                     if video_info:
                         videos.append(video_info)
-                
+
                 # Extract continuation tokens for more results
                 continuation_tokens = self._extract_continuation_tokens(response)
                 continuations.extend(continuation_tokens)
@@ -338,7 +338,7 @@ class YouTubeApiClient:
             # Process continuation tokens for more videos
             while continuations and (max_results == 0 or len(videos) < max_results):
                 current_continuation = continuations.pop(0)
-                
+
                 # Make API request with continuation token
                 data = {"continuation": current_continuation}
                 response = await self._make_api_request("search", data)
@@ -349,7 +349,7 @@ class YouTubeApiClient:
                 # Extract videos from continuation response
                 video_renderers = self._find_video_renderers(response)
                 batch_videos = []
-                
+
                 for video_data in video_renderers:
                     if max_results > 0 and len(videos) + len(batch_videos) >= max_results:
                         break
@@ -358,15 +358,15 @@ class YouTubeApiClient:
                         batch_videos.append(video_info)
 
                 videos.extend(batch_videos)
-                
+
                 # Look for more continuation tokens
                 continuation_tokens = self._extract_continuation_tokens(response)
                 for token in continuation_tokens:
                     if token not in continuations:
                         continuations.append(token)
-                
+
                 logger.info(f"Fetched {len(batch_videos)} videos, total: {len(videos)}")
-                
+
                 # Sleep between requests to avoid rate limiting
                 if continuations and sleep_time > 0:
                     await asyncio.sleep(sleep_time)
@@ -526,7 +526,7 @@ class YouTubeApiClient:
         try:
             comments = []
             continuations = []
-            
+
             if continuation_token:
                 # Use provided continuation token
                 continuations.append(continuation_token)
@@ -554,7 +554,7 @@ class YouTubeApiClient:
             while continuations:
                 if max_comments > 0 and len(comments) >= max_comments:
                     break
-                    
+
                 current_continuation = continuations.pop(0)
                 # Make API request for comments
                 data = {"continuation": current_continuation}
@@ -578,9 +578,10 @@ class YouTubeApiClient:
                 for action in actions:
                     target_id = action.get('targetId', '')
                     continuation_items = action.get('continuationItems', [])
-                    
+
                     # Process continuations for comments and replies
-                    if target_id in ['comments-section', 'engagement-panel-comments-section', 'shorts-engagement-panel-comments-section']:
+                    if target_id in ['comments-section', 'engagement-panel-comments-section',
+                                     'shorts-engagement-panel-comments-section']:
                         for item in continuation_items:
                             # Look for continuation endpoints for more comments
                             continuation_endpoints = self._search_dict_recursive(item, 'continuationEndpoint')
@@ -589,7 +590,7 @@ class YouTubeApiClient:
                                     token = endpoint['continuationCommand']['token']
                                     if token not in continuations:
                                         continuations.insert(0, token)  # Insert at beginning for breadth-first
-                    
+
                     # Process 'Show more replies' buttons
                     elif target_id.startswith('comment-replies-item'):
                         for item in continuation_items:
@@ -620,7 +621,7 @@ class YouTubeApiClient:
                 for comment_id in comment_entities:
                     if max_comments > 0 and len(comments) + len(batch_comments) >= max_comments:
                         break
-                        
+
                     entity = comment_entities[comment_id]
                     comment_info = self._extract_comment_from_entity(entity, toolbar_states)
                     if comment_info:
@@ -629,9 +630,9 @@ class YouTubeApiClient:
                 # Reverse to maintain chronological order (YouTube returns in reverse)
                 batch_comments.reverse()
                 comments.extend(batch_comments)
-                
+
                 logger.info(f"Fetched {len(batch_comments)} comments, total: {len(comments)}")
-                
+
                 # Sleep between requests to avoid rate limiting
                 if continuations and sleep_time > 0:
                     await asyncio.sleep(sleep_time)
@@ -641,7 +642,7 @@ class YouTubeApiClient:
         except Exception as e:
             logger.error(f"Failed to get comments for video {video_id}: {e}")
             return []
-    
+
     def _extract_initial_data_from_html(self, html_content: str) -> Optional[Dict]:
         """Extract ytInitialData from HTML content"""
         try:
@@ -654,7 +655,7 @@ class YouTubeApiClient:
         except Exception as e:
             logger.error(f"Failed to extract initial data: {e}")
             return None
-    
+
     def _find_comments_continuation(self, initial_data: Dict, sort_by: int = 1) -> Optional[str]:
         """Find comments section continuation token"""
         try:
@@ -668,27 +669,27 @@ class YouTubeApiClient:
                         for sort_filter in self._search_dict_recursive(initial_data, 'sortFilterSubMenuRenderer'):
                             sort_menu = sort_filter.get('subMenuItems', [])
                             break
-                        
+
                         if sort_menu and sort_by < len(sort_menu):
                             # Use the specified sort option
                             sort_endpoint = sort_menu[sort_by].get('serviceEndpoint', {})
                             if 'continuationCommand' in sort_endpoint:
                                 return sort_endpoint['continuationCommand']['token']
-                        
+
                         # Fallback to default continuation
                         if 'continuationCommand' in continuation_endpoint:
                             return continuation_endpoint['continuationCommand']['token']
-            
+
             return None
         except Exception as e:
             logger.error(f"Failed to find comments continuation: {e}")
             return None
-    
+
     def _search_dict_recursive(self, data: Any, search_key: str) -> List[Any]:
         """Recursively search for a key in nested dict/list structure"""
         results = []
         stack = [data]
-        
+
         while stack:
             current = stack.pop()
             if isinstance(current, dict):
@@ -699,40 +700,40 @@ class YouTubeApiClient:
                         stack.append(value)
             elif isinstance(current, list):
                 stack.extend(current)
-        
+
         return results
-    
+
     def _extract_comment_from_entity(self, entity: Dict, toolbar_states: Dict) -> Optional[Dict]:
         """Extract comment info from commentEntityPayload format"""
         try:
             properties = entity.get('properties', {})
             author = entity.get('author', {})
             toolbar = entity.get('toolbar', {})
-            
+
             comment_id = properties.get('commentId', '')
             content = properties.get('content', {}).get('content', '')
             published_time = properties.get('publishedTime', '')
-            
+
             # Author info
             author_name = author.get('displayName', '')
             author_channel_id = author.get('channelId', '')
             author_avatar = author.get('avatarThumbnailUrl', '')
-            
+
             # Engagement info
             like_count_text = toolbar.get('likeCountNotliked', '0').strip() or "0"
             like_count = self._parse_count_string(like_count_text)
             reply_count = toolbar.get('replyCount', 0)
-            
+
             # Check if comment is hearted
             toolbar_state_key = properties.get('toolbarStateKey', '')
             is_hearted = False
             if toolbar_state_key in toolbar_states:
                 heart_state = toolbar_states[toolbar_state_key].get('heartState', '')
                 is_hearted = heart_state == 'TOOLBAR_HEART_STATE_HEARTED'
-            
+
             # Check if it's a reply (comment ID contains '.')
             is_reply = '.' in comment_id
-            
+
             return {
                 "comment_id": comment_id,
                 "content": process_youtube_text(content),
@@ -746,43 +747,43 @@ class YouTubeApiClient:
                 "is_reply": is_reply,
                 "time_parsed": self._parse_time_string(published_time)
             }
-            
+
         except Exception as e:
             logger.error(f"Failed to extract comment from entity: {e}")
             return None
-    
+
     def _parse_count_string(self, count_str: str) -> int:
         """Parse YouTube count strings like '1.2K', '500', etc."""
         try:
             if not count_str or count_str == '0':
                 return 0
-            
+
             count_str = count_str.strip().upper()
-            
+
             # Handle K, M, B suffixes
             multipliers = {'K': 1000, 'M': 1000000, 'B': 1000000000}
-            
+
             for suffix, multiplier in multipliers.items():
                 if count_str.endswith(suffix):
                     number_part = count_str[:-1]
                     return int(float(number_part) * multiplier)
-            
+
             # Handle comma-separated numbers
             count_str = count_str.replace(',', '')
             return int(count_str)
-            
+
         except (ValueError, AttributeError):
             return 0
-    
+
     def _parse_time_string(self, time_str: str) -> Optional[float]:
         """Parse time string and return timestamp"""
         try:
             if not time_str:
                 return None
-            
+
             # Remove any parenthetical content
             clean_time = time_str.split('(')[0].strip()
-            
+
             # Try to parse with dateparser if available
             try:
                 import dateparser
@@ -791,7 +792,7 @@ class YouTubeApiClient:
                     return parsed.timestamp()
             except ImportError:
                 pass
-            
+
             return None
         except Exception:
             return None
@@ -852,7 +853,7 @@ class YouTubeApiClient:
             List of continuation tokens
         """
         tokens = []
-        
+
         # Search for continuation endpoints
         continuation_endpoints = self._search_dict_recursive(data, 'continuationEndpoint')
         for endpoint in continuation_endpoints:
@@ -860,14 +861,14 @@ class YouTubeApiClient:
                 token = endpoint['continuationCommand']['token']
                 if token and token not in tokens:
                     tokens.append(token)
-        
+
         # Search for continuation commands
         continuation_commands = self._search_dict_recursive(data, 'continuationCommand')
         for command in continuation_commands:
             token = command.get('token')
             if token and token not in tokens:
                 tokens.append(token)
-                
+
         return tokens
 
     def _extract_comment_info(self, comment_data: Dict) -> Optional[Dict]:
@@ -888,9 +889,10 @@ class YouTubeApiClient:
             author_text = comment_data.get("authorText", {}).get("simpleText", "")
             author_thumbnail = comment_data.get("authorThumbnail", {}).get("thumbnails", [])
             author_avatar = extract_thumbnail_url(author_thumbnail)
-            
+
             # Extract author channel ID if available
-            author_endpoint = comment_data.get("authorEndpoint", {}).get("commandMetadata", {}).get("webCommandMetadata", {})
+            author_endpoint = comment_data.get("authorEndpoint", {}).get("commandMetadata", {}).get(
+                "webCommandMetadata", {})
             author_url = author_endpoint.get("url", "")
             author_channel_id = extract_channel_id_from_url(author_url) if author_url else ""
 
@@ -980,19 +982,21 @@ class YouTubeApiClient:
             # Extract subscriber count and video count from pageHeaderRenderer if available
             subscriber_count = 0
             video_count = 0
-            
+
             if "pageHeaderRenderer" in header:
                 page_header = header["pageHeaderRenderer"]
-                metadata_rows = page_header.get("content", {}).get("pageHeaderViewModel", {}).get("metadata", {}).get("contentMetadataViewModel", {}).get("metadataRows", [])
-                
+                metadata_rows = page_header.get("content", {}).get("pageHeaderViewModel", {}).get("metadata", {}).get(
+                    "contentMetadataViewModel", {}).get("metadataRows", [])
+
                 if len(metadata_rows) > 1:
                     # Second row contains subscriber and video counts
                     metadata_parts = metadata_rows[1].get("metadataParts", [])
                     if len(metadata_parts) > 0:
                         # Subscriber count (e.g., "21.2万位订阅者")
                         subscriber_text = metadata_parts[0].get("text", {}).get("content", "")
-                        subscriber_count = subscriber_text.replace("位订阅者", "").replace("订阅者", "").replace("subscribers", "").strip()
-                    
+                        subscriber_count = subscriber_text.replace("位订阅者", "").replace("订阅者", "").replace(
+                            "subscribers", "").strip()
+
                     if len(metadata_parts) > 1:
                         # Video count (e.g., "67 个视频")
                         video_text = metadata_parts[1].get("text", {}).get("content", "")
@@ -1044,7 +1048,7 @@ class YouTubeApiClient:
         try:
             videos = []
             continuations = []
-            
+
             if continuation_token:
                 # Use provided continuation token
                 continuations.append(continuation_token)
@@ -1054,16 +1058,16 @@ class YouTubeApiClient:
                 response = await self._make_request(
                     "GET", videos_url, headers=self.default_headers, raw_response=True
                 )
-                
+
                 html_content = response.text
                 initial_data = extract_initial_data(html_content)
                 if not initial_data:
                     logger.error("Failed to extract initial data from videos page")
                     return []
-                
+
                 # Find video renderers in the initial page data
                 video_renderers = self._find_video_renderers(initial_data)
-                
+
                 for video_data in video_renderers:
                     if max_videos > 0 and len(videos) >= max_videos:
                         break
@@ -1071,28 +1075,29 @@ class YouTubeApiClient:
                     if video_info:
                         video_info['channel_id'] = channel_id
                         videos.append(video_info)
-                
+
                 # Extract continuation tokens for more results
                 continuation_tokens = self._extract_continuation_tokens(initial_data)
                 continuations.extend(continuation_tokens)
-                
-                logger.info(f"Initial page: extracted {len(videos)} videos, found {len(continuations)} continuation tokens")
-            
+
+                logger.info(
+                    f"Initial page: extracted {len(videos)} videos, found {len(continuations)} continuation tokens")
+
             # Process continuation tokens for more videos
             while continuations and (max_videos == 0 or len(videos) < max_videos):
                 current_continuation = continuations.pop(0)
-                
+
                 # Make API request with continuation token
                 data = {"continuation": current_continuation}
                 response = await self._make_api_request("browse", data)
-                
+
                 if not response:
                     break
-                
+
                 # Extract videos from continuation response
                 video_renderers = self._find_video_renderers(response)
                 batch_videos = []
-                
+
                 for video_data in video_renderers:
                     if max_videos > 0 and len(videos) + len(batch_videos) >= max_videos:
                         break
@@ -1100,47 +1105,26 @@ class YouTubeApiClient:
                     if video_info:
                         video_info['channel_id'] = channel_id
                         batch_videos.append(video_info)
-                
+
                 videos.extend(batch_videos)
-                
+
                 # Look for more continuation tokens
                 continuation_tokens = self._extract_continuation_tokens(response)
                 for token in continuation_tokens:
                     if token not in continuations:
                         continuations.append(token)
-                
+
                 logger.info(f"Continuation batch: fetched {len(batch_videos)} videos, total: {len(videos)}")
-                
+
                 # Sleep between requests to avoid rate limiting
                 if continuations and sleep_time > 0:
                     await asyncio.sleep(sleep_time)
-            
+
             return videos[:max_videos] if max_videos > 0 else videos
-            
+
         except Exception as e:
             logger.error(f"Failed to get channel videos for {channel_id}: {e}")
             return []
-
-    async def get_all_channel_videos(
-            self,
-            channel_id: str,
-            sleep_time: float = 0.1
-    ) -> List[Dict]:
-        """
-        Get all available videos from a YouTube channel (no limit)
-        
-        Args:
-            channel_id: YouTube channel ID (can be UC... format, @username, or custom name)
-            sleep_time: Sleep time between requests
-            
-        Returns:
-            List of all available video information
-        """
-        return await self.get_channel_videos(
-            channel_id=channel_id,
-            max_videos=0,  # 0 means no limit
-            sleep_time=sleep_time
-        )
 
     async def get_trending_videos(self) -> List[Dict]:
         """
@@ -1185,3 +1169,11 @@ class YouTubeApiClient:
         except Exception as e:
             logger.error(f"Failed to get trending videos: {e}")
             return []
+
+    async def close(self):
+        if self.browser_session and self.target_id:
+            try:
+                logger.info(f"Close target id: {self.target_id}")
+                await self.browser_session.cdp_client.send.Target.closeTarget(params={'targetId': self.target_id})
+            except Exception as e:
+                logger.warning(f"Error closing target {self.target_id}: {e}")
