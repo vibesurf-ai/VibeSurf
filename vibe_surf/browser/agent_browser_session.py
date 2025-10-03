@@ -384,6 +384,32 @@ class AgentBrowserSession(BrowserSession):
                 )
             ]
 
+    def model_post_init(self, __context) -> None:
+        """Register event handlers after model initialization."""
+        # Check if handlers are already registered to prevent duplicates
+
+        from browser_use.browser.watchdog_base import BaseWatchdog
+
+        start_handlers = self.event_bus.handlers.get('BrowserStartEvent', [])
+        start_handler_names = [getattr(h, '__name__', str(h)) for h in start_handlers]
+
+        if any('on_BrowserStartEvent' in name for name in start_handler_names):
+            raise RuntimeError(
+                '[BrowserSession] Duplicate handler registration attempted! '
+                'on_BrowserStartEvent is already registered. '
+                'This likely means BrowserSession was initialized multiple times with the same EventBus.'
+            )
+
+        BaseWatchdog.attach_handler_to_session(self, BrowserStartEvent, self.on_BrowserStartEvent)
+        BaseWatchdog.attach_handler_to_session(self, BrowserStopEvent, self.on_BrowserStopEvent)
+        BaseWatchdog.attach_handler_to_session(self, NavigateToUrlEvent, self.on_NavigateToUrlEvent)
+        BaseWatchdog.attach_handler_to_session(self, SwitchTabEvent, self.on_SwitchTabEvent)
+        BaseWatchdog.attach_handler_to_session(self, TabCreatedEvent, self.on_TabCreatedEvent)
+        BaseWatchdog.attach_handler_to_session(self, TabClosedEvent, self.on_TabClosedEvent)
+        BaseWatchdog.attach_handler_to_session(self, AgentFocusChangedEvent, self.on_AgentFocusChangedEvent)
+        # BaseWatchdog.attach_handler_to_session(self, FileDownloadedEvent, self.on_FileDownloadedEvent)
+        BaseWatchdog.attach_handler_to_session(self, CloseTabEvent, self.on_CloseTabEvent)
+
     async def attach_all_watchdogs(self) -> None:
         """Initialize and attach all watchdogs EXCEPT AboutBlankWatchdog to disable DVD animation."""
         # Prevent duplicate watchdog attachment
