@@ -324,14 +324,16 @@ async def test_website_api(main_browser_session: AgentBrowserSession):
 
     # ret = await yt_client.get_trending_videos()
     # pdb.set_trace()
-    ret = await yt_client.search_videos(query="何同学")
+    ret = await yt_client.search_videos(query="何同学", max_results=30)
     # pdb.set_trace()
     # ret = await yt_client.get_video_details(ret[0]['video_id'])
     # pdb.set_trace()
-    ret = await yt_client.get_video_comments(ret[0]['video_id'])
+    # ret = await yt_client.get_video_comments(ret[0]['video_id'])
     # pdb.set_trace()
-    # ret = await yt_client.get_channel_info(ret[0]['channel_id'])
+    ret = await yt_client.get_channel_info(ret[0]['channel_id'])
     pdb.set_trace()
+    # ret = await yt_client.get_channel_videos(ret[0]['channel_id'])
+    # pdb.set_trace()
 
 
 async def main():

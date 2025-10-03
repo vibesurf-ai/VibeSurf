@@ -293,38 +293,84 @@ class YouTubeApiClient:
     async def search_videos(
             self,
             query: str,
-            continuation_token: Optional[str] = None
+            max_results: int = 20,
+            continuation_token: Optional[str] = None,
+            sleep_time: float = 0.1
     ) -> List[Dict]:
         """
-        Search YouTube videos
+        Search YouTube videos with pagination support
 
         Args:
             query: Search query
-            max_results: Maximum number of results
+            max_results: Maximum number of results to fetch (0 for all available)
             continuation_token: Token for pagination
+            sleep_time: Sleep time between requests
 
         Returns:
             List of simplified video information
         """
         try:
-            data = {"query": query}
-
-            if continuation_token:
-                data["continuation"] = continuation_token
-
-            response = await self._make_api_request("search", data)
-
-            # Use recursive search to find all videoRenderer objects
-            video_renderers = self._find_video_renderers(response)
-
-            # Extract video information from each videoRenderer
             videos = []
-            for video_data in video_renderers:
-                video_info = self._extract_video_info(video_data)
-                if video_info:
-                    videos.append(video_info)
+            continuations = []
+            
+            if continuation_token:
+                # Use provided continuation token
+                continuations.append(continuation_token)
+            else:
+                # Initial search request
+                data = {"query": query}
+                response = await self._make_api_request("search", data)
+                
+                # Extract videos from initial response
+                video_renderers = self._find_video_renderers(response)
+                for video_data in video_renderers:
+                    if max_results > 0 and len(videos) >= max_results:
+                        break
+                    video_info = self._extract_video_info(video_data)
+                    if video_info:
+                        videos.append(video_info)
+                
+                # Extract continuation tokens for more results
+                continuation_tokens = self._extract_continuation_tokens(response)
+                continuations.extend(continuation_tokens)
 
-            return videos
+            # Process continuation tokens for more videos
+            while continuations and (max_results == 0 or len(videos) < max_results):
+                current_continuation = continuations.pop(0)
+                
+                # Make API request with continuation token
+                data = {"continuation": current_continuation}
+                response = await self._make_api_request("search", data)
+
+                if not response:
+                    break
+
+                # Extract videos from continuation response
+                video_renderers = self._find_video_renderers(response)
+                batch_videos = []
+                
+                for video_data in video_renderers:
+                    if max_results > 0 and len(videos) + len(batch_videos) >= max_results:
+                        break
+                    video_info = self._extract_video_info(video_data)
+                    if video_info:
+                        batch_videos.append(video_info)
+
+                videos.extend(batch_videos)
+                
+                # Look for more continuation tokens
+                continuation_tokens = self._extract_continuation_tokens(response)
+                for token in continuation_tokens:
+                    if token not in continuations:
+                        continuations.append(token)
+                
+                logger.info(f"Fetched {len(batch_videos)} videos, total: {len(videos)}")
+                
+                # Sleep between requests to avoid rate limiting
+                if continuations and sleep_time > 0:
+                    await asyncio.sleep(sleep_time)
+
+            return videos[:max_results] if max_results > 0 else videos
 
         except Exception as e:
             logger.error(f"Failed to search videos: {e}")
@@ -749,6 +795,27 @@ class YouTubeApiClient:
         except Exception:
             return None
 
+    async def search_all_videos(
+            self,
+            query: str,
+            sleep_time: float = 0.1
+    ) -> List[Dict]:
+        """
+        Search for all available YouTube videos for a query (no limit)
+
+        Args:
+            query: Search query
+            sleep_time: Sleep time between requests
+
+        Returns:
+            List of all available video information
+        """
+        return await self.search_videos(
+            query=query,
+            max_results=0,  # 0 means no limit
+            sleep_time=sleep_time
+        )
+
     async def get_all_video_comments(
             self,
             video_id: str,
@@ -889,7 +956,6 @@ class YouTubeApiClient:
         try:
             # Navigate to channel page to get information
             channel_url = f"https://www.youtube.com/channel/{channel_id}"
-
             response = await self._make_request(
                 "GET", channel_url, headers=self.default_headers, raw_response=True
             )
