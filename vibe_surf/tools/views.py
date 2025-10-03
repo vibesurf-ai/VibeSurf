@@ -211,3 +211,78 @@ class SkillFinanceAction(BaseModel):
         ge=1,
         le=20,
     )
+
+
+class DownloadMediaAction(BaseModel):
+    """Parameters for downloading media from URL"""
+    url: str = Field(
+        description='URL of the media to download',
+    )
+    filename: str | None = Field(
+        default=None,
+        description='Optional custom filename. If not provided, will auto-detect from URL or Content-Disposition header',
+    )
+ 
+
+class SkillXhsAction(BaseModel):
+    """Parameters for skill_xhs action - Xiaohongshu API skill"""
+    method: str = Field(
+        description='''Xiaohongshu API method name. Available methods:
+        - search_content_by_keyword: Search content by keyword, params required: {"keyword": "search keyword", "page": 1, "page_size": 20}
+        - fetch_content_details: Get content details, params required: {"content_id": "content ID", "xsec_token": "security token"}
+        - fetch_all_content_comments: Get all comments for content, params required: {"content_id": "content ID", "xsec_token": "security token", "max_comments": 100}
+        - get_user_profile: Get user profile, params required: {"user_id": "user ID"}
+        - fetch_all_user_content: Get all content by user, params required: {"user_id": "user ID", "max_content": 100}
+        - get_home_recommendations: Get home page recommendations, params: {}'''
+    )
+    params: str = Field(
+        description='JSON string of method parameters, provide corresponding parameters according to the method parameter. Example: {"keyword": "food"}'
+    )
+
+
+class SkillWeiboAction(BaseModel):
+    """Parameters for skill_weibo action - Weibo API skill"""
+    method: str = Field(
+        description='''Weibo API method name. Available methods:
+        - search_posts_by_keyword: Search posts by keyword, params required: {"keyword": "search keyword", "page": 1}
+        - get_post_detail: Get post details, params required: {"mid": "post ID"}
+        - get_all_post_comments: Get all comments for post, params required: {"mid": "post ID", "max_comments": 100}
+        - get_user_info: Get user information, params required: {"user_id": "user ID"}
+        - get_all_user_posts: Get all posts by user, params required: {"user_id": "user ID", "max_posts": 100}
+        - get_hot_posts: Get hot posts(推荐榜）, params: {}
+        - get_trending_posts: Get trending posts(热搜榜）, params: {}'''
+    )
+    params: str = Field(
+        description='JSON string of method parameters, provide corresponding parameters according to the method parameter. Example: {"keyword": "AI trending"}'
+    )
+
+
+class SkillDouyinAction(BaseModel):
+    """Parameters for skill_douyin action - Douyin API skill"""
+    method: str = Field(
+        description='''Douyin API method name. Available methods:
+        - search_content_by_keyword: Search videos by keyword, params required: {"keyword": "search keyword", "offset": 0}
+        - fetch_video_details: Get video details, params required: {"aweme_id": "video ID"}
+        - fetch_all_video_comments: Get all comments for video, params required: {"aweme_id": "video ID", "max_comments": 100}
+        - fetch_user_info: Get user information, params required: {"sec_user_id": "user security ID"}
+        - fetch_all_user_videos: Get all videos by user, params required: {"sec_user_id": "user security ID", "max_videos": 100}'''
+    )
+    params: str = Field(
+        description='JSON string of method parameters, provide corresponding parameters according to the method parameter. Example: {"keyword": "music"}'
+    )
+
+
+class SkillYoutubeAction(BaseModel):
+    """Parameters for skill_youtube action - YouTube API skill"""
+    method: str = Field(
+        description='''YouTube API method name. Available methods:
+        - search_videos: Search videos, params required: {"query": "search keyword", "max_results": 20}
+        - get_video_details: Get video details, params required: {"video_id": "video ID"}
+        - get_video_comments: Get video comments, params required: {"video_id": "video ID", "max_comments": 200}
+        - get_channel_info: Get channel information, params required: {"channel_id": "channel ID"}
+        - get_channel_videos: Get channel videos, params required: {"channel_id": "channel ID", "max_videos": 20}
+        - get_trending_videos: Get trending videos, params: {}'''
+    )
+    params: str = Field(
+        description='JSON string of method parameters, provide corresponding parameters according to the method parameter. Example: {"query": "tech tutorial", "max_results": 30}'
+    )
