@@ -501,6 +501,8 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
         return state
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         logger.error(f"❌ VibeSurf agent failed: {e}")
         state.final_response = f"Task execution failed: {str(e)}"
         state.is_complete = True
