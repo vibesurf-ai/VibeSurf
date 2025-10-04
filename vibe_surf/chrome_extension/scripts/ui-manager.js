@@ -3487,13 +3487,83 @@ class VibeSurfUIManager {
     // Clear existing content
     socialLinksContainer.innerHTML = '';
 
-    // Create social link elements
+    // Handle website link separately by making VibeSurf logo/text clickable
+    const websiteUrl = socialLinks.website;
+    if (websiteUrl) {
+      this.initializeVibeSurfWebsiteLink(websiteUrl);
+    }
+
+    // Create social link elements (excluding website)
     Object.entries(socialLinks).forEach(([platform, url]) => {
-      const link = this.createSocialLink(platform, url);
-      if (link) {
-        socialLinksContainer.appendChild(link);
+      if (platform !== 'website') {
+        const link = this.createSocialLink(platform, url);
+        if (link) {
+          socialLinksContainer.appendChild(link);
+        }
       }
     });
+  }
+
+  // Make VibeSurf text clickable to link to website
+  initializeVibeSurfWebsiteLink(websiteUrl) {
+    // Only find elements that contain "VibeSurf" text specifically
+    const allElements = document.querySelectorAll('*');
+    const vibeSurfTextElements = [];
+    
+    allElements.forEach(element => {
+      // Only target elements that contain "VibeSurf" text and are likely text elements
+      if (element.textContent &&
+          element.textContent.trim() === 'VibeSurf' &&
+          element.children.length === 0) { // Only leaf text nodes, not containers
+        vibeSurfTextElements.push(element);
+      }
+    });
+    
+    // Make only VibeSurf text elements clickable
+    vibeSurfTextElements.forEach(element => {
+      if (element && !element.querySelector('a')) { // Don't double-wrap already linked elements
+        element.style.cursor = 'pointer';
+        element.style.transition = 'opacity 0.2s ease';
+        element.setAttribute('title', 'Login to early access alpha features');
+        
+        // Add hover effect
+        element.addEventListener('mouseenter', () => {
+          element.style.opacity = '0.8';
+        });
+        
+        element.addEventListener('mouseleave', () => {
+          element.style.opacity = '1';
+        });
+        
+        // Add click handler
+        element.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.openWebsiteLink(websiteUrl);
+        });
+      }
+    });
+  }
+
+  // Open website link in new tab
+  async openWebsiteLink(url) {
+    try {
+      console.log('[UIManager] Opening VibeSurf website:', url);
+      
+      const result = await chrome.runtime.sendMessage({
+        type: 'OPEN_FILE_URL',
+        data: { fileUrl: url }
+      });
+      
+      if (!result || !result.success) {
+        throw new Error(result?.error || 'Failed to open website');
+      }
+      
+      console.log('[UIManager] Successfully opened website tab:', result.tabId);
+    } catch (error) {
+      console.error('[UIManager] Error opening website:', error);
+      this.showNotification(`Failed to open website: ${error.message}`, 'error');
+    }
   }
 
   // Create individual social link element
@@ -3532,17 +3602,6 @@ class VibeSurfUIManager {
         </svg>`;
         break;
       
-      case 'website':
-        title = 'VibeSurf Website: Login to early access alpha features';
-        svg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8" fill="none"/>
-          <path d="M12 2v20M2 12h20" stroke="currentColor" stroke-width="1.2"/>
-          <path d="M7 2C5 6 5 18 7 22M17 2c2 4 2 16 0 20" stroke="currentColor" stroke-width="1.2" fill="none"/>
-          <path d="M3 8h18M3 16h18" stroke="currentColor" stroke-width="1.2"/>
-          <ellipse cx="12" cy="12" rx="7" ry="3" stroke="currentColor" stroke-width="1" fill="white" fill-opacity="0.9"/>
-          <text x="12" y="14" text-anchor="middle" font-family="Arial, sans-serif" font-size="4.5" font-weight="bold" fill="currentColor">WWW</text>
-        </svg>`;
-        break;
       
       default:
         console.warn(`[UIManager] Unknown social platform: ${platform}`);
