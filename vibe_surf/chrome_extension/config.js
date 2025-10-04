@@ -27,6 +27,14 @@ const VIBESURF_CONFIG = {
     autoScroll: true,
     compactMode: false
   },
+
+  // Social media links
+  SOCIAL_LINKS: {
+    github: "https://github.com/vibesurf-ai/VibeSurf",
+    discord: "https://discord.gg/EZ2YnUXP",
+    x: "https://x.com/warmshao",
+    website: "https://vibe-surf.com/"
+  },
   
   // Debug mode
   DEBUG: false

@@ -353,13 +353,13 @@ async def initialize_vibesurf_components():
         browser_execution_path = os.getenv("BROWSER_EXECUTION_PATH", "")
         assert os.path.exists(browser_execution_path), "Please set the BROWSER_EXECUTION_PATH environment variable"
         browser_user_data = os.getenv("BROWSER_USER_DATA", "")
-        if not browser_user_data:
+        if not browser_user_data or not os.path.exists(browser_user_data):
             browser_user_data = os.path.join(workspace_dir, "browser_user_data",
                                              f"{os.path.basename(browser_execution_path)}-profile")
 
         # Get VibeSurf extension path
         vibesurf_extension = os.getenv("VIBESURF_EXTENSION", "")
-        if not vibesurf_extension.strip():
+        if not vibesurf_extension.strip() or not os.path.exists(vibesurf_extension):
             current_file = Path(__file__)
             project_root = current_file.parent.parent.absolute()
             vibesurf_extension = str(project_root / "chrome_extension")

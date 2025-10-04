@@ -23,57 +23,89 @@ VibeSurf 是一个开源的 AI 代理浏览器，它革新了浏览器自动化�
 
 ## 🛠️ 安装
 
-### 第一步：安装 uv
-从 [https://docs.astral.sh/uv/getting-started/installation/](https://docs.astral.sh/uv/getting-started/installation/) 安装 uv：
+仅需三个简单步骤即可启动并运行 VibeSurf。无需复杂配置。
 
+### 1. 安装 uv
+从官方网站安装 uv 包管理器
+
+**MacOS/Linux**
 ```bash
-# 在 macOS 和 Linux 上
 curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
-# 在 Windows 上
+**Windows**
+```bash
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-### 第二步：设置和安装
+### 2. 设置环境
+安装 VibeSurf
+
 ```bash
-uv venv --python 3.12
 uv pip install vibesurf -U
 ```
 
-### 第三步：启动
+### 3. 启动 VibeSurf
+启动 VibeSurf 浏览器助手
+
 ```bash
 uv run vibesurf
 ```
 
-## 👩‍💻 对贡献者
+## 👩‍💻 贡献者指南
 
-想为 VibeSurf 做贡献？以下是设置开发环境的两种方法：
+想为 VibeSurf 做贡献？请按照以下步骤设置您的开发环境：
 
-### 方法 1：直接运行服务器
-使用 uvicorn 直接运行后端服务器：
+### 1. 克隆仓库
+```bash
+git clone https://github.com/vibesurf-ai/VibeSurf.git
+cd VibeSurf
+```
+
+### 2. 设置环境
+**MacOS/Linux**
+```bash
+uv venv --python 3.12
+source .venv/bin/activate
+uv pip install -e .
+```
+
+**Windows**
+```bash
+uv venv --python 3.12
+.venv\Scripts\activate
+uv pip install -e .
+```
+
+### 3. 开始调试
+**选项 1：直接服务器**
 ```bash
 uvicorn vibe_surf.backend.main:app --host 127.0.0.1 --port 9335
 ```
 
-### 方法 2：可编辑安装
-以可编辑模式安装包并使用 CLI 运行：
+**选项 2：CLI 入口**
 ```bash
-uv pip install -e .
 uv run vibesurf
 ```
-
-选择最适合您开发工作流程的方法！
 
 ## 🗺️ 路线图
 
 我们正在构建 VibeSurf，使其成为您终极的 AI 浏览器伴侣。以下是接下来的计划：
 
-- [x] **智能技能系统**：添加 `/search` 用于快速信息搜索，`/crawl` 用于自动网站数据提取
-- [ ] **强大的编码代理**：构建一个全面的编码助手，用于在浏览器中直接进行数据处理和分析
-- [ ] **第三方集成**：与 n8n 工作流和其他工具连接，将浏览与自动化结合
-- [ ] **自定义工作流模板**：创建可重用的模板，用于自动登录、数据收集和复杂的浏览器自动化
-- [ ] **智能交互功能**：文本选择用于翻译/问答、截图分析和语音阅读功能
-- [ ] **实时对话和记忆**：添加持久聊天功能和全局记忆，使 VibeSurf 真正理解您
+- [x] **智能技能系统** - *已完成*
+  添加 `/search` 用于快速信息搜索，`/crawl` 用于自动网站数据提取。集成了小红书、抖音、微博和 YouTube 的原生 API。
+
+- [ ] **强大的编码代理** - *进行中*
+  构建一个全面的编码助手，用于在浏览器中直接进行数据处理和分析
+
+- [ ] **智能浏览器工作流** - *计划中*
+  创建自定义拖拽式工作流，用于自动登录、数据收集和复杂的浏览器自动化任务
+
+- [ ] **第三方集成** - *计划中*
+  与 n8n 工作流和其他工具连接，将浏览与自动化结合
+
+- [ ] **智能记忆与个性化** - *计划中*
+  将 VibeSurf 转变为真正的人性化伴侣，具备持久记忆功能，能够学习您的偏好、习惯和浏览模式
 
 ## 🎬 演示
 

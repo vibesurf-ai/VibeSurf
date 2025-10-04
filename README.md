@@ -22,56 +22,88 @@ If you're as excited about open-source AI browsing as I am, give it a star! ⭐
 
 ## 🛠️ Installation
 
-### Step 1: Install uv
-Install uv from [https://docs.astral.sh/uv/getting-started/installation/](https://docs.astral.sh/uv/getting-started/installation/):
+Get VibeSurf up and running in just three simple steps. No complex configuration required.
 
+### 1. Install uv
+Install uv package manager from the official website
+
+**MacOS/Linux**
 ```bash
-# On macOS and Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
-# On Windows
+**Windows**
+```bash
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-### Step 2: Setup and Install
+### 2. Setup Environment
+Install VibeSurf
+
 ```bash
-uv venv --python 3.12
 uv pip install vibesurf -U
 ```
 
-### Step 3: Launch
+### 3. Launch VibeSurf
+Start the VibeSurf browser assistant
+
 ```bash
 uv run vibesurf
 ```
 
 ## 👩‍💻 For Contributors
 
-Want to contribute to VibeSurf? Here are two ways to set up your development environment:
+Want to contribute to VibeSurf? Follow these steps to set up your development environment:
 
-### Method 1: Direct Server Run
-Run the backend server directly using uvicorn:
+### 1. Clone Repository
+```bash
+git clone https://github.com/vibesurf-ai/VibeSurf.git
+cd VibeSurf
+```
+
+### 2. Setup Environment
+**MacOS/Linux**
+```bash
+uv venv --python 3.12
+source .venv/bin/activate
+uv pip install -e .
+```
+
+**Windows**
+```bash
+uv venv --python 3.12
+.venv\Scripts\activate
+uv pip install -e .
+```
+
+### 3. Start Debugging
+**Option 1: Direct Server**
 ```bash
 uvicorn vibe_surf.backend.main:app --host 127.0.0.1 --port 9335
 ```
 
-### Method 2: Editable Installation
-Install the package in editable mode and run using the CLI:
+**Option 2: CLI Entry**
 ```bash
-uv pip install -e .
 uv run vibesurf
 ```
-
-Choose the method that works best for your development workflow!
-## �️ Roadmap
+## 🗺️ Roadmap
 
 We're building VibeSurf to be your ultimate AI browser companion. Here's what's coming next:
 
-- [x] **Smart Skills System**: Add `/search` for quick information search and `/crawl` for automatic website data extraction
-- [ ] **Powerful Coding Agent**: Build a comprehensive coding assistant for data processing and analysis directly in your browser
-- [ ] **Third-Party Integrations**: Connect with n8n workflows and other tools to combine browsing with automation
-- [ ] **Custom Workflow Templates**: Create reusable templates for auto-login, data collection, and complex browser automation
-- [ ] **Smart Interaction Features**: Text selection for translation/Q&A, screenshot analysis, and voice reading capabilities
-- [ ] **Real-Time Conversation & Memory**: Add persistent chat functionality with global memory to make VibeSurf truly understand you
+- [x] **Smart Skills System** - *Completed*
+  Add `/search` for quick information search and `/crawl` for automatic website data extraction. Integrated native APIs for Xiaohongshu, Douyin, Weibo, and YouTube.
+
+- [ ] **Powerful Coding Agent** - *In Progress*
+  Build a comprehensive coding assistant for data processing and analysis directly in your browser
+
+- [ ] **Agentic Browser Workflow** - *Planned*
+  Create custom drag-and-drop workflows for auto-login, data collection, and complex browser automation tasks
+
+- [ ] **Third-Party Integrations** - *Planned*
+  Connect with n8n workflows and other tools to combine browsing with automation
+
+- [ ] **Intelligent Memory & Personalization** - *Planned*
+  Transform VibeSurf into a truly human-like companion with persistent memory that learns your preferences, habits, and browsing patterns over time
 
 
 ## 🎬 Demo
