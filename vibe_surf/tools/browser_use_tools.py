@@ -29,7 +29,7 @@ from browser_use.tools.views import (
     InputTextAction,
     NoParamsAction,
     ScrollAction,
-    SearchGoogleAction,
+    SearchAction,
     SelectDropdownOptionAction,
     SendKeysAction,
     StructuredOutputAction,
@@ -370,11 +370,27 @@ class BrowserUseTools(Tools, VibeSurfTools):
         # =======================
 
         @self.registry.action(
-            'Search the query in Google, the query should be a search query like humans search in Google, concrete and not vague or super long.',
-            param_model=SearchGoogleAction,
+            'Search the query using the specified search engine. Defaults to DuckDuckGo (recommended) to avoid reCAPTCHA. Options: duckduckgo, google, bing. Query should be concrete and not vague or super long.',
+            param_model=SearchAction,
         )
-        async def search_google(params: SearchGoogleAction, browser_session: AgentBrowserSession):
-            search_url = f'https://www.google.com/search?q={params.query}&udm=14'
+        async def search(params: SearchAction, browser_session: AgentBrowserSession):
+            import urllib.parse
+
+            # Encode query for URL safety
+            encoded_query = urllib.parse.quote_plus(params.query)
+
+            # Build search URL based on search engine
+            search_engines = {
+                'duckduckgo': f'https://duckduckgo.com/?q={encoded_query}',
+                'google': f'https://www.google.com/search?q={encoded_query}&udm=14',
+                'bing': f'https://www.bing.com/search?q={encoded_query}',
+            }
+
+            if params.search_engine.lower() not in search_engines:
+                return ActionResult(
+                    error=f'Unsupported search engine: {params.search_engine}. Options: duckduckgo, google, bing')
+
+            search_url = search_engines[params.search_engine.lower()]
 
             try:
                 # Use AgentBrowserSession's direct navigation method
