@@ -281,7 +281,8 @@ class SkillYoutubeAction(BaseModel):
         - get_video_comments: Get video comments, params required: {"video_id": "video ID", "max_comments": 200}
         - get_channel_info: Get channel information, params required: {"channel_id": "channel ID"}
         - get_channel_videos: Get channel videos, params required: {"channel_id": "channel ID", "max_videos": 20}
-        - get_trending_videos: Get trending videos, params: {}'''
+        - get_trending_videos: Get trending videos, params: {}
+        - get_video_transcript: Get video transcript, params required: {"video_id": "video ID", "languages": ["en", "zh-CN"] (optional, defaults to ["en"])}'''
     )
     params: str = Field(
         description='JSON string of method parameters, provide corresponding parameters according to the method parameter. Example: {"query": "tech tutorial", "max_results": 30}'

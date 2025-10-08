@@ -1263,7 +1263,18 @@ Please generate alternative JavaScript code that avoids this system error:"""
 
 
         @self.registry.action(
-            'Skill: YouTube API - Access YouTube platform data including search, video details, comments, channel info, and trending videos. Methods: search_videos, get_video_details, get_video_comments, get_channel_info, get_channel_videos, get_trending_videos.',
+            """Skill: YouTube API - Access YouTube platform data including search, video details, comments, channel info, trending videos, and video transcripts. 
+            Methods: 
+            search_videos, 
+            get_video_details, 
+            get_video_comments, 
+            get_channel_info, 
+            get_channel_videos, 
+            get_trending_videos, 
+            get_video_transcript.
+            
+            If users want to know the specific content of this video, please use get_video_transcript to get detailed video content first.
+            """,
             param_model=SkillYoutubeAction,
         )
         async def skill_youtube(
@@ -1281,6 +1292,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
             - get_channel_info: Get channel information
             - get_channel_videos: Get videos from specific channel
             - get_trending_videos: Get trending videos
+            - get_video_transcript: Get video transcript in multiple languages
             """
             try:
                 from vibe_surf.tools.website_api.youtube.client import YouTubeApiClient
@@ -1311,6 +1323,8 @@ Please generate alternative JavaScript code that avoids this system error:"""
                     result = await yt_client.get_channel_videos(**method_params)
                 elif params.method == "get_trending_videos":
                     result = await yt_client.get_trending_videos()
+                elif params.method == "get_video_transcript":
+                    result = await yt_client.get_video_transcript(**method_params)
                 else:
                     return ActionResult(error=f"Unknown method: {params.method}")
                 

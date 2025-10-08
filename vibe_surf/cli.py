@@ -15,9 +15,6 @@ from pathlib import Path
 from typing import Optional
 import os
 
-# In case user has a proxy in localhost
-os.environ['no_proxy'] = 'localhost,127.0.0.1,::1'
-
 try:
     from rich.console import Console
     from rich.panel import Panel
