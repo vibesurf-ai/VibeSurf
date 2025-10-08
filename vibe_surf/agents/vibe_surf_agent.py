@@ -479,7 +479,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                     llm=vibesurf_agent.llm,
                     file_system=vibesurf_agent.file_system,
                 )
-                if action_name.startswith("skill_"):
+                if action_name in ['skill_search', 'skill_crawl', 'skill_summary', 'skill_deep_research']:
                     state.current_step = "END"
                     # Format final response
                     final_response = f"{result.extracted_content}" or f"{result.error}"
