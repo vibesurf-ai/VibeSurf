@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Callable, Union, Any
 import httpx
 from tenacity import retry, stop_after_attempt, wait_fixed
 from urllib.parse import parse_qs, unquote, urlencode
+from youtube_transcript_api import YouTubeTranscriptApi
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.logger import get_logger
@@ -1169,6 +1170,62 @@ class YouTubeApiClient:
         except Exception as e:
             logger.error(f"Failed to get trending videos: {e}")
             return []
+
+    async def get_video_transcript(self, video_id: str, languages: Optional[List[str]] = None) -> Optional[Dict[str, List[Dict]]]:
+        """
+        Get transcript for a YouTube video
+        
+        Args:
+            video_id: YouTube video ID (not the full URL)
+            languages: List of language codes to try (default: ['en'])
+            
+        Returns:
+            Dictionary with language codes as keys and transcript raw data as values
+            Returns None if no transcripts are available
+        """
+        try:
+            if languages is None:
+                languages = ['en']
+            
+            # Create YouTubeTranscriptApi instance
+            ytt_api = YouTubeTranscriptApi()
+            
+            # List available transcripts to check what's available
+            transcript_list = ytt_api.list(video_id)
+            available_languages = [transcript.language_code for transcript in transcript_list]
+            
+            logger.info(f"Available transcript languages for video {video_id}: {available_languages}")
+            
+            # Filter requested languages to only include available ones
+            valid_languages = [lang for lang in languages if lang in available_languages]
+            
+            if not valid_languages:
+                logger.warning(f"None of the requested languages {languages} are available for video {video_id}")
+                return None
+            
+            # Fetch transcripts for each valid language
+            result = {}
+            for language in valid_languages:
+                try:
+                    # Find transcript for this specific language
+                    transcript = transcript_list.find_transcript([language])
+                    fetched_transcript = transcript.fetch()
+                    
+                    # Convert to raw data format
+                    raw_data = fetched_transcript.to_raw_data()
+                    result[language] = raw_data
+                    
+                    logger.info(f"Successfully fetched transcript for video {video_id} in language {language}")
+                    
+                except Exception as lang_error:
+                    logger.warning(f"Failed to fetch transcript for language {language}: {lang_error}")
+                    continue
+            
+            return result if result else None
+            
+        except Exception as e:
+            logger.error(f"Failed to get transcript for video {video_id}: {e}")
+            return None
 
     async def close(self):
         if self.browser_session and self.target_id:
