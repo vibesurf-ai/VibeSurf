@@ -32,7 +32,7 @@ from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, BrowserUseAgentExecution, \
     ReportWriterTask, TodoGenerateAction, TodoModifyAction, VibeSurfDoneAction, SkillSearchAction, SkillCrawlAction, \
     SkillSummaryAction, SkillTakeScreenshotAction, SkillDeepResearchAction, SkillCodeAction, SkillFinanceAction, \
-    SkillXhsAction, SkillDouyinAction, SkillYoutubeAction, SkillWeiboAction
+    SkillXhsAction, SkillDouyinAction, SkillYoutubeAction, SkillWeiboAction, GrepContentAction
 from vibe_surf.tools.finance_tools import FinanceDataRetriever, FinanceMarkdownFormatter, FinanceMethod
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
@@ -2238,6 +2238,142 @@ You will be given a query and the markdown of a webpage that has been filtered t
                 include_in_memory=True,
                 long_term_memory=result,
             )
+
+        @self.registry.action(
+            'Grep content from file - search for query or keywords and return surrounding context (simulates Linux grep command). For images, uses OCR to extract text first then performs grep search.',
+            param_model=GrepContentAction,
+        )
+        async def grep_content_from_file(
+                params: GrepContentAction,
+                page_extraction_llm: BaseChatModel,
+                file_system: CustomFileSystem,
+        ):
+            try:
+                # Get file path
+                file_path = params.file_path
+                full_file_path = file_path
+                # Check if file exists
+                if not os.path.exists(full_file_path):
+                    full_file_path = os.path.join(str(file_system.get_dir()), file_path)
+
+                # Determine if file is an image based on MIME type
+                mime_type, _ = mimetypes.guess_type(file_path)
+                is_image = mime_type and mime_type.startswith('image/')
+
+                if is_image:
+                    # Handle image files with LLM vision for OCR
+                    try:
+                        # Read image file and encode to base64
+                        with open(full_file_path, 'rb') as image_file:
+                            image_data = image_file.read()
+                            image_base64 = base64.b64encode(image_data).decode('utf-8')
+
+                        # Create content parts for OCR
+                        content_parts: list[ContentPartTextParam | ContentPartImageParam] = [
+                            ContentPartTextParam(text="Please extract all text content from this image for search purposes. Return only the extracted text, no additional explanations.")
+                        ]
+
+                        # Add the image
+                        content_parts.append(
+                            ContentPartImageParam(
+                                image_url=ImageURL(
+                                    url=f'data:{mime_type};base64,{image_base64}',
+                                    media_type=mime_type,
+                                    detail='high',
+                                ),
+                            )
+                        )
+
+                        # Create user message and invoke LLM for OCR
+                        user_message = UserMessage(content=content_parts, cache=True)
+                        response = await asyncio.wait_for(
+                            page_extraction_llm.ainvoke([user_message]),
+                            timeout=120.0,
+                        )
+
+                        file_content = response.completion
+
+                    except Exception as e:
+                        raise Exception(f'Failed to process image file {file_path} for OCR: {str(e)}')
+
+                else:
+                    # Handle non-image files by reading content
+                    try:
+                        file_content = await file_system.read_file(full_file_path, external_file=True)
+                    except Exception as e:
+                        raise Exception(f'Failed to read file {file_path}: {str(e)}')
+
+                # Perform grep search
+                search_query = params.query.lower()
+                context_chars = params.context_chars
+                
+                # Find all matches with context
+                matches = []
+                content_lower = file_content.lower()
+                search_start = 0
+                
+                while True:
+                    match_pos = content_lower.find(search_query, search_start)
+                    if match_pos == -1:
+                        break
+                    
+                    # Calculate context boundaries
+                    start_pos = max(0, match_pos - context_chars)
+                    end_pos = min(len(file_content), match_pos + len(search_query) + context_chars)
+                    
+                    # Extract context with the match
+                    context_before = file_content[start_pos:match_pos]
+                    matched_text = file_content[match_pos:match_pos + len(search_query)]
+                    context_after = file_content[match_pos + len(search_query):end_pos]
+                    
+                    # Add ellipsis if truncated
+                    if start_pos > 0:
+                        context_before = "..." + context_before
+                    if end_pos < len(file_content):
+                        context_after = context_after + "..."
+                    
+                    matches.append({
+                        'context_before': context_before,
+                        'matched_text': matched_text,
+                        'context_after': context_after,
+                        'position': match_pos
+                    })
+                    
+                    search_start = match_pos + 1
+                
+                # Format results
+                if not matches:
+                    extracted_content = f'File: {file_path}\nQuery: "{params.query}"\nResult: No matches found'
+                else:
+                    result_text = f'File: {file_path}\nQuery: "{params.query}"\nFound {len(matches)} match(es):\n\n'
+                    
+                    for i, match in enumerate(matches, 1):
+                        result_text += f"Match {i} (position: {match['position']}):\n"
+                        result_text += f"{match['context_before']}[{match['matched_text']}]{match['context_after']}\n\n"
+                    
+                    extracted_content = result_text.strip()
+
+                # Handle memory storage
+                if len(extracted_content) < 1000:
+                    memory = extracted_content
+                    include_extracted_content_only_once = False
+                else:
+                    save_result = await file_system.save_extracted_content(extracted_content)
+                    memory = (
+                        f'Grep search completed in file {file_path} for query: {params.query}\nFound {len(matches)} match(es)\nContent saved to file system: {save_result}'
+                    )
+                    include_extracted_content_only_once = True
+
+                logger.info(f'🔍 Grep search completed in file: {file_path}, found {len(matches)} match(es)')
+                return ActionResult(
+                    extracted_content=extracted_content,
+                    include_extracted_content_only_once=include_extracted_content_only_once,
+                    long_term_memory=memory,
+                )
+
+            except Exception as e:
+                logger.debug(f'Error grep searching content from file: {e}')
+                raise RuntimeError(str(e))
 
         @self.registry.action(
             'Create a directory within the FileSystem.'
