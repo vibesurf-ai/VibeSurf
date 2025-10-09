@@ -947,6 +947,26 @@ class YouTubeApiClient:
             logger.error(f"Failed to extract comment info: {e}")
             return None
 
+    def _build_channel_url(self, channel_id: str) -> str:
+        clean_id = channel_id.strip()
+
+        if clean_id.startswith('@'):
+            return f"https://www.youtube.com/{clean_id}"
+
+        if re.match(r'^UC[a-zA-Z0-9_-]{22}$', clean_id):
+            return f"https://www.youtube.com/channel/{clean_id}"
+
+        if re.match(r'^[a-zA-Z0-9_-]{24}$', clean_id):
+            return f"https://www.youtube.com/channel/{clean_id}"
+
+        if re.match(r'^[a-zA-Z0-9_-]+$', clean_id):
+            return f"https://www.youtube.com/@{clean_id}"
+
+        if '/' in clean_id:
+            return f"https://www.youtube.com/{clean_id}"
+
+        return f"https://www.youtube.com/@{clean_id}"
+
     async def get_channel_info(self, channel_id: str) -> Optional[Dict]:
         """
         Get YouTube channel information
@@ -959,7 +979,8 @@ class YouTubeApiClient:
         """
         try:
             # Navigate to channel page to get information
-            channel_url = f"https://www.youtube.com/@{channel_id}"
+            channel_url = self._build_channel_url(channel_id)
+
             response = await self._make_request(
                 "GET", channel_url, headers=self.default_headers, raw_response=True
             )
@@ -1171,7 +1192,8 @@ class YouTubeApiClient:
             logger.error(f"Failed to get trending videos: {e}")
             return []
 
-    async def get_video_transcript(self, video_id: str, languages: Optional[List[str]] = None) -> Optional[Dict[str, List[Dict]]]:
+    async def get_video_transcript(self, video_id: str, languages: Optional[List[str]] = None) -> Optional[
+        Dict[str, List[Dict]]]:
         """
         Get transcript for a YouTube video
         
@@ -1186,23 +1208,23 @@ class YouTubeApiClient:
         try:
             if languages is None:
                 languages = ['en']
-            
+
             # Create YouTubeTranscriptApi instance
             ytt_api = YouTubeTranscriptApi()
-            
+
             # List available transcripts to check what's available
             transcript_list = ytt_api.list(video_id)
             available_languages = [transcript.language_code for transcript in transcript_list]
-            
+
             logger.info(f"Available transcript languages for video {video_id}: {available_languages}")
-            
+
             # Filter requested languages to only include available ones
             valid_languages = [lang for lang in languages if lang in available_languages]
-            
+
             if not valid_languages:
                 logger.warning(f"None of the requested languages {languages} are available for video {video_id}")
                 return None
-            
+
             # Fetch transcripts for each valid language
             result = {}
             for language in valid_languages:
@@ -1210,19 +1232,19 @@ class YouTubeApiClient:
                     # Find transcript for this specific language
                     transcript = transcript_list.find_transcript([language])
                     fetched_transcript = transcript.fetch()
-                    
+
                     # Convert to raw data format
                     raw_data = fetched_transcript.to_raw_data()
                     result[language] = raw_data
-                    
+
                     logger.info(f"Successfully fetched transcript for video {video_id} in language {language}")
-                    
+
                 except Exception as lang_error:
                     logger.warning(f"Failed to fetch transcript for language {language}: {lang_error}")
                     continue
-            
+
             return result if result else None
-            
+
         except Exception as e:
             logger.error(f"Failed to get transcript for video {video_id}: {e}")
             return None
