@@ -35,6 +35,7 @@ vibesurf_tools: Optional[VibeSurfTools] = None
 llm: Optional[BaseChatModel] = None
 db_manager: Optional['DatabaseManager'] = None
 current_llm_profile_name: Optional[str] = None
+composio_instance: Optional[Any] = None  # Global Composio instance
 
 # Environment variables
 workspace_dir: str = ""
@@ -54,7 +55,7 @@ active_task: Optional[Dict[str, Any]] = None
 def get_all_components():
     """Get all components as a dictionary"""
     global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager, current_llm_profile_name
-    global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs
+    global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs, composio_instance
 
     return {
         "vibesurf_agent": vibesurf_agent,
@@ -68,6 +69,7 @@ def get_all_components():
         "active_mcp_server": active_mcp_server,
         "active_task": active_task,
         "current_llm_profile_name": current_llm_profile_name,
+        "composio_instance": composio_instance,
         "envs": envs
     }
 
@@ -75,7 +77,7 @@ def get_all_components():
 def set_components(**kwargs):
     """Update global components"""
     global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager, current_llm_profile_name
-    global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs
+    global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs, composio_instance
 
     if "vibesurf_agent" in kwargs:
         vibesurf_agent = kwargs["vibesurf_agent"]
@@ -98,7 +100,9 @@ def set_components(**kwargs):
     if "envs" in kwargs:
         envs = kwargs["envs"]
     if "current_llm_profile_name" in kwargs:
-        envs = kwargs["current_llm_profile_name"]
+        current_llm_profile_name = kwargs["current_llm_profile_name"]
+    if "composio_instance" in kwargs:
+        composio_instance = kwargs["composio_instance"]
 
 
 async def execute_task_background(
@@ -591,7 +595,6 @@ def _update_extension_backend_url(extension_path: str, backend_url: str):
         with open(config_js_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        # 匹配 BACKEND_URL: 'xyz' 或 BACKEND_URL: "xyz"，xyz是任意内容
         pattern = r"BACKEND_URL:\s*(['\"]).*?\1"
         replacement = f"BACKEND_URL: '{backend_url}'"
 

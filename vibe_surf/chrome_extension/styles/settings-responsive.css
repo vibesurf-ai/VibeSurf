@@ -17,9 +17,9 @@
   }
   
   .settings-tab {
-    padding: 14px 20px;
+    padding: 14px 6px;
     font-size: 14px;
-    min-width: 120px;
+    min-width: 0;
   }
   
   .settings-tab-content {
@@ -80,9 +80,41 @@
   }
   
   .settings-tab {
-    padding: 12px 16px;
-    font-size: 13px;
-    min-width: 100px;
+    padding: 12px 4px;
+    font-size: 12px;
+    min-width: 0;
+    writing-mode: horizontal-tb;
+  }
+  
+  /* Make tabs even more compact for very narrow screens */
+  @media (max-width: 400px) {
+    .settings-tab {
+      padding: 10px 2px;
+      font-size: 11px;
+      line-height: 1.2;
+    }
+    
+    .settings-tab svg {
+      display: none; /* Hide icons on very small screens */
+    }
+  }
+  
+  /* Ultra narrow screens - consider vertical text */
+  @media (max-width: 350px) {
+    .settings-tabs {
+      flex-wrap: wrap;
+      height: auto;
+    }
+    
+    .settings-tab {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      padding: 8px 4px;
+      min-height: 60px;
+      width: calc(20% - 2px);
+      font-size: 10px;
+      line-height: 1.1;
+    }
   }
   
   .settings-tab-content {

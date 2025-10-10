@@ -58,12 +58,12 @@
   display: flex;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
-  overflow-x: auto;
+  overflow: visible;
 }
 
 .settings-tab {
   flex: 1;
-  padding: 16px 24px;
+  padding: 16px 8px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
@@ -73,7 +73,11 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   white-space: nowrap;
-  min-width: 150px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .settings-tab::before {

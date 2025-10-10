@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="styles/settings-profiles.css">
     <link rel="stylesheet" href="styles/settings-forms.css">
     <link rel="stylesheet" href="styles/settings-environment.css">
+    <link rel="stylesheet" href="styles/settings-integrations.css">
     <link rel="stylesheet" href="styles/settings-utilities.css">
     <link rel="stylesheet" href="styles/settings-responsive.css">
     
@@ -317,6 +318,12 @@
                     </svg>
                     Voice
                 </button>
+                <button class="settings-tab" data-tab="integrations">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
+                        <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Integrations
+                </button>
             </div>
             
             <!-- Tab Content -->
@@ -430,6 +437,67 @@
                         Add Voice
                     </button>
                 </div>
+                
+                <!-- Integrations Tab -->
+                <div id="integrations-tab" class="settings-tab-content">
+                    <div class="integrations-container">
+                        <!-- API Key Setup Section -->
+                        <div id="api-key-setup" class="integrations-section">
+                            <div class="section-header">
+                                <h3>Composio Integration</h3>
+                                <p class="section-description">Connect your Composio account to access external toolkits</p>
+                            </div>
+                            <div class="api-key-status">
+                                <div class="status-indicator" id="composio-status">
+                                    <div class="status-icon">⚠️</div>
+                                    <div class="status-text">
+                                        <div class="status-title">API Key Required</div>
+                                        <div class="status-message">Please configure your Composio API key to continue</div>
+                                    </div>
+                                    <button id="setup-api-key-btn" class="status-btn">Setup</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Toolkits Section (hidden initially) -->
+                        <div id="toolkits-section" class="integrations-section hidden">
+                            <div class="section-header">
+                                <h3>Available Toolkits</h3>
+                                <p class="section-description">Manage your Composio toolkits and their tools</p>
+                            </div>
+                            
+                            <!-- Search and Filter Bar -->
+                            <div class="toolkits-controls">
+                                <div class="search-filter-bar">
+                                    <div class="search-input-container">
+                                        <input type="text" id="toolkit-search" placeholder="Search toolkits..." class="search-input">
+                                        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                                            <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        </svg>
+                                    </div>
+                                    <select id="toolkit-filter" class="filter-select">
+                                        <option value="all">All Toolkits</option>
+                                        <option value="enabled">Enabled Only</option>
+                                        <option value="disabled">Disabled Only</option>
+                                        <option value="connected">Connected Only</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- Toolkits List -->
+                            <div id="toolkits-list" class="toolkits-list">
+                                <!-- Toolkits will be populated here -->
+                            </div>
+                            
+                            <!-- Loading State -->
+                            <div id="toolkits-loading" class="loading-state hidden">
+                                <div class="loading-spinner"></div>
+                                <div class="loading-text">Loading toolkits...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -453,6 +521,138 @@
             <div class="profile-form-actions">
                 <button type="button" class="form-btn secondary" id="profile-form-cancel">Cancel</button>
                 <button type="submit" class="form-btn primary" id="profile-form-submit">Save Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Composio API Key Setup Modal -->
+    <div id="composio-api-key-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content composio-modal-content">
+            <div class="modal-header">
+                <h3>Setup Composio API Key</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="api-key-setup-content">
+                    <div class="form-group">
+                        <label class="form-label required">Composio API Key</label>
+                        <div class="api-key-field">
+                            <input type="password" id="composio-api-key-input" class="form-input api-key-input"
+                                   placeholder="Enter your Composio API key" required>
+                            <button type="button" class="api-key-toggle" title="Toggle visibility">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" stroke-width="2"/>
+                                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="form-help">
+                            <p>Your Composio API key for accessing external integrations</p>
+                            <div class="help-link">
+                                <span>Get your API key from </span>
+                                <button id="open-composio-link" class="link-btn">
+                                    composio.dev
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M18 13V19C18 19.5304 17.7893 20.0391 17.4142 20.4142C17.0391 20.7893 16.5304 21 16 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V8C3 7.46957 3.21071 6.96086 3.58579 6.58579C3.96086 6.21071 4.46957 6 5 6H11M15 3H21M21 3V9M21 3L9 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                                <span> (Project Settings → API Keys)</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="api-key-validation" class="validation-feedback hidden">
+                        <!-- Validation feedback will be shown here -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="form-btn secondary" id="api-key-cancel">Cancel</button>
+                <button type="button" class="form-btn primary" id="api-key-confirm">Verify & Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tools Management Modal -->
+    <div id="tools-management-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content tools-modal-content">
+            <div class="modal-header">
+                <h3 id="tools-modal-title">Manage Tools</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="tools-management-content">
+                    <div class="tools-header">
+                        <div class="toolkit-info">
+                            <div id="toolkit-logo" class="toolkit-logo">
+                                <img src="" alt="" id="toolkit-logo-img">
+                            </div>
+                            <div class="toolkit-details">
+                                <h4 id="toolkit-name">Toolkit Name</h4>
+                                <p id="toolkit-description">Toolkit description</p>
+                            </div>
+                        </div>
+                        <div class="tools-actions">
+                            <button class="form-btn secondary" id="select-all-tools">Select All</button>
+                            <button class="form-btn secondary" id="deselect-all-tools">Deselect All</button>
+                        </div>
+                    </div>
+                    <div class="tools-list-container">
+                        <div id="tools-list" class="tools-list">
+                            <!-- Tools will be populated here -->
+                        </div>
+                        <div id="tools-loading" class="loading-state hidden">
+                            <div class="loading-spinner"></div>
+                            <div class="loading-text">Loading tools...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="form-btn secondary" id="tools-cancel">Cancel</button>
+                <button type="button" class="form-btn primary" id="tools-save">Save Selection</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OAuth Confirmation Modal -->
+    <div id="oauth-confirmation-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content oauth-modal-content">
+            <div class="modal-header">
+                <h3>OAuth Authorization Required</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="oauth-content">
+                    <div class="oauth-info">
+                        <div class="oauth-icon">🔐</div>
+                        <div class="oauth-text">
+                            <p>A new browser tab has been opened for OAuth authorization.</p>
+                            <p>Please complete the authorization process and return here.</p>
+                        </div>
+                    </div>
+                    <div class="oauth-question">
+                        <p><strong>Have you completed the OAuth authorization?</strong></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="form-btn secondary" id="oauth-not-completed">Not Yet</button>
+                <button type="button" class="form-btn primary" id="oauth-completed">Yes, Completed</button>
             </div>
         </div>
     </div>

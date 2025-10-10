@@ -189,6 +189,50 @@ class McpProfile(Base):
     def __repr__(self):
         return f"<McpProfile(display_name={self.display_name}, server_name={self.mcp_server_name}, active={self.is_active})>"
 
+class ComposioToolkit(Base):
+    """Composio Toolkit model for managing Composio app integrations"""
+    __tablename__ = 'composio_toolkits'
+    
+    # Primary identifier
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name = Column(String(100), nullable=False)
+    slug = Column(String(100), nullable=False, unique=True)
+    
+    # Toolkit information
+    description = Column(Text, nullable=True)
+    logo = Column(Text, nullable=True)  # URL to logo
+    app_url = Column(Text, nullable=True)
+    
+    # Configuration
+    enabled = Column(Boolean, default=False, nullable=False)
+    tools = Column(Text, nullable=True)  # JSON string storing tool_name: 0|1 mapping
+    
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    
+    def __repr__(self):
+        return f"<ComposioToolkit(name={self.name}, slug={self.slug}, enabled={self.enabled})>"
+
+class Credential(Base):
+    """Credential model for storing encrypted API keys and other sensitive data"""
+    __tablename__ = 'credentials'
+    
+    # Primary identifier
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    key_name = Column(String(100), nullable=False, unique=True)  # e.g., "COMPOSIO_API_KEY"
+    encrypted_value = Column(Text, nullable=True)  # Encrypted value using MAC address
+    
+    # Metadata
+    description = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    
+    def __repr__(self):
+        return f"<Credential(key_name={self.key_name})>"
+
 Index('idx_uploaded_files_session_time', UploadedFile.session_id, UploadedFile.upload_time)
 Index('idx_uploaded_files_active', UploadedFile.is_deleted, UploadedFile.upload_time)
 Index('idx_uploaded_files_filename', UploadedFile.original_filename)
@@ -202,3 +246,11 @@ Index('idx_mcp_profiles_active', McpProfile.is_active)
 Index('idx_voice_profiles_name', VoiceProfile.voice_profile_name)
 Index('idx_voice_profiles_type', VoiceProfile.voice_model_type)
 Index('idx_voice_profiles_active', VoiceProfile.is_active)
+
+# Composio Toolkit indexes
+Index('idx_composio_toolkits_name', ComposioToolkit.name)
+Index('idx_composio_toolkits_slug', ComposioToolkit.slug)
+Index('idx_composio_toolkits_enabled', ComposioToolkit.enabled)
+
+# Credential indexes
+Index('idx_credentials_key_name', Credential.key_name)
