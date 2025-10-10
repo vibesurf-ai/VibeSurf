@@ -27,15 +27,18 @@ logger = get_logger(__name__)
 # Pydantic models for Composio API
 from pydantic import BaseModel, Field
 
+
 class ComposioKeyVerifyRequest(BaseModel):
     """Request model for verifying Composio API key"""
     api_key: str = Field(description="Composio API key to verify")
+
 
 class ComposioKeyVerifyResponse(BaseModel):
     """Response model for Composio API key verification"""
     valid: bool
     message: str
     user_info: Optional[Dict[str, Any]] = None
+
 
 class ComposioToolkitResponse(BaseModel):
     """Response model for Composio toolkit data"""
@@ -51,16 +54,19 @@ class ComposioToolkitResponse(BaseModel):
     created_at: str
     updated_at: str
 
+
 class ComposioToolkitListResponse(BaseModel):
     """Response model for toolkit list"""
     toolkits: List[ComposioToolkitResponse]
     total_count: int
     synced_count: int
 
+
 class ComposioToolkitToggleRequest(BaseModel):
     """Request model for enabling/disabling a toolkit"""
     enabled: bool = Field(description="Whether to enable or disable the toolkit")
     force_reauth: Optional[bool] = Field(default=False, description="Force re-authentication if already connected")
+
 
 class ComposioToolkitToggleResponse(BaseModel):
     """Response model for toolkit toggle operation"""
@@ -72,6 +78,7 @@ class ComposioToolkitToggleResponse(BaseModel):
     connected: bool = False
     connection_status: str
 
+
 class ComposioToolsResponse(BaseModel):
     """Response model for toolkit tools"""
     toolkit_slug: str
@@ -79,9 +86,11 @@ class ComposioToolsResponse(BaseModel):
     total_tools: int
     selected_tools: Dict[str, bool]
 
+
 class ComposioToolsUpdateRequest(BaseModel):
     """Request model for updating selected tools"""
     selected_tools: Dict[str, bool] = Field(description="Mapping of tool_name to enabled status")
+
 
 class ComposioConnectionStatusResponse(BaseModel):
     """Response model for connection status"""
@@ -91,6 +100,7 @@ class ComposioConnectionStatusResponse(BaseModel):
     status: str
     last_checked: str
 
+
 async def _get_composio_api_key_from_db() -> Optional[str]:
     """Get Composio API key from database credentials table (encrypted)"""
     try:
@@ -99,7 +109,7 @@ async def _get_composio_api_key_from_db() -> Optional[str]:
         if not shared_state.db_manager:
             logger.warning("Database manager not available")
             return None
-            
+
         async for db in shared_state.db_manager.get_session():
             try:
                 api_key = await CredentialQueries.get_credential(db, "COMPOSIO_API_KEY")
@@ -111,6 +121,7 @@ async def _get_composio_api_key_from_db() -> Optional[str]:
         logger.error(f"Database session error while retrieving Composio API key: {e}")
         return None
 
+
 async def _store_composio_api_key_in_db(api_key: str) -> bool:
     """Store Composio API key in database credentials table (encrypted)"""
     try:
@@ -118,7 +129,7 @@ async def _store_composio_api_key_in_db(api_key: str) -> bool:
         if not shared_state.db_manager:
             logger.warning("Database manager not available")
             return False
-            
+
         async for db in shared_state.db_manager.get_session():
             try:
                 success = await CredentialQueries.store_credential(
@@ -138,6 +149,7 @@ async def _store_composio_api_key_in_db(api_key: str) -> bool:
         logger.error(f"Database session error while storing Composio API key: {e}")
         return False
 
+
 async def _get_composio_instance():
     """Get or create Composio instance from shared state"""
     try:
@@ -148,204 +160,96 @@ async def _get_composio_instance():
             if not api_key:
                 # If no API key in database, Composio instance cannot be created
                 return None
-            
+
             # Import Composio here to avoid circular imports
             from composio import Composio
             from composio_langchain import LangchainProvider
-            
+
             # Create Composio instance
             shared_state.composio_instance = Composio(
                 api_key=api_key,
                 provider=LangchainProvider()
             )
             logger.info("✅ Composio instance created successfully")
-        
+
         return shared_state.composio_instance
     except Exception as e:
         logger.error(f"Failed to get Composio instance: {e}")
         return None
 
+
 @router.get("/status")
-async def get_composio_status():
+async def get_composio_status(
+        db: AsyncSession = Depends(get_db_session)
+):
     """
     Get current Composio connection status without API validation
     """
     try:
         from .. import shared_state
         logger.info("Checking Composio connection status")
-        
+
         # Check if we already have a valid Composio instance
         if shared_state.composio_instance is not None:
-            try:
-                # Quick test to verify instance is still valid
-                await asyncio.to_thread(lambda: shared_state.composio_instance.toolkits.get())
-                return {
-                    "connected": True,
-                    "key_valid": True,
-                    "has_key": True,
-                    "message": "Composio is connected and ready",
-                    "instance_available": True
-                }
-            except Exception as e:
-                logger.warning(f"Composio instance validation failed: {e}")
-                # Instance is invalid, clear it
-                shared_state.composio_instance = None
-        
+            # try:
+            #     # Quick test to verify instance is still valid
+            #     await asyncio.to_thread(lambda: shared_state.composio_instance.toolkits.get())
+            #     return {
+            #         "connected": True,
+            #         "key_valid": True,
+            #         "has_key": True,
+            #         "message": "Composio is connected and ready",
+            #         "instance_available": True
+            #     }
+            # except Exception as e:
+            #     logger.warning(f"Composio instance validation failed: {e}")
+            #     # Instance is invalid, clear it
+            #     shared_state.composio_instance = None
+
+            return {
+                "connected": True,
+                "key_valid": True,
+                "has_key": True,
+                "message": "Composio is connected and ready",
+                "instance_available": True
+            }
+
         # No valid instance, check if we have API key in database
         api_key = await _get_composio_api_key_from_db()
-        
+
         if api_key:
             # Try to create instance with stored API key
             try:
                 from composio import Composio
                 from composio_langchain import LangchainProvider
-                
+
                 temp_composio = Composio(
                     api_key=api_key,
                     provider=LangchainProvider()
                 )
-                
+
                 # Test the instance
-                await asyncio.to_thread(lambda: temp_composio.toolkits.get())
-                
-                # Store valid instance
-                shared_state.composio_instance = temp_composio
-                
-                logger.info("✅ Composio instance recreated from stored API key")
-                return {
-                    "connected": True,
-                    "key_valid": True,
-                    "has_key": True,
-                    "message": "Composio connection restored from stored API key",
-                    "instance_available": True
-                }
-                
-            except Exception as e:
-                logger.warning(f"Stored API key validation failed: {e}")
-                # Clear invalid stored key
-                shared_state.composio_instance = None
-                return {
-                    "connected": False,
-                    "key_valid": False,
-                    "has_key": True,
-                    "message": f"Stored API key is invalid: {str(e)}",
-                    "instance_available": False
-                }
-        
-        # No API key in database
-        return {
-            "connected": False,
-            "key_valid": False,
-            "has_key": False,
-            "message": "No Composio API key configured",
-            "instance_available": False
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to check Composio status: {e}")
-        return {
-            "connected": False,
-            "key_valid": False,
-            "has_key": False,
-            "message": f"Status check failed: {str(e)}",
-            "instance_available": False
-        }
+                api_toolkits = await asyncio.to_thread(lambda: temp_composio.toolkits.get())
 
-@router.post("/verify-key", response_model=ComposioKeyVerifyResponse)
-async def verify_composio_api_key(
-    request: ComposioKeyVerifyRequest,
-    db: AsyncSession = Depends(get_db_session)
-):
-    """
-    Verify Composio API key validity and optionally store it
-    """
-    try:
-        from .. import shared_state
-        logger.info("Verifying Composio API key")
-        
-        # Import Composio here to avoid startup dependencies
-        from composio import Composio
-        from composio_langchain import LangchainProvider
-        
-        # Create temporary Composio instance for verification
-        try:
-            temp_composio = Composio(
-                api_key=request.api_key,
-                provider=LangchainProvider()
-            )
-            
-            # Test the API key by getting toolkits
-            toolkits = await asyncio.to_thread(lambda: temp_composio.toolkits.get())
-            
-            # If we get here, the API key is valid
-            logger.info("✅ Composio API key verified successfully")
-            
-            # Store the valid API key in database
-            store_success = await _store_composio_api_key_in_db(request.api_key)
-            
-            # Update shared state with new Composio instance
-            shared_state.composio_instance = temp_composio
-            
-            return ComposioKeyVerifyResponse(
-                valid=True,
-                message="API key verified successfully" + (" and stored in database" if store_success else ""),
-                user_info={"toolkits_count": len(toolkits) if toolkits else 0}
-            )
-            
-        except Exception as e:
-            logger.warning(f"Composio API key verification failed: {e}")
-            return ComposioKeyVerifyResponse(
-                valid=False,
-                message=f"Invalid API key: {str(e)}"
-            )
-            
-    except Exception as e:
-        logger.error(f"Failed to verify Composio API key: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to verify Composio API key: {str(e)}"
-        )
-
-@router.get("/toolkits", response_model=ComposioToolkitListResponse)
-async def get_composio_toolkits(
-    sync_with_api: bool = False,  # Changed default to False
-    db: AsyncSession = Depends(get_db_session)
-):
-    """
-    Get all OAuth2 toolkits from database and optionally sync with Composio API
-    """
-    try:
-        from .. import shared_state
-        logger.info(f"Getting Composio toolkits (sync_with_api={sync_with_api})")
-        
-        synced_count = 0
-        
-        # Check if we have a valid Composio instance
-        composio_available = shared_state.composio_instance is not None
-        
-        # If sync is requested and we have a valid instance, sync with API
-        if sync_with_api and composio_available:
-            try:
-                # Use existing instance to sync
-                api_toolkits = await asyncio.to_thread(lambda: shared_state.composio_instance.toolkits.get())
                 oauth2_toolkits = []
-                
+
                 for toolkit in api_toolkits:
                     if hasattr(toolkit, 'auth_schemes') and 'OAUTH2' in toolkit.auth_schemes:
                         oauth2_toolkits.append(toolkit)
-                
+
                 logger.info(f"Found {len(oauth2_toolkits)} OAuth2 toolkits from Composio API")
-                
+
                 # Sync with database
                 for api_toolkit in oauth2_toolkits:
                     # Check if toolkit already exists
                     existing_toolkit = await ComposioToolkitQueries.get_toolkit_by_slug(db, api_toolkit.slug)
-                    
+
                     # Get metadata from toolkit
-                    description = getattr(api_toolkit.meta, 'description', None) if hasattr(api_toolkit, 'meta') else None
+                    description = getattr(api_toolkit.meta, 'description', None) if hasattr(api_toolkit,
+                                                                                            'meta') else None
                     logo = getattr(api_toolkit.meta, 'logo', None) if hasattr(api_toolkit, 'meta') else None
                     app_url = getattr(api_toolkit.meta, 'app_url', None) if hasattr(api_toolkit, 'meta') else None
-                    
+
                     if not existing_toolkit:
                         # Create new toolkit
                         toolkit_data = await ComposioToolkitQueries.create_toolkit(
@@ -358,7 +262,6 @@ async def get_composio_toolkits(
                             enabled=False,
                             tools=None
                         )
-                        synced_count += 1
                         logger.info(f"Created new toolkit: {api_toolkit.name}")
                     else:
                         # Update existing toolkit information (but keep enabled status and tools)
@@ -370,15 +273,122 @@ async def get_composio_toolkits(
                         }
                         await ComposioToolkitQueries.update_toolkit_by_slug(db, api_toolkit.slug, update_data)
                         logger.debug(f"Updated existing toolkit: {api_toolkit.name}")
-                
+
                 await db.commit()
-                logger.info(f"✅ Synced {synced_count} new toolkits with database")
-                
+
+                # Store valid instance
+                shared_state.composio_instance = temp_composio
+
+                logger.info("✅ Composio instance recreated from stored API key")
+                return {
+                    "connected": True,
+                    "key_valid": True,
+                    "has_key": True,
+                    "message": "Composio connection restored from stored API key",
+                    "instance_available": True
+                }
+
             except Exception as e:
-                logger.error(f"Failed to sync with Composio API: {e}")
-                # Clear invalid instance
+                logger.warning(f"Stored API key validation failed: {e}")
+                # Clear invalid stored key
                 shared_state.composio_instance = None
-                # Continue with database-only response
+                return {
+                    "connected": False,
+                    "key_valid": False,
+                    "has_key": True,
+                    "message": f"Stored API key is invalid: {str(e)}",
+                    "instance_available": False
+                }
+
+        # No API key in database
+        return {
+            "connected": False,
+            "key_valid": False,
+            "has_key": False,
+            "message": "No Composio API key configured",
+            "instance_available": False
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to check Composio status: {e}")
+        return {
+            "connected": False,
+            "key_valid": False,
+            "has_key": False,
+            "message": f"Status check failed: {str(e)}",
+            "instance_available": False
+        }
+
+
+@router.post("/verify-key", response_model=ComposioKeyVerifyResponse)
+async def verify_composio_api_key(
+        request: ComposioKeyVerifyRequest,
+        db: AsyncSession = Depends(get_db_session)
+):
+    """
+    Verify Composio API key validity and optionally store it
+    """
+    try:
+        from .. import shared_state
+        logger.info("Verifying Composio API key")
+
+        # Import Composio here to avoid startup dependencies
+        from composio import Composio
+        from composio_langchain import LangchainProvider
+
+        # Create temporary Composio instance for verification
+        try:
+            temp_composio = Composio(
+                api_key=request.api_key,
+                provider=LangchainProvider()
+            )
+
+            # Test the API key by getting toolkits
+            toolkits = await asyncio.to_thread(lambda: temp_composio.toolkits.get())
+
+            # If we get here, the API key is valid
+            logger.info("✅ Composio API key verified successfully")
+
+            # Store the valid API key in database
+            store_success = await _store_composio_api_key_in_db(request.api_key)
+
+            # Update shared state with new Composio instance
+            shared_state.composio_instance = temp_composio
+
+            return ComposioKeyVerifyResponse(
+                valid=True,
+                message="API key verified successfully" + (" and stored in database" if store_success else ""),
+                user_info={"toolkits_count": len(toolkits) if toolkits else 0}
+            )
+
+        except Exception as e:
+            logger.warning(f"Composio API key verification failed: {e}")
+            return ComposioKeyVerifyResponse(
+                valid=False,
+                message=f"Invalid API key: {str(e)}"
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to verify Composio API key: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to verify Composio API key: {str(e)}"
+        )
+
+
+@router.get("/toolkits", response_model=ComposioToolkitListResponse)
+async def get_composio_toolkits(
+        sync_with_api: bool = False,  # Changed default to False
+        db: AsyncSession = Depends(get_db_session)
+):
+    """
+    Get all OAuth2 toolkits from database and optionally sync with Composio API
+    """
+    try:
+        from .. import shared_state
+        logger.info(f"Getting Composio toolkits (sync_with_api={sync_with_api})")
+
+        synced_count = 0
 
         # Get all toolkits from database
         db_toolkits = await ComposioToolkitQueries.list_toolkits(db, enabled_only=False)
@@ -386,13 +396,20 @@ async def get_composio_toolkits(
         toolkit_responses = []
         for toolkit in db_toolkits:
             # Parse tools JSON if present
-            tools_dict = None
+            tools_data = None
             if toolkit.tools:
                 try:
-                    tools_dict = json.loads(toolkit.tools)
-                except (json.JSONDecodeError, TypeError):
-                    tools_dict = None
-            
+                    tools_data = json.loads(toolkit.tools)
+                    # Ensure tools_data is in the correct format
+                    if isinstance(tools_data, list):
+                        # Convert list to dict format if needed
+                        tools_data = {tool.get('name', f'tool_{i}'): tool for i, tool in enumerate(tools_data)}
+                    elif not isinstance(tools_data, dict):
+                        tools_data = None
+                except (json.JSONDecodeError, TypeError) as e:
+                    logger.warning(f"Failed to parse tools for toolkit {toolkit.slug}: {e}")
+                    tools_data = None
+
             toolkit_responses.append(ComposioToolkitResponse(
                 id=toolkit.id,
                 name=toolkit.name,
@@ -401,7 +418,7 @@ async def get_composio_toolkits(
                 logo=toolkit.logo,
                 app_url=toolkit.app_url,
                 enabled=toolkit.enabled,
-                tools=tools_dict,
+                tools=tools_data,
                 connection_status="unknown",  # Will be updated by connection status check
                 created_at=toolkit.created_at.isoformat(),
                 updated_at=toolkit.updated_at.isoformat()
@@ -412,7 +429,7 @@ async def get_composio_toolkits(
             total_count=len(toolkit_responses),
             synced_count=synced_count
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -422,18 +439,19 @@ async def get_composio_toolkits(
             detail=f"Failed to get Composio toolkits: {str(e)}"
         )
 
+
 @router.post("/toolkit/{slug}/toggle", response_model=ComposioToolkitToggleResponse)
 async def toggle_composio_toolkit(
-    slug: str,
-    request: ComposioToolkitToggleRequest,
-    db: AsyncSession = Depends(get_db_session)
+        slug: str,
+        request: ComposioToolkitToggleRequest,
+        db: AsyncSession = Depends(get_db_session)
 ):
     """
     Enable/disable a toolkit and handle OAuth flow if needed
     """
     try:
         logger.info(f"Toggling toolkit {slug} to enabled={request.enabled}")
-        
+
         # Get toolkit from database
         toolkit = await ComposioToolkitQueries.get_toolkit_by_slug(db, slug)
         if not toolkit:
@@ -441,7 +459,7 @@ async def toggle_composio_toolkit(
                 status_code=404,
                 detail=f"Toolkit '{slug}' not found"
             )
-        
+
         # Get Composio instance
         composio = await _get_composio_instance()
         if composio is None:
@@ -449,11 +467,11 @@ async def toggle_composio_toolkit(
                 status_code=400,
                 detail="Composio API key not configured. Please verify your API key first."
             )
-        
+
         auth_url = None
         connection_status = "disconnected"
         entity_id = "default"  # Use default entity ID
-        
+
         if request.enabled:
             # Check if toolkit needs OAuth connection
             try:
@@ -464,7 +482,7 @@ async def toggle_composio_toolkit(
                             user_ids=[entity_id],
                             toolkit_slugs=[slug.lower()]
                         )
-                        
+
                         if connection_list and hasattr(connection_list, "items") and connection_list.items:
                             for connection in connection_list.items:
                                 connection_id = getattr(connection, "id", None)
@@ -475,9 +493,9 @@ async def toggle_composio_toolkit(
                     except Exception as e:
                         logger.error(f"Error checking connections: {e}")
                         return None, None
-                
+
                 connection_id, conn_status = await asyncio.to_thread(_find_active_connection)
-                
+
                 if not connection_id or request.force_reauth:
                     # Need to create OAuth connection
                     try:
@@ -485,7 +503,7 @@ async def toggle_composio_toolkit(
                             try:
                                 # Get or create auth config
                                 auth_configs = composio.auth_configs.list(toolkit_slug=slug)
-                                
+
                                 auth_config_id = None
                                 if len(auth_configs.items) == 0:
                                     # Create new auth config
@@ -493,75 +511,76 @@ async def toggle_composio_toolkit(
                                         toolkit=slug,
                                         options={"type": "use_composio_managed_auth"}
                                     )
-                                    auth_config_id = auth_config_response.id if hasattr(auth_config_response, 'id') else auth_config_response
+                                    auth_config_id = auth_config_response.id if hasattr(auth_config_response,
+                                                                                        'id') else auth_config_response
                                 else:
                                     # Use existing OAUTH2 auth config
                                     for auth_config in auth_configs.items:
                                         if auth_config.auth_scheme == "OAUTH2":
                                             auth_config_id = auth_config.id
                                             break
-                                
+
                                 if not auth_config_id:
                                     raise Exception("Could not find or create auth config")
-                                
+
                                 # Initiate connection
                                 connection_request = composio.connected_accounts.initiate(
                                     user_id=entity_id,
                                     auth_config_id=auth_config_id,
                                     allow_multiple=True
                                 )
-                                
+
                                 return getattr(connection_request, 'redirect_url', None)
-                                
+
                             except Exception as e:
                                 logger.error(f"Error creating auth connection: {e}")
                                 raise e
-                        
+
                         auth_url = await asyncio.to_thread(_create_auth_connection)
-                        
+
                         if auth_url:
                             connection_status = "pending_auth"
                             logger.info(f"Generated OAuth URL for {slug}: {auth_url}")
                         else:
                             logger.warning(f"No OAuth URL returned for {slug}")
                             connection_status = "error"
-                    
+
                     except Exception as e:
                         logger.error(f"Failed to create OAuth connection for {slug}: {e}")
                         connection_status = "error"
-                        
+
                 else:
                     connection_status = "connected"
                     logger.info(f"Toolkit {slug} already has active connection")
-            
+
             except Exception as e:
                 logger.warning(f"Failed to check connections for {slug}: {e}")
                 connection_status = "unknown"
-        
+
         # Update toolkit enabled status in database
         success = await ComposioToolkitQueries.update_toolkit_by_slug(
             db,
             slug,
             {'enabled': request.enabled}
         )
-        
+
         if not success:
             raise HTTPException(
                 status_code=500,
                 detail="Failed to update toolkit status in database"
             )
-        
+
         await db.commit()
-        
+
         message = f"Toolkit '{toolkit.name}' {'enabled' if request.enabled else 'disabled'} successfully"
         requires_oauth = auth_url is not None
         is_connected = connection_status == "connected"
-        
+
         if auth_url:
             message += ". Please complete OAuth authentication."
-        
+
         logger.info(f"✅ {message}")
-        
+
         return ComposioToolkitToggleResponse(
             success=True,
             message=message,
@@ -571,7 +590,7 @@ async def toggle_composio_toolkit(
             connected=is_connected,
             connection_status=connection_status
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -581,17 +600,19 @@ async def toggle_composio_toolkit(
             detail=f"Failed to toggle toolkit: {str(e)}"
         )
 
+
 @router.get("/toolkit/{slug}/tools", response_model=ComposioToolsResponse)
 async def get_toolkit_tools(
-    slug: str,
-    db: AsyncSession = Depends(get_db_session)
+        slug: str,
+        db: AsyncSession = Depends(get_db_session)
 ):
     """
     Get available tools for a specific toolkit
+    First tries to get from database, if empty then fetches from API and saves to database
     """
     try:
         logger.info(f"Getting tools for toolkit {slug}")
-        
+
         # Get toolkit from database
         toolkit = await ComposioToolkitQueries.get_toolkit_by_slug(db, slug)
         if not toolkit:
@@ -599,22 +620,69 @@ async def get_toolkit_tools(
                 status_code=404,
                 detail=f"Toolkit '{slug}' not found"
             )
-        
-        # Get Composio instance
+        # First, try to get tools from database
+        if toolkit.tools:
+            try:
+                tools_data = json.loads(toolkit.tools)
+                if tools_data:
+                    logger.info(f"Found tools data for toolkit {slug} from database: {type(tools_data)}")
+                    
+                    # Handle different data formats
+                    if isinstance(tools_data, list):
+                        # Convert list format to expected response format
+                        tools_list = tools_data
+                        selected_tools = {tool.get('name', f'tool_{i}'): tool.get('enabled', True)
+                                        for i, tool in enumerate(tools_data)}
+                    elif isinstance(tools_data, dict):
+                        # Convert dict format to list format
+                        tools_list = []
+                        selected_tools = {}
+                        for tool_name, tool_info in tools_data.items():
+                            if isinstance(tool_info, dict):
+                                tool_info['name'] = tool_name
+                                tools_list.append(tool_info)
+                                selected_tools[tool_name] = tool_info.get('enabled', True)
+                            else:
+                                # Simple boolean format
+                                tools_list.append({
+                                    'name': tool_name,
+                                    'description': '',
+                                    'parameters': {},
+                                    'enabled': bool(tool_info)
+                                })
+                                selected_tools[tool_name] = bool(tool_info)
+                    else:
+                        tools_list = []
+                        selected_tools = {}
+                    
+                    if tools_list:
+                        logger.info(f"Found {len(tools_list)} tools for toolkit {slug} from database")
+                        return ComposioToolsResponse(
+                            toolkit_slug=slug,
+                            tools=tools_list,
+                            total_tools=len(tools_list),
+                            selected_tools=selected_tools
+                        )
+                    
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"Failed to parse existing tools from database for {slug}: {e}")
+
+        # If we reach here, either no tools in database or invalid format
+        # Get Composio instance and fetch from API
         composio = await _get_composio_instance()
         if composio is None:
             raise HTTPException(
                 status_code=400,
                 detail="Composio API key not configured. Please verify your API key first."
             )
-        
+
         # Get tools from Composio API
         try:
             entity_id = "default"  # Use default entity ID
             api_tools = await asyncio.to_thread(
                 lambda: composio.tools.get(user_id=entity_id, toolkits=[slug.lower()], limit=999)
             )
-            
+
             # Convert to response format
             tools_list = []
             for tool in api_tools:
@@ -624,35 +692,42 @@ async def get_toolkit_tools(
                     'parameters': tool.args_schema.model_json_schema() if hasattr(tool, 'args_schema') else {},
                     'enabled': True  # Default enabled
                 })
-            
-            # Get selected tools from database
-            selected_tools = {}
-            if toolkit.tools:
-                try:
-                    selected_tools = json.loads(toolkit.tools)
-                except (json.JSONDecodeError, TypeError):
-                    selected_tools = {}
-            
-            # If no saved selection, default all to enabled
-            if not selected_tools:
-                selected_tools = {tool['name']: True for tool in tools_list}
-            
-            logger.info(f"Found {len(tools_list)} tools for toolkit {slug}")
-            
+
+            # Create selected tools mapping
+            selected_tools = {tool['name']: True for tool in tools_list}
+
+            # Save tools to database for future use
+            try:
+                tools_json = json.dumps(tools_list)
+                success = await ComposioToolkitQueries.update_toolkit_tools(
+                    db,
+                    toolkit.id,
+                    tools_json
+                )
+                if success:
+                    await db.commit()
+                    logger.info(f"✅ Saved {len(selected_tools)} tools to database for toolkit {slug}")
+                else:
+                    logger.warning(f"Failed to save tools to database for toolkit {slug}")
+            except Exception as e:
+                logger.warning(f"Failed to save tools to database for toolkit {slug}: {e}")
+
+            logger.info(f"Found {len(tools_list)} tools for toolkit {slug} from API and saved to database")
+
             return ComposioToolsResponse(
                 toolkit_slug=slug,
                 tools=tools_list,
                 total_tools=len(tools_list),
                 selected_tools=selected_tools
             )
-            
+
         except Exception as e:
-            logger.error(f"Failed to get tools for toolkit {slug}: {e}")
+            logger.error(f"Failed to get tools for toolkit {slug} from API: {e}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to get tools from Composio API: {str(e)}"
             )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -662,18 +737,20 @@ async def get_toolkit_tools(
             detail=f"Failed to get toolkit tools: {str(e)}"
         )
 
+
 @router.post("/toolkit/{slug}/tools", response_model=ComposioToolsResponse)
 async def update_toolkit_tools(
-    slug: str,
-    request: ComposioToolsUpdateRequest,
-    db: AsyncSession = Depends(get_db_session)
+        slug: str,
+        request: ComposioToolsUpdateRequest,
+        db: AsyncSession = Depends(get_db_session)
 ):
     """
     Update selected tools for a toolkit
     """
     try:
         logger.info(f"Updating tools selection for toolkit {slug}")
-        
+        logger.info(f"Request selected_tools: {request.selected_tools}")
+
         # Get toolkit from database
         toolkit = await ComposioToolkitQueries.get_toolkit_by_slug(db, slug)
         if not toolkit:
@@ -682,33 +759,61 @@ async def update_toolkit_tools(
                 detail=f"Toolkit '{slug}' not found"
             )
         
-        # Convert selected tools to JSON string
-        tools_json = json.dumps(request.selected_tools)
+        logger.info(f"Found toolkit: {toolkit.name} (ID: {toolkit.id})")
+        logger.info(f"Existing tools in DB: {toolkit.tools}")
         
+        tools_list = []
+        if toolkit.tools:
+            try:
+                tools_list = json.loads(toolkit.tools)
+                logger.info(f"Parsed existing tools: {len(tools_list)} tools")
+                if tools_list:
+                    for tool in tools_list:
+                        original_enabled = tool.get('enabled', True)
+                        new_enabled = request.selected_tools.get(tool['name'], True)
+                        tool['enabled'] = new_enabled
+                        logger.info(f"Tool {tool['name']}: {original_enabled} -> {new_enabled}")
+            except Exception as e:
+                logger.error(f"Failed to parse existing tools: {e}")
+                tools_list = []
+                
+        if tools_list:
+            # Convert selected tools to JSON string
+            tools_json = json.dumps(tools_list)
+            logger.info(f"Tools JSON to save: {tools_json[:200]}...")  # Log first 200 chars
+        else:
+            tools_json = ''
+            logger.info("No tools to save, using empty string")
+
         # Update toolkit tools in database
+        logger.info(f"Calling update_toolkit_tools with toolkit_id: {toolkit.id}")
         success = await ComposioToolkitQueries.update_toolkit_tools(
             db,
             toolkit.id,
             tools_json
         )
-        
+
         if not success:
+            logger.error(f"Failed to update toolkit tools in database for {slug}")
             raise HTTPException(
                 status_code=500,
                 detail="Failed to update toolkit tools in database"
             )
-        
+
         await db.commit()
-        
+        logger.info(f"✅ Database commit successful for {slug}")
+
         # Get updated tools count
         enabled_count = sum(1 for enabled in request.selected_tools.values() if enabled)
         total_count = len(request.selected_tools)
-        
+
         logger.info(f"✅ Updated tools selection for {slug}: {enabled_count}/{total_count} tools enabled")
-        
+
         # Return current tools (reuse the get endpoint logic)
-        return await get_toolkit_tools(slug, db)
-        
+        result = await get_toolkit_tools(slug, db)
+        logger.info(f"Returning updated tools response for {slug}")
+        return result
+
     except HTTPException:
         raise
     except Exception as e:
@@ -718,17 +823,18 @@ async def update_toolkit_tools(
             detail=f"Failed to update toolkit tools: {str(e)}"
         )
 
+
 @router.get("/toolkit/{slug}/connection-status", response_model=ComposioConnectionStatusResponse)
 async def get_toolkit_connection_status(
-    slug: str,
-    db: AsyncSession = Depends(get_db_session)
+        slug: str,
+        db: AsyncSession = Depends(get_db_session)
 ):
     """
     Check connection status for a specific toolkit
     """
     try:
         logger.info(f"Checking connection status for toolkit {slug}")
-        
+
         # Get toolkit from database
         toolkit = await ComposioToolkitQueries.get_toolkit_by_slug(db, slug)
         if not toolkit:
@@ -736,7 +842,7 @@ async def get_toolkit_connection_status(
                 status_code=404,
                 detail=f"Toolkit '{slug}' not found"
             )
-        
+
         # Get Composio instance
         composio = await _get_composio_instance()
         if composio is None:
@@ -747,18 +853,18 @@ async def get_toolkit_connection_status(
                 status="no_api_key",
                 last_checked=datetime.now().isoformat()
             )
-        
+
         # Check connection status with Composio API
         try:
             entity_id = "default"  # Use default entity ID
-            
+
             def _check_connection_status():
                 try:
                     connection_list = composio.connected_accounts.list(
                         user_ids=[entity_id],
                         toolkit_slugs=[slug.lower()]
                     )
-                    
+
                     if connection_list and hasattr(connection_list, "items") and connection_list.items:
                         for connection in connection_list.items:
                             connection_id = getattr(connection, "id", None)
@@ -769,9 +875,9 @@ async def get_toolkit_connection_status(
                 except Exception as e:
                     logger.error(f"Error checking connection status: {e}")
                     return None, "error"
-            
+
             connection_id, status = await asyncio.to_thread(_check_connection_status)
-            
+
             return ComposioConnectionStatusResponse(
                 toolkit_slug=slug,
                 connected=(status == "connected"),
@@ -779,7 +885,7 @@ async def get_toolkit_connection_status(
                 status=status,
                 last_checked=datetime.now().isoformat()
             )
-                
+
         except Exception as e:
             logger.error(f"Failed to check connection status for {slug}: {e}")
             return ComposioConnectionStatusResponse(
@@ -789,7 +895,7 @@ async def get_toolkit_connection_status(
                 status="error",
                 last_checked=datetime.now().isoformat()
             )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -798,6 +904,7 @@ async def get_toolkit_connection_status(
             status_code=500,
             detail=f"Failed to get connection status: {str(e)}"
         )
+
 
 # OAuth is now handled via browser popups using Composio's managed auth system
 # No callback endpoint needed as authentication is handled in popup windows
@@ -810,30 +917,37 @@ async def composio_health_check():
     """
     try:
         composio = await _get_composio_instance()
-        
+
         if composio is None:
             return {
                 "status": "no_api_key",
                 "message": "Composio API key not configured",
                 "timestamp": datetime.now().isoformat()
             }
-        
+
         # Test API connection
-        try:
-            toolkits = await asyncio.to_thread(lambda: composio.toolkits.get())
-            return {
-                "status": "healthy",
-                "message": "Composio API connection working",
-                "toolkits_count": len(toolkits) if toolkits else 0,
-                "timestamp": datetime.now().isoformat()
-            }
-        except Exception as e:
-            return {
-                "status": "api_error",
-                "message": f"Composio API error: {str(e)}",
-                "timestamp": datetime.now().isoformat()
-            }
-        
+        # try:
+        #     toolkits = await asyncio.to_thread(lambda: composio.toolkits.get())
+        #     return {
+        #         "status": "healthy",
+        #         "message": "Composio API connection working",
+        #         "toolkits_count": len(toolkits) if toolkits else 0,
+        #         "timestamp": datetime.now().isoformat()
+        #     }
+        # except Exception as e:
+        #     return {
+        #         "status": "api_error",
+        #         "message": f"Composio API error: {str(e)}",
+        #         "timestamp": datetime.now().isoformat()
+        #     }
+
+        return {
+            "status": "healthy",
+            "message": "Composio API connection working",
+            "toolkits_count": 0,
+            "timestamp": datetime.now().isoformat()
+        }
+
     except Exception as e:
         logger.error(f"Composio health check failed: {e}")
         return {

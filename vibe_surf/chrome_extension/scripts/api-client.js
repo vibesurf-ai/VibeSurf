@@ -560,7 +560,10 @@ class VibeSurfAPIClient {
   }
 
   async updateComposioToolkitTools(slug, selectedTools) {
-    return this.post(`/composio/toolkit/${encodeURIComponent(slug)}/tools`, { selected_tools: selectedTools });
+    console.log(`[APIClient] Updating toolkit tools for ${slug}:`, selectedTools);
+    const response = await this.post(`/composio/toolkit/${encodeURIComponent(slug)}/tools`, { selected_tools: selectedTools });
+    console.log(`[APIClient] Update toolkit tools response:`, response);
+    return response;
   }
 
   async getComposioToolkitConnectionStatus(slug) {

@@ -2325,7 +2325,8 @@ class VibeSurfSettingsManager {
         connection_status: toolkit.connection_status || 'unknown'
       }));
 
-      console.log('Composio toolkits:', this.state.toolkits);
+      // Check connection status for enabled toolkits
+      await this.updateToolkitConnectionStatuses();
       
       // Apply current search and filter
       this.filterToolkits();
@@ -2672,10 +2673,6 @@ class VibeSurfSettingsManager {
       this.elements.toolkitName.textContent = toolkit.name;
     }
     
-    if (this.elements.toolkitDescription) {
-      this.elements.toolkitDescription.textContent = toolkit.description;
-    }
-    
     // Show modal
     this.elements.toolsManagementModal.classList.remove('hidden');
   }
@@ -2792,6 +2789,7 @@ class VibeSurfSettingsManager {
   // Handle tools save
   async handleToolsSave() {
     if (!this.state.currentToolkit) {
+      console.error('[SettingsManager] No current toolkit selected for save');
       return;
     }
 
@@ -2803,15 +2801,22 @@ class VibeSurfSettingsManager {
       const selectedTools = [];
       
       if (toolCheckboxes) {
+        console.log(`[SettingsManager] Found ${toolCheckboxes.length} tool checkboxes`);
         toolCheckboxes.forEach(checkbox => {
+          console.log(`[SettingsManager] Tool ${checkbox.dataset.toolName}: ${checkbox.checked ? 'selected' : 'not selected'}`);
           if (checkbox.checked) {
             selectedTools.push(checkbox.dataset.toolName);
           }
         });
+      } else {
+        console.warn('[SettingsManager] No tool checkboxes found');
       }
       
+      console.log(`[SettingsManager] Selected tools:`, selectedTools);
+      
       // Save tools selection
-      await this.apiClient.updateComposioToolkitTools(this.state.currentToolkit, selectedTools);
+      const response = await this.apiClient.updateComposioToolkitTools(this.state.currentToolkit, selectedTools);
+      console.log(`[SettingsManager] Save response:`, response);
       
       this.emit('notification', {
         message: 'Tools configuration saved successfully',
@@ -2829,6 +2834,43 @@ class VibeSurfSettingsManager {
       });
     }
   }
+  
+    // Update connection status for all enabled toolkits
+    async updateToolkitConnectionStatuses() {
+      try {
+        const enabledToolkits = this.state.toolkits.filter(toolkit => toolkit.enabled);
+        
+        if (enabledToolkits.length === 0) {
+          return;
+        }
+        
+        // Check connection status for each enabled toolkit
+        const connectionPromises = enabledToolkits.map(async (toolkit) => {
+          try {
+            const statusResponse = await this.apiClient.getComposioToolkitConnectionStatus(toolkit.slug);
+            
+            // Update toolkit connection status
+            const toolkitIndex = this.state.toolkits.findIndex(t => t.slug === toolkit.slug);
+            if (toolkitIndex !== -1) {
+              this.state.toolkits[toolkitIndex].connected = statusResponse.connected;
+              this.state.toolkits[toolkitIndex].connection_status = statusResponse.status;
+            }
+            
+            return { slug: toolkit.slug, connected: statusResponse.connected, status: statusResponse.status };
+          } catch (error) {
+            console.error(`[SettingsManager] Failed to check connection status for ${toolkit.slug}:`, error);
+            // Keep as disconnected on error
+            return { slug: toolkit.slug, connected: false, status: 'error' };
+          }
+        });
+        
+        const results = await Promise.all(connectionPromises);
+        console.log('[SettingsManager] Connection status check results:', results);
+        
+      } catch (error) {
+        console.error('[SettingsManager] Failed to update toolkit connection statuses:', error);
+      }
+    }
 }
 
 // Export for use in other modules
