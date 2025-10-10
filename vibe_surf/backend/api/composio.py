@@ -49,7 +49,7 @@ class ComposioToolkitResponse(BaseModel):
     logo: Optional[str] = None
     app_url: Optional[str] = None
     enabled: bool
-    tools: Optional[Dict[str, Any]] = None
+    tools: Optional[List] = None
     connection_status: Optional[str] = None
     created_at: str
     updated_at: str
@@ -84,7 +84,6 @@ class ComposioToolsResponse(BaseModel):
     toolkit_slug: str
     tools: List[Dict[str, Any]]
     total_tools: int
-    selected_tools: Dict[str, bool]
 
 
 class ComposioToolsUpdateRequest(BaseModel):
@@ -344,7 +343,7 @@ async def verify_composio_api_key(
             )
 
             # Test the API key by getting toolkits
-            toolkits = await asyncio.to_thread(lambda: temp_composio.toolkits.get())
+            toolkits = await asyncio.to_thread(lambda: temp_composio.toolkits.get(slug='gmail'))
 
             # If we get here, the API key is valid
             logger.info("✅ Composio API key verified successfully")
@@ -400,12 +399,6 @@ async def get_composio_toolkits(
             if toolkit.tools:
                 try:
                     tools_data = json.loads(toolkit.tools)
-                    # Ensure tools_data is in the correct format
-                    if isinstance(tools_data, list):
-                        # Convert list to dict format if needed
-                        tools_data = {tool.get('name', f'tool_{i}'): tool for i, tool in enumerate(tools_data)}
-                    elif not isinstance(tools_data, dict):
-                        tools_data = None
                 except (json.JSONDecodeError, TypeError) as e:
                     logger.warning(f"Failed to parse tools for toolkit {toolkit.slug}: {e}")
                     tools_data = None
@@ -623,46 +616,14 @@ async def get_toolkit_tools(
         # First, try to get tools from database
         if toolkit.tools:
             try:
-                tools_data = json.loads(toolkit.tools)
-                if tools_data:
-                    logger.info(f"Found tools data for toolkit {slug} from database: {type(tools_data)}")
-                    
-                    # Handle different data formats
-                    if isinstance(tools_data, list):
-                        # Convert list format to expected response format
-                        tools_list = tools_data
-                        selected_tools = {tool.get('name', f'tool_{i}'): tool.get('enabled', True)
-                                        for i, tool in enumerate(tools_data)}
-                    elif isinstance(tools_data, dict):
-                        # Convert dict format to list format
-                        tools_list = []
-                        selected_tools = {}
-                        for tool_name, tool_info in tools_data.items():
-                            if isinstance(tool_info, dict):
-                                tool_info['name'] = tool_name
-                                tools_list.append(tool_info)
-                                selected_tools[tool_name] = tool_info.get('enabled', True)
-                            else:
-                                # Simple boolean format
-                                tools_list.append({
-                                    'name': tool_name,
-                                    'description': '',
-                                    'parameters': {},
-                                    'enabled': bool(tool_info)
-                                })
-                                selected_tools[tool_name] = bool(tool_info)
-                    else:
-                        tools_list = []
-                        selected_tools = {}
-                    
-                    if tools_list:
-                        logger.info(f"Found {len(tools_list)} tools for toolkit {slug} from database")
-                        return ComposioToolsResponse(
-                            toolkit_slug=slug,
-                            tools=tools_list,
-                            total_tools=len(tools_list),
-                            selected_tools=selected_tools
-                        )
+                tools_list = json.loads(toolkit.tools)
+                if tools_list:
+                    logger.info(f"Found {len(tools_list)} tools for toolkit {slug} from database")
+                    return ComposioToolsResponse(
+                        toolkit_slug=slug,
+                        tools=tools_list,
+                        total_tools=len(tools_list)
+                    )
                     
             except (json.JSONDecodeError, TypeError) as e:
                 logger.warning(f"Failed to parse existing tools from database for {slug}: {e}")
@@ -693,9 +654,6 @@ async def get_toolkit_tools(
                     'enabled': True  # Default enabled
                 })
 
-            # Create selected tools mapping
-            selected_tools = {tool['name']: True for tool in tools_list}
-
             # Save tools to database for future use
             try:
                 tools_json = json.dumps(tools_list)
@@ -706,7 +664,6 @@ async def get_toolkit_tools(
                 )
                 if success:
                     await db.commit()
-                    logger.info(f"✅ Saved {len(selected_tools)} tools to database for toolkit {slug}")
                 else:
                     logger.warning(f"Failed to save tools to database for toolkit {slug}")
             except Exception as e:
@@ -717,8 +674,7 @@ async def get_toolkit_tools(
             return ComposioToolsResponse(
                 toolkit_slug=slug,
                 tools=tools_list,
-                total_tools=len(tools_list),
-                selected_tools=selected_tools
+                total_tools=len(tools_list)
             )
 
         except Exception as e:

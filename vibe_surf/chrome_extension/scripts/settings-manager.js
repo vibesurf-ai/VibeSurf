@@ -2796,17 +2796,17 @@ class VibeSurfSettingsManager {
     try {
       console.log(`[SettingsManager] Saving tools for ${this.state.currentToolkit}`);
       
-      // Get selected tools
+      // Get all tools with their selection status as dictionary
       const toolCheckboxes = this.elements.toolsList?.querySelectorAll('.tool-checkbox-input');
-      const selectedTools = [];
+      const selectedTools = {};
       
       if (toolCheckboxes) {
         console.log(`[SettingsManager] Found ${toolCheckboxes.length} tool checkboxes`);
         toolCheckboxes.forEach(checkbox => {
-          console.log(`[SettingsManager] Tool ${checkbox.dataset.toolName}: ${checkbox.checked ? 'selected' : 'not selected'}`);
-          if (checkbox.checked) {
-            selectedTools.push(checkbox.dataset.toolName);
-          }
+          const toolName = checkbox.dataset.toolName;
+          const isSelected = checkbox.checked;
+          selectedTools[toolName] = isSelected;
+          console.log(`[SettingsManager] Tool ${toolName}: ${isSelected ? 'selected' : 'not selected'}`);
         });
       } else {
         console.warn('[SettingsManager] No tool checkboxes found');
