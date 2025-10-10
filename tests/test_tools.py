@@ -138,6 +138,18 @@ async def test_composio_integrations():
         provider=LangchainProvider()
     )
 
+    schema = composio.toolkits.get()
+    composio_toolkits = []
+    for schema_ in schema:
+        if 'OAUTH2' in schema_.auth_schemes:
+            composio_toolkits.append({
+                'name': schema_.name,
+                'slug': schema_.slug,
+                'description': schema_.meta.description,
+                'logo': schema_.meta.logo,
+                'app_url': schema_.meta.app_url,
+            })
+
     def configure_tools(entity_id: str, app_name: str, limit: int | None = None) -> Dict:
         if limit is None:
             limit = 999
@@ -147,7 +159,11 @@ async def test_composio_integrations():
         tools_map = {}
         for tool in tools:
             # Set the tags
-            tools_map[tool.name] = tool.args_schema.model_json_schema()
+            tools_map[tool.name] = {
+                'description': tool.description,
+                'args_schema': tool.args_schema.model_json_schema(),
+                'func': tool.func,
+            }
         return tools_map
 
     def _find_active_connection_for_app(entity_id: str, app_name: str) -> tuple[str, str] | None:
@@ -174,11 +190,14 @@ async def test_composio_integrations():
     connected_ret = _find_active_connection_for_app(entity_id=entity_id, app_name=app_name)
     if connected_ret and connected_ret[1] == "ACTIVE":
         gmail_tools_map = configure_tools(entity_id=entity_id, app_name=app_name)
-        result = composio.tools.execute(
-            slug="GMAIL_FETCH_EMAILS",
-            arguments={},
-            user_id=entity_id,
-        )
+        pdb.set_trace()
+        result = gmail_tools_map['GMAIL_FETCH_EMAILS']['func']()
+        pdb.set_trace()
+        # result = composio.tools.execute(
+        #     slug="GMAIL_FETCH_EMAILS",
+        #     arguments={},
+        #     user_id=entity_id,
+        # )
     else:
         auth_configs = composio.auth_configs.list(toolkit_slug=app_name)
 
