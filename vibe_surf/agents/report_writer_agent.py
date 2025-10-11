@@ -16,6 +16,8 @@ from vibe_surf.agents.prompts.report_writer_prompt import REPORT_WRITER_PROMPT
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.tools.report_writer_tools import ReportWriterTools
 from vibe_surf.agents.views import CustomAgentOutput
+from vibe_surf.telemetry.service import ProductTelemetry
+from vibe_surf.telemetry.views import ReportWriterTelemetryEvent
 
 from vibe_surf.logger import get_logger
 
@@ -66,6 +68,9 @@ class ReportWriterAgent:
         
         # Initialize message history as instance variable
         self.message_history = []
+        
+        # Initialize telemetry
+        self.telemetry = ProductTelemetry()
 
         logger.info("📄 ReportWriterAgent initialized with LLM-controlled flow")
 
@@ -111,6 +116,18 @@ class ReportWriterAgent:
             ReportTaskResult: Result containing success status, message, and report path
         """
         logger.info("📝 Starting LLM-controlled report generation...")
+        
+        # Capture telemetry start event
+        start_time = time.time()
+        import vibe_surf
+        start_event = ReportWriterTelemetryEvent(
+            version=vibe_surf.__version__,
+            action='start',
+            model=getattr(self.llm, 'model_name', None),
+            model_provider=getattr(self.llm, 'provider', None),
+            report_type='html'
+        )
+        self.telemetry.capture(start_event)
 
         # Get current event loop
         loop = asyncio.get_event_loop()
@@ -260,6 +277,22 @@ Please analyze the task, determine if you need to read any additional files, the
             elif task_completed:
                 # Task completed successfully by LLM
                 logger.info(f"✅ Report generated successfully: {report_path}")
+                
+                # Capture telemetry completion event
+                end_time = time.time()
+                duration = end_time - start_time
+                completion_event = ReportWriterTelemetryEvent(
+                    version=vibe_surf.__version__,
+                    action='report_completed',
+                    model=getattr(self.llm, 'model_name', None),
+                    model_provider=getattr(self.llm, 'provider', None),
+                    duration_seconds=duration,
+                    success=True,
+                    report_type='html'
+                )
+                self.telemetry.capture(completion_event)
+                self.telemetry.flush()
+                
                 return ReportTaskResult(
                     success=True,
                     msg="Report generated successfully by LLM",
@@ -283,6 +316,23 @@ Please analyze the task, determine if you need to read any additional files, the
 
         except Exception as e:
             logger.error(f"❌ Failed to generate report: {e}")
+            
+            # Capture telemetry error event
+            end_time = time.time()
+            duration = end_time - start_time
+            error_event = ReportWriterTelemetryEvent(
+                version=vibe_surf.__version__,
+                action='error',
+                model=getattr(self.llm, 'model_name', None),
+                model_provider=getattr(self.llm, 'provider', None),
+                duration_seconds=duration,
+                success=False,
+                error_message=str(e)[:200],  # Limit error message length
+                report_type='html'
+            )
+            self.telemetry.capture(error_event)
+            self.telemetry.flush()
+            
             # Generate a simple fallback report
             fallback_path = await self._generate_fallback_report(report_data)
             return ReportTaskResult(

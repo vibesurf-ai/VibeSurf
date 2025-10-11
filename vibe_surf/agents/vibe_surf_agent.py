@@ -40,6 +40,9 @@ from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.agents.views import VibeSurfAgentSettings
 
+from vibe_surf.telemetry.service import ProductTelemetry
+from vibe_surf.telemetry.views import VibeSurfAgentTelemetryEvent
+
 from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
@@ -1041,6 +1044,9 @@ class VibeSurfAgent:
         self._execution_task: Optional[asyncio.Task] = None
 
         logger.info("🌊 VibeSurf Agent initialized with LangGraph workflow")
+        
+        # Initialize telemetry
+        self.telemetry = ProductTelemetry()
 
     def load_message_history(self, session_id: Optional[str] = None) -> list:
         """Load message history for a specific session, or return [] for new sessions"""
@@ -1568,6 +1574,20 @@ Please continue with your assigned work, incorporating this guidance only if it'
             str: Markdown summary of execution results
         """
         logger.info(f"🚀 Starting VibeSurfAgent execution for task: {task}. Powered by LLM model: {self.llm.model_name}")
+        
+        # Capture telemetry start event
+        start_time = time.time()
+        import vibe_surf
+        start_event = VibeSurfAgentTelemetryEvent(
+            version=vibe_surf.__version__,
+            action='start',
+            task_description=task if task else None,  # Limit task description length
+            model=getattr(self.llm, 'model_name', None),
+            model_provider=getattr(self.llm, 'provider', None),
+            session_id=session_id
+        )
+        self.telemetry.capture(start_event)
+        
         try:
             self.settings.agent_mode = agent_mode
             session_id = session_id or self.cur_session_id or uuid7str()
@@ -1642,6 +1662,23 @@ Please continue with your assigned work, incorporating this guidance only if it'
             # Get final result
             result = await self._get_result(final_state)
             logger.info("✅ VibeSurfAgent execution completed")
+            
+            # Capture telemetry completion event
+            end_time = time.time()
+            duration = end_time - start_time
+            completion_event = VibeSurfAgentTelemetryEvent(
+                version=vibe_surf.__version__,
+                action='task_completed',
+                task_description=task[:200] if task else None,
+                model=getattr(self.llm, 'model_name', None),
+                model_provider=getattr(self.llm, 'provider', None),
+                duration_seconds=duration,
+                success=True,
+                session_id=session_id
+            )
+            self.telemetry.capture(completion_event)
+            self.telemetry.flush()
+            
             return result
 
         except asyncio.CancelledError:
@@ -1659,6 +1696,24 @@ Please continue with your assigned work, incorporating this guidance only if it'
             import traceback
             traceback.print_exc()
             logger.error(f"❌ VibeSurfAgent execution failed: {e}")
+            
+            # Capture telemetry error event
+            end_time = time.time()
+            duration = end_time - start_time
+            error_event = VibeSurfAgentTelemetryEvent(
+                version=vibe_surf.__version__,
+                action='error',
+                task_description=BrowserTaskResult if task else None,
+                model=getattr(self.llm, 'model_name', None),
+                model_provider=getattr(self.llm, 'provider', None),
+                duration_seconds=duration,
+                success=False,
+                error_message=str(e),  # Limit error message length
+                session_id=session_id
+            )
+            self.telemetry.capture(error_event)
+            self.telemetry.flush()
+            
             # Add error activity log
             if self.activity_logs:
                 activity_entry = {

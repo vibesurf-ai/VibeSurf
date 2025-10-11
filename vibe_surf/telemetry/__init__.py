@@ -12,6 +12,9 @@ if TYPE_CHECKING:
         CLITelemetryEvent,
         MCPClientTelemetryEvent,
         MCPServerTelemetryEvent,
+        VibeSurfAgentTelemetryEvent,
+        ReportWriterTelemetryEvent,
+        BackendTelemetryEvent,
     )
 
 # Lazy imports mapping
@@ -21,6 +24,9 @@ _LAZY_IMPORTS = {
     'CLITelemetryEvent': ('vibe_surf.telemetry.views', 'CLITelemetryEvent'),
     'MCPClientTelemetryEvent': ('vibe_surf.telemetry.views', 'MCPClientTelemetryEvent'),
     'MCPServerTelemetryEvent': ('vibe_surf.telemetry.views', 'MCPServerTelemetryEvent'),
+    'VibeSurfAgentTelemetryEvent': ('vibe_surf.telemetry.views', 'VibeSurfAgentTelemetryEvent'),
+    'ReportWriterTelemetryEvent': ('vibe_surf.telemetry.views', 'ReportWriterTelemetryEvent'),
+    'BackendTelemetryEvent': ('vibe_surf.telemetry.views', 'BackendTelemetryEvent'),
 }
 
 
@@ -48,4 +54,7 @@ __all__ = [
     'CLITelemetryEvent',
     'MCPClientTelemetryEvent',
     'MCPServerTelemetryEvent',
+    'VibeSurfAgentTelemetryEvent',
+    'ReportWriterTelemetryEvent',
+    'BackendTelemetryEvent',
 ]

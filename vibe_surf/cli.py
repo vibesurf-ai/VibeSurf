@@ -10,6 +10,7 @@ import glob
 import json
 import socket
 import platform
+import time
 import importlib.util
 from pathlib import Path
 from typing import Optional
@@ -39,6 +40,9 @@ console = Console()
 
 # Add logger import for the workspace directory logging
 from vibe_surf.logger import get_logger
+from vibe_surf.telemetry.service import ProductTelemetry
+from vibe_surf.telemetry.views import CLITelemetryEvent
+
 logger = get_logger(__name__)
 
 
@@ -377,12 +381,24 @@ def get_browser_execution_path() -> Optional[str]:
 def main():
     """Main CLI entry point."""
     try:
+        # Initialize telemetry
+        telemetry = ProductTelemetry()
+        start_time = time.time()
+        
         # Display logo
         console.print(Panel(VIBESURF_LOGO, title="[bold cyan]VibeSurf CLI[/bold cyan]", border_style="cyan"))
         console.print("[dim]A powerful browser automation tool for vibe surfing 🏄‍♂️[/dim]")
         import vibe_surf
         console.print(f"[dim]Version: {vibe_surf.__version__}[/dim]\n")
         console.print(f"[dim]Author: WarmShao and Community Contributors [/dim]\n")
+        
+        # Capture telemetry start event
+        start_event = CLITelemetryEvent(
+            version=vibe_surf.__version__,
+            action='start',
+            mode='interactive'
+        )
+        telemetry.capture(start_event)
         
         # Check for existing browser path from configuration
         browser_path = get_browser_execution_path()
@@ -405,10 +421,51 @@ def main():
         # Start backend
         start_backend(port)
         
+        # Capture telemetry completion event
+        end_time = time.time()
+        duration = end_time - start_time
+        completion_event = CLITelemetryEvent(
+            version=vibe_surf.__version__,
+            action='startup_completed',
+            mode='interactive',
+            duration_seconds=duration
+        )
+        telemetry.capture(completion_event)
+        telemetry.flush()
+        
     except KeyboardInterrupt:
         console.print("\n[yellow]👋 Goodbye![/yellow]")
+        # Capture telemetry interruption event
+        try:
+            end_time = time.time()
+            duration = end_time - start_time
+            interrupt_event = CLITelemetryEvent(
+                version=vibe_surf.__version__,
+                action='interrupted',
+                mode='interactive',
+                duration_seconds=duration
+            )
+            telemetry.capture(interrupt_event)
+            telemetry.flush()
+        except:
+            pass
     except Exception as e:
         console.print(f"\n[red]❌ Unexpected error: {e}[/red]")
+        # Capture telemetry error event
+        try:
+            end_time = time.time()
+            duration = end_time - start_time
+            error_event = CLITelemetryEvent(
+                version=vibe_surf.__version__,
+                action='error',
+                mode='interactive',
+                duration_seconds=duration,
+                error_message=str(e)[:200]
+            )
+            telemetry.capture(error_event)
+            telemetry.flush()
+        except:
+            pass
         sys.exit(1)
 
 

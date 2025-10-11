@@ -30,6 +30,8 @@ from . import shared_state
 # Configure logging
 
 from vibe_surf.logger import get_logger
+from vibe_surf.telemetry.service import ProductTelemetry
+from vibe_surf.telemetry.views import BackendTelemetryEvent
 
 logger = get_logger(__name__)
 
@@ -112,6 +114,15 @@ async def startup_event():
     """Initialize database and VibeSurf components on startup"""
     global browser_monitor_task
     
+    # Initialize telemetry and capture startup event
+    telemetry = ProductTelemetry()
+    import vibe_surf
+    startup_event = BackendTelemetryEvent(
+        version=vibe_surf.__version__,
+        action='startup'
+    )
+    telemetry.capture(startup_event)
+    
     # Initialize VibeSurf components and update shared state
     await shared_state.initialize_vibesurf_components()
 
@@ -120,6 +131,9 @@ async def startup_event():
     logger.info("🔍 Started browser connection monitor")
 
     logger.info("🚀 VibeSurf Backend API started with single-task execution model")
+    
+    # Flush telemetry
+    telemetry.flush()
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -127,6 +141,15 @@ async def shutdown_event():
     global browser_monitor_task
     
     logger.info("🛑 Starting graceful shutdown...")
+    
+    # Capture telemetry shutdown event
+    telemetry = ProductTelemetry()
+    import vibe_surf
+    shutdown_event = BackendTelemetryEvent(
+        version=vibe_surf.__version__,
+        action='shutdown'
+    )
+    telemetry.capture(shutdown_event)
     
     # Cancel browser monitor task
     if browser_monitor_task and not browser_monitor_task.done():
@@ -155,6 +178,9 @@ async def shutdown_event():
             logger.error(f"❌ Error closing database manager: {e}")
     
     logger.info("🛑 VibeSurf Backend API stopped")
+    
+    # Flush telemetry before shutdown
+    telemetry.flush()
 
 # Health check endpoint
 @app.get("/health")

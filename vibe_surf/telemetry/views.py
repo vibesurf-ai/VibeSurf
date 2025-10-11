@@ -91,3 +91,49 @@ class CLITelemetryEvent(BaseTelemetryEvent):
 	error_message: str | None = None
 
 	name: str = 'cli_event'
+
+
+@dataclass
+class VibeSurfAgentTelemetryEvent(BaseTelemetryEvent):
+	"""Telemetry event for VibeSurf Agent usage"""
+	
+	version: str
+	action: str  # 'start', 'task_completed', 'error'
+	task_description: str | None = None
+	model: str | None = None
+	model_provider: str | None = None
+	duration_seconds: float | None = None
+	success: bool | None = None
+	error_message: str | None = None
+	session_id: str | None = None
+	
+	name: str = 'vibesurf_agent_event'
+
+
+@dataclass
+class ReportWriterTelemetryEvent(BaseTelemetryEvent):
+	"""Telemetry event for Report Writer Agent usage"""
+	
+	version: str
+	action: str  # 'start', 'report_completed', 'error'
+	model: str | None = None
+	model_provider: str | None = None
+	duration_seconds: float | None = None
+	success: bool | None = None
+	error_message: str | None = None
+	report_type: str | None = None
+	
+	name: str = 'report_writer_event'
+
+
+@dataclass
+class BackendTelemetryEvent(BaseTelemetryEvent):
+	"""Telemetry event for Backend API usage"""
+	
+	version: str
+	action: str  # 'startup', 'shutdown', 'api_call'
+	api_endpoint: str | None = None
+	duration_seconds: float | None = None
+	error_message: str | None = None
+	
+	name: str = 'backend_event'
