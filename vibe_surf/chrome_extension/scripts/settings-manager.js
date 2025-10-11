@@ -2384,8 +2384,15 @@ class VibeSurfSettingsManager {
     
     // Apply status filter
     if (this.state.filterStatus !== 'all') {
-      const isEnabled = this.state.filterStatus === 'enabled';
-      filtered = filtered.filter(toolkit => toolkit.enabled === isEnabled);
+      if (this.state.filterStatus === 'enabled') {
+        filtered = filtered.filter(toolkit => toolkit.enabled === true);
+      } else if (this.state.filterStatus === 'disabled') {
+        filtered = filtered.filter(toolkit => toolkit.enabled === false);
+      } else if (this.state.filterStatus === 'connected') {
+        filtered = filtered.filter(toolkit => toolkit.connected === true);
+      } else if (this.state.filterStatus === 'unconnected') {
+        filtered = filtered.filter(toolkit => toolkit.connected === false);
+      }
     }
     
     this.state.filteredToolkits = filtered;
