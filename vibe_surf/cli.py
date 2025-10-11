@@ -201,7 +201,7 @@ def select_browser() -> Optional[str]:
     # Check for Edge
     edge_path = find_edge_browser()
     if edge_path:
-        option_num = "2" if "1" not in options else "1" if not chrome_path else "2"
+        option_num = str(len(options) + 1)
         options.append(option_num)
         browsers[option_num] = ("Edge", edge_path)
         console.print(f"[green]{option_num}.[/green] Microsoft Edge ([dim]{edge_path}[/dim])")
@@ -428,7 +428,8 @@ def main():
             version=vibe_surf.__version__,
             action='startup_completed',
             mode='interactive',
-            duration_seconds=duration
+            duration_seconds=duration,
+            browser_path=browser_path
         )
         telemetry.capture(completion_event)
         telemetry.flush()

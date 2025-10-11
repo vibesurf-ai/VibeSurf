@@ -87,6 +87,7 @@ class CLITelemetryEvent(BaseTelemetryEvent):
 	mode: str  # 'interactive', 'oneshot', 'mcp_server'
 	model: str | None = None
 	model_provider: str | None = None
+	browser_path: str | None = None
 	duration_seconds: float | None = None
 	error_message: str | None = None
 

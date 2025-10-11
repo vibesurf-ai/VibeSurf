@@ -1,5 +1,6 @@
 import logging
 import os
+import pdb
 
 from dotenv import load_dotenv
 from posthog import Posthog
@@ -28,7 +29,7 @@ class ProductTelemetry:
     WORKSPACE_DIR = os.getenv('VIBESURF_WORKSPACE', './vibesurf_workspace')
     USER_ID_PATH = os.path.join(WORKSPACE_DIR, 'telemetry', 'userid')
     PROJECT_API_KEY = 'phc_lCYnQqFlfNHAlh1TJGqaTvD8EFPCKR7ONsEHbbWuPVr'
-    HOST = 'https://eu.i.posthog.com'
+    HOST = 'https://us.i.posthog.com'
     UNKNOWN_USER_ID = 'UNKNOWN'
 
     _curr_user_id = None
