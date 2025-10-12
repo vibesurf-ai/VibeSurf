@@ -357,7 +357,7 @@ async def verify_composio_api_key(
             return ComposioKeyVerifyResponse(
                 valid=True,
                 message="API key verified successfully" + (" and stored in database" if store_success else ""),
-                user_info={"toolkits_count": len(toolkits) if toolkits else 0}
+                user_info={"toolkits_count": 1}
             )
 
         except Exception as e:
