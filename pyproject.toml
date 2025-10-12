@@ -47,6 +47,8 @@ dependencies = [
     "yfinance>=0.2.66",
     "pyexecjs>=1.5.1",
     "youtube-transcript-api>=1.2.2",
+    "composio>=0.8.20",
+    "composio-langchain>=0.8.20",
 ]
 
 [project.urls]

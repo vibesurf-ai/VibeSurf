@@ -287,3 +287,19 @@ class SkillYoutubeAction(BaseModel):
     params: str = Field(
         description='JSON string of method parameters, provide corresponding parameters according to the method parameter. Example: {"query": "tech tutorial", "max_results": 30}'
     )
+
+
+class GrepContentAction(BaseModel):
+    """Parameters for grep content from file action"""
+    file_path: str = Field(
+        description='Path to the file to search content from',
+    )
+    query: str = Field(
+        description='Search query or keywords to grep for',
+    )
+    context_chars: int = Field(
+        default=100,
+        description='Number of characters to include before and after each match (default: 100)',
+        ge=10,
+        le=1000,
+    )

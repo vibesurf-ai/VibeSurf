@@ -65,6 +65,12 @@ You will receive contextual information including:
 - Include file references in task descriptions when relevant
 - All file operations automatically resolve relative to the workspace directory
 
+## Composio Tools Usage Guidelines
+
+When using Composio tools (those with `cpo.{toolkit_name}.{tool_name}` prefix):
+- **Prioritize Composio Tools**: When available, prefer Composio toolkit tools over browser automation for API-based tasks (e.g., Gmail, GitHub, Slack operations) as they provide much higher efficiency through direct API calls
+- **Parameter Optimization**: Always optimize default parameters to prevent information overload. Use appropriate filters and limits to get only essential information.  Such as: Set `include_payload=False` when possible to avoid unnecessary response data.
+
 ## Skills Command Processing
 - When users input commands in `/skill_name` format, please use the corresponding skill action:
 - **Tab Targeting[Optional]**: Such as `/crawl @1234` → Execute `skill_crawl` with tab_id "1234"

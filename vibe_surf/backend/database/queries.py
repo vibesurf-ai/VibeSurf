@@ -3,12 +3,12 @@ Database Query Operations for VibeSurf Backend - With LLM Profile Management
 
 Centralized database operations for Task and LLMProfile tables.
 """
-
+import pdb
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func, desc, and_, or_
 from sqlalchemy.orm import selectinload
-from .models import Task, TaskStatus, LLMProfile, UploadedFile, McpProfile, VoiceProfile, VoiceModelType
+from .models import Task, TaskStatus, LLMProfile, UploadedFile, McpProfile, VoiceProfile, VoiceModelType, ComposioToolkit, Credential
 from ..utils.encryption import encrypt_api_key, decrypt_api_key
 import logging
 import json
@@ -1117,3 +1117,313 @@ class VoiceProfileQueries:
         except Exception as e:
             logger.error(f"Failed to update last_used for Voice profile {voice_profile_name}: {e}")
             raise
+
+
+class ComposioToolkitQueries:
+    """Query operations for ComposioToolkit model"""
+
+    @staticmethod
+    async def create_toolkit(
+            db: AsyncSession,
+            name: str,
+            slug: str,
+            description: Optional[str] = None,
+            logo: Optional[str] = None,
+            app_url: Optional[str] = None,
+            enabled: bool = False,
+            tools: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Create a new Composio toolkit"""
+        try:
+            toolkit = ComposioToolkit(
+                name=name,
+                slug=slug,
+                description=description,
+                logo=logo,
+                app_url=app_url,
+                enabled=enabled,
+                tools=tools
+            )
+
+            db.add(toolkit)
+            await db.flush()
+            await db.refresh(toolkit)
+
+            # Extract data immediately to avoid greenlet issues
+            toolkit_data = {
+                "id": toolkit.id,
+                "name": toolkit.name,
+                "slug": toolkit.slug,
+                "description": toolkit.description,
+                "logo": toolkit.logo,
+                "app_url": toolkit.app_url,
+                "enabled": toolkit.enabled,
+                "tools": toolkit.tools,
+                "created_at": toolkit.created_at,
+                "updated_at": toolkit.updated_at
+            }
+
+            return toolkit_data
+        except Exception as e:
+            logger.error(f"Failed to create Composio toolkit {name}: {e}")
+            raise
+
+    @staticmethod
+    async def get_toolkit(db: AsyncSession, toolkit_id: str) -> Optional[ComposioToolkit]:
+        """Get Composio toolkit by ID"""
+        try:
+            result = await db.execute(
+                select(ComposioToolkit).where(ComposioToolkit.id == toolkit_id)
+            )
+            toolkit = result.scalar_one_or_none()
+            if toolkit:
+                # Ensure all attributes are loaded by accessing them
+                _ = (toolkit.id, toolkit.created_at, toolkit.updated_at, toolkit.enabled)
+            return toolkit
+        except Exception as e:
+            logger.error(f"Failed to get Composio toolkit {toolkit_id}: {e}")
+            raise
+
+    @staticmethod
+    async def get_toolkit_by_slug(db: AsyncSession, slug: str) -> Optional[ComposioToolkit]:
+        """Get Composio toolkit by slug"""
+        try:
+            result = await db.execute(
+                select(ComposioToolkit).where(ComposioToolkit.slug == slug)
+            )
+            toolkit = result.scalar_one_or_none()
+            if toolkit:
+                _ = (toolkit.id, toolkit.created_at, toolkit.updated_at, toolkit.enabled)
+            return toolkit
+        except Exception as e:
+            logger.error(f"Failed to get Composio toolkit by slug {slug}: {e}")
+            raise
+
+    @staticmethod
+    async def list_toolkits(
+            db: AsyncSession,
+            enabled_only: bool = False,
+            limit: int = -1,
+            offset: int = 0
+    ) -> List[ComposioToolkit]:
+        """List Composio toolkits"""
+        try:
+            query = select(ComposioToolkit)
+
+            if enabled_only:
+                query = query.where(ComposioToolkit.enabled == True)
+
+            # Handle -1 as "get all records"
+            if limit != -1:
+                query = query.limit(limit)
+            
+            # Always apply offset if provided
+            if offset > 0:
+                query = query.offset(offset)
+
+            result = await db.execute(query)
+            toolkits = result.scalars().all()
+
+            # Ensure all attributes are loaded for each toolkit
+            for toolkit in toolkits:
+                _ = (toolkit.id, toolkit.created_at, toolkit.updated_at, toolkit.enabled)
+
+            return toolkits
+        except Exception as e:
+            logger.error(f"Failed to list Composio toolkits: {e}")
+            raise
+
+    @staticmethod
+    async def get_enabled_toolkits(db: AsyncSession) -> List[ComposioToolkit]:
+        """Get all enabled Composio toolkits"""
+        try:
+            result = await db.execute(
+                select(ComposioToolkit).where(ComposioToolkit.enabled == True)
+            )
+            toolkits = result.scalars().all()
+
+            # Ensure all attributes are loaded for each toolkit
+            for toolkit in toolkits:
+                _ = (toolkit.id, toolkit.created_at, toolkit.updated_at, toolkit.enabled)
+
+            return toolkits
+        except Exception as e:
+            logger.error(f"Failed to get enabled Composio toolkits: {e}")
+            raise
+
+    @staticmethod
+    async def update_toolkit(
+            db: AsyncSession,
+            toolkit_id: str,
+            updates: Dict[str, Any]
+    ) -> bool:
+        """Update Composio toolkit"""
+        try:
+            result = await db.execute(
+                update(ComposioToolkit)
+                .where(ComposioToolkit.id == toolkit_id)
+                .values(**updates)
+            )
+
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to update Composio toolkit {toolkit_id}: {e}")
+            raise
+
+    @staticmethod
+    async def update_toolkit_by_slug(
+            db: AsyncSession,
+            slug: str,
+            updates: Dict[str, Any]
+    ) -> bool:
+        """Update Composio toolkit by slug"""
+        try:
+            result = await db.execute(
+                update(ComposioToolkit)
+                .where(ComposioToolkit.slug == slug)
+                .values(**updates)
+            )
+
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to update Composio toolkit by slug {slug}: {e}")
+            raise
+
+    @staticmethod
+    async def delete_toolkit(db: AsyncSession, toolkit_id: str) -> bool:
+        """Delete Composio toolkit"""
+        try:
+            result = await db.execute(
+                delete(ComposioToolkit).where(ComposioToolkit.id == toolkit_id)
+            )
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to delete Composio toolkit {toolkit_id}: {e}")
+            raise
+
+    @staticmethod
+    async def delete_toolkit_by_slug(db: AsyncSession, slug: str) -> bool:
+        """Delete Composio toolkit by slug"""
+        try:
+            result = await db.execute(
+                delete(ComposioToolkit).where(ComposioToolkit.slug == slug)
+            )
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to delete Composio toolkit by slug {slug}: {e}")
+            raise
+
+    @staticmethod
+    async def toggle_toolkit_enabled(db: AsyncSession, toolkit_id: str, enabled: bool) -> bool:
+        """Toggle toolkit enabled status"""
+        try:
+            result = await db.execute(
+                update(ComposioToolkit)
+                .where(ComposioToolkit.id == toolkit_id)
+                .values(enabled=enabled)
+            )
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to toggle Composio toolkit {toolkit_id} enabled status: {e}")
+            raise
+
+    @staticmethod
+    async def update_toolkit_tools(db: AsyncSession, toolkit_id: str, tools: str) -> bool:
+        """Update toolkit tools configuration"""
+        try:
+            result = await db.execute(
+                update(ComposioToolkit)
+                .where(ComposioToolkit.id == toolkit_id)
+                .values(tools=tools)
+            )
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to update Composio toolkit {toolkit_id} tools: {e}")
+            raise
+
+
+class CredentialQueries:
+    """Query operations for Credential model"""
+
+    @staticmethod
+    async def get_credential(db: AsyncSession, key_name: str) -> Optional[str]:
+        """Get decrypted credential value by key name"""
+        try:
+            result = await db.execute(
+                select(Credential).where(Credential.key_name == key_name)
+            )
+            credential = result.scalar_one_or_none()
+            if not credential or not credential.encrypted_value:
+                return None
+            
+            # Decrypt the value
+            decrypted_value = decrypt_api_key(credential.encrypted_value)
+            return decrypted_value
+            
+        except Exception as e:
+            logger.error(f"Failed to get credential {key_name}: {e}")
+            return None
+
+    @staticmethod
+    async def store_credential(db: AsyncSession, key_name: str, value: str, description: Optional[str] = None) -> bool:
+        """Store encrypted credential"""
+        try:
+            # Encrypt the value
+            encrypted_value = encrypt_api_key(value)
+            
+            # Check if credential exists
+            result = await db.execute(
+                select(Credential).where(Credential.key_name == key_name)
+            )
+            existing_credential = result.scalar_one_or_none()
+            
+            if existing_credential:
+                # Update existing credential
+                await db.execute(
+                    update(Credential)
+                    .where(Credential.key_name == key_name)
+                    .values(
+                        encrypted_value=encrypted_value,
+                        description=description,
+                        updated_at=func.now()
+                    )
+                )
+            else:
+                # Create new credential
+                credential = Credential(
+                    key_name=key_name,
+                    encrypted_value=encrypted_value,
+                    description=description
+                )
+                db.add(credential)
+            
+            await db.flush()
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to store credential {key_name}: {e}")
+            return False
+
+    @staticmethod
+    async def delete_credential(db: AsyncSession, key_name: str) -> bool:
+        """Delete credential"""
+        try:
+            result = await db.execute(
+                delete(Credential).where(Credential.key_name == key_name)
+            )
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to delete credential {key_name}: {e}")
+            return False
+
+    @staticmethod
+    async def list_credential_names(db: AsyncSession) -> List[str]:
+        """List all credential key names (for administrative purposes)"""
+        try:
+            result = await db.execute(
+                select(Credential.key_name).order_by(Credential.created_at)
+            )
+            return [row[0] for row in result.all()]
+        except Exception as e:
+            logger.error(f"Failed to list credential names: {e}")
+            return []

@@ -10,6 +10,7 @@ import glob
 import json
 import socket
 import platform
+import time
 import importlib.util
 from pathlib import Path
 from typing import Optional
@@ -39,6 +40,9 @@ console = Console()
 
 # Add logger import for the workspace directory logging
 from vibe_surf.logger import get_logger
+from vibe_surf.telemetry.service import ProductTelemetry
+from vibe_surf.telemetry.views import CLITelemetryEvent
+
 logger = get_logger(__name__)
 
 
@@ -118,6 +122,35 @@ def find_edge_browser() -> Optional[str]:
     return _find_browser_from_patterns(patterns)
 
 
+def find_brave_browser() -> Optional[str]:
+    """Find Brave browser executable."""
+    system = platform.system()
+    patterns = []
+
+    if system == 'Darwin':  # macOS
+        patterns = [
+            '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+        ]
+    elif system == 'Linux':
+        patterns = [
+            '/usr/bin/brave-browser',
+            '/usr/bin/brave',
+            '/usr/local/bin/brave',
+            '/snap/bin/brave',
+            '/usr/bin/brave-browser-stable',
+            '/usr/bin/brave-browser-beta',
+            '/usr/bin/brave-browser-dev',
+        ]
+    elif system == 'Windows':
+        patterns = [
+            r'C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe',
+            r'C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe',
+            r'%LOCALAPPDATA%\BraveSoftware\Brave-Browser\Application\brave.exe',
+        ]
+
+    return _find_browser_from_patterns(patterns)
+
+
 def _find_browser_from_patterns(patterns: list[str]) -> Optional[str]:
     """Helper function to find browser from patterns."""
     system = platform.system()
@@ -182,7 +215,7 @@ def find_available_port(start_port: int) -> int:
 def select_browser() -> Optional[str]:
     """Interactive browser selection."""
     console.print("\n[bold cyan]🌐 Browser Selection[/bold cyan]")
-    console.print("VibeSurf supports Chrome and Edge browsers.\n")
+    console.print("VibeSurf supports Chrome, Edge, and Brave browsers.\n")
     
     options = []
     browsers = {}
@@ -197,10 +230,18 @@ def select_browser() -> Optional[str]:
     # Check for Edge
     edge_path = find_edge_browser()
     if edge_path:
-        option_num = "2" if "1" not in options else "1" if not chrome_path else "2"
+        option_num = str(len(options) + 1)
         options.append(option_num)
         browsers[option_num] = ("Edge", edge_path)
         console.print(f"[green]{option_num}.[/green] Microsoft Edge ([dim]{edge_path}[/dim])")
+    
+    # Check for Brave
+    brave_path = find_brave_browser()
+    if brave_path:
+        option_num = str(len(options) + 1)
+        options.append(option_num)
+        browsers[option_num] = ("Brave", brave_path)
+        console.print(f"[green]{option_num}.[/green] Brave Browser ([dim]{brave_path}[/dim])")
     
     # Custom browser option
     custom_option = str(len(options) + 1)
@@ -212,7 +253,7 @@ def select_browser() -> Optional[str]:
     options.append(quit_option)
     console.print(f"[red]{quit_option}.[/red] Quit")
     
-    if not chrome_path and not edge_path:
+    if not chrome_path and not edge_path and not brave_path:
         console.print("\n[yellow]⚠️  No supported browsers found automatically.[/yellow]")
     
     while True:
@@ -377,12 +418,24 @@ def get_browser_execution_path() -> Optional[str]:
 def main():
     """Main CLI entry point."""
     try:
+        # Initialize telemetry
+        telemetry = ProductTelemetry()
+        start_time = time.time()
+        
         # Display logo
         console.print(Panel(VIBESURF_LOGO, title="[bold cyan]VibeSurf CLI[/bold cyan]", border_style="cyan"))
         console.print("[dim]A powerful browser automation tool for vibe surfing 🏄‍♂️[/dim]")
         import vibe_surf
         console.print(f"[dim]Version: {vibe_surf.__version__}[/dim]\n")
         console.print(f"[dim]Author: WarmShao and Community Contributors [/dim]\n")
+        
+        # Capture telemetry start event
+        start_event = CLITelemetryEvent(
+            version=vibe_surf.__version__,
+            action='start',
+            mode='interactive'
+        )
+        telemetry.capture(start_event)
         
         # Check for existing browser path from configuration
         browser_path = get_browser_execution_path()
@@ -405,10 +458,52 @@ def main():
         # Start backend
         start_backend(port)
         
+        # Capture telemetry completion event
+        end_time = time.time()
+        duration = end_time - start_time
+        completion_event = CLITelemetryEvent(
+            version=vibe_surf.__version__,
+            action='startup_completed',
+            mode='interactive',
+            duration_seconds=duration,
+            browser_path=browser_path
+        )
+        telemetry.capture(completion_event)
+        telemetry.flush()
+        
     except KeyboardInterrupt:
         console.print("\n[yellow]👋 Goodbye![/yellow]")
+        # Capture telemetry interruption event
+        try:
+            end_time = time.time()
+            duration = end_time - start_time
+            interrupt_event = CLITelemetryEvent(
+                version=vibe_surf.__version__,
+                action='interrupted',
+                mode='interactive',
+                duration_seconds=duration
+            )
+            telemetry.capture(interrupt_event)
+            telemetry.flush()
+        except:
+            pass
     except Exception as e:
         console.print(f"\n[red]❌ Unexpected error: {e}[/red]")
+        # Capture telemetry error event
+        try:
+            end_time = time.time()
+            duration = end_time - start_time
+            error_event = CLITelemetryEvent(
+                version=vibe_surf.__version__,
+                action='error',
+                mode='interactive',
+                duration_seconds=duration,
+                error_message=str(e)[:200]
+            )
+            telemetry.capture(error_event)
+            telemetry.flush()
+        except:
+            pass
         sys.exit(1)
 
 

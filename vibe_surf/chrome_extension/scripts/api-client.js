@@ -541,6 +541,38 @@ class VibeSurfAPIClient {
       return `${prefix}${timestamp}_${random}`;
     }
   }
+
+  // Composio APIs
+  async verifyComposioKey(apiKey) {
+    return this.post('/composio/verify-key', { api_key: apiKey });
+  }
+
+  async getComposioToolkits(params = {}) {
+    return this.get('/composio/toolkits', { params });
+  }
+
+  async toggleComposioToolkit(slug, enabled) {
+    return this.post(`/composio/toolkit/${encodeURIComponent(slug)}/toggle`, { enabled });
+  }
+
+  async getComposioToolkitTools(slug) {
+    return this.get(`/composio/toolkit/${encodeURIComponent(slug)}/tools`);
+  }
+
+  async updateComposioToolkitTools(slug, selectedTools) {
+    console.log(`[APIClient] Updating toolkit tools for ${slug}:`, selectedTools);
+    const response = await this.post(`/composio/toolkit/${encodeURIComponent(slug)}/tools`, { selected_tools: selectedTools });
+    console.log(`[APIClient] Update toolkit tools response:`, response);
+    return response;
+  }
+
+  async getComposioToolkitConnectionStatus(slug) {
+    return this.get(`/composio/toolkit/${encodeURIComponent(slug)}/connection-status`);
+  }
+
+  async getComposioStatus() {
+    return this.get('/composio/status');
+  }
 }
 
 // Custom error class for API errors

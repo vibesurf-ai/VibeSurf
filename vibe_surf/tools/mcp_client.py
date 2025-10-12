@@ -3,18 +3,37 @@ import logging
 import time
 from typing import Any
 
-from browser_use.telemetry import MCPClientTelemetryEvent, ProductTelemetry
+from browser_use.telemetry import MCPClientTelemetryEvent
 from browser_use.utils import get_browser_use_version
 from browser_use.mcp.client import MCPClient
 from mcp import ClientSession, StdioServerParameters, types
 from mcp.client.stdio import stdio_client
-
+from vibe_surf.telemetry.service import ProductTelemetry
 from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 class CustomMCPClient(MCPClient):
+    def __init__(
+            self,
+            server_name: str,
+            command: str,
+            args: list[str] | None = None,
+            env: dict[str, str] | None = None,
+    ):
+        """Initialize MCP client.
+
+        Args:
+            server_name: Name of the MCP server (for logging and identification)
+            command: Command to start the MCP server (e.g., "npx", "python")
+            args: Arguments for the command (e.g., ["@playwright/mcp@latest"])
+            env: Environment variables for the server process
+        """
+        super().__init__(server_name=server_name, command=command, args=args, env=env)
+
+        self._telemetry = ProductTelemetry()
+
     async def connect(self, timeout: int = 200) -> None:
         """Connect to the MCP server and discover available tools."""
         if self._connected:

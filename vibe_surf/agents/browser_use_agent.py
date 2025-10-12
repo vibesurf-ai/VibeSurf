@@ -64,7 +64,6 @@ from browser_use.dom.views import DOMInteractedElement
 from browser_use.filesystem.file_system import FileSystem
 from browser_use.observability import observe, observe_debug
 from browser_use.sync import CloudSync
-from browser_use.telemetry.service import ProductTelemetry
 from browser_use.telemetry.views import AgentTelemetryEvent
 from browser_use.utils import (
     _log_pretty_path,
@@ -76,6 +75,7 @@ from browser_use.utils import (
 
 from browser_use.agent.service import Agent, AgentHookFunc
 from vibe_surf.tools.file_system import CustomFileSystem
+from vibe_surf.telemetry.service import ProductTelemetry
 
 Context = TypeVar('Context')
 
