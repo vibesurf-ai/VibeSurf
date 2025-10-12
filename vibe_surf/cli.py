@@ -12,6 +12,7 @@ import socket
 import platform
 import time
 import importlib.util
+import argparse
 from pathlib import Path
 from typing import Optional
 import os
@@ -289,6 +290,26 @@ def select_browser() -> Optional[str]:
     return None
 
 
+def find_first_available_browser() -> Optional[str]:
+    """Find the first available browser in order: Chrome, Edge, Brave."""
+    # Try Chrome first
+    chrome_path = find_chrome_browser()
+    if chrome_path:
+        return chrome_path
+    
+    # Try Edge second
+    edge_path = find_edge_browser()
+    if edge_path:
+        return edge_path
+    
+    # Try Brave third
+    brave_path = find_brave_browser()
+    if brave_path:
+        return brave_path
+    
+    return None
+
+
 def configure_port() -> int:
     """Configure backend port."""
     console.print("\n[bold cyan]🔌 Port Configuration[/bold cyan]")
@@ -417,6 +438,12 @@ def get_browser_execution_path() -> Optional[str]:
 
 def main():
     """Main CLI entry point."""
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="VibeSurf CLI - Browser automation tool")
+    parser.add_argument('--no_select_browser', action='store_true',
+                       help='Skip browser selection and use first available browser (Chrome -> Edge -> Brave)')
+    args = parser.parse_args()
+    
     try:
         # Initialize telemetry
         telemetry = ProductTelemetry()
@@ -440,11 +467,30 @@ def main():
         # Check for existing browser path from configuration
         browser_path = get_browser_execution_path()
         
-        # If no valid browser path found, ask user to select
+        # If no valid browser path found, handle based on --no_select_browser flag
         if not browser_path:
-            browser_path = select_browser()
-            if not browser_path:
-                return
+            if args.no_select_browser:
+                # Find first available browser without user interaction
+                browser_path = find_first_available_browser()
+                if not browser_path:
+                    console.print("[red]❌ No supported browsers found![/red]")
+                    console.print("[yellow]Please download and install Chrome, Edge, or Brave browser.[/yellow]")
+                    return
+                else:
+                    # Determine which browser was found
+                    browser_name = "Unknown"
+                    if find_chrome_browser() == browser_path:
+                        browser_name = "Chrome"
+                    elif find_edge_browser() == browser_path:
+                        browser_name = "Edge"
+                    elif find_brave_browser() == browser_path:
+                        browser_name = "Brave"
+                    console.print(f"[green]✅ Auto-selected {browser_name}: {browser_path}[/green]")
+            else:
+                # Interactive browser selection (original behavior)
+                browser_path = select_browser()
+                if not browser_path:
+                    return
         
         # Port configuration
         port = configure_port()
