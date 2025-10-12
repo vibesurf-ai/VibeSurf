@@ -92,16 +92,16 @@ uv run vibesurf
 We're building VibeSurf to be your ultimate AI browser companion. Here's what's coming next:
 
 - [x] **Smart Skills System** - *Completed*
-  Add `/search` for quick information search and `/crawl` for automatic website data extraction. Integrated native APIs for Xiaohongshu, Douyin, Weibo, and YouTube.
+  Add `/search` for quick information search, `/crawl` for automatic website data extraction and `/code` for webpage js code execution. Integrated native APIs for Xiaohongshu, Douyin, Weibo, and YouTube.
+
+- [x] **Third-Party Integrations** - *Completed*
+  Connect with hundreds of popular tools including Gmail, Notion, Google Calendar, Slack, Trello, GitHub, and more through Composio integration to combine browsing with powerful automation capabilities
+
+- [ ] **Agentic Browser Workflow** - *In Progress*
+  Create custom drag-and-drop and conversation-based workflows for auto-login, data collection, and complex browser automation tasks
 
 - [ ] **Powerful Coding Agent** - *In Progress*
   Build a comprehensive coding assistant for data processing and analysis directly in your browser
-
-- [ ] **Agentic Browser Workflow** - *Planned*
-  Create custom drag-and-drop workflows for auto-login, data collection, and complex browser automation tasks
-
-- [ ] **Third-Party Integrations** - *Planned*
-  Connect with n8n workflows and other tools to combine browsing with automation
 
 - [ ] **Intelligent Memory & Personalization** - *Planned*
   Transform VibeSurf into a truly human-like companion with persistent memory that learns your preferences, habits, and browsing patterns over time
