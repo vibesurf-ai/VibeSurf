@@ -393,6 +393,56 @@ async def get_composio_toolkits(
         db_toolkits = await ComposioToolkitQueries.list_toolkits(db, enabled_only=False)
         # Convert to response format
         toolkit_responses = []
+
+        if not db_toolkits and shared_state.composio_instance:
+            api_toolkits = await asyncio.to_thread(lambda: shared_state.composio_instance.toolkits.get())
+
+            oauth2_toolkits = []
+
+            for toolkit in api_toolkits:
+                if hasattr(toolkit, 'auth_schemes') and 'OAUTH2' in toolkit.auth_schemes:
+                    oauth2_toolkits.append(toolkit)
+
+            logger.info(f"Found {len(oauth2_toolkits)} OAuth2 toolkits from Composio API")
+
+            # Sync with database
+            for api_toolkit in oauth2_toolkits:
+                # Check if toolkit already exists
+                existing_toolkit = await ComposioToolkitQueries.get_toolkit_by_slug(db, api_toolkit.slug)
+
+                # Get metadata from toolkit
+                description = getattr(api_toolkit.meta, 'description', None) if hasattr(api_toolkit,
+                                                                                        'meta') else None
+                logo = getattr(api_toolkit.meta, 'logo', None) if hasattr(api_toolkit, 'meta') else None
+                app_url = getattr(api_toolkit.meta, 'app_url', None) if hasattr(api_toolkit, 'meta') else None
+
+                if not existing_toolkit:
+                    # Create new toolkit
+                    toolkit_data = await ComposioToolkitQueries.create_toolkit(
+                        db=db,
+                        name=api_toolkit.name,
+                        slug=api_toolkit.slug,
+                        description=description,
+                        logo=logo,
+                        app_url=app_url,
+                        enabled=False,
+                        tools=None
+                    )
+                    logger.info(f"Created new toolkit: {api_toolkit.name}")
+                else:
+                    # Update existing toolkit information (but keep enabled status and tools)
+                    update_data = {
+                        'name': api_toolkit.name,
+                        'description': description,
+                        'logo': logo,
+                        'app_url': app_url
+                    }
+                    await ComposioToolkitQueries.update_toolkit_by_slug(db, api_toolkit.slug, update_data)
+                    logger.debug(f"Updated existing toolkit: {api_toolkit.name}")
+
+            await db.commit()
+            db_toolkits = await ComposioToolkitQueries.list_toolkits(db, enabled_only=False)
+
         for toolkit in db_toolkits:
             # Parse tools JSON if present
             tools_data = None
