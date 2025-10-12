@@ -196,6 +196,8 @@ class ComposioClient:
                 try:
                     # Call the Composio tool using the tools.execute method
                     entity_id = "default"  # Use default entity ID
+                    if 'include_payload' in tool_params:
+                        tool_params['include_payload'] = False
                     result = self.composio_instance.tools.execute(
                         slug=tool_name,
                         arguments=tool_params,
@@ -306,7 +308,7 @@ class ComposioClient:
         if isinstance(result, dict) or isinstance(result, list):
             # Dictionary result
             try:
-                return json.dumps(result, indent=2, ensure_ascii=False)
+                return f"```json\n{json.dumps(result, indent=2, ensure_ascii=False)}\n```"
             except (TypeError, ValueError):
                 return str(result)
         else:

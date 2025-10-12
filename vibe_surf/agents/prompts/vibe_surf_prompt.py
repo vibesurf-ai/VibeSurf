@@ -69,10 +69,7 @@ You will receive contextual information including:
 
 When using Composio tools (those with `cpo.{toolkit_name}.{tool_name}` prefix):
 - **Prioritize Composio Tools**: When available, prefer Composio toolkit tools over browser automation for API-based tasks (e.g., Gmail, GitHub, Slack operations) as they provide much higher efficiency through direct API calls
-- **Parameter Optimization**: Always optimize default parameters to prevent information overload
-- **Payload Control**: Set `include_payload=False` when possible to avoid unnecessary response data
-- **Response Filtering**: Use appropriate filters and limits to get only essential information
-- **Efficient Usage**: These external tools may return large amounts of data - be selective about what data you request
+- **Parameter Optimization**: Always optimize default parameters to prevent information overload. Use appropriate filters and limits to get only essential information.  Such as: Set `include_payload=False` when possible to avoid unnecessary response data.
 
 ## Skills Command Processing
 - When users input commands in `/skill_name` format, please use the corresponding skill action:
