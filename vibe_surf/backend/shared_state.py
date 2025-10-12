@@ -371,8 +371,6 @@ async def _load_active_mcp_servers():
             except Exception as e:
                 logger.warning(f"Failed to load MCP servers from database: {e}")
                 return {"mcpServers": {}}
-            finally:
-                break
 
     except Exception as e:
         logger.warning(f"Database not available for MCP server loading: {e}")
@@ -397,7 +395,6 @@ async def _load_enabled_composio_toolkits():
                 
                 # Build toolkit_tools_dict from enabled toolkits
                 toolkit_tools_dict = {}
-                pdb.set_trace()
                 for toolkit in enabled_toolkits:
                     if toolkit.tools:
                         try:
@@ -413,8 +410,6 @@ async def _load_enabled_composio_toolkits():
             except Exception as e:
                 logger.warning(f"Failed to load Composio toolkits from database: {e}")
                 return {}
-            finally:
-                break
 
     except Exception as e:
         logger.warning(f"Database not available for Composio toolkit loading: {e}")
@@ -666,8 +661,6 @@ async def update_llm_from_profile(profile_name: str):
             except Exception as e:
                 logger.error(f"Failed to update LLM from profile {profile_name}: {e}")
                 raise
-            finally:
-                break
 
     except Exception as e:
         logger.error(f"Database error while updating LLM profile: {e}")

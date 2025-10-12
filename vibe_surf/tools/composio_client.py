@@ -303,30 +303,8 @@ class ComposioClient:
             Formatted string representation of the result
         """
         # Handle different Composio result formats
-        if hasattr(result, 'content'):
-            # Structured content response
-            if isinstance(result.content, list):
-                # Multiple content items
-                parts = []
-                for item in result.content:
-                    if hasattr(item, 'text'):
-                        parts.append(item.text)
-                    else:
-                        parts.append(str(item))
-                return '\n'.join(parts)
-            else:
-                return str(result.content)
-        elif hasattr(result, 'response_data'):
-            # Response data format
-            return str(result.response_data)
-        elif isinstance(result, dict):
+        if isinstance(result, dict) or isinstance(result, list):
             # Dictionary result
-            try:
-                return json.dumps(result, indent=2, ensure_ascii=False)
-            except (TypeError, ValueError):
-                return str(result)
-        elif isinstance(result, list):
-            # List of items
             try:
                 return json.dumps(result, indent=2, ensure_ascii=False)
             except (TypeError, ValueError):

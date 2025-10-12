@@ -205,9 +205,10 @@ async def test_composio_integrations():
 
         # Register all Composio tools as VibeSurf actions
         await composio_client.register_to_tools(tools, toolkit_tools_dict)
-
-        pdb.set_trace()
-        result = tools_list[0]['func']()
+        for tool_ in tools_list:
+            if tool_["name"] == "GMAIL_FETCH_EMAILS":
+                break
+        result = tool_['func'](include_payload=False)
         pdb.set_trace()
         # result = composio.tools.execute(
         #     slug="GMAIL_FETCH_EMAILS",

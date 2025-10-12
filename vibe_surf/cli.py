@@ -122,6 +122,35 @@ def find_edge_browser() -> Optional[str]:
     return _find_browser_from_patterns(patterns)
 
 
+def find_brave_browser() -> Optional[str]:
+    """Find Brave browser executable."""
+    system = platform.system()
+    patterns = []
+
+    if system == 'Darwin':  # macOS
+        patterns = [
+            '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+        ]
+    elif system == 'Linux':
+        patterns = [
+            '/usr/bin/brave-browser',
+            '/usr/bin/brave',
+            '/usr/local/bin/brave',
+            '/snap/bin/brave',
+            '/usr/bin/brave-browser-stable',
+            '/usr/bin/brave-browser-beta',
+            '/usr/bin/brave-browser-dev',
+        ]
+    elif system == 'Windows':
+        patterns = [
+            r'C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe',
+            r'C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe',
+            r'%LOCALAPPDATA%\BraveSoftware\Brave-Browser\Application\brave.exe',
+        ]
+
+    return _find_browser_from_patterns(patterns)
+
+
 def _find_browser_from_patterns(patterns: list[str]) -> Optional[str]:
     """Helper function to find browser from patterns."""
     system = platform.system()
@@ -186,7 +215,7 @@ def find_available_port(start_port: int) -> int:
 def select_browser() -> Optional[str]:
     """Interactive browser selection."""
     console.print("\n[bold cyan]🌐 Browser Selection[/bold cyan]")
-    console.print("VibeSurf supports Chrome and Edge browsers.\n")
+    console.print("VibeSurf supports Chrome, Edge, and Brave browsers.\n")
     
     options = []
     browsers = {}
@@ -206,6 +235,14 @@ def select_browser() -> Optional[str]:
         browsers[option_num] = ("Edge", edge_path)
         console.print(f"[green]{option_num}.[/green] Microsoft Edge ([dim]{edge_path}[/dim])")
     
+    # Check for Brave
+    brave_path = find_brave_browser()
+    if brave_path:
+        option_num = str(len(options) + 1)
+        options.append(option_num)
+        browsers[option_num] = ("Brave", brave_path)
+        console.print(f"[green]{option_num}.[/green] Brave Browser ([dim]{brave_path}[/dim])")
+    
     # Custom browser option
     custom_option = str(len(options) + 1)
     options.append(custom_option)
@@ -216,7 +253,7 @@ def select_browser() -> Optional[str]:
     options.append(quit_option)
     console.print(f"[red]{quit_option}.[/red] Quit")
     
-    if not chrome_path and not edge_path:
+    if not chrome_path and not edge_path and not brave_path:
         console.print("\n[yellow]⚠️  No supported browsers found automatically.[/yellow]")
     
     while True:
