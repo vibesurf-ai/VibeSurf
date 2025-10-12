@@ -79,6 +79,22 @@ class MCPServerTelemetryEvent(BaseTelemetryEvent):
 
 
 @dataclass
+class ComposioTelemetryEvent(BaseTelemetryEvent):
+	"""Telemetry event for Composio client usage"""
+
+	toolkit_slugs: list[str]
+	tools_registered: int
+	version: str
+	action: str  # 'register', 'unregister', 'tool_call'
+	toolkit_slug: str | None = None
+	tool_name: str | None = None
+	duration_seconds: float | None = None
+	error_message: str | None = None
+
+	name: str = 'composio_client_event'
+
+
+@dataclass
 class CLITelemetryEvent(BaseTelemetryEvent):
 	"""Telemetry event for CLI usage"""
 

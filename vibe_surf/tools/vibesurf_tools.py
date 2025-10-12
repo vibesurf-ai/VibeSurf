@@ -35,6 +35,7 @@ from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionA
     SkillXhsAction, SkillDouyinAction, SkillYoutubeAction, SkillWeiboAction, GrepContentAction
 from vibe_surf.tools.finance_tools import FinanceDataRetriever, FinanceMarkdownFormatter, FinanceMethod
 from vibe_surf.tools.mcp_client import CustomMCPClient
+from vibe_surf.tools.composio_client import ComposioClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.tools.vibesurf_registry import VibeSurfRegistry
@@ -166,7 +167,8 @@ def convert_selector_map_for_llm(selector_map) -> dict:
 
 
 class VibeSurfTools:
-    def __init__(self, exclude_actions: list[str] = [], mcp_server_config: Optional[Dict[str, Any]] = None):
+    def __init__(self, exclude_actions: list[str] = [], mcp_server_config: Optional[Dict[str, Any]] = None,
+                 composio_client: ComposioClient = None):
         self.registry = VibeSurfRegistry(exclude_actions)
         self._register_file_actions()
         self._register_browser_use_agent()
@@ -176,6 +178,7 @@ class VibeSurfTools:
         self._register_skills()
         self.mcp_server_config = mcp_server_config
         self.mcp_clients: Dict[str, MCPClient] = {}
+        self.composio_client: ComposioClient = composio_client
 
     def _register_skills(self):
         @self.registry.action(
@@ -290,7 +293,7 @@ Example format: ["query 1", "query 2", "query 3", "query 4", "query 5", "query 6
                             "url": result.get('url', 'No URL'),
                             "summary": result.get('summary', 'No summary available')
                         })
-                    
+
                     ranking_prompt = f"""
 Rank these search results for the query "{params.query}" by relevance and value.
 Select the TOP 10 most relevant and valuable results.
@@ -315,7 +318,8 @@ Format: [index1, index2, index3, ...]
                         if not isinstance(selected_indices, list):
                             raise ValueError("Invalid ranking results format")
                         # Ensure indices are valid and limit to 10
-                        valid_indices = [i for i in selected_indices if isinstance(i, int) and 0 <= i < len(all_results)][:10]
+                        valid_indices = [i for i in selected_indices if
+                                         isinstance(i, int) and 0 <= i < len(all_results)][:10]
                         if valid_indices:
                             top_results = [all_results[i] for i in valid_indices]
                         else:
@@ -325,7 +329,8 @@ Format: [index1, index2, index3, ...]
                             selected_indices_s = repair_json(ranking_response.completion.strip())
                             selected_indices = json.loads(selected_indices_s)
                             if isinstance(selected_indices, list):
-                                valid_indices = [i for i in selected_indices if isinstance(i, int) and 0 <= i < len(all_results)][:10]
+                                valid_indices = [i for i in selected_indices if
+                                                 isinstance(i, int) and 0 <= i < len(all_results)][:10]
                                 if valid_indices:
                                     top_results = [all_results[i] for i in valid_indices]
                                 else:
@@ -897,7 +902,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
             try:
                 # Default to get_info if no methods specified
                 methods = params.methods if params.methods else [FinanceMethod.GET_INFO]
-                
+
                 # Convert string methods to FinanceMethod enum if needed
                 if methods and isinstance(methods[0], str):
                     try:
@@ -907,13 +912,13 @@ Please generate alternative JavaScript code that avoids this system error:"""
                         return ActionResult(
                             error=f'Invalid method in {methods}. Available methods: {available_methods}'
                         )
-                
+
                 # Create data retriever with symbol
                 retriever = FinanceDataRetriever(params.symbol)
-                
+
                 # Convert FinanceMethod enum values to strings for the retriever
                 method_strings = [method.value for method in methods]
-                
+
                 # Retrieve financial data
                 financial_data = retriever.get_finance_data(
                     methods=method_strings,
@@ -923,28 +928,27 @@ Please generate alternative JavaScript code that avoids this system error:"""
                     interval=getattr(params, 'interval', '1d'),
                     num_news=getattr(params, 'num_news', 5)
                 )
-                
+
                 # Format as markdown using the static method
                 markdown_content = FinanceMarkdownFormatter.format_finance_data(
                     symbol=params.symbol,
                     results=financial_data,
                     methods=method_strings
                 )
-                
+
                 method_names = [method.value for method in methods]
                 logger.info(f'💹 Comprehensive finance data retrieved for {params.symbol} with methods: {method_names}')
-                
+
                 return ActionResult(
                     extracted_content=markdown_content,
                     include_extracted_content_only_once=True,
                     long_term_memory=f'Retrieved comprehensive financial data for {params.symbol} using methods: {", ".join(method_names)}',
                 )
-                
+
             except Exception as e:
                 error_msg = f'❌ Failed to retrieve financial data for {params.symbol}: {str(e)}'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg, extracted_content=error_msg)
-
 
         @self.registry.action(
             'Skill: Xiaohongshu API - Access Xiaohongshu (Little Red Book) platform data including search, content details, comments, user profiles, and recommendations. Methods: search_content_by_keyword, fetch_content_details, fetch_all_content_comments, get_user_profile, fetch_all_user_content, get_home_recommendations.',
@@ -968,11 +972,11 @@ Please generate alternative JavaScript code that avoids this system error:"""
             """
             try:
                 from vibe_surf.tools.website_api.xhs.client import XiaoHongShuApiClient
-                
+
                 # Initialize client
                 xhs_client = XiaoHongShuApiClient(browser_session=browser_manager.main_browser_session)
                 await xhs_client.setup()
-                
+
                 # Parse params JSON string
                 import json
                 from json_repair import repair_json
@@ -980,7 +984,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
                     method_params = json.loads(params.params)
                 except json.JSONDecodeError:
                     method_params = json.loads(repair_json(params.params))
-                
+
                 # Execute the requested method
                 result = None
                 if params.method == "search_content_by_keyword":
@@ -997,23 +1001,23 @@ Please generate alternative JavaScript code that avoids this system error:"""
                     result = await xhs_client.get_home_recommendations()
                 else:
                     return ActionResult(error=f"Unknown method: {params.method}")
-                
+
                 # Save result to file
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"xhs_{params.method}_{timestamp}.json"
                 filepath = file_system.get_dir() / "data" / filename
                 filepath.parent.mkdir(exist_ok=True)
-                
+
                 with open(filepath, "w", encoding="utf-8") as f:
                     json.dump(result, f, ensure_ascii=False, indent=2)
-                
+
                 # Format result as markdown
                 if isinstance(result, list):
                     display_count = min(5, len(result))
                     md_content = f"## Xiaohongshu {params.method.replace('_', ' ').title()}\n\n"
                     md_content += f"Showing {display_count} of {len(result)} results:\n\n"
                     for i, item in enumerate(result[:display_count]):
-                        md_content += f"### Result {i+1}\n"
+                        md_content += f"### Result {i + 1}\n"
                         for key, value in item.items():
                             if not value:
                                 continue
@@ -1030,26 +1034,25 @@ Please generate alternative JavaScript code that avoids this system error:"""
                         else:
                             md_content += f"- **{key}**: {value}\n"
                     md_content += "\n"
-                
+
                 # Add file path to markdown
                 relative_path = str(filepath.relative_to(file_system.get_dir()))
                 md_content += f"\n> 📁 Full data saved to: [{filename}]({relative_path})\n"
                 md_content += f"> 💡 Click the link above to view all results.\n"
-                
+
                 logger.info(f'📕 Xiaohongshu data retrieved with method: {params.method}')
-                
+
                 # Close client
                 await xhs_client.close()
-                
+
                 return ActionResult(
                     extracted_content=md_content
                 )
-                
+
             except Exception as e:
                 error_msg = f'❌ Failed to retrieve Xiaohongshu data: {str(e)}'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg, extracted_content=error_msg)
-
 
         @self.registry.action(
             'Skill: Weibo API - Access Weibo platform data including search, post details, comments, user profiles, hot posts, and trending lists. Methods: search_posts_by_keyword, get_post_detail, get_all_post_comments, get_user_info, get_all_user_posts, get_hot_posts（推荐榜）, get_trending_posts(热搜榜）.',
@@ -1074,11 +1077,11 @@ Please generate alternative JavaScript code that avoids this system error:"""
             """
             try:
                 from vibe_surf.tools.website_api.weibo.client import WeiboApiClient
-                
+
                 # Initialize client
                 wb_client = WeiboApiClient(browser_session=browser_manager.main_browser_session)
                 await wb_client.setup()
-                
+
                 # Parse params JSON string
                 import json
                 from json_repair import repair_json
@@ -1086,7 +1089,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
                     method_params = json.loads(params.params)
                 except json.JSONDecodeError:
                     method_params = json.loads(repair_json(params.params))
-                
+
                 # Execute the requested method
                 result = None
                 if params.method == "search_posts_by_keyword":
@@ -1105,13 +1108,13 @@ Please generate alternative JavaScript code that avoids this system error:"""
                     result = await wb_client.get_trending_posts()
                 else:
                     return ActionResult(error=f"Unknown method: {params.method}")
-                
+
                 # Save result to file
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"weibo_{params.method}_{timestamp}.json"
                 filepath = file_system.get_dir() / "data" / filename
                 filepath.parent.mkdir(exist_ok=True)
-                
+
                 with open(filepath, "w", encoding="utf-8") as f:
                     json.dump(result, f, ensure_ascii=False, indent=2)
                 # Format result as markdown
@@ -1120,7 +1123,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
                     md_content = f"## Weibo {params.method.replace('_', ' ').title()}\n\n"
                     md_content += f"Showing {display_count} of {len(result)} results:\n\n"
                     for i, item in enumerate(result[:display_count]):
-                        md_content += f"### Result {i+1}\n"
+                        md_content += f"### Result {i + 1}\n"
                         for key, value in item.items():
                             if not value:
                                 continue
@@ -1137,28 +1140,27 @@ Please generate alternative JavaScript code that avoids this system error:"""
                         else:
                             md_content += f"- **{key}**: {value}\n"
                     md_content += "\n"
-                
+
                 # Add file path to markdown
                 relative_path = str(filepath.relative_to(file_system.get_dir()))
                 md_content += f"\n> 📁 Full data saved to: [{filename}]({relative_path})\n"
                 md_content += f"> 💡 Click the link above to view all results.\n"
-                
+
                 logger.info(f'🐦 Weibo data retrieved with method: {params.method}')
-                
+
                 # Close client
                 await wb_client.close()
-                
+
                 return ActionResult(
                     extracted_content=md_content
                 )
-                
+
             except Exception as e:
                 import traceback
                 traceback.print_exc()
                 error_msg = f'❌ Failed to retrieve Weibo data: {str(e)}. \nMost likely you are not login, please go to: [Weibo login page](https://passport.weibo.com/sso/signin?entry=miniblog&source=miniblog) and login.'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg, extracted_content=error_msg)
-
 
         @self.registry.action(
             'Skill: Douyin API - Access Douyin platform data including search, video details, comments, user profiles, and videos. Methods: search_content_by_keyword, fetch_video_details, fetch_all_video_comments, fetch_user_info, fetch_all_user_videos.',
@@ -1181,11 +1183,11 @@ Please generate alternative JavaScript code that avoids this system error:"""
             """
             try:
                 from vibe_surf.tools.website_api.douyin.client import DouyinApiClient
-                
+
                 # Initialize client
                 dy_client = DouyinApiClient(browser_session=browser_manager.main_browser_session)
                 await dy_client.setup()
-                
+
                 # Parse params JSON string
                 import json
                 from json_repair import repair_json
@@ -1193,7 +1195,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
                     method_params = json.loads(params.params)
                 except json.JSONDecodeError:
                     method_params = json.loads(repair_json(params.params))
-                
+
                 # Execute the requested method
                 result = None
                 if params.method == "search_content_by_keyword":
@@ -1208,23 +1210,23 @@ Please generate alternative JavaScript code that avoids this system error:"""
                     result = await dy_client.fetch_all_user_videos(**method_params)
                 else:
                     return ActionResult(error=f"Unknown method: {params.method}")
-                
+
                 # Save result to file
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"douyin_{params.method}_{timestamp}.json"
                 filepath = file_system.get_dir() / "data" / filename
                 filepath.parent.mkdir(exist_ok=True)
-                
+
                 with open(filepath, "w", encoding="utf-8") as f:
                     json.dump(result, f, ensure_ascii=False, indent=2)
-                
+
                 # Format result as markdown
                 if isinstance(result, list):
                     display_count = min(5, len(result))
                     md_content = f"## Douyin {params.method.replace('_', ' ').title()}\n\n"
                     md_content += f"Showing {display_count} of {len(result)} results:\n\n"
                     for i, item in enumerate(result[:display_count]):
-                        md_content += f"### Result {i+1}\n"
+                        md_content += f"### Result {i + 1}\n"
                         for key, value in item.items():
                             if not value:
                                 continue
@@ -1241,26 +1243,25 @@ Please generate alternative JavaScript code that avoids this system error:"""
                         else:
                             md_content += f"- **{key}**: {value}\n"
                     md_content += "\n"
-                
+
                 # Add file path to markdown
                 relative_path = str(filepath.relative_to(file_system.get_dir()))
                 md_content += f"\n> 📁 Full data saved to: [{filename}]({relative_path})\n"
                 md_content += f"> 💡 Click the link above to view all results.\n"
-                
+
                 logger.info(f'🎵 Douyin data retrieved with method: {params.method}')
-                
+
                 # Close client
                 await dy_client.close()
-                
+
                 return ActionResult(
                     extracted_content=md_content
                 )
-                
+
             except Exception as e:
                 error_msg = f'❌ Failed to retrieve Douyin data: {str(e)}'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg, extracted_content=error_msg)
-
 
         @self.registry.action(
             """Skill: YouTube API - Access YouTube platform data including search, video details, comments, channel info, trending videos, and video transcripts. 
@@ -1296,11 +1297,11 @@ Please generate alternative JavaScript code that avoids this system error:"""
             """
             try:
                 from vibe_surf.tools.website_api.youtube.client import YouTubeApiClient
-                
+
                 # Initialize client
                 yt_client = YouTubeApiClient(browser_session=browser_manager.main_browser_session)
                 await yt_client.setup()
-                
+
                 # Parse params JSON string
                 import json
                 from json_repair import repair_json
@@ -1308,7 +1309,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
                     method_params = json.loads(params.params)
                 except json.JSONDecodeError:
                     method_params = json.loads(repair_json(params.params))
-                
+
                 # Execute the requested method
                 result = None
                 if params.method == "search_videos":
@@ -1327,23 +1328,23 @@ Please generate alternative JavaScript code that avoids this system error:"""
                     result = await yt_client.get_video_transcript(**method_params)
                 else:
                     return ActionResult(error=f"Unknown method: {params.method}")
-                
+
                 # Save result to file
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"youtube_{params.method}_{timestamp}.json"
                 filepath = file_system.get_dir() / "data" / filename
                 filepath.parent.mkdir(exist_ok=True)
-                
+
                 with open(filepath, "w", encoding="utf-8") as f:
                     json.dump(result, f, ensure_ascii=False, indent=2)
-                
+
                 # Format result as markdown
                 if isinstance(result, list):
                     display_count = min(5, len(result))
                     md_content = f"## YouTube {params.method.replace('_', ' ').title()}\n\n"
                     md_content += f"Showing {display_count} of {len(result)} results:\n\n"
                     for i, item in enumerate(result[:display_count]):
-                        md_content += f"### Result {i+1}\n"
+                        md_content += f"### Result {i + 1}\n"
                         for key, value in item.items():
                             if not value:
                                 continue
@@ -1360,32 +1361,31 @@ Please generate alternative JavaScript code that avoids this system error:"""
                         else:
                             md_content += f"- **{key}**: {value}\n"
                     md_content += "\n"
-                
+
                 # Add file path to markdown
                 relative_path = str(filepath.relative_to(file_system.get_dir()))
                 md_content += f"\n> 📁 Full data saved to: [{filename}]({relative_path})\n"
                 md_content += f"> 💡 Click the link above to view all results.\n"
-                
+
                 logger.info(f'🎬 YouTube data retrieved with method: {params.method}')
-                
+
                 # Close client
                 await yt_client.close()
-                
+
                 return ActionResult(
                     extracted_content=md_content
                 )
-                
+
             except Exception as e:
                 error_msg = f'❌ Failed to retrieve YouTube data: {str(e)}'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg, extracted_content=error_msg)
 
-
     async def _extract_google_results_rule_based(self, browser_session):
         """Rule-based extraction of Google search results using JavaScript"""
         try:
             cdp_session = await browser_session.get_or_create_cdp_session()
-            
+
             # JavaScript code to extract Google search results using DOM selectors
             js_extraction_code = """
 (function() {
@@ -1491,27 +1491,27 @@ Please generate alternative JavaScript code that avoids this system error:"""
     }
 })()
 """
-            
+
             # Execute JavaScript to extract results
             result = await cdp_session.cdp_client.send.Runtime.evaluate(
                 params={'expression': js_extraction_code, 'returnByValue': True, 'awaitPromise': True},
                 session_id=cdp_session.session_id,
             )
-            
+
             if result.get('exceptionDetails'):
                 logger.warning(f"JavaScript extraction failed: {result['exceptionDetails']}")
                 return []
-            
+
             result_data = result.get('result', {})
             value = result_data.get('value', '[]')
-            
+
             try:
                 extracted_results = json.loads(value)
                 return extracted_results if isinstance(extracted_results, list) else []
             except (json.JSONDecodeError, ValueError):
                 logger.warning(f"Failed to parse extraction results: {value}")
                 return []
-                
+
         except Exception as e:
             logger.error(f"Rule-based extraction failed: {e}")
             return []
@@ -1533,10 +1533,10 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 # Rule-based extraction succeeded
                 logger.debug(f"Rule-based extraction found {len(results)} results for query: {query}")
                 return results[:search_ret_len]  # Return top 6 results
-            
+
             # Fallback to LLM extraction if rule-based fails
             logger.warning(f"Rule-based extraction failed for query '{query}', falling back to LLM")
-            
+
             extraction_query = f"""
 Extract the top {search_ret_len} search results from this Google search page. For each result, provide:
 - title: The clickable title/headline
@@ -1577,26 +1577,26 @@ Return results as a JSON array: [{{"title": "...", "url": "...", "summary": "...
         """Rule-based deduplication to reduce dataset before LLM processing"""
         if not results:
             return []
-        
+
         deduplicated = []
         seen_urls = set()
         seen_titles = set()
-        
+
         for result in results:
             url = result.get('url', '').strip()
             title = result.get('title', '').strip().lower()
-            
+
             # Skip results with missing essential data
             if not url or not title or url == 'No URL' or title == 'no title':
                 continue
-            
+
             # Normalize URL for comparison (remove fragments, query params for deduplication)
             normalized_url = url.split('#')[0].split('?')[0].lower()
-            
+
             # Check for duplicate URLs
             if normalized_url in seen_urls:
                 continue
-            
+
             # Check for very similar titles (basic similarity)
             title_normalized = ''.join(c for c in title if c.isalnum()).lower()
             if len(title_normalized) > 10:  # Only check titles with substantial content
@@ -1609,35 +1609,35 @@ Return results as a JSON array: [{{"title": "...", "url": "...", "summary": "...
                         if similarity > 0.8:
                             similar_found = True
                             break
-                
+
                 if similar_found:
                     continue
-            
+
             # Add to deduplicated results
             seen_urls.add(normalized_url)
             seen_titles.add(title_normalized)
             deduplicated.append(result)
-        
+
         # Sort by relevance indicators (prioritize results with longer summaries, non-generic titles)
         def relevance_score(result):
             score = 0
             title = result.get('title', '')
             summary = result.get('summary', '')
-            
+
             # Longer summaries are typically more informative
             score += min(len(summary), 200) / 10
-            
+
             # Non-generic titles score higher
             generic_terms = ['search results', 'no title', 'error', 'loading']
             if not any(term in title.lower() for term in generic_terms):
                 score += 10
-            
+
             # Prefer results with actual descriptions
             if summary and summary != 'No description available' and len(summary) > 20:
                 score += 5
-                
+
             return score
-        
+
         deduplicated.sort(key=relevance_score, reverse=True)
         return deduplicated
 
@@ -2270,7 +2270,8 @@ You will be given a query and the markdown of a webpage that has been filtered t
 
                         # Create content parts for OCR
                         content_parts: list[ContentPartTextParam | ContentPartImageParam] = [
-                            ContentPartTextParam(text="Please extract all text content from this image for search purposes. Return only the extracted text, no additional explanations.")
+                            ContentPartTextParam(
+                                text="Please extract all text content from this image for search purposes. Return only the extracted text, no additional explanations.")
                         ]
 
                         # Add the image
@@ -2306,51 +2307,51 @@ You will be given a query and the markdown of a webpage that has been filtered t
                 # Perform grep search
                 search_query = params.query.lower()
                 context_chars = params.context_chars
-                
+
                 # Find all matches with context
                 matches = []
                 content_lower = file_content.lower()
                 search_start = 0
-                
+
                 while True:
                     match_pos = content_lower.find(search_query, search_start)
                     if match_pos == -1:
                         break
-                    
+
                     # Calculate context boundaries
                     start_pos = max(0, match_pos - context_chars)
                     end_pos = min(len(file_content), match_pos + len(search_query) + context_chars)
-                    
+
                     # Extract context with the match
                     context_before = file_content[start_pos:match_pos]
                     matched_text = file_content[match_pos:match_pos + len(search_query)]
                     context_after = file_content[match_pos + len(search_query):end_pos]
-                    
+
                     # Add ellipsis if truncated
                     if start_pos > 0:
                         context_before = "..." + context_before
                     if end_pos < len(file_content):
                         context_after = context_after + "..."
-                    
+
                     matches.append({
                         'context_before': context_before,
                         'matched_text': matched_text,
                         'context_after': context_after,
                         'position': match_pos
                     })
-                    
+
                     search_start = match_pos + 1
-                
+
                 # Format results
                 if not matches:
                     extracted_content = f'File: {file_path}\nQuery: "{params.query}"\nResult: No matches found'
                 else:
                     result_text = f'File: {file_path}\nQuery: "{params.query}"\nFound {len(matches)} match(es):\n\n'
-                    
+
                     for i, match in enumerate(matches, 1):
                         result_text += f"Match {i} (position: {match['position']}):\n"
                         result_text += f"{match['context_before']}[{match['matched_text']}]{match['context_after']}\n\n"
-                    
+
                     extracted_content = result_text.strip()
 
                 # Handle memory storage
@@ -2469,6 +2470,72 @@ You will be given a query and the markdown of a webpage that has been filtered t
         # Clear the clients dictionary
         self.mcp_clients.clear()
         logger.info('All MCP clients unregistered and disconnected')
+
+    async def register_composio_clients(self, composio_instance: Optional[Any] = None,
+                                        toolkit_tools_dict: Optional[Dict[str, Any]] = None):
+        """
+        Register Composio tools to the registry.
+        
+        Args:
+            composio_instance: Composio instance (optional, can be None initially)
+            toolkit_tools_dict: Dict of toolkit_slug -> tools list
+        """
+        try:
+            # Initialize Composio client if not exists
+            if self.composio_client is None:
+                self.composio_client = ComposioClient(composio_instance=composio_instance)
+            else:
+                # Update the composio instance
+                self.composio_client.update_composio_instance(composio_instance)
+
+            # Register tools if we have both instance and toolkit tools
+            if composio_instance and toolkit_tools_dict:
+                await self.composio_client.register_to_tools(
+                    tools=self,
+                    toolkit_tools_dict=toolkit_tools_dict,
+                    prefix="cpo."
+                )
+                logger.info(f'Successfully registered Composio tools from {len(toolkit_tools_dict)} toolkits')
+            elif not composio_instance:
+                logger.info("Composio client initialized without instance - will register tools later")
+            elif not toolkit_tools_dict:
+                logger.info("Composio client initialized without toolkit tools - will register tools later")
+
+        except Exception as e:
+            logger.error(f'Failed to register Composio clients: {str(e)}')
+
+    async def unregister_composio_clients(self):
+        """
+        Unregister all Composio tools from the registry.
+        """
+        try:
+            if self.composio_client:
+                self.composio_client.unregister_all_tools(self)
+                logger.info('All Composio tools unregistered')
+
+        except Exception as e:
+            logger.error(f'Failed to unregister Composio clients: {str(e)}')
+
+    async def update_composio_tools(self, composio_instance: Optional[Any] = None,
+                                    toolkit_tools_dict: Optional[Dict[str, Any]] = None):
+        """
+        Update Composio tools by unregistering old ones and registering new ones.
+        
+        Args:
+            composio_instance: Composio instance
+            toolkit_tools_dict: Dict of toolkit_slug -> tools list
+        """
+        try:
+            # Unregister existing tools
+            await self.unregister_composio_clients()
+
+            # Register new tools
+            await self.register_composio_clients(composio_instance, toolkit_tools_dict)
+
+            logger.info('Composio tools updated successfully')
+
+        except Exception as e:
+            logger.error(f'Failed to update Composio tools: {str(e)}')
 
     @time_execution_sync('--act')
     async def act(

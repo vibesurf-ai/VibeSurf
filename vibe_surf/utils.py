@@ -7,3 +7,7 @@ def singleton(cls):
 		return instance[0]
 
 	return wrapper
+
+def get_vibesurf_version() -> str:
+	import vibe_surf
+	return str(vibe_surf.__version__)

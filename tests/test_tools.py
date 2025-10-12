@@ -156,15 +156,16 @@ async def test_composio_integrations():
 
         tools = composio.tools.get(user_id=entity_id, toolkits=[app_name.lower()], limit=limit)
         configured_tools = []
-        tools_map = {}
+        tools_list = []
         for tool in tools:
-            # Set the tags
-            tools_map[tool.name] = {
-                'description': tool.description,
-                'args_schema': tool.args_schema.model_json_schema(),
+            tools_list.append({
+                'name': tool.name,
+                'description': getattr(tool, 'description', ''),
+                'parameters': tool.args_schema.model_json_schema() if hasattr(tool, 'args_schema') else {},
+                'enabled': True,  # Default enabled
                 'func': tool.func,
-            }
-        return tools_map
+            })
+        return tools_list
 
     def _find_active_connection_for_app(entity_id: str, app_name: str) -> tuple[str, str] | None:
         """Find any ACTIVE connection for this app/user. Returns (connection_id, status) or None."""
@@ -189,9 +190,24 @@ async def test_composio_integrations():
     entity_id = "default"
     connected_ret = _find_active_connection_for_app(entity_id=entity_id, app_name=app_name)
     if connected_ret and connected_ret[1] == "ACTIVE":
-        gmail_tools_map = configure_tools(entity_id=entity_id, app_name=app_name)
+        tools_list = configure_tools(entity_id=entity_id, app_name=app_name)
+        toolkit_tools_dict = {}
+        toolkit_tools_dict[app_name] = tools_list
+        from vibe_surf.tools.composio_client import ComposioClient
+        from vibe_surf.tools.vibesurf_tools import VibeSurfTools
+
+        tools = VibeSurfTools()
+
+        # Connect to Composio
+        composio_client = ComposioClient(
+            composio_instance=composio
+        )
+
+        # Register all Composio tools as VibeSurf actions
+        await composio_client.register_to_tools(tools, toolkit_tools_dict)
+
         pdb.set_trace()
-        result = gmail_tools_map['GMAIL_FETCH_EMAILS']['func']()
+        result = tools_list[0]['func']()
         pdb.set_trace()
         # result = composio.tools.execute(
         #     slug="GMAIL_FETCH_EMAILS",

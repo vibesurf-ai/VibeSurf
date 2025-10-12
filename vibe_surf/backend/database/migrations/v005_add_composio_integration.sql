@@ -31,7 +31,3 @@ FOR EACH ROW
 BEGIN
     UPDATE composio_toolkits SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
 END;
-
--- Insert migration history record
-INSERT OR IGNORE INTO migration_history (version, description, applied_at)
-VALUES ('v005', 'Add composio_toolkits table for Composio integration management', CURRENT_TIMESTAMP);

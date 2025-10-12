@@ -550,11 +550,50 @@ async def toggle_composio_toolkit(
                 logger.warning(f"Failed to check connections for {slug}: {e}")
                 connection_status = "unknown"
 
+        # If enabling and connected, fetch and save tools
+        if request.enabled and connection_status == "connected":
+            try:
+                entity_id = "default"  # Use default entity ID
+                api_tools = await asyncio.to_thread(
+                    lambda: composio.tools.get(user_id=entity_id, toolkits=[slug.lower()], limit=999)
+                )
+
+                # Convert to response format
+                tools_list = []
+                for tool in api_tools:
+                    tools_list.append({
+                        'name': tool.name,
+                        'description': getattr(tool, 'description', ''),
+                        'parameters': tool.args_schema.model_json_schema() if hasattr(tool, 'args_schema') else {},
+                        'enabled': True  # Default enabled
+                    })
+
+                # Save tools to database
+                if tools_list:
+                    try:
+                        tools_json = json.dumps(tools_list)
+                        await ComposioToolkitQueries.update_toolkit_tools(
+                            db,
+                            toolkit.id,
+                            tools_json
+                        )
+                        logger.info(f"Synced {len(tools_list)} tools for toolkit {slug}")
+                    except Exception as e:
+                        logger.warning(f"Failed to save tools to database for toolkit {slug}: {e}")
+
+            except Exception as e:
+                logger.warning(f"Failed to fetch tools for toolkit {slug}: {e}")
+
         # Update toolkit enabled status in database
+        update_data = {'enabled': request.enabled}
+        if request.enabled and connection_status == "connected" and 'tools_list' in locals():
+            # Also update tools if we fetched them
+            update_data['tools'] = json.dumps(tools_list) if tools_list else None
+
         success = await ComposioToolkitQueries.update_toolkit_by_slug(
             db,
             slug,
-            {'enabled': request.enabled}
+            update_data
         )
 
         if not success:

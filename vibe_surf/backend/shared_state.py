@@ -12,6 +12,8 @@ import os
 import json
 import platform
 from pathlib import Path
+from composio import Composio
+from composio_langchain import LangchainProvider
 
 # VibeSurf components
 from vibe_surf.agents.vibe_surf_agent import VibeSurfAgent
@@ -122,6 +124,9 @@ async def execute_task_background(
 
         # Check if MCP server configuration needs update
         await _check_and_update_mcp_servers(db_session)
+        
+        # Check if Composio tools configuration needs update
+        await _check_and_update_composio_tools(db_session)
 
         # Update active task status to running
         active_task = {
@@ -276,6 +281,55 @@ async def _check_and_update_mcp_servers(db_session):
         logger.error(f"Failed to check and update MCP servers: {e}")
 
 
+async def _check_and_update_composio_tools(db_session):
+    """Check if Composio tools configuration has changed and update tools if needed"""
+    global vibesurf_tools, composio_instance
+
+    try:
+        if not db_session:
+            return
+
+        from .database.queries import ComposioToolkitQueries
+
+        # Get current enabled Composio toolkits from database
+        enabled_toolkits = await ComposioToolkitQueries.get_enabled_toolkits(db_session)
+        
+        # Build toolkit_tools_dict from enabled toolkits
+        current_toolkit_tools = {}
+        for toolkit in enabled_toolkits:
+            if toolkit.tools:
+                try:
+                    tools_data = json.loads(toolkit.tools)
+                    current_toolkit_tools[toolkit.slug] = tools_data
+                except (json.JSONDecodeError, TypeError) as e:
+                    logger.warning(f"Failed to parse tools for toolkit {toolkit.slug}: {e}")
+
+        # Check if Composio tools need to be updated
+        tools_changed = False
+        if vibesurf_tools and vibesurf_tools.composio_client:
+            # Compare current tools with registered tools
+            if vibesurf_tools.composio_client._toolkit_tools != current_toolkit_tools:
+                tools_changed = True
+        elif current_toolkit_tools:
+            # No composio client but we have enabled tools - need to register
+            tools_changed = True
+
+        if tools_changed:
+            logger.info(f"Composio tools configuration changed. Updating tools...")
+            logger.info(f"New toolkit tools: {list(current_toolkit_tools.keys())}")
+
+            # Update Composio tools in vibesurf_tools
+            if vibesurf_tools:
+                await vibesurf_tools.update_composio_tools(
+                    composio_instance=composio_instance,
+                    toolkit_tools_dict=current_toolkit_tools
+                )
+                logger.info("✅ Composio tools configuration updated successfully")
+
+    except Exception as e:
+        logger.error(f"Failed to check and update Composio tools: {e}")
+
+
 async def _build_mcp_server_config(active_profiles) -> Dict[str, Any]:
     """Build MCP server configuration from active profiles"""
     mcp_server_config = {
@@ -325,9 +379,51 @@ async def _load_active_mcp_servers():
         return {"mcpServers": {}}
 
 
+async def _load_enabled_composio_toolkits():
+    """Load enabled Composio toolkits from database and return toolkit_tools_dict"""
+    global db_manager
+
+    try:
+        if not db_manager:
+            logger.info("Database manager not available, returning empty Composio config")
+            return {}
+
+        from .database.queries import ComposioToolkitQueries
+
+        async for db in db_manager.get_session():
+            try:
+                # Get all enabled Composio toolkits
+                enabled_toolkits = await ComposioToolkitQueries.get_enabled_toolkits(db)
+                
+                # Build toolkit_tools_dict from enabled toolkits
+                toolkit_tools_dict = {}
+                pdb.set_trace()
+                for toolkit in enabled_toolkits:
+                    if toolkit.tools:
+                        try:
+                            tools_data = json.loads(toolkit.tools)
+                            toolkit_tools_dict[toolkit.slug] = tools_data
+                        except (json.JSONDecodeError, TypeError) as e:
+                            logger.warning(f"Failed to parse tools for toolkit {toolkit.slug}: {e}")
+
+                logger.info(f"✅ Loaded {len(toolkit_tools_dict)} enabled Composio toolkits: {list(toolkit_tools_dict.keys())}")
+
+                return toolkit_tools_dict
+
+            except Exception as e:
+                logger.warning(f"Failed to load Composio toolkits from database: {e}")
+                return {}
+            finally:
+                break
+
+    except Exception as e:
+        logger.warning(f"Database not available for Composio toolkit loading: {e}")
+        return {}
+
+
 async def initialize_vibesurf_components():
     """Initialize VibeSurf components from environment variables and default LLM profile"""
-    global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager, current_llm_profile_name
+    global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager, current_llm_profile_name, composio_instance
     global workspace_dir, browser_execution_path, browser_user_data, envs
     from vibe_surf import common
 
@@ -450,6 +546,28 @@ async def initialize_vibesurf_components():
         if mcp_server_config and mcp_server_config.get("mcpServers"):
             await vibesurf_tools.register_mcp_clients()
             logger.info(f"✅ Registered {len(mcp_server_config['mcpServers'])} MCP servers")
+
+        # Load and register Composio tools from enabled toolkits
+        from .api.composio import _get_composio_api_key_from_db
+        api_key = await _get_composio_api_key_from_db()
+        if api_key:
+            try:
+                # Create Composio instance
+                composio_instance = Composio(
+                    api_key=api_key,
+                    provider=LangchainProvider()
+                )
+                logger.info("Successfully create Composio instance!")
+            except Exception as e:
+                logger.error(f"Failed to create Composio instance: {e}")
+                composio_instance = None
+        toolkit_tools_dict = await _load_enabled_composio_toolkits()
+        if toolkit_tools_dict:
+            await vibesurf_tools.register_composio_clients(
+                composio_instance=composio_instance,
+                toolkit_tools_dict=toolkit_tools_dict
+            )
+            logger.info(f"✅ Registered Composio tools from {len(toolkit_tools_dict)} enabled toolkits")
 
         # Initialize VibeSurfAgent
         vibesurf_agent = VibeSurfAgent(
