@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="styles/settings-integrations.css">
     <link rel="stylesheet" href="styles/settings-utilities.css">
     <link rel="stylesheet" href="styles/settings-responsive.css">
+    <link rel="stylesheet" href="styles/settings-workflow.css">
     
     <!-- Responsive Styles -->
     <link rel="stylesheet" href="styles/responsive.css">
@@ -324,6 +325,14 @@
                     </svg>
                     Integrations
                 </button>
+                <button class="settings-tab" data-tab="workflow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Workflow
+                </button>
             </div>
             
             <!-- Tab Content -->
@@ -490,6 +499,24 @@
                                 <div class="loading-spinner"></div>
                                 <div class="loading-text">Loading toolkits...</div>
                             </div>
+                        </div>
+                        
+                    </div>
+                </div>
+                
+                <!-- Workflow Tab -->
+                <div id="workflow-tab" class="settings-tab-content">
+                    <div class="workflow-container">
+                        <div class="workflow-header">
+                            <button id="workflow-back-btn" class="workflow-back-btn" title="Back to Settings">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Back
+                            </button>
+                        </div>
+                        <div class="workflow-content">
+                            <iframe id="workflow-iframe" class="workflow-iframe" src="http://localhost:7860/flows" frameborder="0" allow="microphone; camera"></iframe>
                         </div>
                     </div>
                 </div>

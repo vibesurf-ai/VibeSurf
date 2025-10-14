@@ -37,6 +37,11 @@ class VibeSurfSettingsManager {
       settingsTabs: document.querySelectorAll('.settings-tab'),
       settingsTabContents: document.querySelectorAll('.settings-tab-content'),
       
+      // Workflow Tab
+      workflowTab: document.getElementById('workflow-tab'),
+      workflowBackBtn: document.getElementById('workflow-back-btn'),
+      workflowIframe: document.getElementById('workflow-iframe'),
+      
       // General Settings
       themeSelect: document.getElementById('theme-select'),
       defaultAsrSelect: document.getElementById('default-asr-select'),
@@ -189,6 +194,9 @@ class VibeSurfSettingsManager {
       oauthModalClose.addEventListener('click', this.hideOAuthModal.bind(this));
     }
     
+    // Workflow tab events
+    this.elements.workflowBackBtn?.addEventListener('click', this.handleWorkflowBack.bind(this));
+    
     // Global keyboard shortcuts
     document.addEventListener('keydown', this.handleKeydown.bind(this));
   }
@@ -313,6 +321,11 @@ class VibeSurfSettingsManager {
     // If switching to integrations tab, load integrations data
     if (targetTabId === 'integrations') {
       this.loadIntegrationsData();
+    }
+    
+    // If switching to workflow tab, load workflow content
+    if (targetTabId === 'workflow') {
+      this.loadWorkflowContent();
     }
   }
 
@@ -2878,7 +2891,36 @@ class VibeSurfSettingsManager {
         console.error('[SettingsManager] Failed to update toolkit connection statuses:', error);
       }
     }
-}
+    
+    // === WORKFLOW TAB FUNCTIONALITY ===
+    
+    // Load workflow content when tab is opened
+    async loadWorkflowContent() {
+      try {
+        console.log('[SettingsManager] Loading workflow content...');
+        
+        // Simply ensure iframe is pointing to the correct URL
+        // The iframe is already set in HTML, no need to reload it
+        if (this.elements.workflowIframe) {
+          console.log('[SettingsManager] Workflow iframe ready');
+        }
+        
+      } catch (error) {
+        console.error('[SettingsManager] Failed to load workflow content:', error);
+      }
+    }
+    
+    // Handle workflow back button click
+    handleWorkflowBack() {
+      console.log('[SettingsManager] Workflow back button clicked');
+      
+      // Switch back to the general settings tab
+      const generalTab = document.querySelector('.settings-tab[data-tab="general"]');
+      if (generalTab) {
+        generalTab.click();
+      }
+    }
+  }
 
 // Export for use in other modules
 if (typeof window !== 'undefined') {
