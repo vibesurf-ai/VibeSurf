@@ -2142,7 +2142,7 @@ You will be given a query and the markdown of a webpage that has been filtered t
             )
 
         @self.registry.action(
-            'List contents of a directory within the FileSystem. Use empty string "" or "." to list the root data_dir, or provide relative path for subdirectory.'
+            'List a directory within the FileSystem. Use empty string "" or "." to list the root FileSystem, or provide relative path for subdirectory.'
         )
         async def list_directory(directory_path: str, file_system: CustomFileSystem):
             result = await file_system.list_directory(directory_path)
@@ -2154,7 +2154,7 @@ You will be given a query and the markdown of a webpage that has been filtered t
             )
 
         @self.registry.action(
-            'search for query or keywords and return surrounding context (simulates Linux grep command)',
+            'search for query or keywords and return surrounding context',
             param_model=GrepContentAction,
         )
         async def grep_content_from_file(
