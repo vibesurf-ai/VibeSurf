@@ -182,7 +182,7 @@ class VibeSurfTools:
 
     def _register_skills(self):
         @self.registry.action(
-            'Skill: Advanced parallel search - analyze user intent and generate 5 different search tasks, perform parallel Google searches, and return top 10 most relevant results',
+            'parallel search',
             param_model=SkillSearchAction,
         )
         async def skill_search(
@@ -373,7 +373,7 @@ Format: [index1, index2, index3, ...]
                     await browser_manager.unregister_agent(agent_id, close_tabs=True)
 
         @self.registry.action(
-            'Skill: Crawl a web page and extract structured information from a webpage with optional tab selection',
+            '',
             param_model=SkillCrawlAction,
         )
         async def skill_crawl(
@@ -393,13 +393,14 @@ Format: [index1, index2, index3, ...]
                 browser_session = browser_manager.main_browser_session
 
                 # If tab_id is provided, switch to that tab
+                target_id = None
                 if params.tab_id:
                     target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
 
                 # Extract structured content using the existing method
                 extracted_content = await self._extract_structured_content(
-                    browser_session, params.query, llm
+                    browser_session, params.query, llm, target_id=target_id
                 )
 
                 current_url = await browser_session.get_current_page_url()
@@ -426,7 +427,7 @@ Format: [index1, index2, index3, ...]
                 return ActionResult(error=f'Skill crawl failed: {str(e)}')
 
         @self.registry.action(
-            'Skill: Summarize webpage content with optional tab selection',
+            '',
             param_model=SkillSummaryAction,
         )
         async def skill_summary(
@@ -446,13 +447,14 @@ Format: [index1, index2, index3, ...]
                 browser_session = browser_manager.main_browser_session
 
                 # If tab_id is provided, switch to that tab
+                target_id = None
                 if params.tab_id:
                     target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
 
                 # Extract and summarize content
                 summary = await self._extract_structured_content(
-                    browser_session, "Provide a comprehensive summary of this webpage", llm
+                    browser_session, "Provide a comprehensive summary of this webpage", llm, target_id=target_id
                 )
 
                 current_url = await browser_session.get_current_page_url()
@@ -479,7 +481,7 @@ Format: [index1, index2, index3, ...]
                 return ActionResult(error=f'Skill summary failed: {str(e)}')
 
         @self.registry.action(
-            'Skill: Take screenshot of current page or specified tab',
+            '',
             param_model=SkillTakeScreenshotAction,
         )
         async def skill_screenshot(
@@ -500,7 +502,7 @@ Format: [index1, index2, index3, ...]
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
 
                 # Take screenshot using browser session
-                screenshot = await browser_session.take_screenshot()
+                screenshot_bytes = await browser_session.take_screenshot()
 
                 # Generate timestamp for filename
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -520,7 +522,7 @@ Format: [index1, index2, index3, ...]
                 filepath = screenshots_dir / filename
 
                 with open(filepath, "wb") as f:
-                    f.write(base64.b64decode(screenshot))
+                    f.write(screenshot_bytes)
 
                 msg = f'📸 Screenshot saved to path: [{filename}]({str(filepath.relative_to(fs_dir))})'
                 logger.info(msg)
@@ -536,7 +538,7 @@ Format: [index1, index2, index3, ...]
                 return ActionResult(error=error_msg)
 
         @self.registry.action(
-            'Skill: Execute JavaScript code on webpage with optional tab selection - accepts functional requirements, code prompts, or code snippets that will be processed by LLM to generate proper executable JavaScript',
+            'Execute JavaScript code on webpage',
             param_model=SkillCodeAction,
         )
         async def skill_code(
@@ -815,7 +817,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 return ActionResult(error=f'Skill code failed: {str(e)}')
 
         @self.registry.action(
-            'Skill: Deep research mode - Only return the guideline for deep research. Please follow the guideline to do real deep research actions.',
+            'Return the guideline for deep research. Please follow the guideline to do real deep research actions.',
             param_model=NoParamsAction,
         )
         async def skill_deep_research(
@@ -866,7 +868,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
             )
 
         @self.registry.action(
-            'Skill: Get comprehensive financial data for stocks - retrieve company information, historical prices, news, earnings, dividends, analyst recommendations and other financial data using Yahoo Finance. Available methods include: get_info (company info), get_history (price history), get_news (latest news), get_dividends (dividend history), get_earnings (earnings data), get_recommendations (analyst recommendations), get_balance_sheet (balance sheet data), get_income_stmt (income statement), get_cashflow (cash flow statement), get_fast_info (quick stats), get_institutional_holders (institutional ownership), get_major_holders (major shareholders), get_sustainability (ESG data), get_upgrades_downgrades (analyst upgrades/downgrades), and more. If no methods specified, defaults to get_info.',
+            'Get comprehensive financial data for stocks - retrieve company information, historical prices, news, earnings, dividends, analyst recommendations and other financial data using Yahoo Finance.',
             param_model=SkillFinanceAction,
         )
         async def skill_finance(
@@ -951,7 +953,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 return ActionResult(error=error_msg, extracted_content=error_msg)
 
         @self.registry.action(
-            'Skill: Xiaohongshu API - Access Xiaohongshu (Little Red Book) platform data including search, content details, comments, user profiles, and recommendations. Methods: search_content_by_keyword, fetch_content_details, fetch_all_content_comments, get_user_profile, fetch_all_user_content, get_home_recommendations.',
+            '',
             param_model=SkillXhsAction,
         )
         async def skill_xhs(
@@ -1055,7 +1057,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 return ActionResult(error=error_msg, extracted_content=error_msg)
 
         @self.registry.action(
-            'Skill: Weibo API - Access Weibo platform data including search, post details, comments, user profiles, hot posts, and trending lists. Methods: search_posts_by_keyword, get_post_detail, get_all_post_comments, get_user_info, get_all_user_posts, get_hot_posts（推荐榜）, get_trending_posts(热搜榜）.',
+            '',
             param_model=SkillWeiboAction,
         )
         async def skill_weibo(
@@ -1163,7 +1165,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 return ActionResult(error=error_msg, extracted_content=error_msg)
 
         @self.registry.action(
-            'Skill: Douyin API - Access Douyin platform data including search, video details, comments, user profiles, and videos. Methods: search_content_by_keyword, fetch_video_details, fetch_all_video_comments, fetch_user_info, fetch_all_user_videos.',
+            '',
             param_model=SkillDouyinAction,
         )
         async def skill_douyin(
@@ -1264,18 +1266,7 @@ Please generate alternative JavaScript code that avoids this system error:"""
                 return ActionResult(error=error_msg, extracted_content=error_msg)
 
         @self.registry.action(
-            """Skill: YouTube API - Access YouTube platform data including search, video details, comments, channel info, trending videos, and video transcripts. 
-            Methods: 
-            search_videos, 
-            get_video_details, 
-            get_video_comments, 
-            get_channel_info, 
-            get_channel_videos, 
-            get_trending_videos, 
-            get_video_transcript.
-            
-            If users want to know the specific content of this video, please use get_video_transcript to get detailed video content first.
-            """,
+            """YouTube API - If users want to know the specific content of this video, please use get_video_transcript to get detailed video content first.""",
             param_model=SkillYoutubeAction,
         )
         async def skill_youtube(
@@ -1641,13 +1632,18 @@ Return results as a JSON array: [{{"title": "...", "url": "...", "summary": "...
         deduplicated.sort(key=relevance_score, reverse=True)
         return deduplicated
 
-    async def _extract_structured_content(self, browser_session, query: str, llm: BaseChatModel):
+    async def _extract_structured_content(self, browser_session, query: str, llm: BaseChatModel,
+                                          target_id: str | None = None, extract_links: bool = False):
         """Helper method to extract structured content from current page"""
         MAX_CHAR_LIMIT = 30000
 
         # Extract clean markdown using the existing method
         try:
-            content, content_stats = await self.extract_clean_markdown(browser_session, extract_links=False)
+            from browser_use.dom.markdown_extractor import extract_clean_markdown
+
+            content, content_stats = await extract_clean_markdown(
+                browser_session=browser_session, extract_links=extract_links, target_id=target_id
+            )
         except Exception as e:
             raise RuntimeError(f'Could not extract clean markdown: {type(e).__name__}')
 
@@ -1697,90 +1693,9 @@ You will be given a query and the markdown of a webpage that has been filtered t
             logger.debug(f'Error extracting content: {e}')
             raise RuntimeError(str(e))
 
-    async def extract_clean_markdown(
-            self, browser_session: BrowserSession, extract_links: bool = True
-    ) -> tuple[str, dict[str, Any]]:
-        """Extract clean markdown from the current page."""
-        import re
-
-        # Get HTML content from current page
-        cdp_session = await browser_session.get_or_create_cdp_session()
-        try:
-            body_id = await cdp_session.cdp_client.send.DOM.getDocument(session_id=cdp_session.session_id)
-            page_html_result = await cdp_session.cdp_client.send.DOM.getOuterHTML(
-                params={'backendNodeId': body_id['root']['backendNodeId']}, session_id=cdp_session.session_id
-            )
-            page_html = page_html_result['outerHTML']
-            current_url = await browser_session.get_current_page_url()
-        except Exception as e:
-            raise RuntimeError(f"Couldn't extract page content: {e}")
-
-        original_html_length = len(page_html)
-
-        # Use html2text for clean markdown conversion
-        import html2text
-
-        h = html2text.HTML2Text()
-        h.ignore_links = not extract_links
-        h.ignore_images = True
-        h.ignore_emphasis = False
-        h.body_width = 0  # Don't wrap lines
-        h.unicode_snob = True
-        h.skip_internal_links = True
-        content = h.handle(page_html)
-
-        initial_markdown_length = len(content)
-
-        # Minimal cleanup - html2text already does most of the work
-        content = re.sub(r'%[0-9A-Fa-f]{2}', '', content)  # Remove any remaining URL encoding
-
-        # Apply light preprocessing to clean up excessive whitespace
-        content, chars_filtered = self._preprocess_markdown_content(content)
-
-        final_filtered_length = len(content)
-
-        # Content statistics
-        stats = {
-            'url': current_url,
-            'original_html_chars': original_html_length,
-            'initial_markdown_chars': initial_markdown_length,
-            'filtered_chars_removed': chars_filtered,
-            'final_filtered_chars': final_filtered_length,
-        }
-
-        return content, stats
-
-    def _preprocess_markdown_content(self, content: str, max_newlines: int = 3) -> tuple[str, int]:
-        """Light preprocessing of html2text output - minimal cleanup since html2text is already clean."""
-        import re
-
-        original_length = len(content)
-
-        # Compress consecutive newlines (4+ newlines become max_newlines)
-        content = re.sub(r'\n{4,}', '\n' * max_newlines, content)
-
-        # Remove lines that are only whitespace or very short (likely artifacts)
-        lines = content.split('\n')
-        filtered_lines = []
-        for line in lines:
-            stripped = line.strip()
-            # Keep lines with substantial content (html2text output is already clean)
-            if len(stripped) > 2:
-                filtered_lines.append(line)
-
-        content = '\n'.join(filtered_lines)
-        content = content.strip()
-
-        chars_filtered = original_length - len(content)
-        return content, chars_filtered
-
     def _register_browser_use_agent(self):
         @self.registry.action(
-            'Execute browser_use agent tasks. Supports both single task execution (list length=1) and '
-            'parallel execution of multiple tasks for improved efficiency. '
-            'Accepts a list of tasks where each task can specify a tab_id (optional), '
-            'task description (focusing on goals and expected returns), and task_files (optional). '
-            'Browser_use agent has strong planning and execution capabilities, only needs task descriptions and desired outcomes.',
+            'Execute browser_use agent tasks.',
             param_model=BrowserUseAgentExecution,
         )
         async def execute_browser_use_agent(
@@ -1804,8 +1719,7 @@ You will be given a query and the markdown of a webpage that has been filtered t
 
     def _register_report_writer_agent(self):
         @self.registry.action(
-            'Execute report writer agent to generate HTML reports. '
-            'Task should describe report requirements, goals, insights observed, and any hints or tips for generating the report.',
+            'Execute report writer agent to generate HTML reports. ',
             param_model=ReportWriterTask,
         )
         async def execute_report_writer_agent(
@@ -2004,7 +1918,7 @@ You will be given a query and the markdown of a webpage that has been filtered t
 
     def _register_file_actions(self):
         @self.registry.action(
-            'Replace old_str with new_str in file_name. old_str must exactly match the string to replace in original text. Recommended tool to mark completed items in todo.md or change specific contents in a file.'
+            ''
         )
         async def replace_file_str(file_name: str, old_str: str, new_str: str, file_system: CustomFileSystem):
             result = await file_system.replace_file_str(file_name, old_str, new_str)
@@ -2149,7 +2063,7 @@ You will be given a query and the markdown of a webpage that has been filtered t
                 raise RuntimeError(str(e))
 
         @self.registry.action(
-            'Write or append content to file_path in file system. Allowed extensions are .md, .txt, .json, .csv, .pdf. For .pdf files, write the content in markdown format and it will automatically be converted to a properly formatted PDF document.'
+            ''
         )
         async def write_file(
                 file_path: str,
@@ -2171,7 +2085,7 @@ You will be given a query and the markdown of a webpage that has been filtered t
             return ActionResult(extracted_content=result, long_term_memory=result)
 
         @self.registry.action(
-            'Copy a file to the FileSystem. Set external_src=True to copy from external file(absolute path)to FileSystem, False to copy within FileSystem.'
+            'Set external_src=True to copy from external file(absolute path)to FileSystem, False to copy within FileSystem.'
         )
         async def copy_file(src_file_path: str, dst_file_path: str, file_system: CustomFileSystem,
                             external_src: bool = False):
@@ -2240,7 +2154,7 @@ You will be given a query and the markdown of a webpage that has been filtered t
             )
 
         @self.registry.action(
-            'Grep content from file - search for query or keywords and return surrounding context (simulates Linux grep command). For images, uses OCR to extract text first then performs grep search.',
+            'search for query or keywords and return surrounding context (simulates Linux grep command)',
             param_model=GrepContentAction,
         )
         async def grep_content_from_file(

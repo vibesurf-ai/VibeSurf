@@ -4,7 +4,7 @@ import asyncio
 import os
 import pdb
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, Literal, Self, Union, cast, Optional
 
 from browser_use.browser.session import BrowserSession, CDPSession
 from pydantic import Field
@@ -68,7 +68,7 @@ class AgentBrowserSession(BrowserSession):
             executable_path: str | Path | None = None,
             headless: bool | None = None,
             args: list[str] | None = None,
-            ignore_default_args: list[str] | list[bool] | None = None,
+            ignore_default_args: list[str] | Literal[True] | None = None,
             channel: str | None = None,
             chromium_sandbox: bool | None = None,
             devtools: bool | None = None,
@@ -86,11 +86,15 @@ class AgentBrowserSession(BrowserSession):
             record_har_mode: str | None = None,
             record_har_path: str | Path | None = None,
             record_video_dir: str | Path | None = None,
+            record_video_framerate: int | None = None,
+            record_video_size: dict | None = None,
             # From BrowserLaunchPersistentContextArgs
             user_data_dir: str | Path | None = None,
             # From BrowserNewContextArgs
             storage_state: str | Path | dict[str, Any] | None = None,
             # BrowserProfile specific fields
+            use_cloud: bool | None = None,
+            cloud_browser: bool | None = None,  # Backward compatibility alias
             disable_security: bool | None = None,
             deterministic_rendering: bool | None = None,
             allowed_domains: list[str] | None = None,
@@ -99,15 +103,21 @@ class AgentBrowserSession(BrowserSession):
             enable_default_extensions: bool | None = None,
             window_size: dict | None = None,
             window_position: dict | None = None,
-            cross_origin_iframes: bool | None = None,
             minimum_wait_page_load_time: float | None = None,
             wait_for_network_idle_page_load_time: float | None = None,
             wait_between_actions: float | None = None,
-            highlight_elements: bool | None = None,
             filter_highlight_ids: bool | None = None,
             auto_download_pdfs: bool | None = None,
             profile_directory: str | None = None,
             cookie_whitelist_domains: list[str] | None = None,
+            # DOM extraction layer configuration
+            cross_origin_iframes: bool | None = None,
+            highlight_elements: bool | None = None,
+            dom_highlight_elements: bool | None = None,
+            paint_order_filtering: bool | None = None,
+            # Iframe processing limits
+            max_iframes: int | None = None,
+            max_iframe_depth: int | None = None,
             # AgentBrowserProfile specific fields
             custom_extensions: list[str] | None = None,
     ):
@@ -585,17 +595,19 @@ class AgentBrowserSession(BrowserSession):
                     f'🔍 DOMWatchdog.on_BrowserStateRequestEvent: Network waiting failed: {e}, continuing anyway...'
                 )
 
-    async def take_screenshot(self, target_id: Optional[str] = None, format: str = 'png') -> str:
+    async def take_screenshot(self, target_id: Optional[str] = None,
+                              path: str | None = None,
+                              full_page: bool = False,
+                              format: str = 'png',
+                              quality: int | None = None,
+                              clip: dict | None = None,
+                              ) -> bytes:
         """
         Concurrent screenshot method that bypasses serial bottlenecks in ScreenshotWatchdog.
         
         This method performs direct CDP calls for maximum concurrency.
         """
-        if target_id is None:
-            if not self.agent_focus:
-                self.logger.warning('No page focus to get html, please specify a target id.')
-                return ''
-            target_id = self.agent_focus.target_id
+
         cdp_session = await self.get_or_create_cdp_session(target_id, focus=False)
         await self._wait_for_stable_network()
 
@@ -607,13 +619,98 @@ class AgentBrowserSession(BrowserSession):
             pass
 
         try:
+            import base64
             from cdp_use.cdp.page import CaptureScreenshotParameters
-            # Direct CDP screenshot - bypasses all event system overhead
-            params = CaptureScreenshotParameters(format=format, captureBeyondViewport=False, quality=90)
-            result = await cdp_session.cdp_client.send.Page.captureScreenshot(
-                params=params,
-                session_id=cdp_session.session_id,
+
+            # Build parameters dict explicitly to satisfy TypedDict expectations
+            params: CaptureScreenshotParameters = {
+                'format': format,
+                'captureBeyondViewport': full_page,
+            }
+
+            if quality is not None and format == 'jpeg':
+                params['quality'] = quality
+
+            if clip:
+                params['clip'] = {
+                    'x': clip['x'],
+                    'y': clip['y'],
+                    'width': clip['width'],
+                    'height': clip['height'],
+                    'scale': 1,
+                }
+
+            params = CaptureScreenshotParameters(**params)
+
+            result = await cdp_session.cdp_client.send.Page.captureScreenshot(params=params,
+                                                                              session_id=cdp_session.session_id)
+
+            if not result or 'data' not in result:
+                raise Exception('Screenshot failed - no data returned')
+
+            screenshot_data = base64.b64decode(result['data'])
+
+            if path:
+                Path(path).write_bytes(screenshot_data)
+
+            return screenshot_data
+
+        except Exception as e:
+            self.logger.error(f'Concurrent screenshot failed: {type(e).__name__}: {e}')
+            raise
+
+    async def take_screenshot_base64(self, target_id: Optional[str] = None,
+                                     full_page: bool = False,
+                                     format: str = 'png',
+                                     quality: int | None = None,
+                                     clip: dict | None = None,
+                                     ) -> str:
+        """
+        Concurrent screenshot method that bypasses serial bottlenecks in ScreenshotWatchdog.
+
+        This method performs direct CDP calls for maximum concurrency.
+        """
+
+        cdp_session = await self.get_or_create_cdp_session(target_id, focus=False)
+        await self._wait_for_stable_network()
+
+        try:
+            ready_state = await cdp_session.cdp_client.send.Runtime.evaluate(
+                params={'expression': 'document.readyState'}, session_id=cdp_session.session_id
             )
+        except Exception:
+            pass
+
+        try:
+            import base64
+            from cdp_use.cdp.page import CaptureScreenshotParameters
+
+            # Build parameters dict explicitly to satisfy TypedDict expectations
+            params: CaptureScreenshotParameters = {
+                'format': format,
+                'captureBeyondViewport': full_page,
+            }
+
+            if quality is not None and format == 'jpeg':
+                params['quality'] = quality
+
+            if clip:
+                params['clip'] = {
+                    'x': clip['x'],
+                    'y': clip['y'],
+                    'width': clip['width'],
+                    'height': clip['height'],
+                    'scale': 1,
+                }
+
+            params = CaptureScreenshotParameters(**params)
+
+            result = await cdp_session.cdp_client.send.Page.captureScreenshot(params=params,
+                                                                              session_id=cdp_session.session_id)
+
+            if not result or 'data' not in result:
+                raise Exception('Screenshot failed - no data returned')
+
             return result['data']
 
         except Exception as e:
@@ -625,12 +722,8 @@ class AgentBrowserSession(BrowserSession):
         Get html content of current page
         :return:
         """
-        if target_id is None:
-            if not self.agent_focus:
-                self.logger.warning('No page focus to get html, please specify a target id.')
-                return ''
-            target_id = self.agent_focus.target_id
-        cdp_session = await self.get_or_create_cdp_session(target_id, focus=True)
+
+        cdp_session = await self.get_or_create_cdp_session(target_id, focus=False)
         await self._wait_for_stable_network()
 
         try:
@@ -654,7 +747,6 @@ class AgentBrowserSession(BrowserSession):
 
     async def get_browser_state_summary(
             self,
-            cache_clickable_elements_hashes: bool = True,
             include_screenshot: bool = True,
             cached: bool = False,
             include_recent_events: bool = False,
@@ -677,7 +769,6 @@ class AgentBrowserSession(BrowserSession):
         browser_state = await self._dom_watchdog.get_browser_state_no_event_bus(
             include_dom=True,
             include_screenshot=include_screenshot,
-            cache_clickable_elements_hashes=cache_clickable_elements_hashes,
             include_recent_events=include_recent_events
         )
         return browser_state
@@ -738,9 +829,9 @@ class AgentBrowserSession(BrowserSession):
 
         return tabs
 
-    async def refresh_page(self):
-        cdp_session = await self.browser_session.get_or_create_cdp_session()
+    async def refresh_page(self, target_id: Optional[str] = None, ):
         try:
+            cdp_session = await self.browser_session.get_or_create_cdp_session(target_id)
             # Reload the target
             await cdp_session.cdp_client.send.Page.reload(session_id=cdp_session.session_id)
 

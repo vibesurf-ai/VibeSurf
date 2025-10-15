@@ -209,14 +209,6 @@ class ChatOpenAICompatible(ChatOpenAI):
 
         return clean_schema(schema)
 
-    @overload
-    async def ainvoke(self, messages: list[BaseMessage], output_format: None = None) -> ChatInvokeCompletion[str]:
-        ...
-
-    @overload
-    async def ainvoke(self, messages: list[BaseMessage], output_format: type[T]) -> ChatInvokeCompletion[T]:
-        ...
-
     async def ainvoke(
             self, messages: list[BaseMessage], output_format: type[T] | None = None
     ) -> ChatInvokeCompletion[T] | ChatInvokeCompletion[str]:
