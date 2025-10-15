@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS Test for Workflow App</title>
+</head>
+<body>
+    <h1>Testing CORS for Workflow App</h1>
+    <button onclick="testCors()">Test CORS</button>
+    <div id="result"></div>
+
+    <script>
+        async function testCors() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                // Test basic connectivity
+                const response = await fetch('http://127.0.0.1:7860/api/v1/projects/', {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `<div style="color: green;">✅ CORS Success! Response: ${JSON.stringify(data)}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div style="color: red;">❌ HTTP Error: ${response.status} ${response.statusText}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div style="color: red;">❌ CORS Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

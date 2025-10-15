@@ -2899,14 +2899,85 @@ class VibeSurfSettingsManager {
       try {
         console.log('[SettingsManager] Loading workflow content...');
         
-        // Simply ensure iframe is pointing to the correct URL
-        // The iframe is already set in HTML, no need to reload it
         if (this.elements.workflowIframe) {
-          console.log('[SettingsManager] Workflow iframe ready');
+          console.log('[SettingsManager] Current iframe src:', this.elements.workflowIframe.src);
+          
+          // Use the default workflow URL for now (can be configurable later)
+          const currentSrc = this.elements.workflowIframe.src;
+          const workflowUrl = 'http://127.0.0.1:7860/';
+          
+          console.log('[SettingsManager] Target workflow URL:', workflowUrl);
+          
+          if (currentSrc !== workflowUrl) {
+            console.log('[SettingsManager] Updating iframe URL to:', workflowUrl);
+            this.elements.workflowIframe.src = workflowUrl;
+            
+            // Add error handling for iframe loading
+            this.elements.workflowIframe.onload = () => {
+              console.log('[SettingsManager] Workflow iframe loaded successfully');
+            };
+            
+            this.elements.workflowIframe.onerror = (error) => {
+              console.error('[SettingsManager] Workflow iframe failed to load:', error);
+              this.showWorkflowError('Failed to load workflow application. Please check if the service is running on http://127.0.0.1:7860/');
+            };
+            
+            // Handle iframe connection errors
+            setTimeout(() => {
+              try {
+                // Try to access iframe's contentDocument to check if it loaded
+                const iframeDoc = this.elements.workflowIframe.contentDocument || this.elements.workflowIframe.contentWindow.document;
+                if (!iframeDoc || iframeDoc.location.href === 'about:blank') {
+                  console.warn('[SettingsManager] Iframe might not have loaded properly');
+                  this.showWorkflowError('Cannot connect to workflow service. Please ensure the application is running on http://127.0.0.1:7860/ and allows iframe embedding.');
+                }
+              } catch (e) {
+                // Cross-origin error is expected, but connection errors will show up differently
+                console.log('[SettingsManager] Cross-origin access blocked (this is normal)');
+              }
+            }, 5000);
+          }
+          
+          console.log('[SettingsManager] Workflow iframe configured');
+        } else {
+          console.error('[SettingsManager] Workflow iframe element not found!');
         }
         
       } catch (error) {
         console.error('[SettingsManager] Failed to load workflow content:', error);
+      }
+    }
+    
+    // Show workflow error message
+    showWorkflowError(message) {
+      if (this.elements.workflowIframe) {
+        // Create error message HTML
+        const errorHtml = `
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; text-align: center; font-family: system-ui, -apple-system, sans-serif;">
+            <div style="margin-bottom: 20px; font-size: 48px;">⚠️</div>
+            <h3 style="margin: 0 0 10px 0; color: #e74c3c;">Workflow Connection Error</h3>
+            <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">${message}</p>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff;">
+              <strong>Troubleshooting:</strong>
+              <ul style="text-align: left; margin: 10px 0 0 0; padding-left: 20px;">
+                <li>Ensure your workflow service is running on <code>http://127.0.0.1:7860/</code></li>
+                <li>Check if the service allows iframe embedding (X-Frame-Options)</li>
+                <li>Try refreshing this tab or reloading the extension</li>
+              </ul>
+            </div>
+            <button onclick="window.location.reload()" style="margin-top: 15px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
+          </div>
+        `;
+        
+        // Replace iframe with error message
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'workflow-error';
+        errorDiv.innerHTML = errorHtml;
+        errorDiv.style.cssText = 'width: 100%; height: 100%; border: 1px solid #ddd; border-radius: 8px;';
+        
+        // Replace iframe temporarily
+        this.elements.workflowIframe.style.display = 'none';
+        this.elements.workflowIframe.parentNode.appendChild(errorDiv);
       }
     }
     
