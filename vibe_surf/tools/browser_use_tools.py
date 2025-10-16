@@ -35,6 +35,7 @@ from browser_use.tools.views import (
     StructuredOutputAction,
     SwitchTabAction,
     UploadFileAction,
+    NavigateAction
 )
 from browser_use.llm.base import BaseChatModel
 from browser_use.llm.messages import UserMessage, ContentPartTextParam, ContentPartImageParam, ImageURL
@@ -72,7 +73,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
             self.display_files_in_done_text = display_files_in_done_text
 
             @self.registry.action(
-                'Complete task - with return text and if the task is finished (success=True) or not yet completely finished (success=False), because last step is reached',
+                'Complete task with structured output.',
                 param_model=StructuredOutputAction[output_model],
             )
             async def done(params: StructuredOutputAction):
@@ -94,7 +95,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
         else:
 
             @self.registry.action(
-                'Complete task - provide a summary of results for the user. Set success=True if task completed successfully, false otherwise. Text should be your response to the user summarizing results. Include files in files_to_display if you would like to display to the user or there files are important for the task result.',
+                'Complete task.',
                 param_model=DoneAction,
             )
             async def done(params: DoneAction, file_system: CustomFileSystem):
@@ -143,8 +144,8 @@ class BrowserUseTools(Tools, VibeSurfTools):
     def _register_browser_actions(self):
         """Register custom browser actions"""
 
-        @self.registry.action('Upload file to interactive element with file path', param_model=UploadFileAction)
-        async def upload_file_to_element(
+        @self.registry.action('', param_model=UploadFileAction)
+        async def upload_file(
                 params: UploadFileAction, browser_session: BrowserSession, file_system: FileSystem
         ):
 
@@ -250,7 +251,8 @@ class BrowserUseTools(Tools, VibeSurfTools):
 
             # Dispatch upload file event with the file input node
             try:
-                event = browser_session.event_bus.dispatch(UploadFileEvent(node=file_input_node, file_path=full_file_path))
+                event = browser_session.event_bus.dispatch(
+                    UploadFileEvent(node=file_input_node, file_path=full_file_path))
                 await event
                 await event.event_result(raise_if_any=True, raise_if_none=False)
                 msg = f'Successfully uploaded file to index {params.index}'
@@ -264,10 +266,10 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 raise BrowserError(f'Failed to upload file: {e}')
 
         @self.registry.action(
-            'Hover over an element',
+            '',
             param_model=HoverAction,
         )
-        async def hover_element(params: HoverAction, browser_session: AgentBrowserSession):
+        async def hover(params: HoverAction, browser_session: AgentBrowserSession):
             """Hovers over the element specified by its index from the cached selector map or by XPath."""
             try:
                 if params.xpath:
@@ -370,7 +372,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
         # =======================
 
         @self.registry.action(
-            'Search the query using the specified search engine. Defaults to DuckDuckGo (recommended) to avoid reCAPTCHA. Options: duckduckgo, google, bing. Query should be concrete and not vague or super long.',
+            '',
             param_model=SearchAction,
         )
         async def search(params: SearchAction, browser_session: AgentBrowserSession):
@@ -386,11 +388,11 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 'bing': f'https://www.bing.com/search?q={encoded_query}',
             }
 
-            if params.search_engine.lower() not in search_engines:
+            if params.engine.lower() not in search_engines:
                 return ActionResult(
-                    error=f'Unsupported search engine: {params.search_engine}. Options: duckduckgo, google, bing')
+                    error=f'Unsupported search engine: {params.engine}. Options: duckduckgo, google, bing')
 
-            search_url = search_engines[params.search_engine.lower()]
+            search_url = search_engines[params.engine.lower()]
 
             try:
                 # Use AgentBrowserSession's direct navigation method
@@ -404,10 +406,10 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 return ActionResult(error=f'Failed to search Google for "{params.query}": {str(e)}')
 
         @self.registry.action(
-            'Navigate to URL, set new_tab=True to open in new tab, False to navigate in current tab',
-            param_model=GoToUrlAction
+            '',
+            param_model=NavigateAction
         )
-        async def go_to_url(params: GoToUrlAction, browser_session: AgentBrowserSession):
+        async def navigate(params: NavigateAction, browser_session: AgentBrowserSession):
             try:
                 # Use AgentBrowserSession's direct navigation method
                 await browser_session.navigate_to_url(params.url, new_tab=params.new_tab)
@@ -426,9 +428,10 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 return ActionResult(error=f'Navigation failed: {str(e)}')
 
         @self.registry.action(
-            'Go back',
+            '',
+            param_model=NoParamsAction
         )
-        async def go_back(browser_session: AgentBrowserSession):
+        async def go_back(_: NoParamsAction, browser_session: AgentBrowserSession):
             try:
                 cdp_session = await browser_session.get_or_create_cdp_session()
                 history = await cdp_session.cdp_client.send.Page.getNavigationHistory(session_id=cdp_session.session_id)
@@ -458,18 +461,12 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 return ActionResult(error=f'Failed to go back: {str(e)}')
 
         @self.registry.action(
-            'Switch tab',
+            '',
             param_model=SwitchTabAction
         )
-        async def switch_tab(params: SwitchTabAction, browser_session: AgentBrowserSession):
+        async def switch(params: SwitchTabAction, browser_session: AgentBrowserSession):
             try:
-
-                if params.tab_id:
-                    target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
-                elif params.url:
-                    target_id = await browser_session.get_target_id_from_url(params.url)
-                else:
-                    target_id = await browser_session.get_most_recently_opened_target_id()
+                target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
 
                 # Switch to target using CDP
                 await browser_session.get_or_create_cdp_session(target_id, focus=True)
@@ -488,7 +485,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
         async def take_screenshot(_: NoParamsAction, browser_session: AgentBrowserSession, file_system: FileSystem):
             try:
                 # Take screenshot using browser session
-                screenshot = await browser_session.take_screenshot()
+                screenshot_bytes = await browser_session.take_screenshot()
 
                 # Generate timestamp for filename
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -507,7 +504,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 filepath = screenshots_dir / filename
 
                 with open(filepath, "wb") as f:
-                    f.write(base64.b64decode(screenshot))
+                    f.write(screenshot_bytes)
 
                 msg = f'📸 Screenshot saved to path: {str(filepath.relative_to(fs_dir))}'
                 logger.info(msg)
@@ -530,23 +527,23 @@ class BrowserUseTools(Tools, VibeSurfTools):
             try:
                 # Get file system directory path (Path type)
                 fs_dir = file_system.get_dir()
-                
+
                 # Create downloads directory if it doesn't exist
                 downloads_dir = fs_dir / "downloads"
                 downloads_dir.mkdir(exist_ok=True)
-                
+
                 # Download the file and detect format
                 async with aiohttp.ClientSession() as session:
                     async with session.get(params.url) as response:
                         if response.status != 200:
                             raise Exception(f"HTTP {response.status}: Failed to download from {params.url}")
-                        
+
                         # Get content
                         content = await response.read()
-                        
+                        headers_dict = dict(response.headers)
                         # Detect file format and extension
-                        file_extension = await self._detect_file_format(params.url, response.headers, content)
-                        
+                        file_extension = await self._detect_file_format(params.url, headers_dict, content)
+
                         # Generate filename
                         if params.filename:
                             # Use provided filename, add extension if missing
@@ -557,7 +554,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
                             # Generate filename from URL or timestamp
                             url_path = urllib.parse.urlparse(params.url).path
                             url_filename = os.path.basename(url_path)
-                            
+
                             if url_filename and not url_filename.startswith('.'):
                                 # Use URL filename, ensure correct extension
                                 filename = url_filename
@@ -568,19 +565,19 @@ class BrowserUseTools(Tools, VibeSurfTools):
                                 # Generate timestamp-based filename
                                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
                                 filename = f"media_{timestamp}{file_extension}"
-                        
+
                         # Sanitize filename
                         filename = sanitize_filename(filename)
                         filepath = downloads_dir / filename
-                        
+
                         # Save file
                         with open(filepath, "wb") as f:
                             f.write(content)
-                        
+
                         # Calculate file size for display
                         file_size = len(content)
                         size_str = self._format_file_size(file_size)
-                        
+
                         msg = f'📥 Downloaded media to: {str(filepath.relative_to(fs_dir))} ({size_str})'
                         logger.info(msg)
                         return ActionResult(
@@ -588,7 +585,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
                             include_in_memory=True,
                             long_term_memory=f'Downloaded media from {params.url} to {str(filepath.relative_to(fs_dir))}',
                         )
-                        
+
             except Exception as e:
                 error_msg = f'❌ Failed to download media: {str(e)}'
                 logger.error(error_msg)
@@ -666,9 +663,9 @@ class BrowserUseTools(Tools, VibeSurfTools):
         if url_path:
             ext = os.path.splitext(url_path)[1].lower()
             if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.tiff',
-                      '.mp4', '.webm', '.avi', '.mov', '.wmv', '.flv',
-                      '.mp3', '.wav', '.ogg', '.aac', '.flac',
-                      '.pdf', '.doc', '.docx', '.txt']:
+                       '.mp4', '.webm', '.avi', '.mov', '.wmv', '.flv',
+                       '.mp3', '.wav', '.ogg', '.aac', '.flac',
+                       '.pdf', '.doc', '.docx', '.txt']:
                 return ext
 
         # Default fallback

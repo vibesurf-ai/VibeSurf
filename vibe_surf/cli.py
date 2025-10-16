@@ -455,6 +455,8 @@ def main():
         import vibe_surf
         console.print(f"[dim]Version: {vibe_surf.__version__}[/dim]\n")
         console.print(f"[dim]Author: WarmShao and Community Contributors [/dim]\n")
+        console.print("[dim]VibeSurf collects anonymous usage data by default to improve user experience.[/dim]")
+        console.print("[dim]To opt out, set environment variable: VIBESURF_ANONYMIZED_TELEMETRY=false[/dim]\n")
         
         # Capture telemetry start event
         start_event = CLITelemetryEvent(
