@@ -52,6 +52,11 @@ uv pip install vibesurf -U
 uv run vibesurf
 ```
 
+### 4. 开始使用
+
+<video src="https://github.com/user-attachments/assets/86dba2e4-3f33-4ccf-b400-d07cf1a481a0" controls="controls">Your browser does not support playing this video!</video>
+
+
 ## 👩‍💻 贡献者指南
 
 想为 VibeSurf 做贡献？请按照以下步骤设置您的开发环境：
