@@ -157,7 +157,27 @@ class ReportWriterAgent:
 
             # Add system message with unified prompt only if message history is empty
             if not self.message_history:
-                self.message_history.append(SystemMessage(content=REPORT_WRITER_PROMPT))
+                report_system_prompt = REPORT_WRITER_PROMPT
+                if self.use_thinking:
+                    report_system_prompt += """
+                    You must ALWAYS respond with a valid JSON in this exact format:
+                    {{
+                      "thinking": "A structured <think>-style reasoning.",
+                      "action":[{{"task_done": {{ }}, // ... more actions in sequence]
+                    }}
+        
+                    Action list should NEVER be empty.
+                    """
+                else:
+                    report_system_prompt += """
+                    You must ALWAYS respond with a valid JSON in this exact format:
+                    {{
+                      "action":[{{"task_done": {{ }}, // ... more actions in sequence]
+                    }}
+    
+                    Action list should NEVER be empty.
+                    """
+                self.message_history.append(SystemMessage(content=report_system_prompt))
 
             # Add initial user message with task details
             user_message = f"""Please generate a report within MAX {max_iterations} steps based on the following:

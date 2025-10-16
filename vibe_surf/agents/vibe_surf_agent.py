@@ -1645,7 +1645,27 @@ Please continue with your assigned work, incorporating this guidance only if it'
             upload_files = await self.process_upload_files(upload_files)
 
             if not self.message_history:
-                self.message_history.append(SystemMessage(content=VIBESURF_SYSTEM_PROMPT))
+                vibesurf_system_prompt = VIBESURF_SYSTEM_PROMPT
+                if self.settings.agent_mode == "thinking":
+                    vibesurf_system_prompt += """
+You must ALWAYS respond with a valid JSON in this exact format:
+{{
+  "thinking": "A structured <think>-style reasoning.",
+  "action":[{{"task_done": {{ }}, // ... more actions in sequence]
+}}
+
+Action list should NEVER be empty.
+                    """
+                else:
+                    vibesurf_system_prompt += """
+You must ALWAYS respond with a valid JSON in this exact format:
+{{
+  "action":[{{"task_done": {{ }}, // ... more actions in sequence]
+}}
+
+Action list should NEVER be empty.
+                    """
+                self.message_history.append(SystemMessage(content=vibesurf_system_prompt))
 
             # Format processed upload files for prompt
             user_request = f"* User's New Request:\n{task}\n"
