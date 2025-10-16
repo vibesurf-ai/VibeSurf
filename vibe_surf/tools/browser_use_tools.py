@@ -73,7 +73,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
             self.display_files_in_done_text = display_files_in_done_text
 
             @self.registry.action(
-                'Complete task - with return text and if the task is finished (success=True) or not yet completely finished (success=False), because last step is reached',
+                'Complete task with structured output.',
                 param_model=StructuredOutputAction[output_model],
             )
             async def done(params: StructuredOutputAction):
@@ -95,7 +95,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
         else:
 
             @self.registry.action(
-                'Complete task - provide a summary of results for the user. Set success=True if task completed successfully, false otherwise. Text should be your response to the user summarizing results. Include files in files_to_display if you would like to display to the user or there files are important for the task result.',
+                'Complete task.',
                 param_model=DoneAction,
             )
             async def done(params: DoneAction, file_system: CustomFileSystem):
@@ -388,11 +388,11 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 'bing': f'https://www.bing.com/search?q={encoded_query}',
             }
 
-            if params.search_engine.lower() not in search_engines:
+            if params.engine.lower() not in search_engines:
                 return ActionResult(
-                    error=f'Unsupported search engine: {params.search_engine}. Options: duckduckgo, google, bing')
+                    error=f'Unsupported search engine: {params.engine}. Options: duckduckgo, google, bing')
 
-            search_url = search_engines[params.search_engine.lower()]
+            search_url = search_engines[params.engine.lower()]
 
             try:
                 # Use AgentBrowserSession's direct navigation method
@@ -429,6 +429,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
 
         @self.registry.action(
             '',
+            param_model=NoParamsAction
         )
         async def go_back(_: NoParamsAction, browser_session: AgentBrowserSession):
             try:
@@ -460,7 +461,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 return ActionResult(error=f'Failed to go back: {str(e)}')
 
         @self.registry.action(
-            'Switch tab',
+            '',
             param_model=SwitchTabAction
         )
         async def switch(params: SwitchTabAction, browser_session: AgentBrowserSession):
