@@ -291,7 +291,8 @@ class ChatOpenAICompatible(ChatOpenAI):
 
                 # Add JSON schema to system prompt if requested
                 if self.add_schema_to_system_prompt and openai_messages and openai_messages[0]['role'] == 'system':
-                    schema_text = f'\n<json_schema>\n{response_format}\n</json_schema>'
+                    schema_text = "Your response must return JSON with followed format:\n"
+                    schema_text += f'\n<json_schema>\n{response_format}\n</json_schema>'
                     if isinstance(openai_messages[0]['content'], str):
                         openai_messages[0]['content'] += schema_text
                     elif isinstance(openai_messages[0]['content'], Iterable):
