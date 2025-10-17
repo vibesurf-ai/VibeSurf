@@ -69,6 +69,12 @@ LLM_PROVIDERS = {
     "anthropic_bedrock": [
     ],
     "openai_compatible": [
+    ],
+    "lm_studio":[
+        "qwen/qwen3-vl-8b",
+        "qwen/qwen3-vl-30b",
+        "qwen/qwen3-14b",
+        "openai/gpt-oss-20b"
     ]
 }
 
@@ -167,15 +173,23 @@ PROVIDER_METADATA = {
     "qwen": {
         "display_name": "Qwen",
         "requires_api_key": True,
-        "requires_base_url": True,
+        "requires_base_url": False,
         "supports_tools": True,
-        "supports_vision": True,
+        "supports_vision": False,
         "default_model": ""
     },
     "kimi": {
         "display_name": "Kimi",
         "requires_api_key": True,
-        "requires_base_url": True,
+        "requires_base_url": False,
+        "supports_tools": True,
+        "supports_vision": False,
+        "default_model": ""
+    },
+    "lm_studio": {
+        "display_name": "LM Studio",
+        "requires_api_key": False,
+        "requires_base_url": False,
         "supports_tools": True,
         "supports_vision": True,
         "default_model": ""

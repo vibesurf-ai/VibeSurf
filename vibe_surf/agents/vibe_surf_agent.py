@@ -427,7 +427,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
         if hasattr(parsed, 'thinking') and parsed.thinking:
             await log_agent_activity(state, agent_name, "thinking", parsed.thinking)
 
-        for i, action in enumerate(actions):
+        for i, action in enumerate(actions[:1]):
             action_data = action.model_dump(exclude_unset=True)
             action_name = next(iter(action_data.keys())) if action_data else 'unknown'
             logger.info(f"🛠️ Processing VibeSurf action {i + 1}/{len(actions)}: {action_name}")
@@ -1651,19 +1651,19 @@ Please continue with your assigned work, incorporating this guidance only if it'
 You must ALWAYS respond with a valid JSON in this exact format:
 {{
   "thinking": "A structured <think>-style reasoning.",
-  "action":[{{"task_done": {{ }}, // ... more actions in sequence]
+  "action":[{{"<action_name>": {{<action_params>}}]
 }}
 
-Action list should NEVER be empty.
+Action list should NEVER be empty and Each step can only output one action. If multiple actions are output, only the first one will be executed.
                     """
                 else:
                     vibesurf_system_prompt += """
 You must ALWAYS respond with a valid JSON in this exact format:
 {{
-  "action":[{{"task_done": {{ }}, // ... more actions in sequence]
+  "action":[{{"<action_name>": {{<action_params>}}]
 }}
 
-Action list should NEVER be empty.
+Action list should NEVER be empty and Each step can only output one action. If multiple actions are output, only the first one will be executed.
                     """
                 self.message_history.append(SystemMessage(content=vibesurf_system_prompt))
 

@@ -163,19 +163,19 @@ class ReportWriterAgent:
                     You must ALWAYS respond with a valid JSON in this exact format:
                     {{
                       "thinking": "A structured <think>-style reasoning.",
-                      "action":[{{"task_done": {{ }}, // ... more actions in sequence]
+                      "action":[{{"<action_name>": {{<action_params>}}]
                     }}
         
-                    Action list should NEVER be empty.
+                    Action list should NEVER be empty and Each step can only output one action. If multiple actions are output, only the first one will be executed.
                     """
                 else:
                     report_system_prompt += """
                     You must ALWAYS respond with a valid JSON in this exact format:
                     {{
-                      "action":[{{"task_done": {{ }}, // ... more actions in sequence]
+                      "action":[{{"<action_name>": {{<action_params>}}]
                     }}
     
-                    Action list should NEVER be empty.
+                    Action list should NEVER be empty and Each step can only output one action. If multiple actions are output, only the first one will be executed.
                     """
                 self.message_history.append(SystemMessage(content=report_system_prompt))
 
@@ -234,7 +234,7 @@ Please analyze the task, determine if you need to read any additional files, the
                 results = []
                 time_start = time.time()
 
-                for i, action in enumerate(actions):
+                for i, action in enumerate(actions[:1]):
                     action_data = action.model_dump(exclude_unset=True)
                     action_name = next(iter(action_data.keys())) if action_data else 'unknown'
                     logger.info(f"🛠️ Executing action {i + 1}/{len(actions)}: {action_name}")
