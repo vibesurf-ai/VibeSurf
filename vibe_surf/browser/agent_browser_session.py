@@ -5,7 +5,7 @@ import os
 import pdb
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Self, Union, cast, Optional
-
+from cdp_use.cdp.target import AttachedToTargetEvent, SessionID, TargetID
 from browser_use.browser.session import BrowserSession, CDPSession
 from pydantic import Field
 from browser_use.browser.events import (
@@ -716,6 +716,78 @@ class AgentBrowserSession(BrowserSession):
         except Exception as e:
             self.logger.error(f'Concurrent screenshot failed: {type(e).__name__}: {e}')
             raise
+
+    async def get_or_create_cdp_session(
+            self, target_id: TargetID | None = None, focus: bool = True, new_socket: bool | None = None
+    ) -> CDPSession:
+        """Get or create a CDP session for a target.
+
+        Args:
+                target_id: Target ID to get session for. If None, uses current agent focus.
+                focus: If True, switches agent focus to this target. If False, just returns session without changing focus.
+                new_socket: If True, create a dedicated WebSocket connection. If None (default), creates new socket for new targets only.
+
+        Returns:
+                CDPSession for the specified target.
+        """
+        assert self.cdp_url is not None, 'CDP URL not set - browser may not be configured or launched yet'
+        assert self._cdp_client_root is not None, 'Root CDP client not initialized - browser may not be connected yet'
+        assert self.agent_focus is not None, 'CDP session not initialized - browser may not be connected yet'
+
+        # If no target_id specified, use the current target_id
+        if target_id is None:
+            target_id = self.agent_focus.target_id
+
+        # Check if we already have a session for this target in the pool
+        if target_id in self._cdp_session_pool:
+            session = self._cdp_session_pool[target_id]
+            if focus and self.agent_focus.target_id != target_id:
+                self.logger.debug(
+                    f'[get_or_create_cdp_session] Switching agent focus from {self.agent_focus.target_id} to {target_id}'
+                )
+                self.agent_focus = session
+            if focus:
+                await session.cdp_client.send.Target.activateTarget(params={'targetId': session.target_id})
+                await session.cdp_client.send.Runtime.runIfWaitingForDebugger(session_id=session.session_id)
+            # else:
+            # self.logger.debug(f'[get_or_create_cdp_session] Reusing existing session for {target_id} (focus={focus})')
+            return session
+
+        # If it's the current focus target, return that session
+        if self.agent_focus.target_id == target_id:
+            self._cdp_session_pool[target_id] = self.agent_focus
+            return self.agent_focus
+
+        # Create new session for this target
+        # Default to True for new sessions (each new target gets its own WebSocket)
+        should_use_new_socket = True if new_socket is None else new_socket
+        self.logger.debug(
+            f'[get_or_create_cdp_session] Creating new CDP session for target {target_id} (new_socket={should_use_new_socket})'
+        )
+        session = await CDPSession.for_target(
+            self._cdp_client_root,
+            target_id,
+            new_socket=should_use_new_socket,
+            cdp_url=self.cdp_url if should_use_new_socket else None,
+        )
+        self._cdp_session_pool[target_id] = session
+        # log length of _cdp_session_pool
+        self.logger.debug(f'[get_or_create_cdp_session] new _cdp_session_pool length: {len(self._cdp_session_pool)}')
+
+        # Only change agent focus if requested
+        if focus:
+            self.logger.debug(
+                f'[get_or_create_cdp_session] Switching agent focus from {self.agent_focus.target_id} to {target_id}'
+            )
+            self.agent_focus = session
+            await session.cdp_client.send.Target.activateTarget(params={'targetId': session.target_id})
+            await session.cdp_client.send.Runtime.runIfWaitingForDebugger(session_id=session.session_id)
+        else:
+            self.logger.debug(
+                f'[get_or_create_cdp_session] Created session for {target_id} without changing focus (still on {self.agent_focus.target_id})'
+            )
+
+        return session
 
     async def get_html_content(self, target_id: Optional[str] = None) -> str:
         """
