@@ -157,7 +157,27 @@ class ReportWriterAgent:
 
             # Add system message with unified prompt only if message history is empty
             if not self.message_history:
-                self.message_history.append(SystemMessage(content=REPORT_WRITER_PROMPT))
+                report_system_prompt = REPORT_WRITER_PROMPT
+                if self.use_thinking:
+                    report_system_prompt += """
+                    You must ALWAYS respond with a valid JSON in this exact format:
+                    {{
+                      "thinking": "A structured <think>-style reasoning.",
+                      "action":[{{"<action_name>": {{<action_params>}}]
+                    }}
+        
+                    Action list should NEVER be empty and Each step can only output one action. If multiple actions are output, only the first one will be executed.
+                    """
+                else:
+                    report_system_prompt += """
+                    You must ALWAYS respond with a valid JSON in this exact format:
+                    {{
+                      "action":[{{"<action_name>": {{<action_params>}}]
+                    }}
+    
+                    Action list should NEVER be empty and Each step can only output one action. If multiple actions are output, only the first one will be executed.
+                    """
+                self.message_history.append(SystemMessage(content=report_system_prompt))
 
             # Add initial user message with task details
             user_message = f"""Please generate a report within MAX {max_iterations} steps based on the following:
@@ -214,7 +234,7 @@ Please analyze the task, determine if you need to read any additional files, the
                 results = []
                 time_start = time.time()
 
-                for i, action in enumerate(actions):
+                for i, action in enumerate(actions[:1]):
                     action_data = action.model_dump(exclude_unset=True)
                     action_name = next(iter(action_data.keys())) if action_data else 'unknown'
                     logger.info(f"🛠️ Executing action {i + 1}/{len(actions)}: {action_name}")

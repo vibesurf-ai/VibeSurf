@@ -27,7 +27,6 @@ class CustomDOMWatchdog(DOMWatchdog):
 
     async def get_browser_state_no_event_bus(self, include_dom: bool = True,
                                              include_screenshot: bool = True,
-                                             cache_clickable_elements_hashes: bool = True,
                                              include_recent_events: bool = False) -> 'BrowserStateSummary':
         """Handle browser state request by coordinating DOM building and screenshot capture.
 
@@ -91,7 +90,7 @@ class CustomDOMWatchdog(DOMWatchdog):
             # Start clean screenshot task if requested (without JS highlights)
             if include_screenshot:
                 self.logger.debug('🔍 DOMWatchdog.on_BrowserStateRequestEvent: 📸 Starting clean screenshot task...')
-                screenshot_task = asyncio.create_task(self.browser_session.take_screenshot())
+                screenshot_task = asyncio.create_task(self.browser_session.take_screenshot_base64())
 
             # Wait for both tasks to complete
             content = None
@@ -121,13 +120,18 @@ class CustomDOMWatchdog(DOMWatchdog):
                 try:
                     self.logger.debug(
                         '🔍 DOMWatchdog.on_BrowserStateRequestEvent: 🎨 Applying Python-based highlighting...')
-                    from vibe_surf.browser.utils import create_highlighted_screenshot_async
+                    from browser_use.browser.python_highlights import create_highlighted_screenshot_async
 
                     # Get CDP session for viewport info
                     cdp_session = await self.browser_session.get_or_create_cdp_session()
 
-                    screenshot_b64 = await create_highlighted_screenshot_async(screenshot_b64, content.selector_map,
-                                                                               cdp_session)
+                    screenshot_b64 = await create_highlighted_screenshot_async(
+                        screenshot_b64,
+                        content.selector_map,
+                        cdp_session,
+                        self.browser_session.browser_profile.filter_highlight_ids,
+                    )
+
                     self.logger.debug(
                         f'🔍 DOMWatchdog.on_BrowserStateRequestEvent: ✅ Applied highlights to {len(content.selector_map)} elements'
                     )
@@ -234,4 +238,3 @@ class CustomDOMWatchdog(DOMWatchdog):
                 is_pdf_viewer=False,
                 recent_events=None,
             )
-

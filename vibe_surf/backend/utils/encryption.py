@@ -39,9 +39,38 @@ def derive_key(machine_id: str, salt: bytes = None) -> bytes:
     key = base64.urlsafe_b64encode(kdf.derive(password))
     return key
 
-def get_encryption_key() -> bytes:
+def get_local_user_id():
+    _curr_user_id = "vibesurf_userid"
+    try:
+        from uuid_extensions import uuid7str
+        import os
+        WORKSPACE_DIR = os.getenv('VIBESURF_WORKSPACE', './vibesurf_workspace')
+        USER_ID_PATH = os.path.join(WORKSPACE_DIR, 'telemetry', 'userid')
+
+        if not os.path.exists(USER_ID_PATH):
+            os.makedirs(os.path.dirname(USER_ID_PATH), exist_ok=True)
+            with open(USER_ID_PATH, 'w') as f:
+                new_user_id = uuid7str()
+                f.write(new_user_id)
+            _curr_user_id = new_user_id
+        else:
+            with open(USER_ID_PATH) as f:
+                _curr_user_id = f.read()
+        return _curr_user_id
+    except Exception as e:
+        logger.error(e)
+        return _curr_user_id
+
+
+def get_encryption_key(use_local_userid=False) -> bytes:
     """Get the encryption key for this machine."""
-    machine_id1 = get_mac_address()
+    machine_id1 = ''
+    if not use_local_userid:
+        machine_id1 = get_mac_address()
+    if not machine_id1:
+        logger.info("Use local user id as encryption key.")
+        # fallback to get user id
+        machine_id1 = get_local_user_id()
     return derive_key(machine_id1)
 
 def encrypt_api_key(api_key: str) -> str:
@@ -86,8 +115,15 @@ def decrypt_api_key(encrypted_api_key: str) -> str:
         decrypted_data = fernet.decrypt(encrypted_data)
         return decrypted_data.decode('utf-8')
     except Exception as e:
-        logger.error(f"Failed to decrypt API key: {e}")
-        raise ValueError("Decryption failed")
+        try:
+            key = get_encryption_key(use_local_userid=True)
+            fernet = Fernet(key)
+            encrypted_data = base64.urlsafe_b64decode(encrypted_api_key.encode('utf-8'))
+            decrypted_data = fernet.decrypt(encrypted_data)
+            return decrypted_data.decode('utf-8')
+        except Exception as e:
+            logger.error(f"Failed to decrypt API key: {e}")
+            raise ValueError("Decryption failed")
 
 def is_encrypted(value: str) -> bool:
     """

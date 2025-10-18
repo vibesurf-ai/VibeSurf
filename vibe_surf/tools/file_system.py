@@ -6,7 +6,9 @@ from pathlib import Path
 from browser_use.filesystem.file_system import FileSystem, FileSystemError, INVALID_FILENAME_ERROR_MESSAGE, \
     FileSystemState
 from browser_use.filesystem.file_system import BaseFile, MarkdownFile, TxtFile, JsonFile, CsvFile, PdfFile
+from vibe_surf.logger import get_logger
 
+logger = get_logger(__name__)
 
 class PythonFile(BaseFile):
     """Plain text file implementation"""
@@ -315,9 +317,10 @@ class CustomFileSystem(FileSystem):
         """Save extracted content to a numbered file"""
         initial_filename = f'extracted_content_{self.extracted_content_count}'
         extracted_filename = f'{initial_filename}.md'
-        await self.write_file(initial_filename, content)
+        write_result = await self.write_file(extracted_filename, content)
+        logger.info(write_result)
         self.extracted_content_count += 1
-        return f'Extracted content saved to file {extracted_filename} successfully.'
+        return extracted_filename
 
     async def list_directory(self, directory_path: str = "") -> str:
         """List contents of a directory within the file system (data_dir only)"""
