@@ -393,6 +393,8 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
             context_info.append(f"Generated Report: ❌ Failed - {state.generated_report_result.msg}\nPath: {state.generated_report_result.report_path}\n")
 
     context_str = "\n".join(context_info) if context_info else "No additional context available."
+    logger.debug("VibeSurf State Message:\n")
+    logger.debug(context_str)
     vibesurf_agent.message_history.append(UserMessage(content=context_str))
 
     try:
@@ -1728,7 +1730,7 @@ Action list should NEVER be empty and Each step can only output one action. If m
             completion_event = VibeSurfAgentTelemetryEvent(
                 version=vibe_surf.__version__,
                 action='task_completed',
-                task_description=task[:200] if task else None,
+                task_description=task if task else None,
                 model=getattr(self.llm, 'model_name', None),
                 model_provider=getattr(self.llm, 'provider', None),
                 duration_seconds=duration,
