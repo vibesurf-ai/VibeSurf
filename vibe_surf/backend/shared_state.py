@@ -27,8 +27,9 @@ from vibe_surf.llm.openai_compatible import ChatOpenAICompatible
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.browser.agen_browser_profile import AgentBrowserProfile
 from vibe_surf.backend.utils.utils import configure_system_proxies
+from vibe_surf.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Global VibeSurf components
 vibesurf_agent: Optional[VibeSurfAgent] = None
