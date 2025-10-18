@@ -51,6 +51,11 @@ Start the VibeSurf browser assistant
 uv run vibesurf
 ```
 
+### 4. Start to Use
+
+<video src="https://github.com/user-attachments/assets/86dba2e4-3f33-4ccf-b400-d07cf1a481a0" controls="controls">Your browser does not support playing this video!</video>
+
+
 ## 👩‍💻 For Contributors
 
 Want to contribute to VibeSurf? Follow these steps to set up your development environment:

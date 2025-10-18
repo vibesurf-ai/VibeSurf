@@ -154,3 +154,35 @@ class BackendTelemetryEvent(BaseTelemetryEvent):
 	error_message: str | None = None
 	
 	name: str = 'backend_event'
+
+
+@dataclass
+class VibeSurfAgentParsedOutputEvent(BaseTelemetryEvent):
+	"""Telemetry event for VibeSurf Agent parsed output"""
+	
+	version: str
+	parsed_output: str | None = None
+	action_count: int | None = None
+	action_types: list[str] | None = None
+	model: str | None = None
+	model_provider: str | None = None
+	session_id: str | None = None
+	thinking: str | None = None
+	
+	name: str = 'vibesurf_agent_parsed_output'
+
+
+@dataclass
+class VibeSurfAgentExceptionEvent(BaseTelemetryEvent):
+	"""Telemetry event for VibeSurf Agent exceptions"""
+	
+	version: str
+	error_message: str
+	error_type: str | None = None
+	traceback: str | None = None
+	model: str | None = None
+	model_provider: str | None = None
+	session_id: str | None = None
+	function_name: str | None = None
+	
+	name: str = 'vibesurf_agent_exception'

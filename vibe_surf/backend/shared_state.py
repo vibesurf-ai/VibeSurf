@@ -505,32 +505,6 @@ async def initialize_vibesurf_components():
         # Initialize LLM from default profile (if available) or fallback to environment variables
         llm = await _initialize_default_llm()
 
-        # Initialize browser manager
-        if browser_manager:
-            main_browser_session = browser_manager.main_browser_session
-        else:
-            from screeninfo import get_monitors
-            primary_monitor = get_monitors()[0]
-            _update_extension_backend_url(envs["VIBESURF_EXTENSION"], backend_url)
-            
-            browser_profile = AgentBrowserProfile(
-                executable_path=browser_execution_path,
-                user_data_dir=browser_user_data,
-                headless=False,
-                keep_alive=True,
-                auto_download_pdfs=False,
-                highlight_elements=True,
-                custom_extensions=[envs["VIBESURF_EXTENSION"]],
-                window_size={"width": primary_monitor.width, "height": primary_monitor.height}
-            )
-
-            # Initialize components
-            main_browser_session = AgentBrowserSession(browser_profile=browser_profile)
-            await main_browser_session.start()
-        browser_manager = BrowserManager(
-            main_browser_session=main_browser_session
-        )
-
         # Load active MCP servers from database
         mcp_server_config = await _load_active_mcp_servers()
 
@@ -563,6 +537,32 @@ async def initialize_vibesurf_components():
                 toolkit_tools_dict=toolkit_tools_dict
             )
             logger.info(f"✅ Registered Composio tools from {len(toolkit_tools_dict)} enabled toolkits")
+
+        # Initialize browser manager
+        if browser_manager:
+            main_browser_session = browser_manager.main_browser_session
+        else:
+            from screeninfo import get_monitors
+            primary_monitor = get_monitors()[0]
+            _update_extension_backend_url(envs["VIBESURF_EXTENSION"], backend_url)
+
+            browser_profile = AgentBrowserProfile(
+                executable_path=browser_execution_path,
+                user_data_dir=browser_user_data,
+                headless=False,
+                keep_alive=True,
+                auto_download_pdfs=False,
+                highlight_elements=True,
+                custom_extensions=[envs["VIBESURF_EXTENSION"]],
+                window_size={"width": primary_monitor.width, "height": primary_monitor.height}
+            )
+
+            # Initialize components
+            main_browser_session = AgentBrowserSession(browser_profile=browser_profile)
+            await main_browser_session.start()
+        browser_manager = BrowserManager(
+            main_browser_session=main_browser_session
+        )
 
         # Initialize VibeSurfAgent
         vibesurf_agent = VibeSurfAgent(

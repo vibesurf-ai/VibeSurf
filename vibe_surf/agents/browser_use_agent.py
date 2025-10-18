@@ -72,7 +72,7 @@ from browser_use.utils import (
     time_execution_async,
     time_execution_sync,
 )
-
+from browser_use.llm.messages import BaseMessage, ContentPartImageParam, ContentPartTextParam, UserMessage
 from browser_use.agent.service import Agent, AgentHookFunc
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.telemetry.service import ProductTelemetry
@@ -107,6 +107,7 @@ class BrowserUseAgent(Agent):
                     | None
             ) = None,
             register_external_agent_status_raise_error_callback: Callable[[], Awaitable[bool]] | None = None,
+            register_should_stop_callback: Callable[[], Awaitable[bool]] | None = None,
             # Agent settings
             output_model_schema: type[AgentStructuredOutput] | None = None,
             use_vision: bool = True,
@@ -127,7 +128,6 @@ class BrowserUseAgent(Agent):
             source: str | None = None,
             file_system_path: str | None = None,
             task_id: str | None = None,
-            cloud_sync: CloudSync | None = None,
             calculate_cost: bool = False,
             display_files_in_done_text: bool = True,
             include_tool_call_examples: bool = False,
@@ -136,7 +136,9 @@ class BrowserUseAgent(Agent):
             step_timeout: int = 120,
             directly_open_url: bool = False,
             include_recent_events: bool = False,
-            allow_parallel_action_types: list[str] = ["extract_structured_data", "extract_content_from_file"],
+            sample_images: list[ContentPartTextParam | ContentPartImageParam] | None = None,
+            final_response_after_failure: bool = True,
+            allow_parallel_action_types: list[str] = ["extract", "extract_content_from_file"],
             _url_shortening_limit: int = 25,
             token_cost_service: Optional[TokenCost] = None,
             **kwargs,
@@ -151,7 +153,7 @@ class BrowserUseAgent(Agent):
         self.session_id: str = uuid7str()
         self.allow_parallel_action_types = allow_parallel_action_types
         self._url_shortening_limit = _url_shortening_limit
-
+        self.sample_images = sample_images
         browser_profile = browser_profile or DEFAULT_BROWSER_PROFILE
 
         # Handle browser vs browser_session parameter (browser takes precedence)
@@ -206,6 +208,7 @@ class BrowserUseAgent(Agent):
             include_tool_call_examples=include_tool_call_examples,
             llm_timeout=llm_timeout,
             step_timeout=step_timeout,
+            final_response_after_failure=final_response_after_failure,
         )
 
         # Token cost service
@@ -289,7 +292,6 @@ class BrowserUseAgent(Agent):
         self._message_manager = MessageManager(
             task=task,
             system_message=SystemPrompt(
-                action_description=self.unfiltered_actions,
                 max_actions_per_step=self.settings.max_actions_per_step,
                 override_system_message=override_system_message,
                 extend_system_message=extend_system_message,
@@ -306,6 +308,7 @@ class BrowserUseAgent(Agent):
             vision_detail_level=self.settings.vision_detail_level,
             include_tool_call_examples=self.settings.include_tool_call_examples,
             include_recent_events=self.include_recent_events,
+            sample_images=self.sample_images,
         )
 
         if self.sensitive_data:
@@ -375,6 +378,7 @@ class BrowserUseAgent(Agent):
         # Callbacks
         self.register_new_step_callback = register_new_step_callback
         self.register_done_callback = register_done_callback
+        self.register_should_stop_callback = register_should_stop_callback
         self.register_external_agent_status_raise_error_callback = register_external_agent_status_raise_error_callback
 
         # Telemetry
@@ -463,7 +467,7 @@ class BrowserUseAgent(Agent):
 
             # Use _make_history_item like main branch
             await self._make_history_item(self.state.last_model_output, browser_state_summary, self.state.last_result,
-                                          metadata)
+                                          metadata, state_message=self._message_manager.last_state_message_text,)
 
         # Log step completion summary
         self._log_step_completion_summary(self.step_start_time, self.state.last_result)
@@ -489,6 +493,9 @@ class BrowserUseAgent(Agent):
         # The task continues with new instructions, it doesn't end and start a new one
         self.task = new_task
         self._message_manager.add_new_task(new_task)
+
+        # Mark as follow-up task and recreate eventbus (gets shut down after each run)
+        self.state.follow_up_task = True
 
     @observe(name='agent.run', metadata={'task': '{{task}}', 'debug': '{{debug}}'})
     @time_execution_async('--run')
@@ -750,272 +757,3 @@ class BrowserUseAgent(Agent):
         groups.append(current_group)
 
         return groups
-
-    @observe_debug(ignore_input=True, ignore_output=True)
-    @time_execution_async('--multi_act')
-    async def multi_act(
-            self,
-            actions: list[ActionModel],
-            check_for_new_elements: bool = True,
-    ) -> list[ActionResult]:
-        """Execute multiple actions, with parallel execution for allowed action types"""
-        results: list[ActionResult] = []
-        time_elapsed = 0
-        total_actions = len(actions)
-
-        assert self.browser_session is not None, 'BrowserSession is not set up'
-        try:
-            if (
-                    self.browser_session._cached_browser_state_summary is not None
-                    and self.browser_session._cached_browser_state_summary.dom_state is not None
-            ):
-                cached_selector_map = dict(self.browser_session._cached_browser_state_summary.dom_state.selector_map)
-                cached_element_hashes = {e.parent_branch_hash() for e in cached_selector_map.values()}
-            else:
-                cached_selector_map = {}
-                cached_element_hashes = set()
-        except Exception as e:
-            self.logger.error(f'Error getting cached selector map: {e}')
-            cached_selector_map = {}
-            cached_element_hashes = set()
-
-        # Group actions for potential parallel execution
-        action_groups = self._group_actions_for_parallel_execution(actions)
-
-        # Track global action index for logging and DOM checks
-        global_action_index = 0
-
-        for group_index, action_group in enumerate(action_groups):
-            group_size = len(action_group)
-
-            # Check if this group can be executed in parallel
-            can_execute_in_parallel = (
-                    group_size > 1 and
-                    all(self._is_action_parallel_allowed(action) for action in action_group)
-            )
-
-            if can_execute_in_parallel:
-                self.logger.info(
-                    f'🚀 Executing {group_size} actions in parallel: group {group_index + 1}/{len(action_groups)}')
-                # Execute actions in parallel using asyncio.gather
-                parallel_results = await self._execute_actions_in_parallel(
-                    action_group, global_action_index, total_actions,
-                    cached_selector_map, cached_element_hashes, check_for_new_elements
-                )
-                results.extend(parallel_results)
-                global_action_index += group_size
-
-                # Check if any result indicates completion or error
-                if any(result.is_done or result.error for result in parallel_results):
-                    break
-            else:
-                # Execute actions sequentially
-                for local_index, action in enumerate(action_group):
-                    i = global_action_index + local_index
-
-                    # Original sequential execution logic continues here...
-                    # if i > 0:
-                    #     # ONLY ALLOW TO CALL `done` IF IT IS A SINGLE ACTION
-                    #     if action.model_dump(exclude_unset=True).get('done') is not None:
-                    #         msg = f'Done action is allowed only as a single action - stopped after action {i} / {total_actions}.'
-                    #         self.logger.debug(msg)
-                    #         break
-
-                    # DOM synchronization check - verify element indexes are still valid AFTER first action
-                    if action.get_index() is not None and i != 0:
-                        result = await self._check_dom_synchronization(
-                            action, i, total_actions, cached_selector_map, cached_element_hashes,
-                            check_for_new_elements, actions
-                        )
-                        if result:
-                            results.append(result)
-                            break
-
-                    # wait between actions (only after first action)
-                    if i > 0:
-                        await asyncio.sleep(self.browser_profile.wait_between_actions)
-
-                    # Execute single action
-                    try:
-                        action_result = await self._execute_single_action(action, i, total_actions)
-                        results.append(action_result)
-
-                        if action_result.is_done or action_result.error or i == total_actions - 1:
-                            break
-
-                    except Exception as e:
-                        self.logger.error(f'❌ Executing action {i + 1} failed: {type(e).__name__}: {e}')
-                        raise e
-
-                global_action_index += len(action_group)
-
-        return results
-
-    async def _execute_actions_in_parallel(
-            self,
-            actions: list[ActionModel],
-            start_index: int,
-            total_actions: int,
-            cached_selector_map: dict,
-            cached_element_hashes: set,
-            check_for_new_elements: bool
-    ) -> list[ActionResult]:
-        """Execute a group of actions in parallel using asyncio.gather"""
-
-        async def execute_single_parallel_action(action: ActionModel, action_index: int) -> ActionResult:
-            """Execute a single action for parallel execution"""
-            await self._raise_if_stopped_or_paused()
-
-            # Get action info for logging
-            action_data = action.model_dump(exclude_unset=True)
-            action_name = next(iter(action_data.keys())) if action_data else 'unknown'
-            action_params = getattr(action, action_name, '') or str(action.model_dump(mode='json'))[:140].replace(
-                '"', ''
-            ).replace('{', '').replace('}', '').replace("'", '').strip().strip(',')
-            action_params = str(action_params)
-            action_params = f'{action_params[:122]}...' if len(action_params) > 128 else action_params
-
-            time_start = time.time()
-            blue = '\033[34m'
-            reset = '\033[0m'
-            self.logger.info(f'  🦾 {blue}[PARALLEL ACTION {action_index + 1}/{total_actions}]{reset} {action_params}')
-
-            # Execute the action
-            result = await self.tools.act(
-                action=action,
-                browser_session=self.browser_session,
-                file_system=self.file_system,
-                page_extraction_llm=self.settings.page_extraction_llm,
-                sensitive_data=self.sensitive_data,
-                available_file_paths=self.available_file_paths,
-            )
-
-            time_end = time.time()
-            time_elapsed = time_end - time_start
-
-            green = '\033[92m'
-            self.logger.debug(
-                f'☑️ Parallel action {action_index + 1}/{total_actions}: {green}{action_params}{reset} in {time_elapsed:.2f}s'
-            )
-
-            return result
-
-        # Create tasks for parallel execution
-        tasks = [
-            execute_single_parallel_action(action, start_index + i)
-            for i, action in enumerate(actions)
-        ]
-
-        # Execute all tasks in parallel
-        parallel_results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Process results and handle any exceptions
-        processed_results = []
-        for i, result in enumerate(parallel_results):
-            if isinstance(result, Exception):
-                action_index = start_index + i
-                self.logger.error(f'❌ Parallel action {action_index + 1} failed: {type(result).__name__}: {result}')
-                raise result
-            else:
-                processed_results.append(result)
-
-        return processed_results
-
-    async def _check_dom_synchronization(
-            self,
-            action: ActionModel,
-            action_index: int,
-            total_actions: int,
-            cached_selector_map: dict,
-            cached_element_hashes: set,
-            check_for_new_elements: bool,
-            all_actions: list[ActionModel]
-    ) -> ActionResult | None:
-        """Check DOM synchronization and return result if page changed"""
-        new_browser_state_summary = await self.browser_session.get_browser_state_summary(
-            cache_clickable_elements_hashes=False,
-            include_screenshot=False,
-        )
-        new_selector_map = new_browser_state_summary.dom_state.selector_map
-
-        # Detect index change after previous action
-        orig_target = cached_selector_map.get(action.get_index())
-        orig_target_hash = orig_target.parent_branch_hash() if orig_target else None
-
-        new_target = new_selector_map.get(action.get_index())  # type: ignore
-        new_target_hash = new_target.parent_branch_hash() if new_target else None
-
-        def get_remaining_actions_str(actions: list[ActionModel], index: int) -> str:
-            remaining_actions = []
-            for remaining_action in actions[index:]:
-                action_data = remaining_action.model_dump(exclude_unset=True)
-                action_name = next(iter(action_data.keys())) if action_data else 'unknown'
-                remaining_actions.append(action_name)
-            return ', '.join(remaining_actions)
-
-        if orig_target_hash != new_target_hash:
-            # Get names of remaining actions that won't be executed
-            remaining_actions_str = get_remaining_actions_str(all_actions, action_index)
-            msg = f'Page changed after action {action_index} / {total_actions}: actions {remaining_actions_str} were not executed'
-            self.logger.info(msg)
-            return ActionResult(
-                extracted_content=msg,
-                include_in_memory=True,
-                long_term_memory=msg,
-            )
-
-        # Check for new elements that appeared
-        new_element_hashes = {e.parent_branch_hash() for e in new_selector_map.values()}
-        if check_for_new_elements and not new_element_hashes.issubset(cached_element_hashes):
-            # next action requires index but there are new elements on the page
-            remaining_actions_str = get_remaining_actions_str(all_actions, action_index)
-            msg = f'Something new appeared after action {action_index} / {total_actions}: actions {remaining_actions_str} were not executed'
-            self.logger.info(msg)
-            return ActionResult(
-                extracted_content=msg,
-                include_in_memory=True,
-                long_term_memory=msg,
-            )
-
-        return None
-
-    async def _execute_single_action(self, action: ActionModel, action_index: int, total_actions: int) -> ActionResult:
-        """Execute a single action in sequential mode"""
-        await self._raise_if_stopped_or_paused()
-
-        # Get action name from the action model
-        action_data = action.model_dump(exclude_unset=True)
-        action_name = next(iter(action_data.keys())) if action_data else 'unknown'
-        action_params = getattr(action, action_name, '') or str(action.model_dump(mode='json'))[:140].replace(
-            '"', ''
-        ).replace('{', '').replace('}', '').replace("'", '').strip().strip(',')
-        # Ensure action_params is always a string before checking length
-        action_params = str(action_params)
-        action_params = f'{action_params[:122]}...' if len(action_params) > 128 else action_params
-
-        time_start = time.time()
-
-        red = '\033[91m'
-        green = '\033[92m'
-        blue = '\033[34m'
-        reset = '\033[0m'
-
-        self.logger.info(f'  🦾 {blue}[ACTION {action_index + 1}/{total_actions}]{reset} {action_params}')
-
-        result = await self.tools.act(
-            action=action,
-            browser_session=self.browser_session,
-            file_system=self.file_system,
-            page_extraction_llm=self.settings.page_extraction_llm,
-            sensitive_data=self.sensitive_data,
-            available_file_paths=self.available_file_paths,
-        )
-
-        time_end = time.time()
-        time_elapsed = time_end - time_start
-
-        self.logger.debug(
-            f'☑️ Executed action {action_index + 1}/{total_actions}: {green}{action_params}{reset} in {time_elapsed:.2f}s'
-        )
-
-        return result

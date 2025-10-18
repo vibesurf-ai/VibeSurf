@@ -24,6 +24,17 @@ LLM_PROVIDERS = {
         "gemini-2.5-pro",
         "gemini-2.5-flash",
     ],
+    "kimi": [
+        "kimi-k2-0905-preview",
+        "kimi-k2-0711-preview",
+        "kimi-k2-turbo-preview"
+    ],
+    "qwen": [
+        "qwen-flash",
+        "qwen-plus",
+        "qwen3-vl-plus",
+        "qwen3-vl-flash"
+    ],
     "azure_openai": [
         "gpt-4o",
         "gpt-4o-mini",
@@ -58,6 +69,12 @@ LLM_PROVIDERS = {
     "anthropic_bedrock": [
     ],
     "openai_compatible": [
+    ],
+    "lm_studio":[
+        "qwen/qwen3-vl-8b",
+        "qwen/qwen3-vl-30b",
+        "qwen/qwen3-14b",
+        "openai/gpt-oss-20b"
     ]
 }
 
@@ -149,6 +166,30 @@ PROVIDER_METADATA = {
         "display_name": "OpenAI Compatible",
         "requires_api_key": True,
         "requires_base_url": True,
+        "supports_tools": True,
+        "supports_vision": True,
+        "default_model": ""
+    },
+    "qwen": {
+        "display_name": "Qwen",
+        "requires_api_key": True,
+        "requires_base_url": False,
+        "supports_tools": True,
+        "supports_vision": False,
+        "default_model": ""
+    },
+    "kimi": {
+        "display_name": "Kimi",
+        "requires_api_key": True,
+        "requires_base_url": False,
+        "supports_tools": True,
+        "supports_vision": False,
+        "default_model": ""
+    },
+    "lm_studio": {
+        "display_name": "LM Studio",
+        "requires_api_key": False,
+        "requires_base_url": False,
         "supports_tools": True,
         "supports_vision": True,
         "default_model": ""

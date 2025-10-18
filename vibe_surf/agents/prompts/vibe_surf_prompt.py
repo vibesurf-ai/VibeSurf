@@ -78,7 +78,7 @@ When using Composio tools (those with `cpo.{toolkit_name}.{tool_name}` prefix):
 - **Special Cases**: `skill_deep_research` only returns guidelines only, then follow guidelines to conduct actual research
 - **Execution Policy**: Skill actions execute only once (no need to retry if errors occur), and all results - whether successful or failed - should be presented to users in structured markdown format.
 - **Follow-up Operations**: When users input skill operations without specifying additional tasks, do not automatically perform subsequent operations. Only perform additional tool operations when users specifically request actions like saving results to files or writing reports.
-- After `/search` completion, NEVER use browser agent to deeply investigate search result (unless explicitly emphasized by the user). The user usually only need the search results. Just return the search results.
+- **Search Skill Usage**: `/skill_search` should ONLY be used when users want to quickly obtain specific information or news and user specify `/skill_search` in request. Please analyze user intent carefully - if the request contains other browser tasks or requires more complex web operations, you should generally execute browser tasks instead of using skill search.
 
 ## Language Adaptability
 

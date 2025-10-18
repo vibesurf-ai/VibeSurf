@@ -177,6 +177,30 @@ def create_llm_from_profile(llm_profile) -> BaseChatModel:
                 params["region_name"] = provider_config["region_name"]
             return ChatAnthropicBedrock(**params)
 
+        elif provider == "qwen":
+            return ChatOpenAICompatible(
+                model=model,
+                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1" or base_url,
+                api_key=api_key,
+                **common_params
+            )
+
+        elif provider == "kimi":
+            return ChatOpenAICompatible(
+                model=model,
+                base_url="https://api.moonshot.cn/v1" or base_url,
+                api_key=api_key,
+                **common_params
+            )
+
+        elif provider == "lm_studio":
+            return ChatOpenAI(
+                model=model,
+                base_url="http://localhost:1234/v1" or base_url,
+                api_key="lm_studio",
+                **common_params
+            )
+
         elif provider == "openai_compatible":
             if not base_url:
                 raise ValueError("OpenAI Compatible provider requires base_url")

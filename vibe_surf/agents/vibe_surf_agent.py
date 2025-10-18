@@ -41,7 +41,11 @@ from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.agents.views import VibeSurfAgentSettings
 
 from vibe_surf.telemetry.service import ProductTelemetry
-from vibe_surf.telemetry.views import VibeSurfAgentTelemetryEvent
+from vibe_surf.telemetry.views import (
+    VibeSurfAgentTelemetryEvent,
+    VibeSurfAgentParsedOutputEvent,
+    VibeSurfAgentExceptionEvent
+)
 
 from vibe_surf.logger import get_logger
 
@@ -389,6 +393,8 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
             context_info.append(f"Generated Report: ❌ Failed - {state.generated_report_result.msg}\nPath: {state.generated_report_result.report_path}\n")
 
     context_str = "\n".join(context_info) if context_info else "No additional context available."
+    logger.debug("VibeSurf State Message:\n")
+    logger.debug(context_str)
     vibesurf_agent.message_history.append(UserMessage(content=context_str))
 
     try:
@@ -400,11 +406,30 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
             AssistantMessage(content=json.dumps(response.completion.model_dump(exclude_none=True, exclude_unset=True),
                                                 ensure_ascii=False)))
 
+        # Capture telemetry for parsed output
+        import vibe_surf
+        action_types = []
+        for action in actions:
+            action_data = action.model_dump(exclude_unset=True)
+            action_name = next(iter(action_data.keys())) if action_data else 'unknown'
+            action_types.append(action_name)
+        
+        parsed_output_event = VibeSurfAgentParsedOutputEvent(
+            version=vibe_surf.__version__,
+            parsed_output=json.dumps(parsed.model_dump(exclude_none=True, exclude_unset=True), ensure_ascii=False),  # Limit size
+            action_count=len(actions),
+            action_types=action_types,
+            model=getattr(vibesurf_agent.llm, 'model_name', None),
+            session_id=state.session_id,
+        )
+        vibesurf_agent.telemetry.capture(parsed_output_event)
+        vibesurf_agent.telemetry.flush()
+
         # Log thinking if present
         if hasattr(parsed, 'thinking') and parsed.thinking:
             await log_agent_activity(state, agent_name, "thinking", parsed.thinking)
 
-        for i, action in enumerate(actions):
+        for i, action in enumerate(actions[:1]):
             action_data = action.model_dump(exclude_unset=True)
             action_name = next(iter(action_data.keys())) if action_data else 'unknown'
             logger.info(f"🛠️ Processing VibeSurf action {i + 1}/{len(actions)}: {action_name}")
@@ -505,8 +530,24 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
 
     except Exception as e:
         import traceback
+        traceback_str = traceback.format_exc()
         traceback.print_exc()
         logger.error(f"❌ VibeSurf agent failed: {e}")
+        
+        # Capture telemetry for exception
+        import vibe_surf
+        exception_event = VibeSurfAgentExceptionEvent(
+            version=vibe_surf.__version__,
+            error_message=str(e)[:500],  # Limit error message length
+            error_type=type(e).__name__,
+            traceback=traceback_str[:1000],  # Limit traceback length
+            model=getattr(vibesurf_agent.llm, 'model_name', None),
+            session_id=state.session_id,
+            function_name='_vibesurf_agent_node_impl'
+        )
+        vibesurf_agent.telemetry.capture(exception_event)
+        vibesurf_agent.telemetry.flush()
+
         state.final_response = f"Task execution failed: {str(e)}"
         state.is_complete = True
         await log_agent_activity(state, agent_name, "error", f"Agent failed: {str(e)}")
@@ -1606,7 +1647,27 @@ Please continue with your assigned work, incorporating this guidance only if it'
             upload_files = await self.process_upload_files(upload_files)
 
             if not self.message_history:
-                self.message_history.append(SystemMessage(content=VIBESURF_SYSTEM_PROMPT))
+                vibesurf_system_prompt = VIBESURF_SYSTEM_PROMPT
+                if self.settings.agent_mode == "thinking":
+                    vibesurf_system_prompt += """
+You must ALWAYS respond with a valid JSON in this exact format:
+{{
+  "thinking": "A structured <think>-style reasoning.",
+  "action":[{{"<action_name>": {{<action_params>}}]
+}}
+
+Action list should NEVER be empty and Each step can only output one action. If multiple actions are output, only the first one will be executed.
+                    """
+                else:
+                    vibesurf_system_prompt += """
+You must ALWAYS respond with a valid JSON in this exact format:
+{{
+  "action":[{{"<action_name>": {{<action_params>}}]
+}}
+
+Action list should NEVER be empty and Each step can only output one action. If multiple actions are output, only the first one will be executed.
+                    """
+                self.message_history.append(SystemMessage(content=vibesurf_system_prompt))
 
             # Format processed upload files for prompt
             user_request = f"* User's New Request:\n{task}\n"
@@ -1669,7 +1730,7 @@ Please continue with your assigned work, incorporating this guidance only if it'
             completion_event = VibeSurfAgentTelemetryEvent(
                 version=vibe_surf.__version__,
                 action='task_completed',
-                task_description=task[:200] if task else None,
+                task_description=task if task else None,
                 model=getattr(self.llm, 'model_name', None),
                 model_provider=getattr(self.llm, 'provider', None),
                 duration_seconds=duration,
