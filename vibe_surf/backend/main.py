@@ -59,7 +59,9 @@ logger = get_logger(__name__)
 # Global variables to control background tasks
 browser_monitor_task = None
 langflow_init_task = None
-
+sync_flows_from_fs_task = None
+mcp_init_task = None
+component_cache_task = None
 
 def setup_sentry(app: FastAPI) -> None:
     from vibe_surf.backend.langflow.services.deps import (
@@ -127,6 +129,8 @@ async def monitor_browser_connection():
 
 async def initialize_langflow_in_background():
     """Initialize Langflow in background to avoid blocking startup"""
+    global sync_flows_from_fs_task, mcp_init_task, component_cache_task
+    
     try:
         from lfx.log.logger import configure
 
@@ -181,35 +185,78 @@ async def initialize_langflow_in_background():
         logger.info("Loading flows...")
         await load_flows_from_directory()
 
-        # Start sync flows task (don't await, let it run)
-        asyncio.create_task(sync_flows_from_fs())
+        # Start sync flows task (store reference for proper cleanup)
+        sync_flows_from_fs_task = asyncio.create_task(sync_flows_from_fs())
 
         queue_service = get_queue_service()
         if not queue_service.is_started():
             queue_service.start()
         logger.info(f"Flows loaded in {asyncio.get_event_loop().time() - current_time:.2f}s")
 
-        # Cache components in background (optional, non-blocking)
-        current_time = asyncio.get_event_loop().time()
-        logger.info("Caching components...")
-        await get_and_cache_all_types_dict(get_settings_service(), telemetry_service)
-        logger.info(f"Components cached in {asyncio.get_event_loop().time() - current_time:.2f}s")
-
-        total_time = asyncio.get_event_loop().time() - start_time
-        logger.info(f"Langflow initialization completed in {total_time:.2f}s")
-
         current_time = asyncio.get_event_loop().time()
         logger.info("Starting telemetry service")
         telemetry_service.start()
         logger.info(f"started telemetry service in {asyncio.get_event_loop().time() - current_time:.2f}s")
 
+        # Start MCP Composer service
+        try:
+            from vibe_surf.backend.langflow.services.deps import ServiceType
+            current_time = asyncio.get_event_loop().time()
+            logger.info("Starting MCP Composer service")
+            mcp_composer_service = get_service(ServiceType.MCP_COMPOSER_SERVICE)
+            await mcp_composer_service.start()
+            logger.info(f"MCP Composer service started in {asyncio.get_event_loop().time() - current_time:.2f}s")
+        except Exception as e:
+            logger.warning(f"MCP Composer service not available or failed to start: {e}")
+
+        # Delayed MCP server initialization
+        from langflow.api.v1.mcp_projects import init_mcp_servers
+        async def delayed_init_mcp_servers():
+            await asyncio.sleep(10.0)  # Increased delay to allow starter projects to be created
+            current_time = asyncio.get_event_loop().time()
+            logger.info("Loading MCP servers for projects")
+            try:
+                await init_mcp_servers()
+                logger.info(f"MCP servers loaded in {asyncio.get_event_loop().time() - current_time:.2f}s")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"First MCP server initialization attempt failed: {e}")
+                await asyncio.sleep(5.0)  # Increased retry delay
+                current_time = asyncio.get_event_loop().time()
+                logger.info("Retrying MCP servers initialization")
+                try:
+                    await init_mcp_servers()
+                    logger.info(
+                        f"MCP servers loaded on retry in {asyncio.get_event_loop().time() - current_time:.2f}s"
+                    )
+                except Exception as e2:  # noqa: BLE001
+                    logger.error(f"Failed to initialize MCP servers after retry: {e2}")
+
+        # Start the delayed initialization as a background task
+        mcp_init_task = asyncio.create_task(delayed_init_mcp_servers())
+
+        async def full_cache_in_background():
+            try:
+                # give app a little time to fully start
+                await asyncio.sleep(1.0)
+
+                current_time = asyncio.get_event_loop().time()
+                logger.info("Background: Starting full component caching")
+                await get_and_cache_all_types_dict(get_settings_service(), telemetry_service)
+                logger.info(
+                    f"Background: Full component caching completed in {asyncio.get_event_loop().time() - current_time:.2f}s")
+            except Exception as e:
+                logger.error(f"Background: Full component caching failed: {e}")
+
+        # start background full cache task
+        component_cache_task = asyncio.create_task(full_cache_in_background())
+
+        total_time = asyncio.get_event_loop().time() - start_time
+        logger.info(f"Langflow initialization completed in {total_time:.2f}s")
 
     except Exception as e:
         logger.error(f"Error during Langflow initialization: {e}")
         import traceback
         traceback.print_exc()
-        pdb.set_trace()
-        # Don't raise the exception - let the main app continue running
 
 
 def get_lifespan():
@@ -221,7 +268,7 @@ def get_lifespan():
 
         try:
             # Start Langflow initialization in background (non-blocking)
-            langflow_init_task = asyncio.create_task(initialize_langflow_in_background())
+            # langflow_init_task = asyncio.create_task(initialize_langflow_in_background())
             await initialize_langflow_in_background()
             logger.info("🚀 Started Langflow initialization in background")
 
@@ -273,25 +320,56 @@ def get_lifespan():
                     pass
                 logger.info("Browser monitor task stopped")
 
+            # Cancel background tasks
+            tasks_to_cancel = []
+            
+            # Cancel sync flows task
+            if sync_flows_from_fs_task and not sync_flows_from_fs_task.done():
+                logger.info("Stopping sync flows task...")
+                sync_flows_from_fs_task.cancel()
+                tasks_to_cancel.append(sync_flows_from_fs_task)
+            
+            # Cancel MCP initialization task
+            if mcp_init_task and not mcp_init_task.done():
+                logger.info("Stopping MCP initialization task...")
+                mcp_init_task.cancel()
+                tasks_to_cancel.append(mcp_init_task)
+            
             # Cancel Langflow initialization task if still running
             if langflow_init_task and not langflow_init_task.done():
                 logger.info("Stopping Langflow initialization...")
                 langflow_init_task.cancel()
+                tasks_to_cancel.append(langflow_init_task)
+
+            if component_cache_task and not component_cache_task.done():
+                logger.info("Cancelling background cache task...")
+                component_cache_task.cancel()
+                tasks_to_cancel.append(component_cache_task)
+            
+            # Wait for all tasks to complete
+            if tasks_to_cancel:
                 try:
-                    await asyncio.wait_for(langflow_init_task, timeout=5.0)
-                except (asyncio.CancelledError, asyncio.TimeoutError):
-                    pass
-                logger.info("Langflow initialization task stopped")
+                    results = await asyncio.gather(*tasks_to_cancel, return_exceptions=True)
+                    # Log any non-cancellation exceptions
+                    for result in results:
+                        if isinstance(result, Exception) and not isinstance(result, asyncio.CancelledError):
+                            logger.error(f"Error during task cleanup: {result}", exc_info=result)
+                except Exception as e:
+                    logger.warning(f"Error during task cancellation: {e}")
+                
+                logger.info("Background tasks stopped")
 
             # Cleanup Langflow services if they were initialized
             try:
                 from vibe_surf.backend.langflow.services.utils import teardown_services
                 logger.info("Cleaning up Langflow services...")
-                await teardown_services()
+                await asyncio.wait_for(teardown_services(), timeout=30)
                 logger.info("Langflow services cleaned up")
             except ImportError:
                 # Services weren't initialized, nothing to clean up
                 pass
+            except asyncio.TimeoutError:
+                logger.warning("Teardown services timed out after 30s.")
             except Exception as e:
                 logger.warning(f"Error during Langflow cleanup: {e}")
 

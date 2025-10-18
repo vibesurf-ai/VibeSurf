@@ -13,6 +13,7 @@ from vibe_surf.backend.langflow.api.v1.validate import router as validate_router
 from vibe_surf.backend.langflow.api.v1.variable import router as variables_router
 from vibe_surf.backend.langflow.api.v1.projects import router as projects_router
 from vibe_surf.backend.langflow.api.v1.starter_projects import router as starter_projects_router
+from vibe_surf.backend.langflow.api.v1.login import router as login_router
 
 __all__ = [
     "api_key_router",
@@ -29,5 +30,6 @@ __all__ = [
     "validate_router",
     "variables_router",
     "projects_router",
-    "starter_projects_router"
+    "starter_projects_router",
+    "login_router"
 ]
