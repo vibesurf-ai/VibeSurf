@@ -66,6 +66,9 @@ dependencies = [
     "opentelemetry-exporter-prometheus>=0.46b0,<1.0.0",
     "opentelemetry-instrumentation-fastapi>=0.46b0,<1.0.0",
     "alembic>=1.13.0,<2.0.0",
+    "sentry-sdk>=2.42.0",
+    "filelock>=3.20.0",
+    "bcrypt==4.0.1",
 ]
 
 [project.urls]

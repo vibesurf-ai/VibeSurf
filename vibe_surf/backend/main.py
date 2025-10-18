@@ -30,6 +30,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic_core import PydanticSerializationError
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from http import HTTPStatus
+import re
+from urllib.parse import urlencode
+from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi_pagination import add_pagination
 
 # Import routers
 from .api.task import router as agents_router
@@ -54,26 +61,22 @@ browser_monitor_task = None
 langflow_init_task = None
 
 
-class JavaScriptMIMETypeMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        try:
-            response = await call_next(request)
-        except Exception as exc:
-            if isinstance(exc, PydanticSerializationError):
-                message = (
-                    "Something went wrong while serializing the response. "
-                    "Please share this error on our GitHub repository."
-                )
-                error_messages = json.dumps([message, str(exc)])
-                raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=error_messages) from exc
-            raise
-        if (
-            "files/" not in request.url.path
-            and request.url.path.endswith(".js")
-            and response.status_code == HTTPStatus.OK
-        ):
-            response.headers["Content-Type"] = "text/javascript"
-        return response
+def setup_sentry(app: FastAPI) -> None:
+    from vibe_surf.backend.langflow.services.deps import (
+        get_queue_service,
+        get_settings_service,
+    )
+    settings = get_settings_service().settings
+    if settings.sentry_dsn:
+        import sentry_sdk
+        from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            traces_sample_rate=settings.sentry_traces_sample_rate,
+            profiles_sample_rate=settings.sentry_profiles_sample_rate,
+        )
+        app.add_middleware(SentryAsgiMiddleware)
 
 async def monitor_browser_connection():
     """Background task to monitor browser connection"""
@@ -166,13 +169,13 @@ async def initialize_langflow_in_background():
         setup_llm_caching()
         logger.info(f"LLM caching setup in {asyncio.get_event_loop().time() - current_time:.2f}s")
 
-        # Initialize super user if needed
         current_time = asyncio.get_event_loop().time()
         logger.info("Initializing default super user")
         await initialize_auto_login_default_superuser()
         logger.info(
             f"Default super user initialized in {asyncio.get_event_loop().time() - current_time:.2f}s"
         )
+
         # Load flows and start queue service
         current_time = asyncio.get_event_loop().time()
         logger.info("Loading flows...")
@@ -203,6 +206,9 @@ async def initialize_langflow_in_background():
 
     except Exception as e:
         logger.error(f"Error during Langflow initialization: {e}")
+        import traceback
+        traceback.print_exc()
+        pdb.set_trace()
         # Don't raise the exception - let the main app continue running
 
 
@@ -216,7 +222,7 @@ def get_lifespan():
         try:
             # Start Langflow initialization in background (non-blocking)
             langflow_init_task = asyncio.create_task(initialize_langflow_in_background())
-            # await initialize_langflow_in_background()
+            await initialize_langflow_in_background()
             logger.info("🚀 Started Langflow initialization in background")
 
             # Initialize telemetry and capture startup event
@@ -345,6 +351,12 @@ def get_static_files_dir():
 
 def create_app() -> FastAPI:
     """Create the FastAPI app and include all routers."""
+    from vibe_surf.backend.langflow.services.deps import (
+        get_queue_service,
+        get_settings_service,
+    )
+    from vibe_surf.backend.langflow.middleware import JavaScriptMIMETypeMiddleware, ContentSizeLimitMiddleware
+
     lifespan = get_lifespan()
 
     app = FastAPI(
@@ -353,6 +365,7 @@ def create_app() -> FastAPI:
         version="2.0.0",
         lifespan=lifespan,
     )
+    app.add_middleware(ContentSizeLimitMiddleware)
 
     # CORS middleware
     app.add_middleware(
@@ -363,6 +376,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.add_middleware(JavaScriptMIMETypeMiddleware)
+
+    setup_sentry(app)
+    settings = get_settings_service().settings
 
     # Include VibeSurf routers
     app.include_router(agents_router, prefix="/api", tags=["tasks"])
@@ -376,6 +392,72 @@ def create_app() -> FastAPI:
 
     # Include Langflow routers (no additional prefix needed as they already have /api)
     from vibe_surf.backend.langflow.api import health_check_router, log_router, router as langflow_main_router
+
+    @app.middleware("http")
+    async def check_boundary(request: Request, call_next):
+        if "/api/v1/files/upload" in request.url.path:
+            content_type = request.headers.get("Content-Type")
+
+            if not content_type or "multipart/form-data" not in content_type or "boundary=" not in content_type:
+                return JSONResponse(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    content={"detail": "Content-Type header must be 'multipart/form-data' with a boundary parameter."},
+                )
+
+            boundary = content_type.split("boundary=")[-1].strip()
+
+            if not re.match(r"^[\w\-]{1,70}$", boundary):
+                return JSONResponse(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    content={"detail": "Invalid boundary format"},
+                )
+
+            body = await request.body()
+
+            boundary_start = f"--{boundary}".encode()
+            # The multipart/form-data spec doesn't require a newline after the boundary, however many clients do
+            # implement it that way
+            boundary_end = f"--{boundary}--\r\n".encode()
+            boundary_end_no_newline = f"--{boundary}--".encode()
+
+            if not body.startswith(boundary_start) or not body.endswith((boundary_end, boundary_end_no_newline)):
+                return JSONResponse(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    content={"detail": "Invalid multipart formatting"},
+                )
+
+        return await call_next(request)
+
+    @app.middleware("http")
+    async def flatten_query_string_lists(request: Request, call_next):
+        flattened: list[tuple[str, str]] = []
+        for key, value in request.query_params.multi_items():
+            flattened.extend((key, entry) for entry in value.split(","))
+
+        request.scope["query_string"] = urlencode(flattened, doseq=True).encode("utf-8")
+
+        return await call_next(request)
+
+    if prome_port_str := os.environ.get("LANGFLOW_PROMETHEUS_PORT"):
+        # set here for create_app() entry point
+        prome_port = int(prome_port_str)
+        if prome_port > 0 or prome_port < 65535:
+            logger.debug(f"Starting Prometheus server on port {prome_port}...")
+            settings.prometheus_enabled = True
+            settings.prometheus_port = prome_port
+        else:
+            msg = f"Invalid port number {prome_port_str}"
+            raise ValueError(msg)
+
+    if settings.prometheus_enabled:
+        from prometheus_client import start_http_server
+
+        start_http_server(settings.prometheus_port)
+
+    if settings.mcp_server_enabled:
+        from vibe_surf.backend.langflow.api.v1 import mcp_router
+
+        app.include_router(mcp_router, tags=["langflow-mcp"])
 
     app.include_router(langflow_main_router, tags=["langflow"])
     app.include_router(health_check_router, tags=["langflow-health"])

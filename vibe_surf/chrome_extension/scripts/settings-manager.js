@@ -2904,7 +2904,7 @@ class VibeSurfSettingsManager {
           
           // Use the default workflow URL for now (can be configurable later)
           const currentSrc = this.elements.workflowIframe.src;
-          const workflowUrl = 'http://127.0.0.1:7860/';
+          const workflowUrl = 'http://127.0.0.1:9335/';
           
           console.log('[SettingsManager] Target workflow URL:', workflowUrl);
           
@@ -2919,7 +2919,7 @@ class VibeSurfSettingsManager {
             
             this.elements.workflowIframe.onerror = (error) => {
               console.error('[SettingsManager] Workflow iframe failed to load:', error);
-              this.showWorkflowError('Failed to load workflow application. Please check if the service is running on http://127.0.0.1:7860/');
+              this.showWorkflowError('Failed to load workflow application. Please check if the service is running on http://127.0.0.1:9335/');
             };
             
             // Handle iframe connection errors
@@ -2960,7 +2960,7 @@ class VibeSurfSettingsManager {
             <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff;">
               <strong>Troubleshooting:</strong>
               <ul style="text-align: left; margin: 10px 0 0 0; padding-left: 20px;">
-                <li>Ensure your workflow service is running on <code>http://127.0.0.1:7860/</code></li>
+                <li>Ensure your workflow service is running on <code>http://127.0.0.1:9335/</code></li>
                 <li>Check if the service allows iframe embedding (X-Frame-Options)</li>
                 <li>Try refreshing this tab or reloading the extension</li>
               </ul>
