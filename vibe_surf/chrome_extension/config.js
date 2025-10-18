@@ -33,6 +33,7 @@ const VIBESURF_CONFIG = {
     github: "https://github.com/vibesurf-ai/VibeSurf",
     discord: "https://discord.gg/EZ2YnUXP",
     x: "https://x.com/warmshao",
+    reportBug: "https://github.com/vibesurf-ai/VibeSurf/issues/new/choose",
     website: "https://vibe-surf.com/"
   },
   
