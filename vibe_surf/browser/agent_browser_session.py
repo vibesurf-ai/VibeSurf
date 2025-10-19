@@ -780,7 +780,7 @@ class AgentBrowserSession(BrowserSession):
                 f'[get_or_create_cdp_session] Switching agent focus from {self.agent_focus.target_id} to {target_id}'
             )
             self.agent_focus = session
-            await session.cdp_client.send.Target.activateTarget(params={'targetId': session.target_id})
+            # await session.cdp_client.send.Target.activateTarget(params={'targetId': session.target_id})
             await session.cdp_client.send.Runtime.runIfWaitingForDebugger(session_id=session.session_id)
         else:
             self.logger.debug(

@@ -20,13 +20,8 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
-from fastapi_pagination import add_pagination
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 import anyio
-from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic_core import PydanticSerializationError
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from http import HTTPStatus
@@ -37,17 +32,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_pagination import add_pagination
+import httpx
 
 # Import routers
-from .api.task import router as agents_router
-from .api.files import router as files_router
-from .api.activity import router as activity_router
-from .api.config import router as config_router
-from .api.browser import router as browser_router
-from .api.voices import router as voices_router
-from .api.agent import router as agent_router
-from .api.composio import router as composio_router
-from . import shared_state
+from vibe_surf.backend.api.task import router as agents_router
+from vibe_surf.backend.api.files import router as files_router
+from vibe_surf.backend.api.activity import router as activity_router
+from vibe_surf.backend.api.config import router as config_router
+from vibe_surf.backend.api.browser import router as browser_router
+from vibe_surf.backend.api.voices import router as voices_router
+from vibe_surf.backend.api.agent import router as agent_router
+from vibe_surf.backend.api.composio import router as composio_router
+from vibe_surf.backend import shared_state
 
 # Configure logging
 from vibe_surf.logger import get_logger
@@ -63,8 +59,9 @@ sync_flows_from_fs_task = None
 mcp_init_task = None
 component_cache_task = None
 
+
 def setup_sentry(app: FastAPI) -> None:
-    from vibe_surf.backend.langflow.services.deps import (
+    from langflow.services.deps import (
         get_queue_service,
         get_settings_service,
     )
@@ -79,6 +76,7 @@ def setup_sentry(app: FastAPI) -> None:
             profiles_sample_rate=settings.sentry_profiles_sample_rate,
         )
         app.add_middleware(SentryAsgiMiddleware)
+
 
 async def monitor_browser_connection():
     """Background task to monitor browser connection"""
@@ -127,13 +125,26 @@ async def monitor_browser_connection():
             # Continue monitoring even if there's an error
 
 
+async def load_bundles_with_error_handling():
+    try:
+        from langflow.initial_setup.setup import (
+            create_or_update_starter_projects,
+            initialize_auto_login_default_superuser,
+            load_bundles_from_urls,
+            load_flows_from_directory,
+            sync_flows_from_fs,
+        )
+        return await load_bundles_from_urls()
+    except (httpx.TimeoutException, httpx.HTTPError, httpx.RequestError) as exc:
+        logger.error(f"Error loading bundles from URLs: {exc}")
+        return [], []
+
+
 async def initialize_langflow_in_background():
     """Initialize Langflow in background to avoid blocking startup"""
     global sync_flows_from_fs_task, mcp_init_task, component_cache_task
-    
-    try:
-        from lfx.log.logger import configure
 
+    try:
         logger.info("Starting Langflow initialization in background...")
         # langflow setup envs
         from vibe_surf import common
@@ -141,25 +152,28 @@ async def initialize_langflow_in_background():
         os.makedirs(workspace_dir, exist_ok=True)
         current_date = datetime.now().strftime("%Y-%m-%d")
 
-        from vibe_surf.backend.langflow.initial_setup.setup import (
+        from langflow.initial_setup.setup import (
             initialize_auto_login_default_superuser,
             load_flows_from_directory,
             sync_flows_from_fs,
         )
-        from vibe_surf.backend.langflow.interface.components import get_and_cache_all_types_dict
-        from vibe_surf.backend.langflow.interface.utils import setup_llm_caching
-        from vibe_surf.backend.langflow.services.deps import (
+        from langflow.interface.components import get_and_cache_all_types_dict
+        from langflow.interface.utils import setup_llm_caching
+        from langflow.services.deps import (
             get_queue_service,
             get_settings_service,
         )
-        from vibe_surf.backend.langflow.services.utils import initialize_services, initialize_settings_service, \
+        from langflow.services.utils import initialize_services, initialize_settings_service, \
             teardown_services
-        from vibe_surf.backend.langflow.services.utils import initialize_services
-        from vibe_surf.backend.langflow.services.deps import get_queue_service, get_service, get_settings_service, \
+        from langflow.services.utils import initialize_services
+        from langflow.services.deps import get_queue_service, get_service, get_settings_service, \
             get_telemetry_service
+        from langflow.logging.logger import configure
+
+        configure()
 
         start_time = asyncio.get_event_loop().time()
-        initialize_settings_service()
+
         telemetry_service = get_telemetry_service()
 
         # Initialize services
@@ -199,18 +213,16 @@ async def initialize_langflow_in_background():
         logger.info(f"started telemetry service in {asyncio.get_event_loop().time() - current_time:.2f}s")
 
         # Start MCP Composer service
-        try:
-            from vibe_surf.backend.langflow.services.deps import ServiceType
-            current_time = asyncio.get_event_loop().time()
-            logger.info("Starting MCP Composer service")
-            mcp_composer_service = get_service(ServiceType.MCP_COMPOSER_SERVICE)
-            await mcp_composer_service.start()
-            logger.info(f"MCP Composer service started in {asyncio.get_event_loop().time() - current_time:.2f}s")
-        except Exception as e:
-            logger.warning(f"MCP Composer service not available or failed to start: {e}")
+        from langflow.services.deps import ServiceType
+        current_time = asyncio.get_event_loop().time()
+        logger.info("Starting MCP Composer service")
+        mcp_composer_service = get_service(ServiceType.MCP_COMPOSER_SERVICE)
+        await mcp_composer_service.start()
+        logger.info(f"MCP Composer service started in {asyncio.get_event_loop().time() - current_time:.2f}s")
 
         # Delayed MCP server initialization
         from langflow.api.v1.mcp_projects import init_mcp_servers
+
         async def delayed_init_mcp_servers():
             await asyncio.sleep(10.0)  # Increased delay to allow starter projects to be created
             current_time = asyncio.get_event_loop().time()
@@ -238,10 +250,14 @@ async def initialize_langflow_in_background():
             try:
                 # give app a little time to fully start
                 await asyncio.sleep(1.0)
-
+                current_time = asyncio.get_event_loop().time()
+                logger.debug("Loading bundles")
+                temp_dirs, bundles_components_paths = await load_bundles_with_error_handling()
+                get_settings_service().settings.components_path.extend(bundles_components_paths)
+                logger.debug(f"Bundles loaded in {asyncio.get_event_loop().time() - current_time:.2f}s")
                 current_time = asyncio.get_event_loop().time()
                 logger.info("Background: Starting full component caching")
-                await get_and_cache_all_types_dict(get_settings_service(), telemetry_service)
+                await get_and_cache_all_types_dict(get_settings_service())
                 logger.info(
                     f"Background: Full component caching completed in {asyncio.get_event_loop().time() - current_time:.2f}s")
             except Exception as e:
@@ -267,8 +283,6 @@ def get_lifespan():
         global browser_monitor_task, langflow_init_task
 
         try:
-            # Start Langflow initialization in background (non-blocking)
-            # langflow_init_task = asyncio.create_task(initialize_langflow_in_background())
             await initialize_langflow_in_background()
             logger.info("🚀 Started Langflow initialization in background")
 
@@ -322,19 +336,19 @@ def get_lifespan():
 
             # Cancel background tasks
             tasks_to_cancel = []
-            
+
             # Cancel sync flows task
             if sync_flows_from_fs_task and not sync_flows_from_fs_task.done():
                 logger.info("Stopping sync flows task...")
                 sync_flows_from_fs_task.cancel()
                 tasks_to_cancel.append(sync_flows_from_fs_task)
-            
+
             # Cancel MCP initialization task
             if mcp_init_task and not mcp_init_task.done():
                 logger.info("Stopping MCP initialization task...")
                 mcp_init_task.cancel()
                 tasks_to_cancel.append(mcp_init_task)
-            
+
             # Cancel Langflow initialization task if still running
             if langflow_init_task and not langflow_init_task.done():
                 logger.info("Stopping Langflow initialization...")
@@ -345,7 +359,7 @@ def get_lifespan():
                 logger.info("Cancelling background cache task...")
                 component_cache_task.cancel()
                 tasks_to_cancel.append(component_cache_task)
-            
+
             # Wait for all tasks to complete
             if tasks_to_cancel:
                 try:
@@ -356,12 +370,12 @@ def get_lifespan():
                             logger.error(f"Error during task cleanup: {result}", exc_info=result)
                 except Exception as e:
                     logger.warning(f"Error during task cancellation: {e}")
-                
+
                 logger.info("Background tasks stopped")
 
             # Cleanup Langflow services if they were initialized
             try:
-                from vibe_surf.backend.langflow.services.utils import teardown_services
+                from langflow.services.utils import teardown_services
                 logger.info("Cleaning up Langflow services...")
                 await asyncio.wait_for(teardown_services(), timeout=30)
                 logger.info("Langflow services cleaned up")
@@ -403,16 +417,16 @@ def setup_static_files(app: FastAPI, static_files_dir: Path) -> None:
 
     Args:
         app (FastAPI): FastAPI app.
-        static_files_dir (Path): Path to the static files directory.
+        static_files_dir (str): Path to the static files directory.
     """
     app.mount(
-        "/static",
+        "/",
         StaticFiles(directory=static_files_dir, html=True),
         name="static",
     )
 
     @app.exception_handler(404)
-    async def custom_404_handler(_request: Request, _exc: HTTPException):
+    async def custom_404_handler(_request, _exc):
         path = anyio.Path(static_files_dir) / "index.html"
 
         if not await path.exists():
@@ -423,17 +437,50 @@ def setup_static_files(app: FastAPI, static_files_dir: Path) -> None:
 
 def get_static_files_dir():
     """Get the static files directory relative to VibeSurf's main.py file."""
-    frontend_path = Path(__file__).parent / "frontend"
-    return frontend_path if frontend_path.exists() else None
+    import langflow
+    frontend_path = Path(langflow.__file__).parent / "frontend"
+    logger.info(f"Checking static files directory: {frontend_path}")
+    logger.info(f"Directory exists: {frontend_path.exists()}")
+    if frontend_path.exists():
+        logger.info(f"Found static files at: {frontend_path}")
+        return frontend_path
+    else:
+        logger.error(f"Static files directory does not exist: {frontend_path}")
+        return None
+
+
+class JavaScriptMIMETypeMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        try:
+            response = await call_next(request)
+        except Exception as exc:
+            if isinstance(exc, PydanticSerializationError):
+                message = (
+                    "Something went wrong while serializing the response. "
+                    "Please share this error on our GitHub repository."
+                )
+                error_messages = json.dumps([message, str(exc)])
+                raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=error_messages) from exc
+            raise
+        if (
+                "files/" not in request.url.path
+                and request.url.path.endswith(".js")
+                and response.status_code == HTTPStatus.OK
+        ):
+            response.headers["Content-Type"] = "text/javascript"
+        return response
 
 
 def create_app() -> FastAPI:
     """Create the FastAPI app and include all routers."""
-    from vibe_surf.backend.langflow.services.deps import (
+    from langflow.services.deps import (
         get_queue_service,
         get_settings_service,
     )
-    from vibe_surf.backend.langflow.middleware import JavaScriptMIMETypeMiddleware, ContentSizeLimitMiddleware
+    from langflow.middleware import ContentSizeLimitMiddleware
+    from langflow.logging.logger import configure
+
+    configure()
 
     lifespan = get_lifespan()
 
@@ -445,10 +492,14 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(ContentSizeLimitMiddleware)
 
-    # CORS middleware
+    settings = get_settings_service().settings
+
+    # Apply current CORS configuration (maintains backward compatibility)
+    origins = ["*"]
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Configure for production
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -456,7 +507,6 @@ def create_app() -> FastAPI:
     app.add_middleware(JavaScriptMIMETypeMiddleware)
 
     setup_sentry(app)
-    settings = get_settings_service().settings
 
     # Include VibeSurf routers
     app.include_router(agents_router, prefix="/api", tags=["tasks"])
@@ -469,7 +519,7 @@ def create_app() -> FastAPI:
     app.include_router(composio_router, prefix="/api", tags=["composio"])
 
     # Include Langflow routers (no additional prefix needed as they already have /api)
-    from vibe_surf.backend.langflow.api import health_check_router, log_router, router as langflow_main_router
+    from langflow.api import health_check_router, log_router, router as langflow_main_router
 
     @app.middleware("http")
     async def check_boundary(request: Request, call_next):
@@ -533,25 +583,13 @@ def create_app() -> FastAPI:
         start_http_server(settings.prometheus_port)
 
     if settings.mcp_server_enabled:
-        from vibe_surf.backend.langflow.api.v1 import mcp_router
+        from langflow.api.v1 import mcp_router
 
         app.include_router(mcp_router, tags=["langflow-mcp"])
 
     app.include_router(langflow_main_router, tags=["langflow"])
     app.include_router(health_check_router, tags=["langflow-health"])
     app.include_router(log_router, tags=["langflow-logs"])
-
-    # Health check endpoint
-    @app.get("/health")
-    async def health_check():
-        """API health check"""
-        return {
-            "status": "healthy",
-            "timestamp": datetime.now().isoformat(),
-            "service": "VibeSurf Backend API",
-            "model": "single-task-execution",
-            "version": "2.0.0"
-        }
 
     # Session ID generation endpoint
     @app.get("/generate-session-id")
@@ -586,40 +624,6 @@ def create_app() -> FastAPI:
             "active_task": task_info,
             "langflow_status": langflow_status,
             "timestamp": datetime.now().isoformat()
-        }
-
-    # Langflow integration status endpoint
-    @app.get("/api/langflow/status")
-    async def get_langflow_status():
-        """Get Langflow integration status"""
-        status = "not_started"
-        details = {}
-
-        if langflow_init_task:
-            if langflow_init_task.done():
-                if langflow_init_task.exception():
-                    status = "failed"
-                    details["error"] = str(langflow_init_task.exception())
-                else:
-                    status = "completed"
-                    details["message"] = "Langflow initialization completed successfully"
-            else:
-                status = "initializing"
-                details["message"] = "Langflow is currently initializing in background"
-
-        return {
-            "status": status,
-            "integration": "vibe_surf.langflow",
-            "version": "2.0.0",
-            "details": details,
-            "timestamp": datetime.now().isoformat(),
-            "endpoints": {
-                "main_api": "/api/v1",
-                "health": "/health",
-                "health_check": "/health_check",
-                "logs": "/logs",
-                "logs_stream": "/logs-stream"
-            }
         }
 
     # Exception handler
@@ -707,6 +711,10 @@ app = setup_app()
 if __name__ == "__main__":
     # Parse command line arguments
     args = parse_args()
+    from langflow.__main__ import get_number_of_workers
+    from langflow.logging.logger import configure
+
+    configure()
 
     # Set environment variables based on arguments
     os.environ["VIBESURF_BACKEND_PORT"] = str(args.vibesurf_port)
@@ -718,4 +726,5 @@ if __name__ == "__main__":
 
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=args.vibesurf_port)
+    uvicorn.run(app, host="127.0.0.1", port=args.vibesurf_port, workers=get_number_of_workers(),
+                log_level="error", reload=True, loop="asyncio")

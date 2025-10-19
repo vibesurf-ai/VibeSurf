@@ -24,7 +24,6 @@ def test_cli_telemetry_event():
 
     telemetry.capture(event)
     telemetry.flush()
-    pdb.set_trace()
 
 
 if __name__ == '__main__':
