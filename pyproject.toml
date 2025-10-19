@@ -63,7 +63,8 @@ override-dependencies = [
     "pypdf>=5.7.0",
     "authlib>=1.6.0",
     "websockets>=15.0.1",
-    "json-repair>=0.48.0"
+    "json-repair>=0.48.0",
+    "yfinance>=0.2.66"
 ]
 
 [project.scripts]
