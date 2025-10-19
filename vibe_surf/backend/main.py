@@ -60,6 +60,25 @@ mcp_init_task = None
 component_cache_task = None
 
 
+def configure_langflow_envs():
+    # langflow setup envs
+    from vibe_surf import common
+    workspace_dir = common.get_workspace_dir()
+    os.makedirs(workspace_dir, exist_ok=True)
+    current_date = datetime.now().strftime("%Y-%m-%d")
+
+    langflow_db_path = str(Path(workspace_dir) / 'langflow.db')
+    os.environ["LANGFLOW_DATABASE_URL"] = f"sqlite:///{langflow_db_path}"
+    logger.info(f"Langflow database: {os.environ['LANGFLOW_DATABASE_URL']}")
+    os.environ["LANGFLOW_SKIP_AUTH_AUTO_LOGIN"] = "true"
+    os.environ["LANGFLOW_AUTO_LOGIN"] = "true"
+    # os.environ["LANGFLOW_LOG_FILE"] = os.path.join(workspace_dir, "logs", f'langflow_{current_date}.log')
+    # os.environ["LANGFLOW_LOG_LEVEL"] = "DEBUG" if os.environ.get("VIBESURF_DEBUG", "false").lower() in ['1', 'true',
+    #                                                                                                     'yes'] else "INFO"
+
+    logger.info("Configure Langflow environment")
+
+
 def setup_sentry(app: FastAPI) -> None:
     from langflow.services.deps import (
         get_queue_service,
@@ -146,11 +165,6 @@ async def initialize_langflow_in_background():
 
     try:
         logger.info("Starting Langflow initialization in background...")
-        # langflow setup envs
-        from vibe_surf import common
-        workspace_dir = common.get_workspace_dir()
-        os.makedirs(workspace_dir, exist_ok=True)
-        current_date = datetime.now().strftime("%Y-%m-%d")
 
         from langflow.initial_setup.setup import (
             initialize_auto_login_default_superuser,
@@ -169,6 +183,18 @@ async def initialize_langflow_in_background():
         from langflow.services.deps import get_queue_service, get_service, get_settings_service, \
             get_telemetry_service
         from langflow.logging.logger import configure
+
+        configure_langflow_envs()
+
+        settings_service = get_settings_service()
+        for key, value in os.environ.items():
+            if key.startswith("LANGFLOW_"):
+                new_key = key.replace("LANGFLOW_", "").lower()
+                if hasattr(settings_service.auth_settings, new_key):
+                    setattr(settings_service.auth_settings, new_key, value)
+
+                if hasattr(settings_service.settings, new_key):
+                    setattr(settings_service.settings, new_key, value)
 
         configure()
 
@@ -198,10 +224,8 @@ async def initialize_langflow_in_background():
         current_time = asyncio.get_event_loop().time()
         logger.info("Loading flows...")
         await load_flows_from_directory()
-
         # Start sync flows task (store reference for proper cleanup)
         sync_flows_from_fs_task = asyncio.create_task(sync_flows_from_fs())
-
         queue_service = get_queue_service()
         if not queue_service.is_started():
             queue_service.start()
@@ -246,7 +270,7 @@ async def initialize_langflow_in_background():
         # Start the delayed initialization as a background task
         mcp_init_task = asyncio.create_task(delayed_init_mcp_servers())
 
-        async def full_cache_in_background():
+        async def components_cache_in_background():
             try:
                 # give app a little time to fully start
                 await asyncio.sleep(1.0)
@@ -264,10 +288,11 @@ async def initialize_langflow_in_background():
                 logger.error(f"Background: Full component caching failed: {e}")
 
         # start background full cache task
-        component_cache_task = asyncio.create_task(full_cache_in_background())
+        component_cache_task = asyncio.create_task(components_cache_in_background())
 
         total_time = asyncio.get_event_loop().time() - start_time
         logger.info(f"Langflow initialization completed in {total_time:.2f}s")
+        logger.info(f"Langflow database: {settings_service.settings.database_url}")
 
     except Exception as e:
         logger.error(f"Error during Langflow initialization: {e}")
@@ -518,9 +543,6 @@ def create_app() -> FastAPI:
     app.include_router(agent_router, prefix="/api", tags=["agent"])
     app.include_router(composio_router, prefix="/api", tags=["composio"])
 
-    # Include Langflow routers (no additional prefix needed as they already have /api)
-    from langflow.api import health_check_router, log_router, router as langflow_main_router
-
     @app.middleware("http")
     async def check_boundary(request: Request, call_next):
         if "/api/v1/files/upload" in request.url.path:
@@ -566,21 +588,8 @@ def create_app() -> FastAPI:
 
         return await call_next(request)
 
-    if prome_port_str := os.environ.get("LANGFLOW_PROMETHEUS_PORT"):
-        # set here for create_app() entry point
-        prome_port = int(prome_port_str)
-        if prome_port > 0 or prome_port < 65535:
-            logger.debug(f"Starting Prometheus server on port {prome_port}...")
-            settings.prometheus_enabled = True
-            settings.prometheus_port = prome_port
-        else:
-            msg = f"Invalid port number {prome_port_str}"
-            raise ValueError(msg)
-
-    if settings.prometheus_enabled:
-        from prometheus_client import start_http_server
-
-        start_http_server(settings.prometheus_port)
+    # Include Langflow routers (no additional prefix needed as they already have /api)
+    from langflow.api import health_check_router, log_router, router as langflow_main_router
 
     if settings.mcp_server_enabled:
         from langflow.api.v1 import mcp_router
@@ -711,7 +720,6 @@ app = setup_app()
 if __name__ == "__main__":
     # Parse command line arguments
     args = parse_args()
-    from langflow.__main__ import get_number_of_workers
     from langflow.logging.logger import configure
 
     configure()
@@ -726,5 +734,5 @@ if __name__ == "__main__":
 
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=args.vibesurf_port, workers=get_number_of_workers(),
-                log_level="error", reload=True, loop="asyncio")
+    uvicorn.run(app, host="127.0.0.1", port=args.vibesurf_port, workers=1, log_level="error", reload=True,
+                loop="asyncio")
