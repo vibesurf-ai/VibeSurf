@@ -570,7 +570,7 @@ async def toggle_composio_toolkit(
                                 connection_request = composio.connected_accounts.initiate(
                                     user_id=entity_id,
                                     auth_config_id=auth_config_id,
-                                    allow_multiple=True
+                                    # allow_multiple=True
                                 )
 
                                 return getattr(connection_request, 'redirect_url', None)
