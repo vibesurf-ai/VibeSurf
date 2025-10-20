@@ -1,4 +1,4 @@
-from base.vibe_surf.langflow.base.composio.composio_base import ComposioBaseComponent
+from vibe_surf.langflow.base.composio.composio_base import ComposioBaseComponent
 
 
 class ComposioGoogleTasksAPIComponent(ComposioBaseComponent):

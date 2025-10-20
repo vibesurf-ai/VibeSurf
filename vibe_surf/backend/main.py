@@ -275,10 +275,10 @@ async def initialize_langflow_in_background():
                 # give app a little time to fully start
                 await asyncio.sleep(1.0)
                 current_time = asyncio.get_event_loop().time()
-                logger.debug("Loading bundles")
-                temp_dirs, bundles_components_paths = await load_bundles_with_error_handling()
-                get_settings_service().settings.components_path.extend(bundles_components_paths)
-                logger.debug(f"Bundles loaded in {asyncio.get_event_loop().time() - current_time:.2f}s")
+                # logger.debug("Loading bundles")
+                # temp_dirs, bundles_components_paths = await load_bundles_with_error_handling()
+                # get_settings_service().settings.components_path.extend(bundles_components_paths)
+                # logger.debug(f"Bundles loaded in {asyncio.get_event_loop().time() - current_time:.2f}s")
                 current_time = asyncio.get_event_loop().time()
                 logger.info("Background: Starting full component caching")
                 await get_and_cache_all_types_dict(get_settings_service())
@@ -462,7 +462,6 @@ def setup_static_files(app: FastAPI, static_files_dir: Path) -> None:
 
 def get_static_files_dir():
     """Get the static files directory relative to VibeSurf's main.py file."""
-    import langflow
     frontend_path = Path(__file__).parent / "frontend"
     logger.info(f"Checking static files directory: {frontend_path}")
     logger.info(f"Directory exists: {frontend_path.exists()}")

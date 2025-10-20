@@ -23,5 +23,5 @@ vibe_surf/_version.py
 .build-env
 .DS_Store
 
-frontend
+vibe_surf/backend/frontend
 *.log

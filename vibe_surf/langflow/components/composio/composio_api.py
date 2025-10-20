@@ -205,7 +205,18 @@ class ComposioAPIComponent(LCToolComponent):
                 else:
                     # No active connection - create OAuth connection
                     try:
-                        connection = composio.toolkits.authorize(user_id=self.entity_id, toolkit=toolkit_slug)
+                        # connection = composio.toolkits.authorize(user_id=self.entity_id, toolkit=toolkit_slug)
+                        auth_config_response = composio.auth_configs.create(
+                            toolkit=toolkit_slug,
+                            options={"type": "use_composio_managed_auth"}
+                        )
+                        auth_config_id = auth_config_response.id if hasattr(auth_config_response,
+                                                                            'id') else auth_config_response
+                        connection = composio.connected_accounts.initiate(
+                            user_id=self.entity_id,
+                            auth_config_id=auth_config_id,
+                            allow_multiple=True
+                        )
                         redirect_url = getattr(connection, "redirect_url", None)
 
                         if redirect_url and redirect_url.startswith(("http://", "https://")):
