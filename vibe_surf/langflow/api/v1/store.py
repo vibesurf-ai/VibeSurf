@@ -148,6 +148,8 @@ async def get_tags():
     except CustomError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 

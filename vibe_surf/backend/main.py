@@ -167,6 +167,7 @@ async def initialize_langflow_in_background():
         logger.info("Starting Langflow initialization in background...")
 
         from vibe_surf.langflow.initial_setup.setup import (
+            create_or_update_starter_projects,
             initialize_auto_login_default_superuser,
             load_flows_from_directory,
             sync_flows_from_fs,
@@ -183,6 +184,7 @@ async def initialize_langflow_in_background():
         from vibe_surf.langflow.services.deps import get_queue_service, get_service, get_settings_service, \
             get_telemetry_service
         from vibe_surf.langflow.logging.logger import configure
+        from vibe_surf.langflow.services.deps import ServiceType
 
         configure_langflow_envs()
 
@@ -237,7 +239,6 @@ async def initialize_langflow_in_background():
         logger.info(f"started telemetry service in {asyncio.get_event_loop().time() - current_time:.2f}s")
 
         # Start MCP Composer service
-        from vibe_surf.langflow.services.deps import ServiceType
         current_time = asyncio.get_event_loop().time()
         logger.info("Starting MCP Composer service")
         mcp_composer_service = get_service(ServiceType.MCP_COMPOSER_SERVICE)
@@ -275,17 +276,33 @@ async def initialize_langflow_in_background():
                 # give app a little time to fully start
                 await asyncio.sleep(1.0)
                 current_time = asyncio.get_event_loop().time()
-                # logger.debug("Loading bundles")
-                # temp_dirs, bundles_components_paths = await load_bundles_with_error_handling()
-                # get_settings_service().settings.components_path.extend(bundles_components_paths)
-                # logger.debug(f"Bundles loaded in {asyncio.get_event_loop().time() - current_time:.2f}s")
+                logger.debug("Loading bundles")
+                temp_dirs, bundles_components_paths = await load_bundles_with_error_handling()
+                get_settings_service().settings.components_path.extend(bundles_components_paths)
+                logger.debug(f"Bundles loaded in {asyncio.get_event_loop().time() - current_time:.2f}s")
                 current_time = asyncio.get_event_loop().time()
                 logger.info("Background: Starting full component caching")
-                await get_and_cache_all_types_dict(get_settings_service())
+                all_types_dict = await get_and_cache_all_types_dict(get_settings_service())
+                current_time = asyncio.get_event_loop().time()
+                logger.info("Creating/updating starter projects")
+                import tempfile
+
+                from filelock import FileLock
+
+                lock_file = Path(tempfile.gettempdir()) / "langflow_starter_projects.lock"
+                lock = FileLock(lock_file, timeout=1)
+                with lock:
+                    await create_or_update_starter_projects(all_types_dict)
+                    logger.info(
+                        f"Starter projects created/updated in {asyncio.get_event_loop().time() - current_time:.2f}s"
+                    )
+
                 logger.info(
                     f"Background: Full component caching completed in {asyncio.get_event_loop().time() - current_time:.2f}s")
             except Exception as e:
                 logger.error(f"Background: Full component caching failed: {e}")
+                import traceback
+                traceback.print_exc()
 
         # start background full cache task
         component_cache_task = asyncio.create_task(components_cache_in_background())
@@ -733,5 +750,5 @@ if __name__ == "__main__":
 
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=args.vibesurf_port, workers=1, log_level="error", reload=True,
-                loop="asyncio")
+    uvicorn.run(app, host="127.0.0.1", port=args.vibesurf_port,
+                workers=1, log_level="error", reload=False, loop="asyncio")

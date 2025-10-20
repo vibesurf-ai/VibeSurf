@@ -74,7 +74,7 @@ class Settings(BaseSettings):
     dev: bool = False
     """If True, Langflow will run in development mode."""
     database_url: str | None = None
-    """Database URL for vibe_surf.langflow. If not provided, Langflow will use a SQLite database.
+    """Database URL for langflow. If not provided, Langflow will use a SQLite database.
     The driver shall be an async one like `sqlite+aiosqlite` (`sqlite` and `postgresql`
     will be automatically converted to the async drivers `sqlite+aiosqlite` and
     `postgresql+psycopg` respectively)."""
@@ -177,9 +177,9 @@ class Settings(BaseSettings):
     sentry_profiles_sample_rate: float | None = 1.0
 
     store: bool | None = True
-    store_url: str | None = "https://api.vibe_surf.langflow.store"
-    download_webhook_url: str | None = "https://api.vibe_surf.langflow.store/flows/trigger/ec611a61-8460-4438-b187-a4f65e5559d4"
-    like_webhook_url: str | None = "https://api.vibe_surf.langflow.store/flows/trigger/64275852-ec00-45c1-984e-3bff814732da"
+    store_url: str | None = "https://api.langflow.store"
+    download_webhook_url: str | None = "https://api.langflow.store/flows/trigger/ec611a61-8460-4438-b187-a4f65e5559d4"
+    like_webhook_url: str | None = "https://api.langflow.store/flows/trigger/64275852-ec00-45c1-984e-3bff814732da"
 
     storage_type: str = "local"
 
@@ -217,7 +217,7 @@ class Settings(BaseSettings):
     # Telemetry
     do_not_track: bool = False
     """If set to True, Langflow will not track telemetry."""
-    telemetry_base_url: str = "https://vibe_surf.langflow.gateway.scarf.sh"
+    telemetry_base_url: str = "https://langflow.gateway.scarf.sh"
     transactions_storage_enabled: bool = True
     """If set to True, Langflow will track transactions between flows."""
     vertex_builds_storage_enabled: bool = True
@@ -231,9 +231,9 @@ class Settings(BaseSettings):
     workers: int = 1
     """The number of workers to run."""
     log_level: str = "critical"
-    """The log level for vibe_surf.langflow."""
-    log_file: str | None = "logs/vibe_surf.langflow.log"
-    """The path to log file for vibe_surf.langflow."""
+    """The log level for langflow."""
+    log_file: str | None = "logs/langflow.log"
+    """The path to log file for langflow."""
     alembic_log_file: str = "alembic/alembic.log"
     """The path to log file for Alembic for SQLAlchemy."""
     frontend_path: str | None = None
@@ -402,7 +402,7 @@ class Settings(BaseSettings):
             logger.debug("Using LANGFLOW_DATABASE_URL env variable.")
         else:
             logger.debug("No database_url env variable, using sqlite database")
-            # Originally, we used sqlite:///./vibe_surf.langflow.db
+            # Originally, we used sqlite:///./langflow.db
             # so we need to migrate to the new format
             # if there is a database in that location
             if not info.data["config_dir"]:
@@ -423,7 +423,7 @@ class Settings(BaseSettings):
                 logger.debug(f"Saving database to langflow directory: {database_dir}")
 
             pre_db_file_name = "langflow-pre.db"
-            db_file_name = "vibe_surf.langflow.db"
+            db_file_name = "langflow.db"
             new_pre_path = f"{database_dir}/{pre_db_file_name}"
             new_path = f"{database_dir}/{db_file_name}"
             final_path = None

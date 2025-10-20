@@ -112,7 +112,7 @@ def _process_single_module(modname: str) -> tuple[str, dict] | None:
     if len(mod_parts) <= MIN_MODULE_PARTS:
         return None
 
-    top_level = mod_parts[2]
+    top_level = mod_parts[3]
     module_components = {}
 
     # Bind frequently used functions for small speed gain
