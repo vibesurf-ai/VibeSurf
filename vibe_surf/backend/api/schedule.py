@@ -6,12 +6,18 @@ import asyncio
 from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import uuid4
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from croniter import croniter
+from sqlalchemy import text
 
 from vibe_surf.backend.database.models import Schedule
+from vibe_surf.backend.database.queries import ScheduleQueries
+from vibe_surf.backend.database.manager import get_db_session
 from vibe_surf.backend import shared_state
 from vibe_surf.logger import get_logger
 
@@ -62,25 +68,28 @@ def calculate_next_execution(cron_expr: str) -> Optional[datetime]:
         return None
 
 @router.get("/", response_model=List[ScheduleResponse])
-async def get_schedules():
+async def get_schedules(db: AsyncSession = Depends(get_db_session)):
     """Get all schedules"""
     try:
-        if not shared_state.db_manager:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
-            )
-
-        async for session in shared_state.db_manager.get_session():
-            result = await session.execute("SELECT * FROM schedules ORDER BY created_at DESC")
-            schedules = result.fetchall()
-            
-            schedule_list = []
-            for row in schedules:
-                schedule_dict = dict(row._mapping) if hasattr(row, '_mapping') else dict(row)
-                schedule_list.append(ScheduleResponse(**schedule_dict))
-            
-            return schedule_list
+        schedules = await ScheduleQueries.list_schedules(db)
+        
+        schedule_list = []
+        for schedule in schedules:
+            schedule_dict = {
+                "id": schedule.id,
+                "flow_id": schedule.flow_id,
+                "cron_expression": schedule.cron_expression,
+                "is_enabled": schedule.is_enabled,
+                "description": schedule.description,
+                "last_execution_at": schedule.last_execution_at,
+                "next_execution_at": schedule.next_execution_at,
+                "execution_count": schedule.execution_count,
+                "created_at": schedule.created_at,
+                "updated_at": schedule.updated_at
+            }
+            schedule_list.append(ScheduleResponse(**schedule_dict))
+        
+        return schedule_list
 
     except Exception as e:
         logger.error(f"Error getting schedules: {e}")
@@ -90,15 +99,9 @@ async def get_schedules():
         )
 
 @router.post("/", response_model=ScheduleResponse)
-async def create_schedule(schedule_data: ScheduleCreate):
+async def create_schedule(schedule_data: ScheduleCreate, db: AsyncSession = Depends(get_db_session)):
     """Create a new schedule"""
     try:
-        if not shared_state.db_manager:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
-            )
-
         # Validate cron expression if provided
         if schedule_data.cron_expression and not validate_cron_expression(schedule_data.cron_expression):
             raise HTTPException(
@@ -106,68 +109,29 @@ async def create_schedule(schedule_data: ScheduleCreate):
                 detail="Invalid cron expression format"
             )
 
-        # Calculate next execution time
-        next_execution = calculate_next_execution(schedule_data.cron_expression) if schedule_data.cron_expression else None
-
-        schedule_id = str(uuid4())
-        now = datetime.now(timezone.utc)
-
-        async for session in shared_state.db_manager.get_session():
-            # Check if schedule already exists for this flow
-            result = await session.execute(
-                "SELECT id FROM schedules WHERE flow_id = ?",
-                (schedule_data.flow_id,)
+        # Check if schedule already exists for this flow
+        existing_schedule = await ScheduleQueries.get_schedule_by_flow_id(db, schedule_data.flow_id)
+        if existing_schedule:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Schedule already exists for flow {schedule_data.flow_id}"
             )
-            existing = result.fetchone()
-            
-            if existing:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Schedule already exists for flow {schedule_data.flow_id}"
-                )
 
-            # Insert new schedule
-            await session.execute("""
-                INSERT INTO schedules (
-                    id, flow_id, cron_expression, is_enabled, description,
-                    next_execution_at, execution_count, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                schedule_id,
-                schedule_data.flow_id,
-                schedule_data.cron_expression,
-                schedule_data.is_enabled,
-                schedule_data.description,
-                next_execution,
-                0,
-                now,
-                now
-            ))
+        # Create new schedule
+        schedule_data_dict = await ScheduleQueries.create_schedule(
+            db=db,
+            flow_id=schedule_data.flow_id,
+            cron_expression=schedule_data.cron_expression,
+            is_enabled=schedule_data.is_enabled,
+            description=schedule_data.description
+        )
 
-            await session.commit()
+        # Update the schedule manager if available
+        if hasattr(shared_state, 'schedule_manager') and shared_state.schedule_manager:
+            await shared_state.schedule_manager.reload_schedules()
 
-            # Fetch the created schedule
-            result = await session.execute(
-                "SELECT * FROM schedules WHERE id = ?",
-                (schedule_id,)
-            )
-            schedule_row = result.fetchone()
-            
-            if not schedule_row:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to create schedule"
-                )
-
-            schedule_dict = dict(schedule_row._mapping) if hasattr(schedule_row, '_mapping') else dict(schedule_row)
-            created_schedule = ScheduleResponse(**schedule_dict)
-
-            # Update the schedule manager if available
-            if hasattr(shared_state, 'schedule_manager') and shared_state.schedule_manager:
-                await shared_state.schedule_manager.reload_schedules()
-
-            logger.info(f"Created schedule for flow {schedule_data.flow_id}")
-            return created_schedule
+        logger.info(f"Created schedule for flow {schedule_data.flow_id}")
+        return ScheduleResponse(**schedule_data_dict)
 
     except HTTPException:
         raise
@@ -179,30 +143,31 @@ async def create_schedule(schedule_data: ScheduleCreate):
         )
 
 @router.get("/{flow_id}", response_model=ScheduleResponse)
-async def get_schedule(flow_id: str):
+async def get_schedule(flow_id: str, db: AsyncSession = Depends(get_db_session)):
     """Get a specific schedule by flow ID"""
     try:
-        if not shared_state.db_manager:
+        schedule = await ScheduleQueries.get_schedule_by_flow_id(db, flow_id)
+        
+        if not schedule:
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Schedule not found for flow {flow_id}"
             )
 
-        async for session in shared_state.db_manager.get_session():
-            result = await session.execute(
-                "SELECT * FROM schedules WHERE flow_id = ?",
-                (flow_id,)
-            )
-            schedule_row = result.fetchone()
-            
-            if not schedule_row:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Schedule not found for flow {flow_id}"
-                )
-
-            schedule_dict = dict(schedule_row._mapping) if hasattr(schedule_row, '_mapping') else dict(schedule_row)
-            return ScheduleResponse(**schedule_dict)
+        schedule_dict = {
+            "id": schedule.id,
+            "flow_id": schedule.flow_id,
+            "cron_expression": schedule.cron_expression,
+            "is_enabled": schedule.is_enabled,
+            "description": schedule.description,
+            "last_execution_at": schedule.last_execution_at,
+            "next_execution_at": schedule.next_execution_at,
+            "execution_count": schedule.execution_count,
+            "created_at": schedule.created_at,
+            "updated_at": schedule.updated_at
+        }
+        
+        return ScheduleResponse(**schedule_dict)
 
     except HTTPException:
         raise
@@ -214,15 +179,9 @@ async def get_schedule(flow_id: str):
         )
 
 @router.put("/{flow_id}", response_model=ScheduleResponse)
-async def update_schedule(flow_id: str, schedule_data: ScheduleUpdate):
+async def update_schedule(flow_id: str, schedule_data: ScheduleUpdate, db: AsyncSession = Depends(get_db_session)):
     """Update an existing schedule"""
     try:
-        if not shared_state.db_manager:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
-            )
-
         # Validate cron expression if provided
         if schedule_data.cron_expression is not None and not validate_cron_expression(schedule_data.cron_expression):
             raise HTTPException(
@@ -230,83 +189,75 @@ async def update_schedule(flow_id: str, schedule_data: ScheduleUpdate):
                 detail="Invalid cron expression format"
             )
 
-        async for session in shared_state.db_manager.get_session():
-            # Check if schedule exists
-            result = await session.execute(
-                "SELECT * FROM schedules WHERE flow_id = ?",
-                (flow_id,)
-            )
-            existing_schedule = result.fetchone()
-            
-            if not existing_schedule:
+        # Prepare update data
+        updates = {}
+        if schedule_data.cron_expression is not None:
+            updates["cron_expression"] = schedule_data.cron_expression
+        if schedule_data.is_enabled is not None:
+            updates["is_enabled"] = schedule_data.is_enabled
+        if schedule_data.description is not None:
+            updates["description"] = schedule_data.description
+
+        if not updates:
+            # No fields to update, return existing schedule
+            schedule = await ScheduleQueries.get_schedule_by_flow_id(db, flow_id)
+            if not schedule:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Schedule not found for flow {flow_id}"
                 )
+            
+            schedule_dict = {
+                "id": schedule.id,
+                "flow_id": schedule.flow_id,
+                "cron_expression": schedule.cron_expression,
+                "is_enabled": schedule.is_enabled,
+                "description": schedule.description,
+                "last_execution_at": schedule.last_execution_at,
+                "next_execution_at": schedule.next_execution_at,
+                "execution_count": schedule.execution_count,
+                "created_at": schedule.created_at,
+                "updated_at": schedule.updated_at
+            }
+            return ScheduleResponse(**schedule_dict)
 
-            # Prepare update data
-            update_fields = []
-            update_values = []
-            
-            if schedule_data.cron_expression is not None:
-                update_fields.append("cron_expression = ?")
-                update_values.append(schedule_data.cron_expression)
-                
-                # Calculate new next execution time
-                next_execution = calculate_next_execution(schedule_data.cron_expression)
-                update_fields.append("next_execution_at = ?")
-                update_values.append(next_execution)
-            
-            if schedule_data.is_enabled is not None:
-                update_fields.append("is_enabled = ?")
-                update_values.append(schedule_data.is_enabled)
-            
-            if schedule_data.description is not None:
-                update_fields.append("description = ?")
-                update_values.append(schedule_data.description)
-            
-            if not update_fields:
-                # No fields to update, return existing schedule
-                schedule_dict = dict(existing_schedule._mapping) if hasattr(existing_schedule, '_mapping') else dict(existing_schedule)
-                return ScheduleResponse(**schedule_dict)
-
-            # Add updated_at
-            update_fields.append("updated_at = ?")
-            update_values.append(datetime.now(timezone.utc))
-            
-            # Add flow_id for WHERE clause
-            update_values.append(flow_id)
-
-            # Execute update
-            await session.execute(
-                f"UPDATE schedules SET {', '.join(update_fields)} WHERE flow_id = ?",
-                update_values
+        # Update schedule
+        success = await ScheduleQueries.update_schedule_by_flow_id(db, flow_id, updates)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Schedule not found for flow {flow_id}"
             )
-            
-            await session.commit()
 
-            # Fetch updated schedule
-            result = await session.execute(
-                "SELECT * FROM schedules WHERE flow_id = ?",
-                (flow_id,)
+        # Fetch updated schedule
+        updated_schedule = await ScheduleQueries.get_schedule_by_flow_id(db, flow_id)
+        
+        if not updated_schedule:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update schedule"
             )
-            updated_schedule = result.fetchone()
-            
-            if not updated_schedule:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to update schedule"
-                )
 
-            schedule_dict = dict(updated_schedule._mapping) if hasattr(updated_schedule, '_mapping') else dict(updated_schedule)
-            result_schedule = ScheduleResponse(**schedule_dict)
+        schedule_dict = {
+            "id": updated_schedule.id,
+            "flow_id": updated_schedule.flow_id,
+            "cron_expression": updated_schedule.cron_expression,
+            "is_enabled": updated_schedule.is_enabled,
+            "description": updated_schedule.description,
+            "last_execution_at": updated_schedule.last_execution_at,
+            "next_execution_at": updated_schedule.next_execution_at,
+            "execution_count": updated_schedule.execution_count,
+            "created_at": updated_schedule.created_at,
+            "updated_at": updated_schedule.updated_at
+        }
 
-            # Update the schedule manager if available
-            if hasattr(shared_state, 'schedule_manager') and shared_state.schedule_manager:
-                await shared_state.schedule_manager.reload_schedules()
+        # Update the schedule manager if available
+        if hasattr(shared_state, 'schedule_manager') and shared_state.schedule_manager:
+            await shared_state.schedule_manager.reload_schedules()
 
-            logger.info(f"Updated schedule for flow {flow_id}")
-            return result_schedule
+        logger.info(f"Updated schedule for flow {flow_id}")
+        return ScheduleResponse(**schedule_dict)
 
     except HTTPException:
         raise
@@ -318,43 +269,33 @@ async def update_schedule(flow_id: str, schedule_data: ScheduleUpdate):
         )
 
 @router.delete("/{flow_id}")
-async def delete_schedule(flow_id: str):
+async def delete_schedule(flow_id: str, db: AsyncSession = Depends(get_db_session)):
     """Delete a schedule"""
     try:
-        if not shared_state.db_manager:
+        # Check if schedule exists
+        existing_schedule = await ScheduleQueries.get_schedule_by_flow_id(db, flow_id)
+        
+        if not existing_schedule:
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database not available"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Schedule not found for flow {flow_id}"
             )
 
-        async for session in shared_state.db_manager.get_session():
-            # Check if schedule exists
-            result = await session.execute(
-                "SELECT id FROM schedules WHERE flow_id = ?",
-                (flow_id,)
+        # Delete schedule
+        success = await ScheduleQueries.delete_schedule_by_flow_id(db, flow_id)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete schedule"
             )
-            existing_schedule = result.fetchone()
-            
-            if not existing_schedule:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Schedule not found for flow {flow_id}"
-                )
 
-            # Delete schedule
-            await session.execute(
-                "DELETE FROM schedules WHERE flow_id = ?",
-                (flow_id,)
-            )
-            
-            await session.commit()
+        # Update the schedule manager if available
+        if hasattr(shared_state, 'schedule_manager') and shared_state.schedule_manager:
+            await shared_state.schedule_manager.reload_schedules()
 
-            # Update the schedule manager if available
-            if hasattr(shared_state, 'schedule_manager') and shared_state.schedule_manager:
-                await shared_state.schedule_manager.reload_schedules()
-
-            logger.info(f"Deleted schedule for flow {flow_id}")
-            return {"message": f"Schedule deleted for flow {flow_id}"}
+        logger.info(f"Deleted schedule for flow {flow_id}")
+        return {"message": f"Schedule deleted for flow {flow_id}"}
 
     except HTTPException:
         raise

@@ -3001,11 +3001,13 @@ class VibeSurfSettingsManager {
     async loadWorkflows() {
       try {
         console.log('[SettingsManager] Loading workflows from backend...');
+        console.log('[SettingsManager] API client base URL:', this.apiClient.baseURL);
+        console.log('[SettingsManager] API client prefix:', this.apiClient.apiPrefix);
         
         const response = await this.apiClient.getWorkflows();
         console.log('[SettingsManager] Workflows response:', response);
         console.log('[SettingsManager] Response type:', typeof response);
-        console.log('[SettingsManager] Response keys:', Object.keys(response));
+        console.log('[SettingsManager] Response keys:', response ? Object.keys(response) : 'null response');
         
         // Handle different response structures
         let workflows = [];

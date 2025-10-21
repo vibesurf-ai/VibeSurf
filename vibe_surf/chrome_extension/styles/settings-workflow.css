@@ -2,7 +2,8 @@
 
 .workflows-container {
     padding: 24px;
-    max-width: 1200px;
+    width: 90%;
+    max-width: none;
     margin: 0 auto;
 }
 
@@ -136,6 +137,7 @@
 .workflows-list {
     display: grid;
     gap: 20px;
+    width: 100%;
 }
 
 .workflow-card {
@@ -146,6 +148,8 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .workflow-card::before {
@@ -541,6 +545,7 @@
 @media (max-width: 768px) {
     .workflows-container {
         padding: 20px;
+        width: 95%;
     }
     
     .search-filter-bar {
@@ -585,6 +590,7 @@
 @media (max-width: 480px) {
     .workflows-container {
         padding: 16px;
+        width: 98%;
     }
     
     .workflow-actions {
