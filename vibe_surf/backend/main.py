@@ -43,6 +43,7 @@ from vibe_surf.backend.api.browser import router as browser_router
 from vibe_surf.backend.api.voices import router as voices_router
 from vibe_surf.backend.api.agent import router as agent_router
 from vibe_surf.backend.api.composio import router as composio_router
+from vibe_surf.backend.api.schedule import router as schedule_router
 from vibe_surf.backend import shared_state
 
 # Configure logging
@@ -58,6 +59,7 @@ langflow_init_task = None
 sync_flows_from_fs_task = None
 mcp_init_task = None
 component_cache_task = None
+schedule_manager_task = None
 
 
 def configure_langflow_envs():
@@ -322,7 +324,7 @@ def get_lifespan():
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        global browser_monitor_task, langflow_init_task
+        global browser_monitor_task, langflow_init_task, schedule_manager_task
 
         try:
             await initialize_langflow_in_background()
@@ -343,6 +345,11 @@ def get_lifespan():
             # Start browser monitoring task
             browser_monitor_task = asyncio.create_task(monitor_browser_connection())
             logger.info("🔍 Started browser connection monitor")
+
+            # Initialize and start schedule manager
+            if shared_state.schedule_manager:
+                schedule_manager_task = asyncio.create_task(shared_state.schedule_manager.start())
+                logger.info("📅 Started schedule manager")
 
             logger.info("🚀 VibeSurf Backend API started with single-task execution model")
 
@@ -375,6 +382,18 @@ def get_lifespan():
                 except (asyncio.CancelledError, asyncio.TimeoutError):
                     pass
                 logger.info("Browser monitor task stopped")
+
+            # Stop schedule manager
+            if schedule_manager_task and not schedule_manager_task.done():
+                logger.info("Stopping schedule manager...")
+                if shared_state.schedule_manager:
+                    await shared_state.schedule_manager.stop()
+                schedule_manager_task.cancel()
+                try:
+                    await asyncio.wait_for(schedule_manager_task, timeout=5.0)
+                except (asyncio.CancelledError, asyncio.TimeoutError):
+                    pass
+                logger.info("Schedule manager stopped")
 
             # Cancel background tasks
             tasks_to_cancel = []
@@ -558,6 +577,7 @@ def create_app() -> FastAPI:
     app.include_router(voices_router, prefix="/api", tags=["voices"])
     app.include_router(agent_router, prefix="/api", tags=["agent"])
     app.include_router(composio_router, prefix="/api", tags=["composio"])
+    app.include_router(schedule_router, prefix="/api", tags=["schedule"])
 
     @app.middleware("http")
     async def check_boundary(request: Request, call_next):

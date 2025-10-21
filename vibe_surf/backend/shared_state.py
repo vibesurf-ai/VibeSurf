@@ -6,14 +6,16 @@ to avoid circular import issues.
 """
 import pdb
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import os
 import json
 import platform
+import asyncio
 from pathlib import Path
 from composio import Composio
 from composio_langchain import LangchainProvider
+from croniter import croniter
 
 # VibeSurf components
 from vibe_surf.agents.vibe_surf_agent import VibeSurfAgent
@@ -39,6 +41,7 @@ llm: Optional[BaseChatModel] = None
 db_manager: Optional['DatabaseManager'] = None
 current_llm_profile_name: Optional[str] = None
 composio_instance: Optional[Any] = None  # Global Composio instance
+schedule_manager: Optional['ScheduleManager'] = None  # Global Schedule manager
 
 # Environment variables
 workspace_dir: str = ""
@@ -58,7 +61,7 @@ active_task: Optional[Dict[str, Any]] = None
 def get_all_components():
     """Get all components as a dictionary"""
     global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager, current_llm_profile_name
-    global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs, composio_instance
+    global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs, composio_instance, schedule_manager
 
     return {
         "vibesurf_agent": vibesurf_agent,
@@ -73,6 +76,7 @@ def get_all_components():
         "active_task": active_task,
         "current_llm_profile_name": current_llm_profile_name,
         "composio_instance": composio_instance,
+        "schedule_manager": schedule_manager,
         "envs": envs
     }
 
@@ -80,7 +84,7 @@ def get_all_components():
 def set_components(**kwargs):
     """Update global components"""
     global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager, current_llm_profile_name
-    global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs, composio_instance
+    global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs, composio_instance, schedule_manager
 
     if "vibesurf_agent" in kwargs:
         vibesurf_agent = kwargs["vibesurf_agent"]
@@ -106,6 +110,8 @@ def set_components(**kwargs):
         current_llm_profile_name = kwargs["current_llm_profile_name"]
     if "composio_instance" in kwargs:
         composio_instance = kwargs["composio_instance"]
+    if "schedule_manager" in kwargs:
+        schedule_manager = kwargs["schedule_manager"]
 
 
 async def execute_task_background(
@@ -719,4 +725,249 @@ def _update_extension_backend_url(extension_path: str, backend_url: str):
 
     except Exception as e:
         logger.error(f"❌ Failed to update extension backend URL: {e}")
+
+
+class ScheduleManager:
+    """Manager for handling scheduled workflow execution"""
+    
+    def __init__(self):
+        self.schedules = {}  # Dict[flow_id, schedule_dict]
+        self.running = False
+        self.check_interval = 60  # Check every minute
+        self._task = None
+        
+    async def start(self):
+        """Start the schedule manager"""
+        if self.running:
+            return
+            
+        self.running = True
+        await self.reload_schedules()
+        self._task = asyncio.create_task(self._schedule_loop())
+        logger.info("✅ Schedule manager started")
+    
+    async def stop(self):
+        """Stop the schedule manager"""
+        self.running = False
+        if self._task and not self._task.done():
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+        logger.info("Schedule manager stopped")
+    
+    async def reload_schedules(self):
+        """Reload schedules from the database"""
+        try:
+            if not db_manager:
+                logger.warning("Database manager not available for schedule reload")
+                return
+                
+            async with db_manager.get_session() as session:
+                result = await session.execute("""
+                    SELECT * FROM schedules
+                    WHERE is_enabled = 1 AND cron_expression IS NOT NULL
+                """)
+                schedules = result.fetchall()
+                
+                self.schedules = {}
+                for row in schedules:
+                    schedule_dict = dict(row._mapping) if hasattr(row, '_mapping') else dict(row)
+                    self.schedules[schedule_dict['flow_id']] = schedule_dict
+                
+                logger.info(f"Reloaded {len(self.schedules)} active schedules")
+                
+        except Exception as e:
+            logger.error(f"Failed to reload schedules: {e}")
+    
+    async def _schedule_loop(self):
+        """Main schedule checking loop"""
+        while self.running:
+            try:
+                await self._check_and_execute_schedules()
+                await asyncio.sleep(self.check_interval)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error in schedule loop: {e}")
+                await asyncio.sleep(self.check_interval)
+    
+    async def _check_and_execute_schedules(self):
+        """Check for schedules that need to be executed"""
+        now = datetime.now(timezone.utc)
+        
+        for flow_id, schedule in self.schedules.items():
+            try:
+                # Check if it's time to execute this schedule
+                if await self._should_execute_schedule(schedule, now):
+                    await self._execute_scheduled_flow(flow_id, schedule)
+                    
+            except Exception as e:
+                logger.error(f"Error checking schedule for flow {flow_id}: {e}")
+    
+    async def _should_execute_schedule(self, schedule: dict, now: datetime) -> bool:
+        """Check if a schedule should be executed now"""
+        try:
+            cron_expr = schedule.get('cron_expression')
+            if not cron_expr:
+                return False
+            
+            # Check if we have a next execution time
+            next_execution_str = schedule.get('next_execution_at')
+            if not next_execution_str:
+                # Calculate and update next execution time
+                await self._update_next_execution_time(schedule['flow_id'], cron_expr)
+                return False
+            
+            # Parse next execution time
+            if isinstance(next_execution_str, str):
+                next_execution = datetime.fromisoformat(next_execution_str.replace('Z', '+00:00'))
+            else:
+                next_execution = next_execution_str
+                
+            # Make sure next_execution is timezone-aware
+            if next_execution.tzinfo is None:
+                next_execution = next_execution.replace(tzinfo=timezone.utc)
+            
+            # Check if it's time to execute (with a small buffer for timing precision)
+            return now >= next_execution
+            
+        except Exception as e:
+            logger.error(f"Error checking schedule execution time: {e}")
+            return False
+    
+    async def _execute_scheduled_flow(self, flow_id: str, schedule: dict):
+        """Execute a scheduled flow"""
+        try:
+            logger.info(f"Executing scheduled flow: {flow_id}")
+            
+            # Import here to avoid circular imports
+            import httpx
+            
+            # Get backend URL from environment
+            backend_port = os.getenv("VIBESURF_BACKEND_PORT", "9335")
+            backend_url = f"http://127.0.0.1:{backend_port}"
+            
+            # Make API call to execute the flow
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{backend_url}/api/v1/build/{flow_id}/flow",
+                    json={}  # Empty request body for now
+                )
+                
+                if response.status_code == 200:
+                    logger.info(f"Successfully triggered scheduled flow {flow_id}")
+                else:
+                    logger.error(f"Failed to trigger scheduled flow {flow_id}: {response.status_code} {response.text}")
+            
+            # Update execution tracking
+            await self._update_execution_tracking(flow_id, schedule)
+            
+        except Exception as e:
+            logger.error(f"Error executing scheduled flow {flow_id}: {e}")
+    
+    async def _update_execution_tracking(self, flow_id: str, schedule: dict):
+        """Update execution tracking in the database"""
+        try:
+            if not db_manager:
+                return
+                
+            now = datetime.now(timezone.utc)
+            
+            # Calculate next execution time
+            cron_expr = schedule.get('cron_expression')
+            next_execution = None
+            if cron_expr:
+                try:
+                    cron = croniter(cron_expr, now)
+                    next_execution = cron.get_next(datetime)
+                except (ValueError, TypeError):
+                    logger.error(f"Invalid cron expression for flow {flow_id}: {cron_expr}")
+            
+            async with db_manager.get_session() as session:
+                await session.execute("""
+                    UPDATE schedules
+                    SET last_execution_at = ?,
+                        next_execution_at = ?,
+                        execution_count = execution_count + 1,
+                        updated_at = ?
+                    WHERE flow_id = ?
+                """, (now, next_execution, now, flow_id))
+                
+                await session.commit()
+                
+                # Update local schedule cache
+                if flow_id in self.schedules:
+                    self.schedules[flow_id].update({
+                        'last_execution_at': now,
+                        'next_execution_at': next_execution,
+                        'execution_count': schedule.get('execution_count', 0) + 1
+                    })
+                
+        except Exception as e:
+            logger.error(f"Error updating execution tracking for flow {flow_id}: {e}")
+    
+    async def _update_next_execution_time(self, flow_id: str, cron_expr: str):
+        """Update next execution time for a schedule"""
+        try:
+            if not db_manager:
+                return
+                
+            now = datetime.now(timezone.utc)
+            
+            try:
+                cron = croniter(cron_expr, now)
+                next_execution = cron.get_next(datetime)
+            except (ValueError, TypeError):
+                logger.error(f"Invalid cron expression for flow {flow_id}: {cron_expr}")
+                return
+            
+            async with db_manager.get_session() as session:
+                await session.execute("""
+                    UPDATE schedules
+                    SET next_execution_at = ?, updated_at = ?
+                    WHERE flow_id = ?
+                """, (next_execution, now, flow_id))
+                
+                await session.commit()
+                
+                # Update local schedule cache
+                if flow_id in self.schedules:
+                    self.schedules[flow_id].update({
+                        'next_execution_at': next_execution
+                    })
+                
+        except Exception as e:
+            logger.error(f"Error updating next execution time for flow {flow_id}: {e}")
+
+
+async def initialize_schedule_manager():
+    """Initialize and start the schedule manager"""
+    global schedule_manager
+    
+    try:
+        if schedule_manager:
+            await schedule_manager.stop()
+        
+        schedule_manager = ScheduleManager()
+        await schedule_manager.start()
+        logger.info("✅ Schedule manager initialized and started")
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize schedule manager: {e}")
+
+
+async def shutdown_schedule_manager():
+    """Shutdown the schedule manager"""
+    global schedule_manager
+    
+    try:
+        if schedule_manager:
+            await schedule_manager.stop()
+            schedule_manager = None
+        logger.info("Schedule manager shutdown completed")
+        
+    except Exception as e:
+        logger.error(f"Error shutting down schedule manager: {e}")
 

@@ -573,6 +573,48 @@ class VibeSurfAPIClient {
   async getComposioStatus() {
     return this.get('/composio/status');
   }
+
+  // Workflow Management APIs (Langflow integration)
+  async getWorkflows() {
+    return this.get('/v1/flows');
+  }
+
+  async runWorkflow(flowId) {
+    return this.post(`/v1/build/${encodeURIComponent(flowId)}/flow`, {});
+  }
+
+  async cancelWorkflow(jobId) {
+    return this.post(`/v1/build/${encodeURIComponent(jobId)}/cancel`, {});
+  }
+
+  async getWorkflowEvents(jobId) {
+    return this.get(`/v1/build/${encodeURIComponent(jobId)}/events`);
+  }
+
+  async deleteWorkflow(flowId) {
+    return this.delete(`/v1/flows/${encodeURIComponent(flowId)}`);
+  }
+
+  // Schedule Management APIs
+  async getSchedules() {
+    return this.get('/schedule');
+  }
+
+  async createSchedule(scheduleData) {
+    return this.post('/schedule', scheduleData);
+  }
+
+  async updateSchedule(scheduleId, scheduleData) {
+    return this.put(`/schedule/${encodeURIComponent(scheduleId)}`, scheduleData);
+  }
+
+  async deleteSchedule(scheduleId) {
+    return this.delete(`/schedule/${encodeURIComponent(scheduleId)}`);
+  }
+
+  async getSchedule(scheduleId) {
+    return this.get(`/schedule/${encodeURIComponent(scheduleId)}`);
+  }
 }
 
 // Custom error class for API errors

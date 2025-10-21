@@ -17,7 +17,18 @@ class VibeSurfSettingsManager {
       filteredToolkits: [],
       currentToolkit: null,
       searchQuery: '',
-      filterStatus: 'all'
+      filterStatus: 'all',
+      // Workflows state
+      workflows: [],
+      filteredWorkflows: [],
+      workflowSearchQuery: '',
+      workflowFilterStatus: 'all',
+      currentWorkflow: null,
+      runningJobs: new Map(),
+      currentScheduleWorkflow: null,
+      currentLogsWorkflow: null,
+      currentLogsJobId: null,
+      currentDeleteWorkflow: null
     };
     this.elements = {};
     this.eventListeners = new Map();
@@ -39,8 +50,43 @@ class VibeSurfSettingsManager {
       
       // Workflow Tab
       workflowTab: document.getElementById('workflow-tab'),
-      workflowBackBtn: document.getElementById('workflow-back-btn'),
-      workflowIframe: document.getElementById('workflow-iframe'),
+      createWorkflowBtn: document.getElementById('create-workflow-btn'),
+      workflowSearch: document.getElementById('workflow-search'),
+      workflowFilter: document.getElementById('workflow-filter'),
+      workflowsList: document.getElementById('workflows-list'),
+      workflowsLoading: document.getElementById('workflows-loading'),
+      
+      // Workflow Schedule Modal
+      workflowScheduleModal: document.getElementById('workflow-schedule-modal'),
+      scheduleModalTitle: document.getElementById('schedule-modal-title'),
+      scheduleWorkflowName: document.getElementById('schedule-workflow-name'),
+      scheduleTypeSelect: document.getElementById('schedule-type-select'),
+      presetScheduleGroup: document.getElementById('preset-schedule-group'),
+      presetScheduleSelect: document.getElementById('preset-schedule-select'),
+      customCronGroup: document.getElementById('custom-cron-group'),
+      customCronInput: document.getElementById('custom-cron-input'),
+      cronPreview: document.getElementById('cron-preview'),
+      cronPreviewTimes: document.getElementById('cron-preview-times'),
+      scheduleCancel: document.getElementById('schedule-cancel'),
+      scheduleSave: document.getElementById('schedule-save'),
+      
+      // Workflow Logs Modal
+      workflowLogsModal: document.getElementById('workflow-logs-modal'),
+      logsModalTitle: document.getElementById('logs-modal-title'),
+      logsWorkflowName: document.getElementById('logs-workflow-name'),
+      logsJobId: document.getElementById('logs-job-id'),
+      logsRefreshBtn: document.getElementById('logs-refresh-btn'),
+      logsClearBtn: document.getElementById('logs-clear-btn'),
+      logsContainer: document.getElementById('logs-container'),
+      logsContent: document.getElementById('logs-content'),
+      logsLoading: document.getElementById('logs-loading'),
+      logsClose: document.getElementById('logs-close'),
+      
+      // Workflow Delete Modal
+      workflowDeleteModal: document.getElementById('workflow-delete-modal'),
+      deleteWorkflowName: document.getElementById('delete-workflow-name'),
+      deleteCancel: document.getElementById('delete-cancel'),
+      deleteConfirm: document.getElementById('delete-confirm'),
       
       // General Settings
       themeSelect: document.getElementById('theme-select'),
@@ -195,7 +241,41 @@ class VibeSurfSettingsManager {
     }
     
     // Workflow tab events
-    this.elements.workflowBackBtn?.addEventListener('click', this.handleWorkflowBack.bind(this));
+    this.elements.createWorkflowBtn?.addEventListener('click', this.handleCreateWorkflow.bind(this));
+    this.elements.workflowSearch?.addEventListener('input', this.handleWorkflowSearch.bind(this));
+    this.elements.workflowFilter?.addEventListener('change', this.handleWorkflowFilter.bind(this));
+    
+    // Workflow Schedule Modal events
+    this.elements.scheduleTypeSelect?.addEventListener('change', this.handleScheduleTypeChange.bind(this));
+    this.elements.presetScheduleSelect?.addEventListener('change', this.handleSchedulePreviewUpdate.bind(this));
+    this.elements.customCronInput?.addEventListener('input', this.handleSchedulePreviewUpdate.bind(this));
+    this.elements.scheduleCancel?.addEventListener('click', this.hideScheduleModal.bind(this));
+    this.elements.scheduleSave?.addEventListener('click', this.handleScheduleSave.bind(this));
+    
+    // Workflow Logs Modal events
+    this.elements.logsRefreshBtn?.addEventListener('click', this.handleLogsRefresh.bind(this));
+    this.elements.logsClearBtn?.addEventListener('click', this.handleLogsClear.bind(this));
+    this.elements.logsClose?.addEventListener('click', this.hideLogsModal.bind(this));
+    
+    // Workflow Delete Modal events
+    this.elements.deleteCancel?.addEventListener('click', this.hideDeleteModal.bind(this));
+    this.elements.deleteConfirm?.addEventListener('click', this.handleDeleteConfirm.bind(this));
+    
+    // Workflow modal close buttons
+    const scheduleModalClose = this.elements.workflowScheduleModal?.querySelector('.modal-close');
+    if (scheduleModalClose) {
+      scheduleModalClose.addEventListener('click', this.hideScheduleModal.bind(this));
+    }
+    
+    const logsModalClose = this.elements.workflowLogsModal?.querySelector('.modal-close');
+    if (logsModalClose) {
+      logsModalClose.addEventListener('click', this.hideLogsModal.bind(this));
+    }
+    
+    const deleteModalClose = this.elements.workflowDeleteModal?.querySelector('.modal-close');
+    if (deleteModalClose) {
+      deleteModalClose.addEventListener('click', this.hideDeleteModal.bind(this));
+    }
     
     // Global keyboard shortcuts
     document.addEventListener('keydown', this.handleKeydown.bind(this));
@@ -2899,96 +2979,824 @@ class VibeSurfSettingsManager {
       try {
         console.log('[SettingsManager] Loading workflow content...');
         
-        if (this.elements.workflowIframe) {
-          console.log('[SettingsManager] Current iframe src:', this.elements.workflowIframe.src);
-          
-          // Use the default workflow URL for now (can be configurable later)
-          const currentSrc = this.elements.workflowIframe.src;
-          const workflowUrl = 'http://127.0.0.1:9335/';
-          
-          console.log('[SettingsManager] Target workflow URL:', workflowUrl);
-          
-          if (currentSrc !== workflowUrl) {
-            console.log('[SettingsManager] Updating iframe URL to:', workflowUrl);
-            this.elements.workflowIframe.src = workflowUrl;
-            
-            // Add error handling for iframe loading
-            this.elements.workflowIframe.onload = () => {
-              console.log('[SettingsManager] Workflow iframe loaded successfully');
-            };
-            
-            this.elements.workflowIframe.onerror = (error) => {
-              console.error('[SettingsManager] Workflow iframe failed to load:', error);
-              this.showWorkflowError('Failed to load workflow application. Please check if the service is running on http://127.0.0.1:9335/');
-            };
-            
-            // Handle iframe connection errors
-            setTimeout(() => {
-              try {
-                // Try to access iframe's contentDocument to check if it loaded
-                const iframeDoc = this.elements.workflowIframe.contentDocument || this.elements.workflowIframe.contentWindow.document;
-                if (!iframeDoc || iframeDoc.location.href === 'about:blank') {
-                  console.warn('[SettingsManager] Iframe might not have loaded properly');
-                  this.showWorkflowError('Cannot connect to workflow service. Please ensure the application is running on http://127.0.0.1:7860/ and allows iframe embedding.');
-                }
-              } catch (e) {
-                // Cross-origin error is expected, but connection errors will show up differently
-                console.log('[SettingsManager] Cross-origin access blocked (this is normal)');
-              }
-            }, 5000);
-          }
-          
-          console.log('[SettingsManager] Workflow iframe configured');
-        } else {
-          console.error('[SettingsManager] Workflow iframe element not found!');
-        }
+        // Show loading state
+        this.showWorkflowsLoading();
+        
+        // Load workflows from backend
+        await this.loadWorkflows();
+        
+        console.log('[SettingsManager] Workflow content loaded');
         
       } catch (error) {
         console.error('[SettingsManager] Failed to load workflow content:', error);
+        this.hideWorkflowsLoading();
+        this.emit('notification', {
+          message: 'Failed to load workflows',
+          type: 'error'
+        });
       }
     }
     
-    // Show workflow error message
-    showWorkflowError(message) {
-      if (this.elements.workflowIframe) {
-        // Create error message HTML
-        const errorHtml = `
-          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; text-align: center; font-family: system-ui, -apple-system, sans-serif;">
-            <div style="margin-bottom: 20px; font-size: 48px;">⚠️</div>
-            <h3 style="margin: 0 0 10px 0; color: #e74c3c;">Workflow Connection Error</h3>
-            <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">${message}</p>
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff;">
-              <strong>Troubleshooting:</strong>
-              <ul style="text-align: left; margin: 10px 0 0 0; padding-left: 20px;">
-                <li>Ensure your workflow service is running on <code>http://127.0.0.1:9335/</code></li>
-                <li>Check if the service allows iframe embedding (X-Frame-Options)</li>
-                <li>Try refreshing this tab or reloading the extension</li>
-              </ul>
+    // Load workflows from backend
+    async loadWorkflows() {
+      try {
+        console.log('[SettingsManager] Loading workflows from backend...');
+        
+        const response = await this.apiClient.getWorkflows();
+        console.log('[SettingsManager] Workflows response:', response);
+        console.log('[SettingsManager] Response type:', typeof response);
+        console.log('[SettingsManager] Response keys:', Object.keys(response));
+        
+        // Handle different response structures
+        let workflows = [];
+        if (Array.isArray(response)) {
+          workflows = response;
+          console.log('[SettingsManager] Response is array, length:', workflows.length);
+        } else if (response.flows && Array.isArray(response.flows)) {
+          workflows = response.flows;
+          console.log('[SettingsManager] Response has flows array, length:', workflows.length);
+        } else if (response.data && Array.isArray(response.data)) {
+          workflows = response.data;
+          console.log('[SettingsManager] Response has data array, length:', workflows.length);
+        } else {
+          console.warn('[SettingsManager] Unexpected response structure:', response);
+          workflows = [];
+        }
+        
+        // Convert workflow data to frontend format
+        this.state.workflows = workflows.map(workflow => ({
+          id: workflow.id,
+          name: workflow.name,
+          description: workflow.description || '',
+          flow_id: workflow.id,
+          icon_bg_color: workflow.icon_bg_color,
+          updated_at: workflow.updated_at,
+          mcp_enabled: workflow.mcp_enabled,
+          webhook: workflow.webhook,
+          endpoint_name: workflow.endpoint_name
+        }));
+        
+        console.log('[SettingsManager] Converted workflows:', this.state.workflows.length);
+        console.log('[SettingsManager] First workflow sample:', this.state.workflows[0]);
+        
+        // Load schedule information for workflows
+        await this.loadWorkflowSchedules();
+        
+        // Apply current search and filter
+        this.filterWorkflows();
+        
+        console.log('[SettingsManager] Loaded workflows:', this.state.workflows.length);
+        
+      } catch (error) {
+        console.error('[SettingsManager] Failed to load workflows:', error);
+        console.error('[SettingsManager] Error details:', error.message);
+        console.error('[SettingsManager] Error stack:', error.stack);
+        this.state.workflows = [];
+        this.state.filteredWorkflows = [];
+        this.renderWorkflows();
+        throw error;
+      }
+    }
+    
+    // Load workflow schedules
+    async loadWorkflowSchedules() {
+      try {
+        const response = await this.apiClient.getSchedules();
+        const schedules = response.schedules || response || [];
+        
+        // Add schedule information to workflows
+        this.state.workflows.forEach(workflow => {
+          const schedule = schedules.find(s => s.flow_id === workflow.flow_id);
+          workflow.scheduled = !!schedule;
+          workflow.schedule = schedule;
+        });
+        
+      } catch (error) {
+        console.error('[SettingsManager] Failed to load workflow schedules:', error);
+        // Continue without schedule information
+      }
+    }
+    
+    // Show workflows loading state
+    showWorkflowsLoading() {
+      if (this.elements.workflowsLoading) {
+        this.elements.workflowsLoading.style.display = 'block';
+      }
+      if (this.elements.workflowsList) {
+        this.elements.workflowsList.innerHTML = '';
+      }
+    }
+    
+    // Hide workflows loading state
+    hideWorkflowsLoading() {
+      if (this.elements.workflowsLoading) {
+        this.elements.workflowsLoading.style.display = 'none';
+      }
+    }
+    
+    // Handle create workflow button
+    handleCreateWorkflow() {
+      console.log('[SettingsManager] Create workflow button clicked');
+      
+      // Get backend URL from API client or settings
+      const backendUrl = this.apiClient.baseURL || window.CONFIG?.BACKEND_URL || 'http://localhost:8000';
+      const createUrl = `${backendUrl}/flows`;
+      
+      // Open in new tab using Chrome extension API
+      if (typeof chrome !== 'undefined' && chrome.tabs) {
+        chrome.tabs.create({ url: createUrl });
+      } else {
+        // Fallback for non-extension context
+        window.open(createUrl, '_blank');
+      }
+    }
+    
+    // Handle workflow search
+    handleWorkflowSearch(event) {
+      this.state.workflowSearchQuery = event.target.value.toLowerCase().trim();
+      this.filterWorkflows();
+    }
+    
+    // Handle workflow filter
+    handleWorkflowFilter(event) {
+      this.state.workflowFilterStatus = event.target.value;
+      this.filterWorkflows();
+    }
+    
+    // Filter workflows based on search and filter
+    filterWorkflows() {
+      let filtered = [...this.state.workflows];
+      
+      // Apply search filter
+      if (this.state.workflowSearchQuery) {
+        filtered = filtered.filter(workflow =>
+          workflow.name.toLowerCase().includes(this.state.workflowSearchQuery) ||
+          workflow.description.toLowerCase().includes(this.state.workflowSearchQuery)
+        );
+      }
+      
+      // Apply status filter
+      if (this.state.workflowFilterStatus !== 'all') {
+        if (this.state.workflowFilterStatus === 'scheduled') {
+          filtered = filtered.filter(workflow => workflow.scheduled === true);
+        } else if (this.state.workflowFilterStatus === 'unscheduled') {
+          filtered = filtered.filter(workflow => workflow.scheduled === false);
+        } else if (this.state.workflowFilterStatus === 'running') {
+          filtered = filtered.filter(workflow => this.state.runningJobs.has(workflow.flow_id));
+        }
+      }
+      
+      this.state.filteredWorkflows = filtered;
+      console.log('[SettingsManager] Filtered workflows for rendering:', filtered.length);
+      this.renderWorkflows();
+    }
+    
+    // Render workflows list
+    renderWorkflows() {
+      console.log('[SettingsManager] renderWorkflows called');
+      
+      if (!this.elements.workflowsList) {
+        console.error('[SettingsManager] workflowsList element not found!');
+        return;
+      }
+      
+      this.hideWorkflowsLoading();
+      
+      const workflows = this.state.filteredWorkflows;
+      console.log('[SettingsManager] Rendering workflows:', workflows.length);
+      
+      if (workflows.length === 0) {
+        const isEmpty = this.state.workflows.length === 0;
+        this.elements.workflowsList.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">⚡</div>
+            <div class="empty-state-title">${isEmpty ? 'No Workflows Available' : 'No Matching Workflows'}</div>
+            <div class="empty-state-description">
+              ${isEmpty ? 'Create your first workflow to get started and unlock the power of automated workflows.' : 'Try adjusting your search or filter criteria to find what you\'re looking for.'}
             </div>
-            <button onclick="window.location.reload()" style="margin-top: 15px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
+            ${isEmpty ? '<button class="btn btn-primary create-workflow-empty-btn">Create Your First Workflow</button>' : ''}
           </div>
         `;
         
-        // Replace iframe with error message
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'workflow-error';
-        errorDiv.innerHTML = errorHtml;
-        errorDiv.style.cssText = 'width: 100%; height: 100%; border: 1px solid #ddd; border-radius: 8px;';
-        
-        // Replace iframe temporarily
-        this.elements.workflowIframe.style.display = 'none';
-        this.elements.workflowIframe.parentNode.appendChild(errorDiv);
+        // Bind event to the empty state create workflow button
+        if (isEmpty) {
+          const emptyCreateBtn = this.elements.workflowsList.querySelector('.create-workflow-empty-btn');
+          if (emptyCreateBtn) {
+            emptyCreateBtn.addEventListener('click', this.handleCreateWorkflow.bind(this));
+          }
+        }
+        return;
+      }
+      
+      const workflowsHTML = workflows.map(workflow => this.renderWorkflowCard(workflow)).join('');
+      this.elements.workflowsList.innerHTML = workflowsHTML;
+      
+      // Bind event listeners for workflow interactions
+      this.bindWorkflowEvents();
+    }
+    
+    // Render individual workflow card
+    renderWorkflowCard(workflow) {
+      const isRunning = this.state.runningJobs.has(workflow.flow_id);
+      const jobInfo = this.state.runningJobs.get(workflow.flow_id);
+      
+      return `
+        <div class="workflow-card" data-workflow-id="${workflow.flow_id}">
+          <div class="workflow-header">
+            <div class="workflow-info">
+              <div class="workflow-name">${this.escapeHtml(workflow.name)}</div>
+              <div class="workflow-description">${this.escapeHtml(workflow.description)}</div>
+              <div class="workflow-flow-id">
+                <span class="flow-id-label">Flow ID:</span>
+                <code class="flow-id-value" title="Click to copy">${workflow.flow_id}</code>
+                <button class="btn btn-icon copy-flow-id" data-flow-id="${workflow.flow_id}" title="Copy Flow ID">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M16 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6C4 4.89543 4.89543 4 6 4H8" stroke="currentColor" stroke-width="2"/>
+                    <rect x="8" y="2" width="8" height="4" rx="1" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="workflow-status">
+              ${workflow.scheduled ? '<span class="status-badge scheduled">Scheduled</span>' : ''}
+              ${isRunning ? '<span class="status-badge running">Running</span>' : ''}
+            </div>
+          </div>
+          <div class="workflow-actions">
+            <button class="btn btn-primary workflow-run-btn" data-workflow-id="${workflow.flow_id}"
+                    ${isRunning ? 'style="display: none;"' : ''}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <polygon points="5,3 19,12 5,21" stroke="currentColor" stroke-width="2" fill="currentColor"/>
+              </svg>
+              Run
+            </button>
+            <button class="btn btn-secondary workflow-pause-btn" data-workflow-id="${workflow.flow_id}" data-job-id="${jobInfo?.job_id || ''}"
+                    ${!isRunning ? 'style="display: none;"' : ''}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <rect x="6" y="4" width="4" height="16" stroke="currentColor" stroke-width="2" fill="currentColor"/>
+                <rect x="14" y="4" width="4" height="16" stroke="currentColor" stroke-width="2" fill="currentColor"/>
+              </svg>
+              Pause
+            </button>
+            <button class="btn btn-secondary workflow-logs-btn" data-workflow-id="${workflow.flow_id}" data-job-id="${jobInfo?.job_id || ''}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="currentColor" stroke-width="2"/>
+                <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2"/>
+                <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2"/>
+                <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2"/>
+                <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              Logs
+            </button>
+            <button class="btn btn-secondary workflow-schedule-btn" data-workflow-id="${workflow.flow_id}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2"/>
+                <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2"/>
+                <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              Schedule
+            </button>
+            <button class="btn btn-secondary workflow-edit-btn" data-workflow-id="${workflow.flow_id}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2"/>
+                <path d="M18.5 2.5C18.8978 2.10217 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10217 21.5 2.5C21.8978 2.89783 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10217 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              Edit
+            </button>
+            <button class="btn btn-danger workflow-delete-btn" data-workflow-id="${workflow.flow_id}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M3 6H5H21" stroke="currentColor" stroke-width="2"/>
+                <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              Delete
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    
+    // Bind workflow event listeners
+    bindWorkflowEvents() {
+      if (!this.elements.workflowsList) return;
+      
+      // Copy flow ID buttons
+      this.elements.workflowsList.querySelectorAll('.copy-flow-id').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleCopyFlowId(btn.dataset.flowId);
+        });
+      });
+      
+      // Run workflow buttons
+      this.elements.workflowsList.querySelectorAll('.workflow-run-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleWorkflowRun(btn.dataset.workflowId);
+        });
+      });
+      
+      // Pause workflow buttons
+      this.elements.workflowsList.querySelectorAll('.workflow-pause-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleWorkflowPause(btn.dataset.workflowId, btn.dataset.jobId);
+        });
+      });
+      
+      // Logs buttons
+      this.elements.workflowsList.querySelectorAll('.workflow-logs-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleWorkflowLogs(btn.dataset.workflowId, btn.dataset.jobId);
+        });
+      });
+      
+      // Schedule buttons
+      this.elements.workflowsList.querySelectorAll('.workflow-schedule-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleWorkflowSchedule(btn.dataset.workflowId);
+        });
+      });
+      
+      // Edit buttons
+      this.elements.workflowsList.querySelectorAll('.workflow-edit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleWorkflowEdit(btn.dataset.workflowId);
+        });
+      });
+      
+      // Delete buttons
+      this.elements.workflowsList.querySelectorAll('.workflow-delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.handleWorkflowDelete(btn.dataset.workflowId);
+        });
+      });
+    }
+    
+    // Handle copy flow ID
+    async handleCopyFlowId(flowId) {
+      try {
+        await navigator.clipboard.writeText(flowId);
+        this.emit('notification', {
+          message: 'Flow ID copied to clipboard',
+          type: 'success'
+        });
+      } catch (error) {
+        console.error('[SettingsManager] Failed to copy flow ID:', error);
+        this.emit('notification', {
+          message: 'Failed to copy flow ID',
+          type: 'error'
+        });
       }
     }
     
-    // Handle workflow back button click
-    handleWorkflowBack() {
-      console.log('[SettingsManager] Workflow back button clicked');
+    // Handle workflow run
+    async handleWorkflowRun(workflowId) {
+      try {
+        console.log(`[SettingsManager] Running workflow ${workflowId}`);
+        
+        const response = await this.apiClient.runWorkflow(workflowId);
+        const jobId = response.job_id || response.id;
+        
+        if (jobId) {
+          // Add to running jobs
+          this.state.runningJobs.set(workflowId, {
+            job_id: jobId,
+            started_at: new Date()
+          });
+          
+          // Re-render workflows to update UI
+          this.renderWorkflows();
+          
+          // Start monitoring job status
+          this.monitorWorkflowJob(workflowId, jobId);
+          
+          this.emit('notification', {
+            message: 'Workflow started successfully',
+            type: 'success'
+          });
+        }
+        
+      } catch (error) {
+        console.error('[SettingsManager] Failed to run workflow:', error);
+        this.emit('notification', {
+          message: `Failed to run workflow: ${error.message}`,
+          type: 'error'
+        });
+      }
+    }
+    
+    // Handle workflow pause
+    async handleWorkflowPause(workflowId, jobId) {
+      try {
+        console.log(`[SettingsManager] Pausing workflow ${workflowId}, job ${jobId}`);
+        
+        await this.apiClient.cancelWorkflow(jobId);
+        
+        // Remove from running jobs
+        this.state.runningJobs.delete(workflowId);
+        
+        // Re-render workflows to update UI
+        this.renderWorkflows();
+        
+        this.emit('notification', {
+          message: 'Workflow paused successfully',
+          type: 'success'
+        });
+        
+      } catch (error) {
+        console.error('[SettingsManager] Failed to pause workflow:', error);
+        this.emit('notification', {
+          message: `Failed to pause workflow: ${error.message}`,
+          type: 'error'
+        });
+      }
+    }
+    
+    // Monitor workflow job status
+    async monitorWorkflowJob(workflowId, jobId) {
+      const checkStatus = async () => {
+        try {
+          const events = await this.apiClient.getWorkflowEvents(jobId);
+          
+          // Check if workflow is still running based on events
+          const isStillRunning = events && events.length > 0;
+          
+          if (!isStillRunning || !this.state.runningJobs.has(workflowId)) {
+            // Workflow finished, remove from running jobs
+            this.state.runningJobs.delete(workflowId);
+            this.renderWorkflows();
+            return;
+          }
+          
+          // Continue monitoring
+          setTimeout(checkStatus, 5000);
+          
+        } catch (error) {
+          console.error('[SettingsManager] Failed to check workflow status:', error);
+          // Stop monitoring on error
+          this.state.runningJobs.delete(workflowId);
+          this.renderWorkflows();
+        }
+      };
       
-      // Switch back to the general settings tab
-      const generalTab = document.querySelector('.settings-tab[data-tab="general"]');
-      if (generalTab) {
-        generalTab.click();
+      // Start monitoring after a short delay
+      setTimeout(checkStatus, 2000);
+    }
+    
+    // Handle workflow logs
+    async handleWorkflowLogs(workflowId, jobId) {
+      const workflow = this.state.workflows.find(w => w.flow_id === workflowId);
+      if (!workflow) return;
+      
+      this.state.currentLogsWorkflow = workflow;
+      this.state.currentLogsJobId = jobId;
+      
+      this.showLogsModal();
+      await this.loadWorkflowLogs(jobId);
+    }
+    
+    // Show logs modal
+    showLogsModal() {
+      if (!this.elements.workflowLogsModal || !this.state.currentLogsWorkflow) return;
+      
+      // Update modal title and info
+      if (this.elements.logsModalTitle) {
+        this.elements.logsModalTitle.textContent = `Workflow Logs`;
+      }
+      
+      if (this.elements.logsWorkflowName) {
+        this.elements.logsWorkflowName.textContent = this.state.currentLogsWorkflow.name;
+      }
+      
+      if (this.elements.logsJobId) {
+        this.elements.logsJobId.textContent = this.state.currentLogsJobId || 'No active job';
+      }
+      
+      // Show modal
+      this.elements.workflowLogsModal.classList.remove('hidden');
+    }
+    
+    // Hide logs modal
+    hideLogsModal() {
+      if (this.elements.workflowLogsModal) {
+        this.elements.workflowLogsModal.classList.add('hidden');
+      }
+      this.state.currentLogsWorkflow = null;
+      this.state.currentLogsJobId = null;
+    }
+    
+    // Load workflow logs
+    async loadWorkflowLogs(jobId) {
+      if (!this.elements.logsContent) return;
+      
+      try {
+        if (this.elements.logsLoading) {
+          this.elements.logsLoading.style.display = 'block';
+        }
+        
+        if (!jobId) {
+          this.elements.logsContent.innerHTML = '<div class="log-entry info">No active job to show logs for</div>';
+          return;
+        }
+        
+        const events = await this.apiClient.getWorkflowEvents(jobId);
+        this.renderWorkflowLogs(events || []);
+        
+      } catch (error) {
+        console.error('[SettingsManager] Failed to load workflow logs:', error);
+        this.elements.logsContent.innerHTML = '<div class="log-entry error">Failed to load logs</div>';
+      } finally {
+        if (this.elements.logsLoading) {
+          this.elements.logsLoading.style.display = 'none';
+        }
+      }
+    }
+    
+    // Render workflow logs
+    renderWorkflowLogs(events) {
+      if (!this.elements.logsContent) return;
+      
+      if (events.length === 0) {
+        this.elements.logsContent.innerHTML = '<div class="log-entry info">No logs available</div>';
+        return;
+      }
+      
+      const logsHTML = events.map(event => {
+        const timestamp = new Date(event.timestamp || Date.now()).toLocaleString();
+        const level = event.level || 'info';
+        const message = event.message || JSON.stringify(event);
+        
+        return `
+          <div class="log-entry ${level}">
+            <span class="log-timestamp">${timestamp}</span>
+            <span class="log-level">[${level.toUpperCase()}]</span>
+            <span class="log-message">${this.escapeHtml(message)}</span>
+          </div>
+        `;
+      }).join('');
+      
+      this.elements.logsContent.innerHTML = logsHTML;
+      
+      // Scroll to bottom
+      this.elements.logsContent.scrollTop = this.elements.logsContent.scrollHeight;
+    }
+    
+    // Handle logs refresh
+    async handleLogsRefresh() {
+      if (this.state.currentLogsJobId) {
+        await this.loadWorkflowLogs(this.state.currentLogsJobId);
+      }
+    }
+    
+    // Handle logs clear
+    handleLogsClear() {
+      if (this.elements.logsContent) {
+        this.elements.logsContent.innerHTML = '<div class="log-entry info">Logs cleared</div>';
+      }
+    }
+    
+    // Handle workflow schedule
+    async handleWorkflowSchedule(workflowId) {
+      const workflow = this.state.workflows.find(w => w.flow_id === workflowId);
+      if (!workflow) return;
+      
+      this.state.currentScheduleWorkflow = workflow;
+      this.showScheduleModal();
+    }
+    
+    // Show schedule modal
+    showScheduleModal() {
+      if (!this.elements.workflowScheduleModal || !this.state.currentScheduleWorkflow) return;
+      
+      // Update modal title and info
+      if (this.elements.scheduleModalTitle) {
+        this.elements.scheduleModalTitle.textContent = 'Schedule Workflow';
+      }
+      
+      if (this.elements.scheduleWorkflowName) {
+        this.elements.scheduleWorkflowName.textContent = this.state.currentScheduleWorkflow.name;
+      }
+      
+      // Reset form
+      if (this.elements.scheduleTypeSelect) {
+        this.elements.scheduleTypeSelect.value = this.state.currentScheduleWorkflow.scheduled ? 'custom' : 'none';
+      }
+      
+      this.handleScheduleTypeChange();
+      
+      // If workflow is already scheduled, populate the form
+      if (this.state.currentScheduleWorkflow.schedule) {
+        if (this.elements.customCronInput) {
+          this.elements.customCronInput.value = this.state.currentScheduleWorkflow.schedule.cron_expression || '';
+        }
+        this.handleSchedulePreviewUpdate();
+      }
+      
+      // Show modal
+      this.elements.workflowScheduleModal.classList.remove('hidden');
+    }
+    
+    // Hide schedule modal
+    hideScheduleModal() {
+      if (this.elements.workflowScheduleModal) {
+        this.elements.workflowScheduleModal.classList.add('hidden');
+      }
+      this.state.currentScheduleWorkflow = null;
+    }
+    
+    // Handle schedule type change
+    handleScheduleTypeChange() {
+      if (!this.elements.scheduleTypeSelect) return;
+      
+      const scheduleType = this.elements.scheduleTypeSelect.value;
+      
+      // Show/hide relevant sections
+      if (this.elements.presetScheduleGroup) {
+        this.elements.presetScheduleGroup.style.display = scheduleType === 'preset' ? 'block' : 'none';
+      }
+      
+      if (this.elements.customCronGroup) {
+        this.elements.customCronGroup.style.display = scheduleType === 'custom' ? 'block' : 'none';
+      }
+      
+      // Update preview
+      this.handleSchedulePreviewUpdate();
+    }
+    
+    // Handle schedule preview update
+    handleSchedulePreviewUpdate() {
+      if (!this.elements.cronPreview || !this.elements.cronPreviewTimes) return;
+      
+      const scheduleType = this.elements.scheduleTypeSelect?.value;
+      let cronExpression = '';
+      
+      if (scheduleType === 'preset' && this.elements.presetScheduleSelect) {
+        cronExpression = this.elements.presetScheduleSelect.value;
+      } else if (scheduleType === 'custom' && this.elements.customCronInput) {
+        cronExpression = this.elements.customCronInput.value.trim();
+      }
+      
+      if (cronExpression) {
+        this.elements.cronPreview.style.display = 'block';
+        // Here you would typically validate and show next execution times
+        // For now, just show the cron expression
+        this.elements.cronPreviewTimes.innerHTML = `
+          <div><strong>Cron Expression:</strong> ${this.escapeHtml(cronExpression)}</div>
+          <div><em>Next execution times will be calculated by the backend</em></div>
+        `;
+      } else {
+        this.elements.cronPreview.style.display = 'none';
+      }
+    }
+    
+    // Handle schedule save
+    async handleScheduleSave() {
+      if (!this.state.currentScheduleWorkflow) return;
+      
+      try {
+        const scheduleType = this.elements.scheduleTypeSelect?.value;
+        const workflowId = this.state.currentScheduleWorkflow.flow_id;
+        
+        if (scheduleType === 'none') {
+          // Remove schedule
+          if (this.state.currentScheduleWorkflow.schedule) {
+            await this.apiClient.deleteSchedule(this.state.currentScheduleWorkflow.schedule.id);
+          }
+          
+          this.emit('notification', {
+            message: 'Workflow schedule removed',
+            type: 'success'
+          });
+        } else {
+          // Add/update schedule
+          let cronExpression = '';
+          
+          if (scheduleType === 'preset' && this.elements.presetScheduleSelect) {
+            cronExpression = this.elements.presetScheduleSelect.value;
+          } else if (scheduleType === 'custom' && this.elements.customCronInput) {
+            cronExpression = this.elements.customCronInput.value.trim();
+          }
+          
+          if (!cronExpression) {
+            this.emit('notification', {
+              message: 'Please provide a valid cron expression',
+              type: 'error'
+            });
+            return;
+          }
+          
+          const scheduleData = {
+            flow_id: workflowId,
+            cron_expression: cronExpression
+          };
+          
+          if (this.state.currentScheduleWorkflow.schedule) {
+            // Update existing schedule
+            await this.apiClient.updateSchedule(this.state.currentScheduleWorkflow.schedule.id, scheduleData);
+          } else {
+            // Create new schedule
+            await this.apiClient.createSchedule(scheduleData);
+          }
+          
+          this.emit('notification', {
+            message: 'Workflow schedule saved successfully',
+            type: 'success'
+          });
+        }
+        
+        // Reload workflows to update schedule status
+        await this.loadWorkflows();
+        
+        // Close modal
+        this.hideScheduleModal();
+        
+      } catch (error) {
+        console.error('[SettingsManager] Failed to save schedule:', error);
+        this.emit('notification', {
+          message: `Failed to save schedule: ${error.message}`,
+          type: 'error'
+        });
+      }
+    }
+    
+    // Handle workflow edit
+    handleWorkflowEdit(workflowId) {
+      console.log(`[SettingsManager] Edit workflow ${workflowId}`);
+      
+      // Get backend URL from API client or settings
+      const backendUrl = this.apiClient.baseURL || window.CONFIG?.BACKEND_URL || 'http://localhost:8000';
+      const editUrl = `${backendUrl}/flow/${workflowId}`;
+      
+      // Open in new tab using Chrome extension API
+      if (typeof chrome !== 'undefined' && chrome.tabs) {
+        chrome.tabs.create({ url: editUrl });
+      } else {
+        // Fallback for non-extension context
+        window.open(editUrl, '_blank');
+      }
+    }
+    
+    // Handle workflow delete
+    async handleWorkflowDelete(workflowId) {
+      const workflow = this.state.workflows.find(w => w.flow_id === workflowId);
+      if (!workflow) return;
+      
+      this.state.currentDeleteWorkflow = workflow;
+      this.showDeleteModal();
+    }
+    
+    // Show delete modal
+    showDeleteModal() {
+      if (!this.elements.workflowDeleteModal || !this.state.currentDeleteWorkflow) return;
+      
+      if (this.elements.deleteWorkflowName) {
+        this.elements.deleteWorkflowName.textContent = this.state.currentDeleteWorkflow.name;
+      }
+      
+      // Show modal
+      this.elements.workflowDeleteModal.classList.remove('hidden');
+    }
+    
+    // Hide delete modal
+    hideDeleteModal() {
+      if (this.elements.workflowDeleteModal) {
+        this.elements.workflowDeleteModal.classList.add('hidden');
+      }
+      this.state.currentDeleteWorkflow = null;
+    }
+    
+    // Handle delete confirm
+    async handleDeleteConfirm() {
+      if (!this.state.currentDeleteWorkflow) return;
+      
+      try {
+        const workflowId = this.state.currentDeleteWorkflow.flow_id;
+        
+        // Delete the workflow
+        await this.apiClient.deleteWorkflow(workflowId);
+        
+        this.emit('notification', {
+          message: 'Workflow deleted successfully',
+          type: 'success'
+        });
+        
+        // Reload workflows
+        await this.loadWorkflows();
+        
+        // Close modal
+        this.hideDeleteModal();
+        
+      } catch (error) {
+        console.error('[SettingsManager] Failed to delete workflow:', error);
+        this.emit('notification', {
+          message: `Failed to delete workflow: ${error.message}`,
+          type: 'error'
+        });
       }
     }
   }

@@ -245,6 +245,7 @@ dependencies = [
     "opencv-python>=4.11; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "pytest-codspeed==4.0.0", # Pinned to avoid python3.13 + intel mac compatibility issues
     "celery>=5.5.3",
+    "croniter>=6.0.0",
 ]
 
 [project.urls]

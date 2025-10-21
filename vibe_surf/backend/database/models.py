@@ -254,3 +254,36 @@ Index('idx_composio_toolkits_enabled', ComposioToolkit.enabled)
 
 # Credential indexes
 Index('idx_credentials_key_name', Credential.key_name)
+
+class Schedule(Base):
+    """Schedule model for managing workflow schedules with cron expressions"""
+    __tablename__ = 'schedules'
+    
+    # Primary identifier
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    flow_id = Column(String(36), nullable=False, unique=True)  # One schedule per flow
+    
+    # Schedule Configuration
+    cron_expression = Column(String(100), nullable=True)  # Standard cron format, nullable for disabled schedules
+    
+    # Schedule metadata
+    is_enabled = Column(Boolean, default=True, nullable=False)
+    description = Column(Text, nullable=True)
+    
+    # Execution tracking
+    last_execution_at = Column(DateTime, nullable=True)
+    next_execution_at = Column(DateTime, nullable=True)
+    execution_count = Column(BigInteger, default=0, nullable=False)
+    
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    
+    def __repr__(self):
+        return f"<Schedule(flow_id={self.flow_id}, cron={self.cron_expression}, enabled={self.is_enabled})>"
+
+# Schedule indexes
+Index('idx_schedules_flow_id', Schedule.flow_id)
+Index('idx_schedules_enabled', Schedule.is_enabled)
+Index('idx_schedules_next_execution', Schedule.next_execution_at)
+Index('idx_schedules_cron', Schedule.cron_expression)
