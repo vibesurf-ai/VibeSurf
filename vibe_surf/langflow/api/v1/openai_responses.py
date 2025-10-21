@@ -512,28 +512,44 @@ async def create_response(
         # Log telemetry for successful completion
         if not request.stream:  # Only log for non-streaming responses
             end_time = time.perf_counter()
-            background_tasks.add_task(
-                telemetry_service.log_package_run,
+            # background_tasks.add_task(
+            #     telemetry_service.log_package_run,
+            #     RunPayload(
+            #         run_is_webhook=False,
+            #         run_seconds=int(end_time - start_time),
+            #         run_success=True,
+            #         run_error_message="",
+            #     ),
+            # )
+            await telemetry_service.log_package_run(
                 RunPayload(
                     run_is_webhook=False,
                     run_seconds=int(end_time - start_time),
                     run_success=True,
                     run_error_message="",
-                ),
+                )
             )
 
     except Exception as exc:  # noqa: BLE001
         logger.error(f"Error processing OpenAI Responses request: {exc}")
 
         # Log telemetry for failed completion
-        background_tasks.add_task(
-            telemetry_service.log_package_run,
+        # background_tasks.add_task(
+        #     telemetry_service.log_package_run,
+        #     RunPayload(
+        #         run_is_webhook=False,
+        #         run_seconds=int(time.perf_counter() - start_time),
+        #         run_success=False,
+        #         run_error_message=str(exc),
+        #     ),
+        # )
+        await telemetry_service.log_package_run(
             RunPayload(
                 run_is_webhook=False,
                 run_seconds=int(time.perf_counter() - start_time),
                 run_success=False,
                 run_error_message=str(exc),
-            ),
+            )
         )
 
         # Return OpenAI-compatible error

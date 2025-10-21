@@ -1,5 +1,6 @@
 import asyncio
 import json
+import pdb
 import time
 import traceback
 import uuid
@@ -235,14 +236,22 @@ async def generate_flow_events(
     async def log_telemetry(
         start_time: float, components_count: int, *, success: bool, error_message: str | None = None
     ):
-        background_tasks.add_task(
-            telemetry_service.log_package_playground,
+        # background_tasks.add_task(
+        #     telemetry_service.log_package_playground,
+        #     PlaygroundPayload(
+        #         playground_seconds=int(time.perf_counter() - start_time),
+        #         playground_component_count=components_count,
+        #         playground_success=success,
+        #         playground_error_message=str(error_message) if error_message else "",
+        #     ),
+        # )
+        await telemetry_service.log_package_playground(
             PlaygroundPayload(
                 playground_seconds=int(time.perf_counter() - start_time),
                 playground_component_count=components_count,
                 playground_success=success,
                 playground_error_message=str(error_message) if error_message else "",
-            ),
+            )
         )
 
     async def create_graph(fresh_session, flow_id_str: str, flow_name: str | None) -> Graph:
@@ -371,24 +380,40 @@ async def generate_flow_events(
                 id=vertex.id,
                 data=result_data_response,
             )
-            background_tasks.add_task(
-                telemetry_service.log_package_component,
+            await telemetry_service.log_package_component(
                 ComponentPayload(
                     component_name=vertex_id.split("-")[0],
                     component_seconds=int(time.perf_counter() - start_time),
                     component_success=valid,
                     component_error_message=error_message,
-                ),
+                )
             )
+            # background_tasks.add_task(
+            #     telemetry_service.log_package_component,
+            #     ComponentPayload(
+            #         component_name=vertex_id.split("-")[0],
+            #         component_seconds=int(time.perf_counter() - start_time),
+            #         component_success=valid,
+            #         component_error_message=error_message,
+            #     ),
+            # )
         except Exception as exc:
-            background_tasks.add_task(
-                telemetry_service.log_package_component,
+            # background_tasks.add_task(
+            #     telemetry_service.log_package_component,
+            #     ComponentPayload(
+            #         component_name=vertex_id.split("-")[0],
+            #         component_seconds=int(time.perf_counter() - start_time),
+            #         component_success=False,
+            #         component_error_message=str(exc),
+            #     ),
+            # )
+            await telemetry_service.log_package_component(
                 ComponentPayload(
                     component_name=vertex_id.split("-")[0],
                     component_seconds=int(time.perf_counter() - start_time),
                     component_success=False,
                     component_error_message=str(exc),
-                ),
+                )
             )
             await logger.aexception("Error building Component")
             message = parse_exception(exc)

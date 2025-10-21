@@ -102,24 +102,39 @@ async def retrieve_vertices_order(
         components_count = len(graph.vertices)
         vertices_to_run = list(graph.vertices_to_run.union(get_top_level_vertices(graph, graph.vertices_to_run)))
         await chat_service.set_cache(str(flow_id), graph)
-        background_tasks.add_task(
-            telemetry_service.log_package_playground,
+        # background_tasks.add_task(
+        #     telemetry_service.log_package_playground,
+        #     PlaygroundPayload(
+        #         playground_seconds=int(time.perf_counter() - start_time),
+        #         playground_component_count=components_count,
+        #         playground_success=True,
+        #     ),
+        # )
+        await telemetry_service.log_package_playground(
             PlaygroundPayload(
                 playground_seconds=int(time.perf_counter() - start_time),
                 playground_component_count=components_count,
                 playground_success=True,
-            ),
+            )
         )
         return VerticesOrderResponse(ids=graph.first_layer, run_id=graph.run_id, vertices_to_run=vertices_to_run)
     except Exception as exc:
-        background_tasks.add_task(
-            telemetry_service.log_package_playground,
+        # background_tasks.add_task(
+        #     telemetry_service.log_package_playground,
+        #     PlaygroundPayload(
+        #         playground_seconds=int(time.perf_counter() - start_time),
+        #         playground_component_count=components_count,
+        #         playground_success=False,
+        #         playground_error_message=str(exc),
+        #     ),
+        # )
+        await telemetry_service.log_package_playground(
             PlaygroundPayload(
                 playground_seconds=int(time.perf_counter() - start_time),
                 playground_component_count=components_count,
                 playground_success=False,
                 playground_error_message=str(exc),
-            ),
+            )
         )
         if "stream or streaming set to True" in str(exc):
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -377,24 +392,40 @@ async def build_vertex(
             id=vertex.id,
             data=result_data_response,
         )
-        background_tasks.add_task(
-            telemetry_service.log_package_component,
+        # background_tasks.add_task(
+        #     telemetry_service.log_package_component,
+        #     ComponentPayload(
+        #         component_name=vertex_id.split("-")[0],
+        #         component_seconds=int(time.perf_counter() - start_time),
+        #         component_success=valid,
+        #         component_error_message=error_message,
+        #     ),
+        # )
+        await telemetry_service.log_package_component(
             ComponentPayload(
                 component_name=vertex_id.split("-")[0],
                 component_seconds=int(time.perf_counter() - start_time),
                 component_success=valid,
                 component_error_message=error_message,
-            ),
+            )
         )
     except Exception as exc:
-        background_tasks.add_task(
-            telemetry_service.log_package_component,
+        # background_tasks.add_task(
+        #     telemetry_service.log_package_component,
+        #     ComponentPayload(
+        #         component_name=vertex_id.split("-")[0],
+        #         component_seconds=int(time.perf_counter() - start_time),
+        #         component_success=False,
+        #         component_error_message=str(exc),
+        #     ),
+        # )
+        await telemetry_service.log_package_component(
             ComponentPayload(
                 component_name=vertex_id.split("-")[0],
                 component_seconds=int(time.perf_counter() - start_time),
                 component_success=False,
                 component_error_message=str(exc),
-            ),
+            )
         )
         await logger.aexception("Error building Component")
         message = parse_exception(exc)

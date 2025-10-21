@@ -354,19 +354,35 @@ async def simplified_run_flow(
             api_key_user=api_key_user,
         )
         end_time = time.perf_counter()
-        background_tasks.add_task(
-            telemetry_service.log_package_run,
+        # background_tasks.add_task(
+        #     telemetry_service.log_package_run,
+        #     RunPayload(
+        #         run_is_webhook=False,
+        #         run_seconds=int(end_time - start_time),
+        #         run_success=True,
+        #         run_error_message="",
+        #     ),
+        # )
+        await telemetry_service.log_package_run(
             RunPayload(
                 run_is_webhook=False,
                 run_seconds=int(end_time - start_time),
                 run_success=True,
                 run_error_message="",
-            ),
+            )
         )
 
     except ValueError as exc:
-        background_tasks.add_task(
-            telemetry_service.log_package_run,
+        # background_tasks.add_task(
+        #     telemetry_service.log_package_run,
+        #     RunPayload(
+        #         run_is_webhook=False,
+        #         run_seconds=int(time.perf_counter() - start_time),
+        #         run_success=False,
+        #         run_error_message=str(exc),
+        #     ),
+        # )
+        await telemetry_service.log_package_run(
             RunPayload(
                 run_is_webhook=False,
                 run_seconds=int(time.perf_counter() - start_time),
@@ -383,8 +399,16 @@ async def simplified_run_flow(
     except InvalidChatInputError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
-        background_tasks.add_task(
-            telemetry_service.log_package_run,
+        # background_tasks.add_task(
+        #     telemetry_service.log_package_run,
+        #     RunPayload(
+        #         run_is_webhook=False,
+        #         run_seconds=int(time.perf_counter() - start_time),
+        #         run_success=False,
+        #         run_error_message=str(exc),
+        #     ),
+        # )
+        await telemetry_service.log_package_run(
             RunPayload(
                 run_is_webhook=False,
                 run_seconds=int(time.perf_counter() - start_time),
@@ -459,8 +483,16 @@ async def webhook_run_flow(
             error_msg = str(exc)
             raise HTTPException(status_code=500, detail=error_msg) from exc
     finally:
-        background_tasks.add_task(
-            telemetry_service.log_package_run,
+        # background_tasks.add_task(
+        #     telemetry_service.log_package_run,
+        #     RunPayload(
+        #         run_is_webhook=True,
+        #         run_seconds=int(time.perf_counter() - start_time),
+        #         run_success=not error_msg,
+        #         run_error_message=error_msg,
+        #     ),
+        # )
+        await telemetry_service.log_package_run(
             RunPayload(
                 run_is_webhook=True,
                 run_seconds=int(time.perf_counter() - start_time),

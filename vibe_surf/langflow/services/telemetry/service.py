@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import os
+import pdb
 import platform
 import traceback
 from datetime import datetime, timezone
@@ -56,9 +57,7 @@ class TelemetryService(Service):
         self.architecture: str | None = None
         self.worker_task: asyncio.Task | None = None
         # Check for do-not-track settings
-        self.do_not_track = (
-            os.getenv("DO_NOT_TRACK", "False").lower() == "true" or settings_service.settings.do_not_track
-        )
+        self.do_not_track = not os.getenv('VIBESURF_ANONYMIZED_TELEMETRY', 'true').lower() in ("true", "1", "yes", "on")
         self.log_package_version_task: asyncio.Task | None = None
         
         # Initialize PostHog client if telemetry is enabled
@@ -121,24 +120,24 @@ class TelemetryService(Service):
         try:
             # Convert payload to dictionary using PostHog-friendly format
             payload_dict = payload.model_dump(by_alias=True, exclude_none=True, exclude_unset=True)
-            
+
             # Determine event name based on path or payload type
             event_name = self._get_event_name(payload, path)
-            
+
             # Add common properties
             properties = {
                 **payload_dict,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "path": path,
             }
-            
+
             # Send to PostHog
             self.posthog_client.capture(
                 distinct_id=self.user_id,
                 event=event_name,
                 properties=properties
             )
-            
+
             await logger.adebug(f"Telemetry data sent successfully: {event_name}")
         except Exception as e:
             await logger.aerror(f"Failed to send telemetry data: {e}")
@@ -147,7 +146,7 @@ class TelemetryService(Service):
         """Determine the event name based on payload type and path."""
         if path:
             return f"langflow_{path}"
-        
+
         # Map payload types to event names
         if isinstance(payload, RunPayload):
             return "langflow_run"
