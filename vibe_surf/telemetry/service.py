@@ -9,6 +9,7 @@ from uuid_extensions import uuid7str
 from vibe_surf.telemetry.views import BaseTelemetryEvent
 from vibe_surf.utils import singleton
 from vibe_surf.logger import get_logger
+from vibe_surf import common
 
 load_dotenv()
 
@@ -26,7 +27,7 @@ class ProductTelemetry:
 
     If the environment variable `ANONYMIZED_TELEMETRY=False`, anonymized telemetry will be disabled.
     """
-    WORKSPACE_DIR = os.getenv('VIBESURF_WORKSPACE', './vibesurf_workspace')
+    WORKSPACE_DIR = os.getenv('VIBESURF_WORKSPACE', common.get_workspace_dir())
     USER_ID_PATH = os.path.join(WORKSPACE_DIR, 'telemetry', 'userid')
     PROJECT_API_KEY = 'phc_lCYnQqFlfNHAlh1TJGqaTvD8EFPCKR7ONsEHbbWuPVr'
     HOST = 'https://us.i.posthog.com'

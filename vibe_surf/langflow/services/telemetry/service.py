@@ -9,10 +9,11 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 import httpx
+from posthog import Posthog
+from uuid_extensions import uuid7str
 
 from vibe_surf.langflow.logging.logger import logger
 from vibe_surf.langflow.services.base import Service
-from vibe_surf.langflow.services.telemetry.opentelemetry import OpenTelemetry
 from vibe_surf.langflow.services.telemetry.schema import (
     ComponentPayload,
     ExceptionPayload,
@@ -22,6 +23,7 @@ from vibe_surf.langflow.services.telemetry.schema import (
     VersionPayload,
 )
 from vibe_surf.langflow.utils.version import get_version_info
+from vibe_surf import common
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -41,7 +43,16 @@ class TelemetryService(Service):
         self.running = False
         self._stopping = False
 
-        self.ot = OpenTelemetry(prometheus_enabled=settings_service.settings.prometheus_enabled)
+        # PostHog configuration
+        self.project_api_key = 'phc_lCYnQqFlfNHAlh1TJGqaTvD8EFPCKR7ONsEHbbWuPVr'
+        self.host = 'https://us.i.posthog.com'
+        self.posthog_client = None
+        self._curr_user_id = None
+        
+        # User ID persistence path
+        self.workspace_dir = os.getenv('VIBESURF_WORKSPACE', common.get_workspace_dir())
+        self.user_id_path = os.path.join(self.workspace_dir, 'telemetry', 'userid')
+        
         self.architecture: str | None = None
         self.worker_task: asyncio.Task | None = None
         # Check for do-not-track settings
@@ -49,6 +60,48 @@ class TelemetryService(Service):
             os.getenv("DO_NOT_TRACK", "False").lower() == "true" or settings_service.settings.do_not_track
         )
         self.log_package_version_task: asyncio.Task | None = None
+        
+        # Initialize PostHog client if telemetry is enabled
+        if not self.do_not_track:
+            self._initialize_posthog()
+
+    def _initialize_posthog(self) -> None:
+        """Initialize PostHog client and user ID."""
+        try:
+            self.posthog_client = Posthog(
+                project_api_key=self.project_api_key,
+                host=self.host,
+                disable_geoip=False,
+                enable_exception_autocapture=True,
+            )
+            
+            # Generate or retrieve user ID
+            logger.debug("PostHog client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize PostHog client: {e}")
+            self.posthog_client = None
+
+    @property
+    def user_id(self) -> str:
+        """Get or create a unique user ID for telemetry with persistence."""
+        if self._curr_user_id:
+            return self._curr_user_id
+
+        # File access may fail due to permissions or other reasons. We don't want to
+        # crash so we catch all exceptions.
+        try:
+            if not os.path.exists(self.user_id_path):
+                os.makedirs(os.path.dirname(self.user_id_path), exist_ok=True)
+                with open(self.user_id_path, 'w') as f:
+                    new_user_id = uuid7str()
+                    f.write(new_user_id)
+                self._curr_user_id = new_user_id
+            else:
+                with open(self.user_id_path) as f:
+                    self._curr_user_id = f.read()
+        except Exception:
+            self._curr_user_id = 'UNKNOWN_USER_ID'
+        return self._curr_user_id
 
     async def telemetry_worker(self) -> None:
         while self.running:
@@ -61,27 +114,55 @@ class TelemetryService(Service):
                 self.telemetry_queue.task_done()
 
     async def send_telemetry_data(self, payload: BaseModel, path: str | None = None) -> None:
-        if self.do_not_track:
+        if self.do_not_track or self.posthog_client is None:
             await logger.adebug("Telemetry tracking is disabled.")
             return
 
-        url = f"{self.base_url}"
-        if path:
-            url = f"{url}/{path}"
-
         try:
+            # Convert payload to dictionary using PostHog-friendly format
             payload_dict = payload.model_dump(by_alias=True, exclude_none=True, exclude_unset=True)
-            response = await self.client.get(url, params=payload_dict)
-            if response.status_code != httpx.codes.OK:
-                await logger.aerror(f"Failed to send telemetry data: {response.status_code} {response.text}")
-            else:
-                await logger.adebug("Telemetry data sent successfully.")
-        except httpx.HTTPStatusError:
-            await logger.aerror("HTTP error occurred")
-        except httpx.RequestError:
-            await logger.aerror("Request error occurred")
-        except Exception:  # noqa: BLE001
-            await logger.aerror("Unexpected error occurred")
+            
+            # Determine event name based on path or payload type
+            event_name = self._get_event_name(payload, path)
+            
+            # Add common properties
+            properties = {
+                **payload_dict,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "path": path,
+            }
+            
+            # Send to PostHog
+            self.posthog_client.capture(
+                distinct_id=self.user_id,
+                event=event_name,
+                properties=properties
+            )
+            
+            await logger.adebug(f"Telemetry data sent successfully: {event_name}")
+        except Exception as e:
+            await logger.aerror(f"Failed to send telemetry data: {e}")
+
+    def _get_event_name(self, payload: BaseModel, path: str | None = None) -> str:
+        """Determine the event name based on payload type and path."""
+        if path:
+            return f"langflow_{path}"
+        
+        # Map payload types to event names
+        if isinstance(payload, RunPayload):
+            return "langflow_run"
+        elif isinstance(payload, VersionPayload):
+            return "langflow_version"
+        elif isinstance(payload, PlaygroundPayload):
+            return "langflow_playground"
+        elif isinstance(payload, ComponentPayload):
+            return "langflow_component"
+        elif isinstance(payload, ExceptionPayload):
+            return "langflow_exception"
+        elif isinstance(payload, ShutdownPayload):
+            return "langflow_shutdown"
+        else:
+            return "langflow_generic"
 
     async def log_package_run(self, payload: RunPayload) -> None:
         await self._queue_event((self.send_telemetry_data, payload, "run"))
@@ -90,10 +171,10 @@ class TelemetryService(Service):
         payload = ShutdownPayload(time_running=(datetime.now(timezone.utc) - self._start_time).seconds)
         await self._queue_event(payload)
 
-    async def _queue_event(self, payload) -> None:
+    async def _queue_event(self, event_data) -> None:
         if self.do_not_track or self._stopping:
             return
-        await self.telemetry_queue.put(payload)
+        await self.telemetry_queue.put(event_data)
 
     def _get_langflow_desktop(self) -> bool:
         # Coerce to bool, could be 1, 0, True, False, "1", "0", "True", "False"
@@ -184,6 +265,15 @@ class TelemetryService(Service):
                 await self._cancel_task(self.worker_task, "Cancel telemetry worker task")
             if self.log_package_version_task:
                 await self._cancel_task(self.log_package_version_task, "Cancel telemetry log package version task")
+            
+            # Flush PostHog client
+            if self.posthog_client:
+                try:
+                    self.posthog_client.flush()
+                    logger.debug("PostHog client flushed successfully")
+                except Exception as e:
+                    logger.error(f"Failed to flush PostHog client: {e}")
+            
             await self.client.aclose()
         except Exception:  # noqa: BLE001
             await logger.aexception("Error stopping tracing service")
