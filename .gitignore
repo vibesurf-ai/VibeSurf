@@ -22,3 +22,9 @@ workspace
 vibe_surf/_version.py
 .build-env
 .DS_Store
+
+vibe_surf/backend/frontend
+vibe_surf/frontend/node_modules
+vibe_surf/frontend/build
+
+*.log
