@@ -206,7 +206,7 @@ class AgentBrowserSession(BrowserSession):
             assert self._cdp_client_root is not None
             await self._cdp_client_root.start()
             await self._cdp_client_root.send.Target.setAutoAttach(
-                params={'autoAttach': True, 'waitForDebuggerOnStart': False, 'flatten': True}
+                params={'autoAttach': False, 'waitForDebuggerOnStart': False, 'flatten': True}
             )
             self.logger.debug('CDP client connected successfully')
 
@@ -228,39 +228,9 @@ class AgentBrowserSession(BrowserSession):
             from browser_use.utils import is_new_tab_page
 
             # Collect all targets that need redirection
-            redirected_targets = []
-            redirect_sessions = {}  # Store sessions created for redirection to potentially reuse
-            for target in page_targets:
-                target_url = target.get('url', '')
-                if is_new_tab_page(target_url) and target_url != '':
-                    # Redirect chrome://newtab to about:blank to avoid JS issues preventing driving chrome://newtab
-                    target_id = target['targetId']
-                    self.logger.debug(f'🔄 Redirecting {target_url} to about:blank for target {target_id}')
-                    try:
-                        # Create a CDP session for redirection (minimal domains to avoid duplicate event handlers)
-                        # Only enable Page domain for navigation, avoid duplicate event handlers
-                        redirect_session = await CDPSession.for_target(self._cdp_client_root, target_id,
-                                                                       domains=['Page'])
-                        # Navigate to about:blank
-                        await redirect_session.cdp_client.send.Page.navigate(
-                            params={'url': ''}, session_id=redirect_session.session_id
-                        )
-                        redirected_targets.append(target_id)
-                        redirect_sessions[target_id] = redirect_session  # Store for potential reuse
-                        # Update the target's URL in our list for later use
-                        target['url'] = ''
-                        # Small delay to ensure navigation completes
-                        await asyncio.sleep(0.1)
-                    except Exception as e:
-                        self.logger.warning(f'Failed to redirect {target_url} to about:blank: {e}')
-
-            # Log summary of redirections
-            if redirected_targets:
-                self.logger.debug(f'Redirected {len(redirected_targets)} chrome://newtab pages to about:blank')
-
             if not page_targets:
                 # No pages found, create a new one
-                new_target = await self._cdp_client_root.send.Target.createTarget(params={'url': ''})
+                new_target = await self._cdp_client_root.send.Target.createTarget(params={'url': 'chrome://newtab/'})
                 target_id = new_target['targetId']
                 self.logger.debug(f'📄 Created new blank page with target ID: {target_id}')
             else:
@@ -268,14 +238,8 @@ class AgentBrowserSession(BrowserSession):
                 target_id = [page for page in page_targets if page.get('type') == 'page'][0]['targetId']
                 self.logger.debug(f'📄 Using existing page with target ID: {target_id}')
 
-            # Store the current page target ID and add to pool
-            # Reuse redirect session if available, otherwise create new one
-            if target_id in redirect_sessions:
-                self.logger.debug(f'Reusing redirect session for target {target_id}')
-                self.agent_focus = redirect_sessions[target_id]
-            else:
-                # For the initial connection, we'll use the shared root WebSocket
-                self.agent_focus = await CDPSession.for_target(self._cdp_client_root, target_id, new_socket=False)
+            self.agent_focus = await CDPSession.for_target(self._cdp_client_root, target_id, new_socket=False)
+
             if self.agent_focus:
                 self._cdp_session_pool[target_id] = self.agent_focus
 
@@ -297,13 +261,12 @@ class AgentBrowserSession(BrowserSession):
             for idx, target in enumerate(page_targets):
                 target_url = target.get('url', '')
                 self.logger.debug(f'Dispatching TabCreatedEvent for initial tab {idx}: {target_url}')
-                await self.event_bus.dispatch(TabCreatedEvent(url=target_url, target_id=target['targetId']))
+                self.event_bus.dispatch(TabCreatedEvent(url=target_url, target_id=target['targetId']))
 
             # Dispatch initial focus event
             if page_targets:
                 initial_url = page_targets[0].get('url', '')
-                await self.event_bus.dispatch(
-                    AgentFocusChangedEvent(target_id=page_targets[0]['targetId'], url=initial_url))
+                self.event_bus.dispatch(AgentFocusChangedEvent(target_id=page_targets[0]['targetId'], url=initial_url))
                 self.logger.debug(f'Initial agent focus set to tab 0: {initial_url}')
 
         except Exception as e:
