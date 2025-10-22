@@ -65,7 +65,8 @@ class CustomFileSystem(FileSystem):
 
     async def display_file(self, full_filename: str) -> str | None:
         """Display file content using file-specific display method"""
-        if not self.file_exist(full_filename):
+        if_file_exist = await self.file_exist(full_filename)
+        if not if_file_exist:
             return f"{full_filename} does not exist."
 
         file_content = await self.read_file(full_filename)

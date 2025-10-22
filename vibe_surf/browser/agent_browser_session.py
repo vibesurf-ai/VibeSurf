@@ -292,8 +292,8 @@ class AgentBrowserSession(BrowserSession):
             self.logger.info(f"Agent {self.id}: Assigned target {target_id}")
             self.agent_focus = await CDPSession.for_target(self._cdp_client_root, target_id, new_socket=True,
                                                            cdp_url=self.cdp_url)
-            await self.agent_focus.cdp_client.send.Target.activateTarget(
-                params={'targetId': target_id})
+            # await self.agent_focus.cdp_client.send.Target.activateTarget(
+            #     params={'targetId': target_id})
             await self.agent_focus.cdp_client.send.Runtime.runIfWaitingForDebugger(
                 session_id=self.agent_focus.session_id)
             self._cdp_session_pool[target_id] = self.agent_focus
@@ -487,7 +487,7 @@ class AgentBrowserSession(BrowserSession):
                 self.agent_focus = session
 
                 # Activate target without events
-                await session.cdp_client.send.Target.activateTarget(params={'targetId': target_id})
+                # await session.cdp_client.send.Target.activateTarget(params={'targetId': target_id})
                 await session.cdp_client.send.Runtime.runIfWaitingForDebugger(session_id=session.session_id)
             else:
                 # Use current tab - no tab switching events
