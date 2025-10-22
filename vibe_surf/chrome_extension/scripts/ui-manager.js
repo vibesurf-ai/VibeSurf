@@ -1475,7 +1475,7 @@ class VibeSurfUIManager {
             <div class="task-icon">🔍</div>
             <div class="task-content">
               <div class="task-title">Research Founders</div>
-              <div class="task-description">Search information about browser-use and browser-use-webui, write a brief report</div>
+              <div class="task-description">Search information about AI browser assistant: VibeSurf, write a brief report</div>
             </div>
           </div>
           <div class="task-suggestion" data-task="news">
