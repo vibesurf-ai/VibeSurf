@@ -45,11 +45,11 @@ class AgentBrowserProfile(BrowserProfile):
                 'id': 'edibdbjcniadpccecjdfdjjppcpchdlm',
                 'url': 'https://clients2.google.com/service/update2/crx?response=redirect&prodversion=130&acceptformat=crx3&x=id%3Dedibdbjcniadpccecjdfdjjppcpchdlm%26uc',
             },
-            {
-                'name': 'Force Background Tab',
-                'id': 'gidlfommnbibbmegmgajdbikelkdcmcl',
-                'url': 'https://clients2.google.com/service/update2/crx?response=redirect&prodversion=133&acceptformat=crx3&x=id%3Dgidlfommnbibbmegmgajdbikelkdcmcl%26uc',
-            },
+            # {
+            #     'name': 'Force Background Tab',
+            #     'id': 'gidlfommnbibbmegmgajdbikelkdcmcl',
+            #     'url': 'https://clients2.google.com/service/update2/crx?response=redirect&prodversion=133&acceptformat=crx3&x=id%3Dgidlfommnbibbmegmgajdbikelkdcmcl%26uc',
+            # },
             # {
             #     'name': 'ClearURLs',
             #     'id': 'lckanjgmijmafbedllaakclkaicjfmnk',
