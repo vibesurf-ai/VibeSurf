@@ -75,8 +75,8 @@ def configure_langflow_envs():
     os.environ["LANGFLOW_SKIP_AUTH_AUTO_LOGIN"] = "true"
     os.environ["LANGFLOW_AUTO_LOGIN"] = "true"
     os.environ["LANGFLOW_LOG_FILE"] = os.path.join(workspace_dir, "logs", f'langflow_{current_date}.log')
-    os.environ["LANGFLOW_LOG_LEVEL"] = "debug" if os.environ.get("VIBESURF_DEBUG", "false").lower() in ['1', 'true',
-                                                                                                        'yes'] else "info"
+    # os.environ["LANGFLOW_LOG_LEVEL"] = "debug" if os.environ.get("VIBESURF_DEBUG", "false").lower() in ['1', 'true',
+    #                                                                                                     'yes'] else "info"
 
     logger.info("Configure Langflow environment")
 

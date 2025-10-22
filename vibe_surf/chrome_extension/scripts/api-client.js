@@ -582,12 +582,9 @@ class VibeSurfAPIClient {
     
     // Match the exact parameters from working curl command
     const params = {
-      remove_example_flows: false,
+      remove_example_flows: true,
       components_only: false,
-      get_all: true,
-      header_flows: false,  // Note: curl uses false, not true
-      page: 1,
-      size: 50
+      get_all: true
     };
     
     // Add explicit Accept header to ensure JSON response
