@@ -281,10 +281,10 @@ Format: [index1, index2, index3, ...]
                 if params.tab_id:
                     target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
                     current_target_id = None
-                    if browser_session.agent_focus:
-                        current_target_id = browser_session.agent_focus.target_id
+                    if browser_session._dom_watchdog and browser_session._dom_watchdog.enhanced_dom_tree:
+                        current_target_id = browser_session._dom_watchdog.enhanced_dom_tree.target_id
                     if current_target_id != target_id:
-                        browser_session._dom_watchdog.enhanced_dom_tree = None
+                        browser_session._dom_watchdog.clear_cache()
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
 
                 # Extract structured content using the existing method
@@ -340,10 +340,10 @@ Format: [index1, index2, index3, ...]
                 if params.tab_id:
                     target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
                     current_target_id = None
-                    if browser_session.agent_focus:
-                        current_target_id = browser_session.agent_focus.target_id
+                    if browser_session._dom_watchdog and browser_session._dom_watchdog.enhanced_dom_tree:
+                        current_target_id = browser_session._dom_watchdog.enhanced_dom_tree.target_id
                     if current_target_id != target_id:
-                        browser_session._dom_watchdog.enhanced_dom_tree = None
+                        browser_session._dom_watchdog.clear_cache()
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
 
                 # Extract and summarize content
