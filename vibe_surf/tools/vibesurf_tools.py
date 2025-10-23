@@ -1589,7 +1589,7 @@ You will be given a query and the markdown of a webpage that has been filtered t
 
     def _register_browser_use_agent(self):
         @self.registry.action(
-            'Execute browser_use agent tasks.',
+            'Execute browser_use agent tasks. Please specify a tab id to an agent, if you want to let agent work on this tab.',
             param_model=BrowserUseAgentExecution,
         )
         async def execute_browser_use_agent(
