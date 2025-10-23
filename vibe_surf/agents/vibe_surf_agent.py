@@ -29,6 +29,7 @@ from browser_use.tokens.service import TokenCost
 from vibe_surf.agents.browser_use_agent import BrowserUseAgent
 from vibe_surf.agents.report_writer_agent import ReportWriterAgent, ReportTaskResult
 from vibe_surf.agents.views import CustomAgentOutput
+from vibe_surf.utils import check_latest_vibesurf_version, get_vibesurf_version
 
 from vibe_surf.agents.prompts.vibe_surf_prompt import (
     VIBESURF_SYSTEM_PROMPT,
@@ -448,7 +449,8 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
                 for browser_task in state.browser_tasks:
                     bu_task = browser_task.get('task', "")
                     if bu_task:
-                        browser_tasks_md.append(f"- [ ] {bu_task}")
+                        bu_task_tabid = browser_task.get('tab_id', "")
+                        browser_tasks_md.append(f"- [ ] Tab id: {bu_task_tabid} working {bu_task}")
                 browser_tasks_md = '\n'.join(browser_tasks_md)
                 agent_msg = f"Routing to browser task execution with  {len(state.browser_tasks)} browser tasks:\n\n{browser_tasks_md}"
                 await log_agent_activity(state, agent_name, "working", agent_msg)
@@ -624,7 +626,7 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
         task_description = task_info.get('task', '')
         if not task_description:
             continue
-        target_id = task_info.get('target_id', None)
+        target_id = task_info.get('tab_id', None)
         register_sessions.append(
             state.vibesurf_agent.browser_manager.register_agent(agent_id, target_id=target_id)
         )
@@ -756,7 +758,7 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
     finally:
         # Remove agents from control tracking and cleanup browser sessions
         for i, agent_id in enumerate(bu_agent_ids):
-            if not isinstance(pending_tasks[i], list):
+            if pending_tasks[i].get('tab_id', None) is None:
                 await state.vibesurf_agent.browser_manager.unregister_agent(agent_id, close_tabs=True)
             if state.vibesurf_agent and hasattr(state.vibesurf_agent, '_running_agents'):
                 state.vibesurf_agent._running_agents.pop(agent_id, None)
@@ -1679,6 +1681,18 @@ Action list should NEVER be empty and Each step can only output one action. If m
                 "agent_msg": f"{task}\nUpload Files:\n{abs_upload_files_md}\n" if upload_files else f"{task}"
             }
             self.activity_logs.append(activity_entry)
+
+            latest_version = await check_latest_vibesurf_version()
+            current_version = get_vibesurf_version()
+            if latest_version and latest_version != current_version:
+                update_msg = f'📦 Newer version of vibesurf available: {latest_version} (current: {current_version}). \nUpgrade with: \n`uv pip install vibesurf -U`\nor\nDownload [Windows Installer](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-windows-x64.exe).'
+                logger.info(update_msg)
+                activity_update_tip = {
+                    "agent_name": 'System',
+                    "agent_status": 'tip',  # working, result, error
+                    "agent_msg": update_msg
+                }
+                self.activity_logs.append(activity_update_tip)
 
             # Initialize state first (needed for file processing)
             initial_state = VibeSurfState(
