@@ -576,10 +576,6 @@ class VibeSurfAPIClient {
 
   // Workflow Management APIs (Langflow integration)
   async getWorkflows() {
-    console.log('[APIClient] Fetching workflows with required parameters');
-    console.log('[APIClient] Base URL:', this.baseURL);
-    console.log('[APIClient] API Prefix:', this.apiPrefix);
-    
     // Match the exact parameters from working curl command
     const params = {
       remove_example_flows: true,
@@ -587,15 +583,7 @@ class VibeSurfAPIClient {
       get_all: true
     };
     
-    // Add explicit Accept header to ensure JSON response
-    const headers = {
-      'Accept': 'application/json'
-    };
-    
-    console.log('[APIClient] Calling /v1/flows with params:', params);
-    console.log('[APIClient] Request headers:', headers);
-    
-    return this.get('/v1/flows', { params, headers });
+    return this.get('/v1/flows/', { params });
   }
 
   async runWorkflow(flowId) {
