@@ -463,8 +463,16 @@ Format: [index1, index2, index3, ...]
 
                 page_html_content = await browser_session.get_html_content()
                 web_page_html = clean_html_basic(page_html_content)
-                if len(web_page_html) > 30000:
-                    web_page_html = web_page_html[:24000] + "..." + web_page_html[-6000:]
+
+                max_html_len = 60000
+                if len(web_page_html) > max_html_len:
+                    gap_len = (len(web_page_html) - max_html_len) // 2
+                    clip_len = max_html_len // 3
+                    web_page_html = (web_page_html[:clip_len] + "\n\n...\n\n" +
+                                     web_page_html[
+                                     clip_len + gap_len: clip_len + gap_len + clip_len + 10000] + "\n\n...\n\n" +
+                                     web_page_html[
+                                     clip_len + gap_len * 2 + clip_len: clip_len + gap_len * 2 + 2 * clip_len - 10000])
 
                 # Get current page URL for context
                 current_url = await browser_session.get_current_page_url()
