@@ -120,7 +120,8 @@ class CustomDOMWatchdog(DOMWatchdog):
                 try:
                     self.logger.debug(
                         '🔍 DOMWatchdog.on_BrowserStateRequestEvent: 🎨 Applying Python-based highlighting...')
-                    from browser_use.browser.python_highlights import create_highlighted_screenshot_async
+                    # from browser_use.browser.python_highlights import create_highlighted_screenshot_async
+                    from vibe_surf.browser.utils import create_highlighted_screenshot_async
 
                     # Get CDP session for viewport info
                     cdp_session = await self.browser_session.get_or_create_cdp_session()
@@ -129,8 +130,16 @@ class CustomDOMWatchdog(DOMWatchdog):
                         screenshot_b64,
                         content.selector_map,
                         cdp_session,
-                        self.browser_session.browser_profile.filter_highlight_ids,
                     )
+                    #
+                    # import base64
+                    # import os
+                    # image_data = base64.b64decode(screenshot_b64)
+                    # output_path = os.path.join("/Users/warmshao/AIBrowsers/VibeSurf/vibe_surf/tmp/vibesurf_workspace/", "screenshots", f"{time.time()}.png")
+                    # os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                    # with open(output_path, 'wb') as f:
+                    #     f.write(image_data)
+                    # pdb.set_trace()
 
                     self.logger.debug(
                         f'🔍 DOMWatchdog.on_BrowserStateRequestEvent: ✅ Applied highlights to {len(content.selector_map)} elements'
