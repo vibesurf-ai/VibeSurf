@@ -1,4 +1,5 @@
 import copy
+import pdb
 import re
 from typing import Any
 
@@ -660,7 +661,6 @@ class ComposioBaseComponent(Component):
                             processed_inputs.append(inp)
                     else:
                         processed_inputs.append(inp)
-
                 return processed_inputs
             return result  # noqa: TRY300
         except ValueError as e:
@@ -762,7 +762,7 @@ class ComposioBaseComponent(Component):
                 auth_config_id = auth_configs.items[0].id
 
             connection_request = composio.connected_accounts.initiate(
-                user_id=self.entity_id, auth_config_id=auth_config_id
+                user_id=self.entity_id, auth_config_id=auth_config_id, allow_multiple=True
             )
 
             redirect_url = getattr(connection_request, "redirect_url", None)

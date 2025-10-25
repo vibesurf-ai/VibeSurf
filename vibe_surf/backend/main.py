@@ -75,8 +75,8 @@ def configure_langflow_envs():
     os.environ["LANGFLOW_SKIP_AUTH_AUTO_LOGIN"] = "true"
     os.environ["LANGFLOW_AUTO_LOGIN"] = "true"
     os.environ["LANGFLOW_LOG_FILE"] = os.path.join(workspace_dir, "logs", f'langflow_{current_date}.log')
-    # os.environ["LANGFLOW_LOG_LEVEL"] = "debug" if os.environ.get("VIBESURF_DEBUG", "false").lower() in ['1', 'true',
-    #                                                                                                     'yes'] else "info"
+    os.environ["LANGFLOW_LOG_LEVEL"] = "debug" if os.environ.get("VIBESURF_DEBUG", "false").lower() in ['1', 'true',
+                                                                                                        'yes'] else "info"
 
     logger.info("Configure Langflow environment")
 
@@ -540,8 +540,6 @@ def create_app() -> FastAPI:
     from vibe_surf.langflow.middleware import ContentSizeLimitMiddleware
     from vibe_surf.langflow.logging.logger import configure
 
-    configure()
-
     lifespan = get_lifespan()
 
     app = FastAPI(
@@ -757,8 +755,6 @@ if __name__ == "__main__":
     # Parse command line arguments
     args = parse_args()
     from vibe_surf.langflow.logging.logger import configure
-
-    configure()
 
     # Set environment variables based on arguments
     os.environ["VIBESURF_BACKEND_PORT"] = str(args.vibesurf_port)

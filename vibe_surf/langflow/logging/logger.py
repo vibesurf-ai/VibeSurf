@@ -336,6 +336,8 @@ def configure(
             log_file,
             maxBytes=max_bytes,
             backupCount=5,
+            encoding='utf-8'
+
         )
         file_handler.setFormatter(logging.Formatter("%(message)s"))
 
