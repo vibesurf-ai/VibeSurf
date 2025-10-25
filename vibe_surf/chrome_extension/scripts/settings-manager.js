@@ -33,6 +33,15 @@ class VibeSurfSettingsManager {
     this.elements = {};
     this.eventListeners = new Map();
     
+    // Schedule state for new interface
+    this.scheduleState = {
+      selectedTemplate: null,
+      scheduleType: 'simple',
+      cronExpression: '',
+      isValid: false,
+      previewTimes: []
+    };
+    
     // Initialize user settings storage
     this.userSettingsStorage = new VibeSurfUserSettingsStorage();
     
@@ -246,9 +255,8 @@ class VibeSurfSettingsManager {
     this.elements.workflowFilter?.addEventListener('change', this.handleWorkflowFilter.bind(this));
     
     // Workflow Schedule Modal events
-    this.elements.scheduleTypeSelect?.addEventListener('change', this.handleScheduleTypeChange.bind(this));
-    this.elements.presetScheduleSelect?.addEventListener('change', this.handleSchedulePreviewUpdate.bind(this));
-    this.elements.customCronInput?.addEventListener('input', this.handleSchedulePreviewUpdate.bind(this));
+    this.elements.presetScheduleSelect?.addEventListener('change', this.handleCronExpressionChange.bind(this));
+    this.elements.customCronInput?.addEventListener('input', this.handleCronExpressionChange.bind(this));
     this.elements.scheduleCancel?.addEventListener('click', this.hideScheduleModal.bind(this));
     this.elements.scheduleSave?.addEventListener('click', this.handleScheduleSave.bind(this));
     
@@ -276,6 +284,41 @@ class VibeSurfSettingsManager {
     if (deleteModalClose) {
       deleteModalClose.addEventListener('click', this.hideDeleteModal.bind(this));
     }
+
+    // --- New Schedule Modal Events ---
+    // These are bound once to prevent duplicate listeners.
+    const scheduleTypeSelect = document.getElementById('schedule-type-select');
+    if (scheduleTypeSelect) {
+      scheduleTypeSelect.addEventListener('change', (e) => {
+        this.handleScheduleTypeChange(e.target.value);
+      });
+    }
+    
+    const inputsToBind = [
+      'minutes-interval', 'hours-interval', 'daily-time',
+      'weekly-day', 'weekly-time', 'monthly-day', 'monthly-time'
+    ];
+    
+    inputsToBind.forEach(id => {
+      const input = document.getElementById(id);
+      if (input) {
+        const eventType = (id.includes('interval') || id.includes('day')) ? 'input' : 'change';
+        input.addEventListener(eventType, () => {
+          if (id === 'minutes-interval') this.updateMinutesLabel();
+          if (id === 'hours-interval') this.updateHoursLabel();
+          this.updateScheduleFromSimpleBuilder();
+        });
+      }
+    });
+
+    const enabledCheckbox = document.getElementById('schedule-enabled');
+    if (enabledCheckbox) {
+      enabledCheckbox.addEventListener('change', () => {
+        // Re-validate to enable/disable save button
+        this.updateScheduleSaveButton(this.scheduleState.isValid);
+      });
+    }
+    // --- End New Schedule Modal Events ---
     
     // Global keyboard shortcuts
     document.addEventListener('keydown', this.handleKeydown.bind(this));
@@ -3064,18 +3107,49 @@ class VibeSurfSettingsManager {
     async loadWorkflowSchedules() {
       try {
         const response = await this.apiClient.getSchedules();
-        const schedules = response.schedules || response || [];
+        console.log('[SettingsManager] Schedule API response:', response);
+        
+        let schedules = [];
+        if (Array.isArray(response)) {
+          schedules = response;
+        } else if (response && response.schedules && Array.isArray(response.schedules)) {
+          schedules = response.schedules;
+        } else if (response && response.data && Array.isArray(response.data)) {
+          schedules = response.data;
+        } else if (response && typeof response === 'object') {
+          // Handle case where response might be a single schedule object
+          if (response.flow_id) {
+            schedules = [response];
+          } else {
+            console.warn('[SettingsManager] Unexpected schedule response format:', response);
+          }
+        }
+        
+        console.log('[SettingsManager] Processed schedules:', schedules);
         
         // Add schedule information to workflows
-        this.state.workflows.forEach(workflow => {
-          const schedule = schedules.find(s => s.flow_id === workflow.flow_id);
-          workflow.scheduled = !!schedule;
-          workflow.schedule = schedule;
-        });
+        if (Array.isArray(schedules) && schedules.length > 0) {
+          this.state.workflows.forEach(workflow => {
+            const schedule = schedules.find(s => s && s.flow_id === workflow.flow_id);
+            workflow.scheduled = !!schedule;
+            workflow.schedule = schedule;
+          });
+        } else {
+          console.log('[SettingsManager] No schedules found or empty schedule array');
+          // Set all workflows as unscheduled
+          this.state.workflows.forEach(workflow => {
+            workflow.scheduled = false;
+            workflow.schedule = null;
+          });
+        }
         
       } catch (error) {
         console.error('[SettingsManager] Failed to load workflow schedules:', error);
-        // Continue without schedule information
+        // Continue without schedule information - set all as unscheduled
+        this.state.workflows.forEach(workflow => {
+          workflow.scheduled = false;
+          workflow.schedule = null;
+        });
       }
     }
     
@@ -3584,23 +3658,492 @@ class VibeSurfSettingsManager {
         this.elements.scheduleWorkflowName.textContent = this.state.currentScheduleWorkflow.name;
       }
       
-      // Reset form
-      if (this.elements.scheduleTypeSelect) {
-        this.elements.scheduleTypeSelect.value = this.state.currentScheduleWorkflow.scheduled ? 'custom' : 'none';
-      }
-      
-      this.handleScheduleTypeChange();
+      // Reset form and initialize new schedule interface
+      this.initializeScheduleModal();
       
       // If workflow is already scheduled, populate the form
       if (this.state.currentScheduleWorkflow.schedule) {
-        if (this.elements.customCronInput) {
-          this.elements.customCronInput.value = this.state.currentScheduleWorkflow.schedule.cron_expression || '';
-        }
-        this.handleSchedulePreviewUpdate();
+        this.populateExistingSchedule(this.state.currentScheduleWorkflow.schedule);
       }
       
       // Show modal
       this.elements.workflowScheduleModal.classList.remove('hidden');
+    }
+
+    // Initialize schedule modal with new interface
+    initializeScheduleModal() {
+      // 1. Reset the form and all associated states
+      this.resetScheduleForm();
+      
+      // 2. Set the schedule type dropdown to 'daily'
+      const scheduleTypeSelect = document.getElementById('schedule-type-select');
+      if (scheduleTypeSelect) {
+        scheduleTypeSelect.value = 'daily';
+      }
+      
+      // 4. Set the default time for the 'daily' option to 8 AM
+      const dailyTimeInput = document.getElementById('daily-time');
+      if (dailyTimeInput) {
+        dailyTimeInput.value = '08:00';
+      }
+      
+      // 5. Hide all other schedule option sections
+      this.hideAllScheduleOptions();
+      
+      // 6. Show the 'daily' schedule options
+      this.showScheduleOptions('daily');
+      
+      // 7. Update the internal state and generate the initial cron expression
+      this.updateScheduleFromSimpleBuilder();
+    }
+
+    // Reset schedule form
+    resetScheduleForm() {
+      // Clear all inputs
+      const inputs = this.elements.workflowScheduleModal.querySelectorAll('input, select, textarea');
+      inputs.forEach(input => {
+        if (input.type === 'checkbox') {
+          input.checked = true; // Default enabled
+        } else if (input.type !== 'radio') {
+          input.value = '';
+        }
+      });
+      
+      // Reset states
+      this.scheduleState = {
+        selectedTemplate: null,
+        scheduleType: 'daily',
+        cronExpression: '',
+        isValid: false,
+        previewTimes: []
+      };
+      
+      // Hide all schedule options and reset to default
+      this.hideAllScheduleOptions();
+      this.showScheduleOptions('daily');
+      
+      // Reset button states
+      this.updateScheduleSaveButton(false);
+    }
+
+
+
+
+    // Update minutes label
+    updateMinutesLabel() {
+      const minutesInput = document.getElementById('minutes-interval');
+      const minutesLabel = document.getElementById('minutes-label');
+      if (minutesInput && minutesLabel) {
+        const value = parseInt(minutesInput.value) || 1;
+        minutesLabel.textContent = value;
+      }
+    }
+    
+    // Update hours label
+    updateHoursLabel() {
+      const hoursInput = document.getElementById('hours-interval');
+      const hoursLabel = document.getElementById('hours-label');
+      if (hoursInput && hoursLabel) {
+        const value = parseInt(hoursInput.value) || 1;
+        hoursLabel.textContent = value;
+      }
+    }
+
+    // Hide all schedule options
+    hideAllScheduleOptions() {
+      const options = ['every-x-minutes-options', 'every-x-hours-options', 'daily-options', 'weekly-options', 'monthly-options'];
+      options.forEach(optionId => {
+        const option = document.getElementById(optionId);
+        if (option) option.classList.add('hidden');
+      });
+    }
+
+    // Show schedule options for selected type
+    showScheduleOptions(scheduleType) {
+      // Corrected ID to match HTML
+      const optionId = `${scheduleType}-options`;
+      const option = document.getElementById(optionId);
+      if (option) {
+        option.classList.remove('hidden');
+      }
+    }
+
+    // Update schedule from simple builder
+    updateScheduleFromSimpleBuilder() {
+      const scheduleType = document.getElementById('schedule-type-select')?.value;
+      if (!scheduleType) return;
+      
+      let cronExpression = '';
+      
+      switch (scheduleType) {
+        case 'every-x-minutes':
+          const minutes = document.getElementById('minutes-interval')?.value || '1';
+          cronExpression = `*/${minutes} * * * *`;
+          break;
+        case 'every-x-hours':
+          const hours = document.getElementById('hours-interval')?.value || '1';
+          cronExpression = `0 */${hours} * * *`;
+          break;
+        case 'daily':
+          const dailyTime = document.getElementById('daily-time')?.value || '08:00';
+          const [dailyHour, dailyMinute] = dailyTime.split(':');
+          cronExpression = `${dailyMinute} ${dailyHour} * * *`;
+          break;
+        case 'weekly':
+          const weeklyDay = document.getElementById('weekly-day')?.value || '1';
+          const weeklyTime = document.getElementById('weekly-time')?.value || '08:00';
+          const [weeklyHour, weeklyMinute] = weeklyTime.split(':');
+          cronExpression = `${weeklyMinute} ${weeklyHour} * * ${weeklyDay}`;
+          break;
+        case 'monthly':
+          const monthlyDay = document.getElementById('monthly-day')?.value || '1';
+          const monthlyTime = document.getElementById('monthly-time')?.value || '08:00';
+          const [monthlyHour, monthlyMinute] = monthlyTime.split(':');
+          cronExpression = `${monthlyMinute} ${monthlyHour} ${monthlyDay} * *`;
+          break;
+      }
+      
+      if (cronExpression) {
+        this.scheduleState.cronExpression = cronExpression;
+        this.scheduleState.isValid = this.validateCronExpression(cronExpression);
+        this.updateScheduleSaveButton(this.scheduleState.isValid);
+      }
+    }
+
+    // Handle schedule type change
+    handleScheduleTypeChange(scheduleType) {
+      if (!scheduleType) return;
+      
+      console.log('[SettingsManager] Schedule type changed to:', scheduleType);
+      
+      this.scheduleState.scheduleType = scheduleType;
+      
+      // Update the select dropdown value
+      const scheduleTypeSelect = document.getElementById('schedule-type-select');
+      if (scheduleTypeSelect && scheduleTypeSelect.value !== scheduleType) {
+        scheduleTypeSelect.value = scheduleType;
+      }
+      
+      // Hide all schedule options
+      this.hideAllScheduleOptions();
+      
+      // Show selected options
+      this.showScheduleOptions(scheduleType);
+      
+      // Force update the UI elements for the new type
+      this.updateScheduleTypeUI(scheduleType);
+      
+      // Update schedule based on new type
+      this.updateScheduleFromSimpleBuilder();
+      
+      // Validation is now handled directly, no need to clear
+    }
+    
+    // Update UI elements for specific schedule type
+    updateScheduleTypeUI(scheduleType) {
+      console.log('[SettingsManager] Updating UI for schedule type:', scheduleType);
+      
+      // Set default values for the new type
+      switch (scheduleType) {
+        case 'daily':
+          const dailyTime = document.getElementById('daily-time');
+          if (dailyTime && !dailyTime.value) {
+            dailyTime.value = '08:00';
+          }
+          break;
+        case 'weekly':
+          const weeklyDay = document.getElementById('weekly-day');
+          const weeklyTime = document.getElementById('weekly-time');
+          if (weeklyDay && weeklyDay.value === '') {
+            weeklyDay.value = '1'; // Monday
+          }
+          if (weeklyTime && !weeklyTime.value) {
+            weeklyTime.value = '08:00';
+          }
+          break;
+        case 'monthly':
+          const monthlyDay = document.getElementById('monthly-day');
+          const monthlyTime = document.getElementById('monthly-time');
+          if (monthlyDay && monthlyDay.value === '') {
+            monthlyDay.value = '1'; // 1st of month
+          }
+          if (monthlyTime && !monthlyTime.value) {
+            monthlyTime.value = '08:00';
+          }
+          break;
+        case 'every-x-minutes':
+          const minutesInterval = document.getElementById('minutes-interval');
+          if (minutesInterval && minutesInterval.value === '') {
+            minutesInterval.value = '1';
+          }
+          break;
+        case 'every-x-hours':
+          const hoursInterval = document.getElementById('hours-interval');
+          if (hoursInterval && hoursInterval.value === '') {
+            hoursInterval.value = '1';
+          }
+          break;
+      }
+    }
+
+    // Handle cron expression change
+    handleCronExpressionChange() {
+      const cronInput = document.getElementById('custom-cron-input');
+      if (cronInput) {
+        this.scheduleState.cronExpression = cronInput.value.trim();
+        this.validateAndPreviewSchedule();
+      }
+    }
+
+    // Handle natural language input
+    async handleNaturalLanguageInput() {
+      const naturalInput = document.getElementById('natural-schedule-input');
+      if (!naturalInput) return;
+      
+      const text = naturalInput.value.trim();
+      if (!text) return;
+      
+      // Simple natural language parsing (can be enhanced with a proper NLP library)
+      const cronExpression = this.parseNaturalLanguageToCron(text);
+      
+      if (cronExpression) {
+        this.scheduleState.cronExpression = cronExpression;
+        this.validateAndPreviewSchedule();
+      }
+    }
+
+    // Parse natural language to cron expression
+    parseNaturalLanguageToCron(text) {
+      const lowerText = text.toLowerCase();
+      
+      // Common patterns
+      if (lowerText.includes('every day') || lowerText.includes('daily')) {
+        if (lowerText.includes('at')) {
+          const timeMatch = lowerText.match(/at\s+(\d{1,2}):?(\d{2})?\s*(am|pm)?/);
+          if (timeMatch) {
+            let hour = parseInt(timeMatch[1]);
+            const minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+            const ampm = timeMatch[3];
+            
+            if (ampm === 'pm' && hour !== 12) hour += 12;
+            if (ampm === 'am' && hour === 12) hour = 0;
+            
+            return `${minute} ${hour} * * *`;
+          }
+        }
+        return '0 0 * * *'; // Default to midnight
+      }
+      
+      if (lowerText.includes('every weekday') || lowerText.includes('monday to friday')) {
+        if (lowerText.includes('at')) {
+          const timeMatch = lowerText.match(/at\s+(\d{1,2}):?(\d{2})?\s*(am|pm)?/);
+          if (timeMatch) {
+            let hour = parseInt(timeMatch[1]);
+            const minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+            const ampm = timeMatch[3];
+            
+            if (ampm === 'pm' && hour !== 12) hour += 12;
+            if (ampm === 'am' && hour === 12) hour = 0;
+            
+            return `${minute} ${hour} * * 1-5`;
+          }
+        }
+        return '0 9 * * 1-5'; // Default to 9 AM weekdays
+      }
+      
+      if (lowerText.includes('every week') || lowerText.includes('weekly')) {
+        return '0 0 * * 0'; // Sunday at midnight
+      }
+      
+      if (lowerText.includes('every month') || lowerText.includes('monthly')) {
+        return '0 0 1 * *'; // 1st of month at midnight
+      }
+      
+      return null;
+    }
+
+
+    // Validate cron expression
+    validateCronExpression(cronExpression) {
+      if (!cronExpression || typeof cronExpression !== 'string') {
+        return false;
+      }
+      
+      try {
+        // Use cron-parser library for professional validation
+        if (typeof cronParser !== 'undefined') {
+          cronParser.parseExpression(cronExpression);
+          return true;
+        } else {
+          // Fallback to basic validation if library not available
+          const parts = cronExpression.trim().split(/\s+/);
+          
+          if (parts.length !== 5) {
+            return false;
+          }
+          
+          // Simple validation for each part
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            
+            // Allow common cron special characters
+            if (!/^[0-9,\-*/]+$/.test(part)) {
+              return false;
+            }
+          }
+          
+          return true;
+        }
+      } catch (error) {
+        console.warn('[SettingsManager] Cron expression validation failed:', error);
+        return false;
+      }
+    }
+
+    // Generate schedule preview
+    generateSchedulePreview(cronExpression, count = 5) {
+      const previewTimes = [];
+      
+      try {
+        if (typeof cronParser !== 'undefined') {
+          // Use professional cron-parser library
+          const interval = cronParser.parseExpression(cronExpression);
+          
+          for (let i = 0; i < count; i++) {
+            try {
+              const nextDate = interval.next();
+              if (nextDate) {
+                previewTimes.push(new Date(nextDate.toString()));
+              }
+            } catch (e) {
+              break; // No more occurrences
+            }
+          }
+        } else {
+          // Fallback to basic preview generation
+          const now = new Date();
+          
+          if (cronExpression.includes('* * * * *')) {
+            // Every minute
+            for (let i = 1; i <= count; i++) {
+              const nextTime = new Date(now.getTime() + i * 60000);
+              previewTimes.push(nextTime);
+            }
+          } else if (cronExpression.includes('0 * * * *')) {
+            // Every hour
+            for (let i = 1; i <= count; i++) {
+              const nextTime = new Date(now.getTime() + i * 3600000);
+              nextTime.setMinutes(0, 0, 0);
+              previewTimes.push(nextTime);
+            }
+          } else if (cronExpression.includes('0 0 * * *')) {
+            // Daily at midnight
+            for (let i = 1; i <= count; i++) {
+              const nextTime = new Date(now);
+              nextTime.setDate(nextTime.getDate() + i);
+              nextTime.setHours(0, 0, 0, 0);
+              previewTimes.push(nextTime);
+            }
+          } else {
+            // Default to some reasonable future times
+            for (let i = 1; i <= count; i++) {
+              const nextTime = new Date(now.getTime() + i * 86400000); // Add days
+              previewTimes.push(nextTime);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('[SettingsManager] Failed to generate schedule preview:', error);
+        // Return empty array on error
+        return [];
+      }
+      
+      return previewTimes;
+    }
+
+
+    // Update schedule save button
+    updateScheduleSaveButton(isValid) {
+      const saveButton = document.getElementById('schedule-save');
+      if (!saveButton) return;
+      
+      const enabledCheckbox = document.getElementById('schedule-enabled');
+      const isEnabled = enabledCheckbox ? enabledCheckbox.checked : true;
+      
+      saveButton.disabled = !isValid || !isEnabled;
+    }
+
+    // Set schedule type
+    setScheduleType(type) {
+      const radio = document.querySelector(`input[name="schedule-type"][value="${type}"]`);
+      if (radio) {
+        radio.checked = true;
+        this.handleScheduleTypeChange(type);
+      }
+    }
+
+    // Populate existing schedule
+    populateExistingSchedule(schedule) {
+      if (!schedule || !schedule.cron_expression) return;
+
+      // Set enable/disable state and description
+      const enabledCheckbox = document.getElementById('schedule-enabled');
+      if (enabledCheckbox) enabledCheckbox.checked = schedule.is_enabled;
+      const descriptionInput = document.getElementById('schedule-description');
+      if (descriptionInput) descriptionInput.value = schedule.description || '';
+
+      // --- Main Logic ---
+      const parts = schedule.cron_expression.split(' ');
+      const [minute, hour, dayOfMonth, , dayOfWeek] = parts;
+      let scheduleType = 'daily'; // Default
+
+      if (minute.startsWith('*/')) scheduleType = 'every-x-minutes';
+      else if (hour.startsWith('*/')) scheduleType = 'every-x-hours';
+      else if (dayOfWeek !== '*') scheduleType = 'weekly';
+      else if (dayOfMonth !== '*') scheduleType = 'monthly';
+
+      // 1. Set the dropdown to the correct type
+      const scheduleTypeSelect = document.getElementById('schedule-type-select');
+      if (scheduleTypeSelect) scheduleTypeSelect.value = scheduleType;
+
+      // 2. Hide all option panels, then show the correct one
+      this.hideAllScheduleOptions();
+      this.showScheduleOptions(scheduleType);
+
+      // 3. Populate the inputs for the determined schedule type
+      switch (scheduleType) {
+        case 'every-x-minutes':
+          document.getElementById('minutes-interval').value = minute.replace('*/', '');
+          break;
+        case 'every-x-hours':
+          document.getElementById('hours-interval').value = hour.replace('*/', '');
+          break;
+        case 'daily':
+          document.getElementById('daily-time').value = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+          break;
+        case 'weekly':
+          document.getElementById('weekly-day').value = dayOfWeek;
+          document.getElementById('weekly-time').value = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+          break;
+        case 'monthly':
+          document.getElementById('monthly-day').value = dayOfMonth;
+          document.getElementById('monthly-time').value = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+          break;
+      }
+
+      // 4. Regenerate the cron expression from the populated UI to ensure validation and enable the save button
+      this.updateScheduleFromSimpleBuilder();
+    }
+
+    // Find matching template for cron expression
+    findMatchingTemplate(cronExpression) {
+      const templates = this.elements.workflowScheduleModal.querySelectorAll('.schedule-template-btn');
+      for (let template of templates) {
+        if (template.dataset.cron === cronExpression) {
+          return template;
+        }
+      }
+      return null;
     }
     
     // Hide schedule modal
@@ -3611,95 +4154,41 @@ class VibeSurfSettingsManager {
       this.state.currentScheduleWorkflow = null;
     }
     
-    // Handle schedule type change
-    handleScheduleTypeChange() {
-      if (!this.elements.scheduleTypeSelect) return;
-      
-      const scheduleType = this.elements.scheduleTypeSelect.value;
-      
-      // Show/hide relevant sections
-      if (this.elements.presetScheduleGroup) {
-        this.elements.presetScheduleGroup.style.display = scheduleType === 'preset' ? 'block' : 'none';
-      }
-      
-      if (this.elements.customCronGroup) {
-        this.elements.customCronGroup.style.display = scheduleType === 'custom' ? 'block' : 'none';
-      }
-      
-      // Update preview
-      this.handleSchedulePreviewUpdate();
-    }
     
     // Handle schedule preview update
-    handleSchedulePreviewUpdate() {
-      if (!this.elements.cronPreview || !this.elements.cronPreviewTimes) return;
-      
-      const scheduleType = this.elements.scheduleTypeSelect?.value;
-      let cronExpression = '';
-      
-      if (scheduleType === 'preset' && this.elements.presetScheduleSelect) {
-        cronExpression = this.elements.presetScheduleSelect.value;
-      } else if (scheduleType === 'custom' && this.elements.customCronInput) {
-        cronExpression = this.elements.customCronInput.value.trim();
-      }
-      
-      if (cronExpression) {
-        this.elements.cronPreview.style.display = 'block';
-        // Here you would typically validate and show next execution times
-        // For now, just show the cron expression
-        this.elements.cronPreviewTimes.innerHTML = `
-          <div><strong>Cron Expression:</strong> ${this.escapeHtml(cronExpression)}</div>
-          <div><em>Next execution times will be calculated by the backend</em></div>
-        `;
-      } else {
-        this.elements.cronPreview.style.display = 'none';
-      }
-    }
     
     // Handle schedule save
     async handleScheduleSave() {
       if (!this.state.currentScheduleWorkflow) return;
       
       try {
-        const scheduleType = this.elements.scheduleTypeSelect?.value;
         const workflowId = this.state.currentScheduleWorkflow.flow_id;
+        const enabledCheckbox = document.getElementById('schedule-enabled');
+        const isEnabled = enabledCheckbox ? enabledCheckbox.checked : true;
         
-        if (scheduleType === 'none') {
-          // Remove schedule
-          if (this.state.currentScheduleWorkflow.schedule) {
-            await this.apiClient.deleteSchedule(this.state.currentScheduleWorkflow.schedule.id);
-          }
+        // If schedule is disabled, remove it
+        if (!isEnabled && this.state.currentScheduleWorkflow.schedule) {
+          await this.apiClient.deleteSchedule(workflowId);
           
           this.emit('notification', {
-            message: 'Workflow schedule removed',
+            message: 'Workflow schedule disabled',
             type: 'success'
           });
-        } else {
-          // Add/update schedule
-          let cronExpression = '';
-          
-          if (scheduleType === 'preset' && this.elements.presetScheduleSelect) {
-            cronExpression = this.elements.presetScheduleSelect.value;
-          } else if (scheduleType === 'custom' && this.elements.customCronInput) {
-            cronExpression = this.elements.customCronInput.value.trim();
-          }
-          
-          if (!cronExpression) {
-            this.emit('notification', {
-              message: 'Please provide a valid cron expression',
-              type: 'error'
-            });
-            return;
-          }
+        } else if (this.scheduleState.cronExpression && isEnabled) {
+          // Add/update schedule with new interface
+          const descriptionInput = document.getElementById('schedule-description');
+          const description = descriptionInput ? descriptionInput.value.trim() : '';
           
           const scheduleData = {
             flow_id: workflowId,
-            cron_expression: cronExpression
+            cron_expression: this.scheduleState.cronExpression,
+            is_enabled: isEnabled,
+            description: description
           };
           
           if (this.state.currentScheduleWorkflow.schedule) {
             // Update existing schedule
-            await this.apiClient.updateSchedule(this.state.currentScheduleWorkflow.schedule.id, scheduleData);
+            await this.apiClient.updateSchedule(workflowId, scheduleData);
           } else {
             // Create new schedule
             await this.apiClient.createSchedule(scheduleData);
@@ -3709,6 +4198,13 @@ class VibeSurfSettingsManager {
             message: 'Workflow schedule saved successfully',
             type: 'success'
           });
+        } else if (isEnabled) {
+          // Enabled but no valid cron expression
+          this.emit('notification', {
+            message: 'Please configure a valid schedule',
+            type: 'error'
+          });
+          return;
         }
         
         // Reload workflows to update schedule status

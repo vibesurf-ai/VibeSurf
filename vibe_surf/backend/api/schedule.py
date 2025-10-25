@@ -23,7 +23,7 @@ from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/schedule", tags=["schedule"])
 
 # Pydantic models for request/response
 class ScheduleCreate(BaseModel):
@@ -67,7 +67,7 @@ def calculate_next_execution(cron_expr: str) -> Optional[datetime]:
     except (ValueError, TypeError):
         return None
 
-@router.get("/", response_model=List[ScheduleResponse])
+@router.get("", response_model=List[ScheduleResponse])
 async def get_schedules(db: AsyncSession = Depends(get_db_session)):
     """Get all schedules"""
     try:
@@ -98,7 +98,7 @@ async def get_schedules(db: AsyncSession = Depends(get_db_session)):
             detail=f"Failed to get schedules: {str(e)}"
         )
 
-@router.post("/", response_model=ScheduleResponse)
+@router.post("", response_model=ScheduleResponse)
 async def create_schedule(schedule_data: ScheduleCreate, db: AsyncSession = Depends(get_db_session)):
     """Create a new schedule"""
     try:
@@ -129,8 +129,10 @@ async def create_schedule(schedule_data: ScheduleCreate, db: AsyncSession = Depe
         # Update the schedule manager if available
         if hasattr(shared_state, 'schedule_manager') and shared_state.schedule_manager:
             await shared_state.schedule_manager.reload_schedules()
+        else:
+            logger.warning("[ScheduleAPI] Schedule manager not available for reload")
 
-        logger.info(f"Created schedule for flow {schedule_data.flow_id}")
+        logger.info(f"[ScheduleAPI] Successfully created schedule for flow {schedule_data.flow_id}")
         return ScheduleResponse(**schedule_data_dict)
 
     except HTTPException:

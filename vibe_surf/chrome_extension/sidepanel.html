@@ -720,45 +720,122 @@
                         <label class="form-label">Workflow Name</label>
                         <div id="schedule-workflow-name" class="workflow-name-display"></div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Schedule Type</label>
-                        <select id="schedule-type-select" class="form-select">
-                            <option value="">No Schedule (Manual Only)</option>
-                            <option value="preset">Preset Schedule</option>
-                            <option value="custom">Custom Cron Expression</option>
-                        </select>
-                    </div>
-                    <div id="preset-schedule-group" class="form-group hidden">
-                        <label class="form-label">Preset Schedule</label>
-                        <select id="preset-schedule-select" class="form-select">
-                            <option value="0 */1 * * *">Every Hour</option>
-                            <option value="0 */6 * * *">Every 6 Hours</option>
-                            <option value="0 */12 * * *">Every 12 Hours</option>
-                            <option value="0 0 * * *">Daily at Midnight</option>
-                            <option value="0 9 * * *">Daily at 9 AM</option>
-                            <option value="0 0 * * 0">Weekly (Sunday at Midnight)</option>
-                            <option value="0 0 1 * *">Monthly (1st at Midnight)</option>
-                        </select>
-                    </div>
-                    <div id="custom-cron-group" class="form-group hidden">
-                        <label class="form-label">Custom Cron Expression</label>
-                        <input type="text" id="custom-cron-input" class="form-input" placeholder="0 9 * * 1-5">
-                        <div class="form-help">
-                            <p>Format: minute hour day month day-of-week</p>
-                            <p>Example: "0 9 * * 1-5" = Every weekday at 9 AM</p>
+                    
+                    <!-- Schedule Configuration -->
+                    <div class="schedule-configuration-section">
+                        <h4>Schedule Configuration</h4>
+
+                    <!-- Simplified Schedule Builder -->
+                    <div class="schedule-builder">
+                        <div class="builder-row">
+                            <div class="builder-group">
+                                <label class="form-label">Schedule Type</label>
+                                <select id="schedule-type-select" class="form-select">
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="every-x-minutes">Every X Minutes</option>
+                                    <option value="every-x-hours">Every X Hours</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                            
+                            <!-- Every X Minutes -->
+                            <div id="every-x-minutes-options" class="schedule-options hidden">
+                                <div class="builder-row">
+                                    <div class="builder-group">
+                                        <label class="form-label">Minute Interval</label>
+                                        <input type="number" id="minutes-interval" class="form-input" min="1" max="59" value="1">
+                                        <div class="form-help">Every <span id="minutes-label">1</span> minute(s)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Every X Hours -->
+                            <div id="every-x-hours-options" class="schedule-options hidden">
+                                <div class="builder-row">
+                                    <div class="builder-group">
+                                        <label class="form-label">Hour Interval</label>
+                                        <input type="number" id="hours-interval" class="form-input" min="1" max="23" value="1">
+                                        <div class="form-help">Every <span id="hours-label">1</span> hour(s)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Daily -->
+                            <div id="daily-options" class="schedule-options">
+                                <div class="builder-row">
+                                    <div class="builder-group">
+                                        <label class="form-label">Time</label>
+                                        <input type="time" id="daily-time" class="form-input" value="08:00">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Weekly -->
+                            <div id="weekly-options" class="schedule-options hidden">
+                                <div class="builder-row">
+                                    <div class="builder-group">
+                                        <label class="form-label">Day of Week</label>
+                                        <select id="weekly-day" class="form-select">
+                                            <option value="1">Monday</option>
+                                            <option value="2">Tuesday</option>
+                                            <option value="3">Wednesday</option>
+                                            <option value="4">Thursday</option>
+                                            <option value="5">Friday</option>
+                                            <option value="6">Saturday</option>
+                                            <option value="0">Sunday</option>
+                                        </select>
+                                    </div>
+                                    <div class="builder-group">
+                                        <label class="form-label">Time</label>
+                                        <input type="time" id="weekly-time" class="form-input" value="09:00">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Monthly -->
+                            <div id="monthly-options" class="schedule-options hidden">
+                                <div class="builder-row">
+                                    <div class="builder-group">
+                                        <label class="form-label">Day of Month</label>
+                                        <input type="number" id="monthly-day" class="form-input" min="1" max="31" value="1">
+                                        <div class="form-help">Day 1-31 (use 1 for 1st of month)</div>
+                                    </div>
+                                    <div class="builder-group">
+                                        <label class="form-label">Time</label>
+                                        <input type="time" id="monthly-time" class="form-input" value="09:00">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div id="cron-preview" class="cron-preview hidden">
-                        <div class="preview-label">Next execution times:</div>
-                        <div id="cron-preview-times" class="preview-times">
-                            <!-- Preview times will be shown here -->
+
+                    <!-- Schedule Preview (Removed) -->
+
+                    <!-- Schedule Settings -->
+                    <div class="schedule-settings-section">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <input type="checkbox" id="schedule-enabled" checked>
+                                <span>Enable Schedule</span>
+                            </label>
+                            <div class="form-help">Uncheck to disable the schedule without deleting it</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Schedule Description (Optional)</label>
+                            <textarea id="schedule-description" class="form-textarea" rows="2" placeholder="e.g., Daily data sync, Weekly report generation"></textarea>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="form-btn secondary" id="schedule-cancel">Cancel</button>
-                <button type="button" class="form-btn primary" id="schedule-save">Save Schedule</button>
+                <button type="button" class="form-btn primary" id="schedule-save" disabled>
+                    <span class="btn-text">Save Schedule</span>
+                    <span class="btn-loading hidden">Saving...</span>
+                </button>
             </div>
         </div>
     </div>
@@ -859,10 +936,18 @@
     <!-- Voice Recording -->
     <script src="scripts/voice-recorder.js"></script>
     <!-- Specialized UI Managers -->
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/cron-parser@4.9.0/lib/parser.min.js"></script>
+    
+    <!-- Specialized UI Managers -->
     <script src="scripts/modal-manager.js"></script>
     <script src="scripts/settings-manager.js"></script>
     <script src="scripts/history-manager.js"></script>
     <script src="scripts/file-manager.js"></script>
+    
+    <!-- Test Suite (Development Only) -->
+    <script src="scripts/schedule-test.js"></script>
+    
     <!-- Core UI Manager -->
     <script src="scripts/ui-manager.js"></script>
     <script src="scripts/main.js"></script>
