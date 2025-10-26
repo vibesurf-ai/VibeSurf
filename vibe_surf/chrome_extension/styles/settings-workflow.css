@@ -120,17 +120,139 @@
     border: 2px solid var(--border-color);
     border-radius: 8px;
     font-size: 15px;
-    background: var(--input-bg);
-    color: var(--text-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
     cursor: pointer;
     transition: all 0.3s ease;
     min-width: 160px;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    padding-right: 40px;
 }
 
 .filter-select:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Dark theme support for filter select */
+[data-theme="dark"] .filter-select,
+.dark-theme .filter-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .filter-select option,
+.dark-theme .filter-select option {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Form select elements - general styling for all dropdowns */
+.form-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    padding-right: 40px;
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-select option {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 8px 12px;
+}
+
+/* Enhanced dark theme support for form select */
+[data-theme="dark"] .form-select,
+.dark-theme .form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .form-select option,
+.dark-theme .form-select option {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Ensure all select elements are visible in dark mode */
+[data-theme="dark"] select,
+.dark-theme select {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] select option,
+.dark-theme select option {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Compact select variants */
+.llm-select.compact,
+.agent-mode-select.compact {
+    padding: 6px 10px;
+    font-size: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 8px center;
+    background-repeat: no-repeat;
+    background-size: 14px;
+    padding-right: 30px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.llm-select.compact:focus,
+.agent-mode-select.compact:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* Dark theme support for compact selects */
+[data-theme="dark"] .llm-select.compact,
+[data-theme="dark"] .agent-mode-select.compact,
+.dark-theme .llm-select.compact,
+.dark-theme .agent-mode-select.compact {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+}
+
+[data-theme="dark"] .llm-select.compact option,
+[data-theme="dark"] .agent-mode-select.compact option,
+.dark-theme .llm-select.compact option,
+.dark-theme .agent-mode-select.compact option {
+    background: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 /* Workflow Cards - Modern Card Design */
@@ -203,29 +325,33 @@
 .workflow-flow-id {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 13px;
+    gap: 4px;
+    font-size: 11px;
     color: var(--text-muted);
     background: var(--bg-secondary);
-    padding: 8px 12px;
-    border-radius: 8px;
+    padding: 2px 6px;
+    border-radius: 4px;
     border: 1px solid var(--border-color);
+    width: fit-content;
+    margin-top: 4px;
 }
 
 .flow-id-label {
     font-weight: 600;
     color: var(--text-color);
+    font-size: 10px;
 }
 
 .flow-id-value {
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
     background: rgba(59, 130, 246, 0.1);
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: 1px 4px;
+    border-radius: 2px;
     cursor: pointer;
     transition: all 0.2s ease;
     color: var(--primary-color);
     font-weight: 500;
+    font-size: 10px;
 }
 
 .flow-id-value:hover {
@@ -234,22 +360,29 @@
 }
 
 .copy-flow-id {
-    padding: 6px;
+    padding: 2px;
     background: transparent;
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    border-radius: 6px;
+    border-radius: 3px;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 16px;
+    height: 16px;
 }
 
 .copy-flow-id:hover {
     background: var(--primary-color);
     color: white;
     transform: scale(1.1);
+}
+
+.copy-flow-id svg {
+    width: 10px;
+    height: 10px;
 }
 
 .workflow-status {
@@ -310,6 +443,31 @@
 
 .workflow-actions .btn-icon {
     padding: 10px;
+}
+
+/* Delete button styling - enhanced red styling */
+.workflow-actions .btn.workflow-delete-btn,
+.profile-action-btn.delete,
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+    border: 1px solid #dc3545;
+}
+
+.workflow-actions .btn.workflow-delete-btn:hover,
+.profile-action-btn.delete:hover,
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.workflow-actions .btn.workflow-delete-btn:active,
+.profile-action-btn.delete:active,
+.btn-danger:active {
+    background-color: #bd2130;
+    border-color: #b21f2d;
 }
 
 /* Enhanced Empty State */
@@ -429,63 +587,295 @@
     line-height: 1.6;
 }
 
+/* Enhanced logs container with improved layout */
 .logs-container {
     max-height: 500px;
     overflow-y: auto;
     border: 2px solid var(--border-color);
     border-radius: 12px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark theme specific logs styling */
+[data-theme="dark"] .logs-container,
+.dark-theme .logs-container {
     background: #1a1a1a;
     color: #e5e5e5;
+    border-color: #404040;
 }
 
 .logs-list {
-    padding: 20px;
+    padding: 12px;
 }
 
+/* Redesigned log entry layout */
 .log-entry {
-    padding: 10px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 16px;
+    border-left: 3px solid transparent;
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
     font-size: 13px;
     line-height: 1.5;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    transition: all 0.2s ease;
+    background: var(--bg-secondary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .log-entry:last-child {
-    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.log-entry:hover {
+    background: var(--bg-hover);
+    transform: translateX(2px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .log-entry,
+.dark-theme .log-entry {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .log-entry:hover,
+.dark-theme .log-entry:hover {
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .log-timestamp {
-    color: #6b7280;
-    margin-right: 12px;
-    font-weight: 500;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 11px;
+    white-space: nowrap;
+    text-align: right;
+    min-width: 80px;
+}
+
+[data-theme="dark"] .log-timestamp,
+.dark-theme .log-timestamp {
+    color: #9ca3af;
 }
 
 .log-level {
     font-weight: 700;
-    margin-right: 12px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 70px;
+    white-space: nowrap;
 }
 
-.log-level[data-level="error"] {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
+/* Enhanced log level styling with border-left colors */
+.log-entry.error {
+    border-left-color: #dc3545;
 }
 
-.log-level[data-level="warning"] {
-    color: #f59e0b;
-    background: rgba(245, 158, 11, 0.1);
+.log-entry.error .log-level {
+    color: white;
+    background: #dc3545;
 }
 
-.log-level[data-level="info"] {
-    color: #3b82f6;
-    background: rgba(59, 130, 246, 0.1);
+.log-entry.warning {
+    border-left-color: #ffc107;
+}
+
+.log-entry.warning .log-level {
+    color: #000;
+    background: #ffc107;
+}
+
+.log-entry.info {
+    border-left-color: #3b82f6;
+}
+
+.log-entry.info .log-level {
+    color: white;
+    background: #3b82f6;
+}
+
+.log-entry.success {
+    border-left-color: #28a745;
+}
+
+.log-entry.success .log-level {
+    color: white;
+    background: #28a745;
 }
 
 .log-message {
-    color: #e5e5e5;
+    color: var(--text-primary);
     word-break: break-word;
+    line-height: 1.6;
+    font-weight: 400;
+}
+
+[data-theme="dark"] .log-message,
+.dark-theme .log-message {
+    color: #e5e5e5;
+}
+
+/* Enhanced logs header with better spacing */
+.logs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 2px solid var(--border-color);
+    background: var(--bg-secondary);
+    border-radius: 12px 12px 0 0;
+}
+
+.logs-info {
+    flex: 1;
+}
+
+.logs-workflow-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.logs-job-id {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    background: var(--bg-tertiary);
+    padding: 4px 8px;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.logs-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.logs-refresh-btn,
+.logs-clear-btn {
+    padding: 10px 12px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.logs-refresh-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+.logs-clear-btn:hover {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+    transform: translateY(-1px);
+}
+
+/* Enhanced logs header */
+.logs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    border-radius: 12px 12px 0 0;
+}
+
+.logs-info {
+    flex: 1;
+}
+
+.logs-workflow-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.logs-job-id {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.logs-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.logs-refresh-btn,
+.logs-clear-btn {
+    padding: 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logs-refresh-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.logs-clear-btn:hover {
+    background: var(--danger-color);
+    color: white;
+    border-color: var(--danger-color);
+}
+
+/* Enhanced loading state for logs */
+.logs-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    gap: 16px;
+}
+
+.logs-loading .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border-color);
+    border-top: 3px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.logs-loading .loading-text {
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 500;
 }
 
 .delete-content {
