@@ -3497,26 +3497,84 @@ class VibeSurfSettingsManager {
     async monitorWorkflowJob(workflowId, jobId) {
       const checkStatus = async () => {
         try {
-          const events = await this.apiClient.getWorkflowEvents(jobId);
+          const eventsResponse = await this.apiClient.getWorkflowEvents(jobId);
+          console.log(`[SettingsManager] Checking workflow ${workflowId} job ${jobId} status, events:`, eventsResponse);
           
-          // Check if workflow is still running based on events
-          const isStillRunning = events && events.length > 0;
+          // Parse events - API returns NDJSON format (newline-delimited JSON)
+          let events = [];
+          if (typeof eventsResponse === 'string') {
+            // Split by newlines and parse each line as JSON
+            const lines = eventsResponse.trim().split('\n');
+            events = lines.map(line => {
+              const trimmedLine = line.trim();
+              if (!trimmedLine) return null; // Skip empty lines
+              try {
+                return JSON.parse(trimmedLine);
+              } catch (e) {
+                console.warn(`[SettingsManager] Failed to parse event line: ${trimmedLine}`, e);
+                return null;
+              }
+            }).filter(event => event !== null);
+          } else if (Array.isArray(eventsResponse)) {
+            events = eventsResponse;
+          } else if (eventsResponse && typeof eventsResponse === 'object') {
+            events = [eventsResponse];
+          }
+          
+          console.log(`[SettingsManager] Parsed ${events.length} events for job ${jobId}`);
+          
+          // Check if workflow is still running based on event content
+          let isStillRunning = true;
+          
+          if (!events || events.length === 0) {
+            // No events means workflow might be finished or not started yet
+            console.log(`[SettingsManager] No events for job ${jobId}, checking if job still exists`);
+            isStillRunning = false;
+          } else {
+            // Check for completion indicators in events
+            const hasEndEvent = events.some(event => {
+              const eventType = event.event || event.eventType || '';
+              return eventType === 'on_end' ||
+                     eventType === 'end' ||
+                     eventType === 'completed' ||
+                     eventType === 'error' ||
+                     eventType === 'failed' ||
+                     eventType === 'stream_end';
+            });
+            
+            if (hasEndEvent) {
+              console.log(`[SettingsManager] Found completion event for job ${jobId}`);
+              isStillRunning = false;
+            }
+          }
           
           if (!isStillRunning || !this.state.runningJobs.has(workflowId)) {
             // Workflow finished, remove from running jobs
+            console.log(`[SettingsManager] Workflow ${workflowId} finished, removing from running jobs`);
             this.state.runningJobs.delete(workflowId);
             this.renderWorkflows();
+            
+            this.emit('notification', {
+              message: 'Workflow execution completed',
+              type: 'success'
+            });
             return;
           }
           
           // Continue monitoring
+          console.log(`[SettingsManager] Workflow ${workflowId} still running, will check again in 5 seconds`);
           setTimeout(checkStatus, 5000);
           
         } catch (error) {
           console.error('[SettingsManager] Failed to check workflow status:', error);
-          // Stop monitoring on error
+          // Stop monitoring on error but inform user
           this.state.runningJobs.delete(workflowId);
           this.renderWorkflows();
+          
+          this.emit('notification', {
+            message: 'Failed to monitor workflow status',
+            type: 'warning'
+          });
         }
       };
       
@@ -3580,12 +3638,37 @@ class VibeSurfSettingsManager {
           return;
         }
         
-        const events = await this.apiClient.getWorkflowEvents(jobId);
-        this.renderWorkflowLogs(events || []);
+        console.log(`[SettingsManager] Loading logs for job ${jobId}`);
+        const eventsResponse = await this.apiClient.getWorkflowEvents(jobId);
+        console.log(`[SettingsManager] Received events for logs:`, eventsResponse);
+        
+        // Parse events - API returns NDJSON format (newline-delimited JSON)
+        let events = [];
+        if (typeof eventsResponse === 'string') {
+          // Split by newlines and parse each line as JSON
+          const lines = eventsResponse.trim().split('\n');
+          events = lines.map(line => {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) return null; // Skip empty lines
+            try {
+              return JSON.parse(trimmedLine);
+            } catch (e) {
+              console.warn(`[SettingsManager] Failed to parse event line: ${trimmedLine}`, e);
+              return null;
+            }
+          }).filter(event => event !== null);
+        } else if (Array.isArray(eventsResponse)) {
+          events = eventsResponse;
+        } else if (eventsResponse && typeof eventsResponse === 'object') {
+          events = [eventsResponse];
+        }
+        
+        console.log(`[SettingsManager] Parsed ${events.length} events for logs display`);
+        this.renderWorkflowLogs(events);
         
       } catch (error) {
         console.error('[SettingsManager] Failed to load workflow logs:', error);
-        this.elements.logsContent.innerHTML = '<div class="log-entry error">Failed to load logs</div>';
+        this.elements.logsContent.innerHTML = `<div class="log-entry error">Failed to load logs: ${error.message}</div>`;
       } finally {
         if (this.elements.logsLoading) {
           this.elements.logsLoading.style.display = 'none';
@@ -3597,20 +3680,70 @@ class VibeSurfSettingsManager {
     renderWorkflowLogs(events) {
       if (!this.elements.logsContent) return;
       
+      console.log(`[SettingsManager] Rendering logs with ${events.length} events`);
+      
       if (events.length === 0) {
-        this.elements.logsContent.innerHTML = '<div class="log-entry info">No logs available</div>';
+        this.elements.logsContent.innerHTML = '<div class="log-entry info">No logs available yet. Events may still be processing...</div>';
         return;
       }
       
-      const logsHTML = events.map(event => {
-        const timestamp = new Date(event.timestamp || Date.now()).toLocaleString();
-        const level = event.level || 'info';
-        const message = event.message || JSON.stringify(event);
+      const logsHTML = events.map((event, index) => {
+        let eventData = event;
+        let timestamp, level, message, eventType;
+        
+        // Handle different event formats
+        if (typeof event === 'string') {
+          try {
+            eventData = JSON.parse(event);
+          } catch (e) {
+            // If parsing fails, treat as plain text
+            return `
+              <div class="log-entry info">
+                <span class="log-timestamp">${new Date().toLocaleString()}</span>
+                <span class="log-level">[EVENT]</span>
+                <span class="log-message">${this.escapeHtml(event)}</span>
+              </div>
+            `;
+          }
+        }
+        
+        // Extract event information
+        if (eventData && typeof eventData === 'object') {
+          timestamp = eventData.timestamp || eventData.time || Date.now();
+          level = eventData.level || eventData.type || 'info';
+          eventType = eventData.event || eventData.eventType || 'unknown';
+          
+          // Build message from event data
+          if (eventData.message) {
+            message = eventData.message;
+          } else if (eventData.data) {
+            message = `${eventType}: ${JSON.stringify(eventData.data, null, 2)}`;
+          } else {
+            message = `${eventType}: ${JSON.stringify(eventData, null, 2)}`;
+          }
+        } else {
+          timestamp = Date.now();
+          level = 'info';
+          eventType = 'event';
+          message = String(eventData);
+        }
+        
+        const timeStr = new Date(timestamp).toLocaleString();
+        
+        // Determine log level styling
+        let logLevel = level.toLowerCase();
+        if (eventType === 'error' || eventType === 'failed') {
+          logLevel = 'error';
+        } else if (eventType === 'end' || eventType === 'on_end' || eventType === 'completed') {
+          logLevel = 'success';
+        } else if (eventType === 'vertices_sorted' || eventType === 'add_message') {
+          logLevel = 'info';
+        }
         
         return `
-          <div class="log-entry ${level}">
-            <span class="log-timestamp">${timestamp}</span>
-            <span class="log-level">[${level.toUpperCase()}]</span>
+          <div class="log-entry ${logLevel}">
+            <span class="log-timestamp">${timeStr}</span>
+            <span class="log-level">[${eventType.toUpperCase()}]</span>
             <span class="log-message">${this.escapeHtml(message)}</span>
           </div>
         `;
@@ -3620,6 +3753,8 @@ class VibeSurfSettingsManager {
       
       // Scroll to bottom
       this.elements.logsContent.scrollTop = this.elements.logsContent.scrollHeight;
+      
+      console.log(`[SettingsManager] Rendered ${events.length} log entries`);
     }
     
     // Handle logs refresh
