@@ -342,6 +342,8 @@ def get_lifespan():
             # Initialize VibeSurf components and update shared state
             await shared_state.initialize_vibesurf_components()
 
+            await shared_state.initialize_schedule_manager()
+
             # Start browser monitoring task
             browser_monitor_task = asyncio.create_task(monitor_browser_connection())
             logger.info("🔍 Started browser connection monitor")
@@ -364,6 +366,8 @@ def get_lifespan():
         finally:
             # Cleanup on shutdown
             logger.info("Starting graceful shutdown...")
+
+            await shared_state.shutdown_schedule_manager()
 
             # Capture telemetry shutdown event
             telemetry = ProductTelemetry()

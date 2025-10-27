@@ -102,6 +102,8 @@ async def get_schedules(db: AsyncSession = Depends(get_db_session)):
 async def create_schedule(schedule_data: ScheduleCreate, db: AsyncSession = Depends(get_db_session)):
     """Create a new schedule"""
     try:
+        from vibe_surf.backend.shared_state import schedule_manager
+
         # Validate cron expression if provided
         if schedule_data.cron_expression and not validate_cron_expression(schedule_data.cron_expression):
             raise HTTPException(
@@ -127,8 +129,8 @@ async def create_schedule(schedule_data: ScheduleCreate, db: AsyncSession = Depe
         )
 
         # Update the schedule manager if available
-        if hasattr(shared_state, 'schedule_manager') and shared_state.schedule_manager:
-            await shared_state.schedule_manager.reload_schedules()
+        if schedule_manager:
+            await schedule_manager.reload_schedules()
         else:
             logger.warning("[ScheduleAPI] Schedule manager not available for reload")
 
@@ -184,6 +186,8 @@ async def get_schedule(flow_id: str, db: AsyncSession = Depends(get_db_session))
 async def update_schedule(flow_id: str, schedule_data: ScheduleUpdate, db: AsyncSession = Depends(get_db_session)):
     """Update an existing schedule"""
     try:
+        from vibe_surf.backend.shared_state import schedule_manager
+
         # Validate cron expression if provided
         if schedule_data.cron_expression is not None and not validate_cron_expression(schedule_data.cron_expression):
             raise HTTPException(
@@ -255,8 +259,8 @@ async def update_schedule(flow_id: str, schedule_data: ScheduleUpdate, db: Async
         }
 
         # Update the schedule manager if available
-        if hasattr(shared_state, 'schedule_manager') and shared_state.schedule_manager:
-            await shared_state.schedule_manager.reload_schedules()
+        if schedule_manager:
+            await schedule_manager.reload_schedules()
 
         logger.info(f"Updated schedule for flow {flow_id}")
         return ScheduleResponse(**schedule_dict)
@@ -274,6 +278,8 @@ async def update_schedule(flow_id: str, schedule_data: ScheduleUpdate, db: Async
 async def delete_schedule(flow_id: str, db: AsyncSession = Depends(get_db_session)):
     """Delete a schedule"""
     try:
+        from vibe_surf.backend.shared_state import schedule_manager
+
         # Check if schedule exists
         existing_schedule = await ScheduleQueries.get_schedule_by_flow_id(db, flow_id)
         
@@ -293,8 +299,8 @@ async def delete_schedule(flow_id: str, db: AsyncSession = Depends(get_db_sessio
             )
 
         # Update the schedule manager if available
-        if hasattr(shared_state, 'schedule_manager') and shared_state.schedule_manager:
-            await shared_state.schedule_manager.reload_schedules()
+        if schedule_manager:
+            await schedule_manager.reload_schedules()
 
         logger.info(f"Deleted schedule for flow {flow_id}")
         return {"message": f"Schedule deleted for flow {flow_id}"}

@@ -16,6 +16,7 @@ from pathlib import Path
 from composio import Composio
 from composio_langchain import LangchainProvider
 from croniter import croniter
+from sqlalchemy import select, update
 
 # VibeSurf components
 from vibe_surf.agents.vibe_surf_agent import VibeSurfAgent
@@ -760,26 +761,53 @@ class ScheduleManager:
     async def reload_schedules(self):
         """Reload schedules from the database"""
         try:
+            global db_manager
             if not db_manager:
                 logger.warning("Database manager not available for schedule reload")
                 return
+
+            logger.debug("Starting schedule reload from database...")
+            async for session in db_manager.get_session():
+                logger.debug("Successfully obtained database session")
                 
-            async with db_manager.get_session() as session:
-                result = await session.execute("""
-                    SELECT * FROM schedules
-                    WHERE is_enabled = 1 AND cron_expression IS NOT NULL
-                """)
-                schedules = result.fetchall()
+                # Import Schedule model
+                from .database.models import Schedule
+                
+                # Use SQLAlchemy ORM query
+                result = await session.execute(
+                    select(Schedule).where(
+                        (Schedule.is_enabled == True) &
+                        (Schedule.cron_expression.isnot(None))
+                    )
+                )
+                schedules = result.scalars().all()
+                logger.debug(f"Found {len(schedules)} enabled schedules in database")
                 
                 self.schedules = {}
-                for row in schedules:
-                    schedule_dict = dict(row._mapping) if hasattr(row, '_mapping') else dict(row)
-                    self.schedules[schedule_dict['flow_id']] = schedule_dict
+                for schedule in schedules:
+                    logger.info(f"Loading flow: {schedule.flow_id} into schedule")
+                    schedule_dict = {
+                        'id': schedule.id,
+                        'flow_id': schedule.flow_id,
+                        'cron_expression': schedule.cron_expression,
+                        'is_enabled': schedule.is_enabled,
+                        'description': schedule.description,
+                        'last_execution_at': schedule.last_execution_at,
+                        'next_execution_at': schedule.next_execution_at,
+                        'execution_count': schedule.execution_count,
+                        'created_at': schedule.created_at,
+                        'updated_at': schedule.updated_at
+                    }
+                    self.schedules[schedule.flow_id] = schedule_dict
                 
-                logger.info(f"Reloaded {len(self.schedules)} active schedules")
+                logger.info(f"✅ Successfully reloaded {len(self.schedules)} active schedules")
+                break  # Exit after processing to avoid multiple iterations
                 
         except Exception as e:
-            logger.error(f"Failed to reload schedules: {e}")
+            logger.error(f"❌ Failed to reload schedules: {e}")
+            # Log the stack trace for debugging
+            import traceback
+            logger.error(f"Schedule reload traceback: {traceback.format_exc()}")
     
     async def _schedule_loop(self):
         """Main schedule checking loop"""
@@ -870,6 +898,7 @@ class ScheduleManager:
     async def _update_execution_tracking(self, flow_id: str, schedule: dict):
         """Update execution tracking in the database"""
         try:
+            global db_manager
             if not db_manager:
                 return
                 
@@ -885,17 +914,24 @@ class ScheduleManager:
                 except (ValueError, TypeError):
                     logger.error(f"Invalid cron expression for flow {flow_id}: {cron_expr}")
             
-            async with db_manager.get_session() as session:
-                await session.execute("""
-                    UPDATE schedules
-                    SET last_execution_at = ?,
-                        next_execution_at = ?,
-                        execution_count = execution_count + 1,
-                        updated_at = ?
-                    WHERE flow_id = ?
-                """, (now, next_execution, now, flow_id))
+            async for session in db_manager.get_session():
+                # Import Schedule model
+                from .database.models import Schedule
+                
+                # Use SQLAlchemy ORM update
+                await session.execute(
+                    update(Schedule)
+                    .where(Schedule.flow_id == flow_id)
+                    .values(
+                        last_execution_at=now,
+                        next_execution_at=next_execution,
+                        execution_count=Schedule.execution_count + 1,
+                        updated_at=now
+                    )
+                )
                 
                 await session.commit()
+                break  # Exit after processing to avoid multiple iterations
                 
                 # Update local schedule cache
                 if flow_id in self.schedules:
@@ -911,6 +947,7 @@ class ScheduleManager:
     async def _update_next_execution_time(self, flow_id: str, cron_expr: str):
         """Update next execution time for a schedule"""
         try:
+            global db_manager
             if not db_manager:
                 return
                 
@@ -923,14 +960,22 @@ class ScheduleManager:
                 logger.error(f"Invalid cron expression for flow {flow_id}: {cron_expr}")
                 return
             
-            async with db_manager.get_session() as session:
-                await session.execute("""
-                    UPDATE schedules
-                    SET next_execution_at = ?, updated_at = ?
-                    WHERE flow_id = ?
-                """, (next_execution, now, flow_id))
+            async for session in db_manager.get_session():
+                # Import Schedule model
+                from .database.models import Schedule
+                
+                # Use SQLAlchemy ORM update
+                await session.execute(
+                    update(Schedule)
+                    .where(Schedule.flow_id == flow_id)
+                    .values(
+                        next_execution_at=next_execution,
+                        updated_at=now
+                    )
+                )
                 
                 await session.commit()
+                break  # Exit after processing to avoid multiple iterations
                 
                 # Update local schedule cache
                 if flow_id in self.schedules:

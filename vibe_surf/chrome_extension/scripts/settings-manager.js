@@ -5082,6 +5082,18 @@ class VibeSurfSettingsManager {
       
       try {
         const workflowId = this.state.currentDeleteWorkflow.flow_id;
+        const workflow = this.state.currentDeleteWorkflow;
+        
+        // Check if workflow has an associated schedule and delete it first
+        if (workflow.scheduled && workflow.schedule) {
+          console.log(`[SettingsManager] Deleting associated schedule for workflow ${workflowId}`);
+          try {
+            await this.apiClient.deleteSchedule(workflowId);
+            console.log(`[SettingsManager] Successfully deleted schedule for workflow ${workflowId}`);
+          } catch (scheduleError) {
+            console.warn(`[SettingsManager] Failed to delete schedule for workflow ${workflowId}:`, scheduleError);
+          }
+        }
         
         // Delete the workflow
         await this.apiClient.deleteWorkflow(workflowId);
