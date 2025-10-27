@@ -30,8 +30,10 @@ class VibeSurfSettingsManager {
       currentLogsJobId: null,
       currentDeleteWorkflow: null,
       // Event cache to prevent competition between run monitoring and log display
-      eventCache: new Map(), // Map<jobId, {events: [], lastFetch: timestamp, isComplete: boolean}>
-      eventSubscribers: new Map() // Map<jobId, Set<callback functions>>
+      eventCache: new Map(), // Map<jobId, {events: [], lastFetch: timestamp, isComplete: boolean, workflowId: string}>
+      eventSubscribers: new Map(), // Map<jobId, Set<callback functions>>
+      // Mapping from workflow ID to job IDs for completed workflows
+      workflowJobMapping: new Map() // Map<workflowId, {jobId: string, completedAt: timestamp, eventCount: number}>
     };
     this.elements = {};
     this.eventListeners = new Map();
@@ -3498,15 +3500,37 @@ class VibeSurfSettingsManager {
     
     // Unified event fetching with caching to prevent competition
     async fetchWorkflowEvents(jobId, options = {}) {
-      const { forceRefresh = false, maxAge = 10000, preserveCache = true } = options;
+      const { forceRefresh = false, maxAge = 10000, preserveCache = true, workflowId = null } = options;
+      
+      console.log(`[SettingsManager] 🔄 FETCHING EVENTS for job ${jobId}`, {
+        forceRefresh,
+        maxAge,
+        preserveCache,
+        workflowId
+      });
       
       // Check cache first
       const cached = this.state.eventCache.get(jobId);
       const now = Date.now();
       
-      // Persistent cache for completed workflows - don't refresh unless forced
+      console.log(`[SettingsManager] Cache check:`, {
+        exists: !!cached,
+        isPersistent: cached?.isPersistent,
+        isComplete: cached?.isComplete,
+        eventCount: cached?.events?.length || 0,
+        workflowId: cached?.workflowId,
+        ageMs: cached ? now - cached.lastFetch : 'N/A'
+      });
+      
+      // Persistent cache for completed workflows - NEVER refresh unless explicitly forced
       if (cached && cached.isPersistent && !forceRefresh) {
-        console.log(`[SettingsManager] Using persistent cached events for completed job ${jobId}, count: ${cached.events.length}`);
+        console.log(`[SettingsManager] ✅ Using persistent cached events for completed job ${jobId}, count: ${cached.events.length}`);
+        return cached.events;
+      }
+      
+      // For completed workflows, always prefer cached events to prevent loss
+      if (cached && cached.isComplete && cached.events.length > 0 && !forceRefresh) {
+        console.log(`[SettingsManager] Using cached events for completed job ${jobId}, preventing loss of ${cached.events.length} events`);
         return cached.events;
       }
       
@@ -3550,24 +3574,71 @@ class VibeSurfSettingsManager {
                  eventType === 'stream_end';
         });
         
-        // Improved cache update strategy: preserve existing events if new result is empty
+        // Enhanced cache update strategy: NEVER overwrite cached events with fewer events
         let finalEvents = events;
-        if (preserveCache && cached && events.length === 0 && cached.events.length > 0) {
-          console.log(`[SettingsManager] Preserving cached events for job ${jobId} - API returned empty result`);
-          finalEvents = cached.events;
-          // Still update lastFetch to prevent excessive API calls
-          this.state.eventCache.set(jobId, {
-            events: cached.events,
-            lastFetch: now,
-            isComplete: cached.isComplete || hasEndEvent
-          });
-        } else {
-          // Normal cache update
-          this.state.eventCache.set(jobId, {
+        let shouldUpdateCache = true;
+        
+        if (cached && cached.events.length > 0) {
+          if (events.length === 0) {
+            // API returned empty - always preserve existing cache
+            console.log(`[SettingsManager] Preserving ${cached.events.length} cached events for job ${jobId} - API returned empty result`);
+            finalEvents = cached.events;
+            shouldUpdateCache = false; // Don't update cache with empty result
+          } else if (events.length < cached.events.length && !hasEndEvent) {
+            // API returned fewer events and workflow not complete - suspicious, preserve cache
+            console.log(`[SettingsManager] Preserving ${cached.events.length} cached events for job ${jobId} - API returned fewer events (${events.length})`);
+            finalEvents = cached.events;
+            shouldUpdateCache = false;
+          } else {
+            // API returned more or equal events, or workflow is complete - safe to update
+            finalEvents = events;
+          }
+        }
+        
+        // Update cache only if safe to do so
+        if (shouldUpdateCache) {
+          const cacheEntry = {
             events: finalEvents,
             lastFetch: now,
-            isComplete: hasEndEvent
-          });
+            isComplete: hasEndEvent || (cached && cached.isComplete),
+            workflowId: cached?.workflowId || workflowId // Preserve or set workflow association
+          };
+          
+          // Mark as persistent if workflow is complete
+          if (cacheEntry.isComplete && finalEvents.length > 0) {
+            cacheEntry.isPersistent = true;
+            cacheEntry.completedAt = now;
+            console.log(`[SettingsManager] Marking job ${jobId} cache as persistent with ${finalEvents.length} events`);
+            
+            // Update workflow-to-job mapping for completed workflows
+            if (cacheEntry.workflowId) {
+              this.state.workflowJobMapping.set(cacheEntry.workflowId, {
+                jobId: jobId,
+                completedAt: now,
+                eventCount: finalEvents.length
+              });
+              console.log(`[SettingsManager] Updated workflow mapping: ${cacheEntry.workflowId} -> ${jobId}`);
+            }
+          }
+          
+          this.state.eventCache.set(jobId, cacheEntry);
+        } else {
+          // Just update lastFetch to prevent excessive API calls
+          if (cached) {
+            this.state.eventCache.set(jobId, {
+              ...cached,
+              lastFetch: now
+            });
+          } else if (workflowId) {
+            // Create new cache entry if none exists and we have workflow context
+            this.state.eventCache.set(jobId, {
+              events: finalEvents,
+              lastFetch: now,
+              isComplete: hasEndEvent,
+              isPersistent: false,
+              workflowId: workflowId
+            });
+          }
         }
         
         // Notify all subscribers with final events
@@ -3626,35 +3697,69 @@ class VibeSurfSettingsManager {
     async monitorWorkflowJob(workflowId, jobId) {
       let unsubscribe;
       let monitoringInterval;
+      let monitoringStopped = false;
+      
+      const stopMonitoring = () => {
+        if (monitoringStopped) return;
+        monitoringStopped = true;
+        
+        if (monitoringInterval) {
+          clearTimeout(monitoringInterval);
+          monitoringInterval = null;
+        }
+        if (unsubscribe) {
+          unsubscribe();
+          unsubscribe = null;
+        }
+        console.log(`[SettingsManager] Stopped monitoring job ${jobId}`);
+      };
       
       const checkStatus = async (events, isComplete) => {
         try {
           if (isComplete || !this.state.runningJobs.has(workflowId)) {
             // Workflow finished, remove from running jobs
+            console.log(`[SettingsManager] ⚠️ WORKFLOW COMPLETION DETECTED: ${workflowId}, jobId: ${jobId}`);
+            console.log(`[SettingsManager] Events received: ${events.length}, isComplete: ${isComplete}`);
+            console.log(`[SettingsManager] RunningJobs before deletion:`, Array.from(this.state.runningJobs.keys()));
+            
             this.state.runningJobs.delete(workflowId);
+            console.log(`[SettingsManager] RunningJobs after deletion:`, Array.from(this.state.runningJobs.keys()));
             
-            // Clear monitoring interval
-            if (monitoringInterval) {
-              clearTimeout(monitoringInterval);
-              monitoringInterval = null;
-            }
-            
-            // Mark cache as persistent for completed workflows
+            // Mark cache as persistent for completed workflows - NEVER allow overwriting
             const cached = this.state.eventCache.get(jobId);
+            console.log(`[SettingsManager] Existing cache for job ${jobId}:`, {
+              exists: !!cached,
+              eventCount: cached?.events?.length || 0,
+              isPersistent: cached?.isPersistent
+            });
+            
             if (cached && events.length > 0) {
+              const completedAt = Date.now();
               this.state.eventCache.set(jobId, {
                 ...cached,
                 events: events,
                 isComplete: true,
-                isPersistent: true, // Mark as persistent
-                completedAt: Date.now()
+                isPersistent: true, // Mark as persistent - prevents any future overwrites
+                completedAt: completedAt,
+                finalEventCount: events.length
               });
-              console.log(`[SettingsManager] Marked job ${jobId} cache as persistent with ${events.length} events`);
+              
+              // Update workflow-to-job mapping for quick lookup
+              if (cached.workflowId) {
+                this.state.workflowJobMapping.set(cached.workflowId, {
+                  jobId: jobId,
+                  completedAt: completedAt,
+                  eventCount: events.length
+                });
+                console.log(`[SettingsManager] Updated workflow mapping on completion: ${cached.workflowId} -> ${jobId}`);
+              }
+              
+              console.log(`[SettingsManager] ✅ PERMANENTLY cached job ${jobId} with ${events.length} events - cache is now read-only`);
+            } else {
+              console.log(`[SettingsManager] ❌ FAILED to cache job ${jobId} - cached: ${!!cached}, events: ${events.length}`);
             }
             
-            // Don't auto-delete persistent cache - only clean up subscribers
-            if (unsubscribe) unsubscribe();
-            
+            stopMonitoring();
             this.renderWorkflows();
             
             this.emit('notification', {
@@ -3668,10 +3773,7 @@ class VibeSurfSettingsManager {
           console.error('[SettingsManager] Failed to check workflow status:', error);
           // Stop monitoring on error but inform user
           this.state.runningJobs.delete(workflowId);
-          if (monitoringInterval) {
-            clearTimeout(monitoringInterval);
-            monitoringInterval = null;
-          }
+          stopMonitoring();
           this.renderWorkflows();
           
           this.emit('notification', {
@@ -3684,49 +3786,114 @@ class VibeSurfSettingsManager {
       // Subscribe to event updates
       unsubscribe = this.subscribeToEvents(jobId, checkStatus);
       
-      // Improved periodic event fetching with better caching
+      // Improved periodic event fetching that respects persistent cache
       const fetchEvents = async () => {
-        if (!this.state.runningJobs.has(workflowId)) {
-          if (unsubscribe) unsubscribe();
-          if (monitoringInterval) {
-            clearTimeout(monitoringInterval);
-            monitoringInterval = null;
-          }
+        if (monitoringStopped || !this.state.runningJobs.has(workflowId)) {
+          stopMonitoring();
+          return;
+        }
+        
+        // Check if cache is already persistent - if so, stop monitoring
+        const cached = this.state.eventCache.get(jobId);
+        if (cached && cached.isPersistent) {
+          console.log(`[SettingsManager] Job ${jobId} cache is persistent, stopping monitoring`);
+          stopMonitoring();
           return;
         }
         
         try {
-          // Use preserveCache to prevent overwriting existing events with empty results
-          await this.fetchWorkflowEvents(jobId, { preserveCache: true, maxAge: 8000 });
+          // For running jobs, fetch with moderate preservation to avoid empty overwrites
+          // Pass workflowId context to maintain association
+          const currentWorkflowId = Array.from(this.state.runningJobs.entries()).find(([wId, job]) => job.job_id === jobId)?.[0];
+          await this.fetchWorkflowEvents(jobId, {
+            preserveCache: true,
+            maxAge: 8000,
+            workflowId: currentWorkflowId
+          });
           
-          // Schedule next fetch with adaptive interval
-          const cached = this.state.eventCache.get(jobId);
-          const nextInterval = cached && cached.isComplete ? 15000 : 7000; // Slower polling if complete
+          // Check if workflow completed during this fetch
+          const updatedCache = this.state.eventCache.get(jobId);
+          if (updatedCache && (updatedCache.isComplete || updatedCache.isPersistent)) {
+            console.log(`[SettingsManager] Job ${jobId} completed during fetch, stopping monitoring`);
+            stopMonitoring();
+            return;
+          }
           
-          monitoringInterval = setTimeout(fetchEvents, nextInterval);
+          // Schedule next fetch
+          if (!monitoringStopped) {
+            monitoringInterval = setTimeout(fetchEvents, 7000);
+          }
         } catch (error) {
           console.error(`[SettingsManager] Failed to fetch events for job ${jobId}:`, error);
           // Continue trying even on error, but with longer delay
-          monitoringInterval = setTimeout(fetchEvents, 15000);
+          if (!monitoringStopped) {
+            monitoringInterval = setTimeout(fetchEvents, 15000);
+          }
         }
       };
       
       // Start monitoring after a short delay
       setTimeout(() => {
-        fetchEvents(); // Initial fetch
-      }, 3000); // Slightly longer initial delay to let job start properly
+        if (!monitoringStopped) {
+          fetchEvents(); // Initial fetch
+        }
+      }, 3000);
     }
     
     // Handle workflow logs
     async handleWorkflowLogs(workflowId, jobId) {
+      console.log(`[SettingsManager] 📋 OPENING LOGS: workflowId=${workflowId}, jobId=${jobId}`);
+      
       const workflow = this.state.workflows.find(w => w.flow_id === workflowId);
-      if (!workflow) return;
+      if (!workflow) {
+        console.log(`[SettingsManager] ❌ Workflow not found: ${workflowId}`);
+        return;
+      }
+      
+      console.log(`[SettingsManager] Found workflow: ${workflow.name}`);
+      console.log(`[SettingsManager] Is workflow running?`, this.state.runningJobs.has(workflowId));
       
       this.state.currentLogsWorkflow = workflow;
       this.state.currentLogsJobId = jobId;
       
       this.showLogsModal();
-      await this.loadWorkflowLogs(jobId);
+      
+      // If no jobId provided but workflow exists, try to find the correct job using workflow mapping
+      let effectiveJobId = jobId;
+      if (!jobId && workflow) {
+        // First, check if we have a workflow-to-job mapping for this workflow
+        const workflowMapping = this.state.workflowJobMapping.get(workflowId);
+        if (workflowMapping && workflowMapping.jobId) {
+          effectiveJobId = workflowMapping.jobId;
+          console.log(`[SettingsManager] Found mapped jobId for workflow ${workflowId}: ${effectiveJobId}`);
+          this.state.currentLogsJobId = effectiveJobId;
+        } else {
+          // Fallback: Look for cached events associated with this workflow
+          const cachedJobIds = Array.from(this.state.eventCache.keys());
+          const workflowJobIds = cachedJobIds.filter(id => {
+            const cached = this.state.eventCache.get(id);
+            return cached && cached.workflowId === workflowId && cached.events && cached.events.length > 0;
+          });
+          
+          if (workflowJobIds.length > 0) {
+            // Use the most recently completed job for this workflow
+            effectiveJobId = workflowJobIds.sort((a, b) => {
+              const cacheA = this.state.eventCache.get(a);
+              const cacheB = this.state.eventCache.get(b);
+              const timeA = cacheA.completedAt || cacheA.lastFetch || 0;
+              const timeB = cacheB.completedAt || cacheB.lastFetch || 0;
+              return timeB - timeA; // Most recent first
+            })[0];
+            
+            console.log(`[SettingsManager] No mapping found, using most recent cached job for workflow ${workflowId}: ${effectiveJobId}`);
+            this.state.currentLogsJobId = effectiveJobId;
+          } else {
+            console.log(`[SettingsManager] No cached logs found for workflow ${workflowId}`);
+          }
+        }
+      }
+      
+      await this.loadWorkflowLogs(effectiveJobId);
     }
     
     // Show logs modal
@@ -3774,29 +3941,86 @@ class VibeSurfSettingsManager {
         }
         
         console.log(`[SettingsManager] Loading logs for job ${jobId}`);
+        console.log(`[SettingsManager] Current workflow:`, this.state.currentLogsWorkflow?.name);
+        console.log(`[SettingsManager] Running jobs:`, Array.from(this.state.runningJobs.keys()));
         
-        // Always try to use cached events first, with preference for non-empty cache
+        // First, ALWAYS check persistent cache - this is the key fix
         let events = [];
         const cached = this.state.eventCache.get(jobId);
         
-        if (cached && cached.events.length > 0) {
-          console.log(`[SettingsManager] Using cached events for logs, count: ${cached.events.length}`);
+        console.log(`[SettingsManager] Cache status for job ${jobId}:`, {
+          exists: !!cached,
+          isPersistent: cached?.isPersistent,
+          isComplete: cached?.isComplete,
+          eventCount: cached?.events?.length || 0,
+          lastFetch: cached?.lastFetch ? new Date(cached.lastFetch).toLocaleTimeString() : 'never'
+        });
+        
+        // Prioritize persistent cached events (completed workflows)
+        if (cached && cached.isPersistent && cached.events.length > 0) {
+          console.log(`[SettingsManager] Using PERSISTENT cached events for completed job ${jobId}, count: ${cached.events.length}`);
           events = cached.events;
           
-          // Also fetch fresh events in background to update cache if needed, but don't wait for it
-          this.fetchWorkflowEvents(jobId, { preserveCache: true, maxAge: 5000 }).catch(error => {
-            console.warn(`[SettingsManager] Background event fetch failed for job ${jobId}:`, error);
-          });
-        } else {
-          console.log(`[SettingsManager] No usable cached events, fetching fresh for logs`);
-          // Use preserveCache: false for initial load to ensure we get events
-          events = await this.fetchWorkflowEvents(jobId, { forceRefresh: true, preserveCache: false });
+          // For completed workflows, render immediately and don't fetch fresh events
+          this.renderWorkflowLogs(events);
+          
+          // Update job info display to show it's from cache
+          if (this.elements.logsJobId) {
+            this.elements.logsJobId.textContent = `${jobId} (Completed)`;
+          }
+          return;
         }
         
-        console.log(`[SettingsManager] Rendering logs with ${events.length} events`);
-        this.renderWorkflowLogs(events);
+        // For non-persistent cache or empty cache
+        if (cached && cached.events.length > 0) {
+          console.log(`[SettingsManager] Using cached events for job ${jobId}, count: ${cached.events.length}`);
+          events = cached.events;
+          
+          // Render cached events immediately for better UX
+          this.renderWorkflowLogs(events);
+          
+          // Check if this is a completed workflow that should be marked as persistent
+          if (cached.isComplete && !cached.isPersistent) {
+            console.log(`[SettingsManager] Marking completed job ${jobId} as persistent to prevent future overwrites`);
+            this.state.eventCache.set(jobId, {
+              ...cached,
+              isPersistent: true,
+              completedAt: cached.completedAt || Date.now()
+            });
+          }
+          
+          // Only fetch fresh events for running jobs (don't fetch for completed jobs)
+          if (this.state.runningJobs.has(this.state.currentLogsWorkflow?.flow_id) && !cached.isComplete && !cached.isPersistent) {
+            console.log(`[SettingsManager] Job still running, fetching fresh events in background`);
+            this.fetchWorkflowEvents(jobId, { preserveCache: true, maxAge: 2000 }).then(freshEvents => {
+              if (freshEvents.length > events.length) {
+                console.log(`[SettingsManager] Fresh events available, updating logs: ${freshEvents.length} events`);
+                this.renderWorkflowLogs(freshEvents);
+              }
+            }).catch(error => {
+              console.warn(`[SettingsManager] Background event fetch failed for job ${jobId}:`, error);
+            });
+          } else if (cached.isComplete || cached.isPersistent) {
+            console.log(`[SettingsManager] Using completed workflow logs from cache, no fresh fetch needed`);
+            // Update job info display to show completion status
+            if (this.elements.logsJobId) {
+              this.elements.logsJobId.textContent = `${jobId} (Completed)`;
+            }
+          }
+        } else {
+          console.log(`[SettingsManager] No cached events, fetching fresh for job ${jobId}`);
+          // Only fetch fresh if no cache exists - but preserve any existing cache
+          // Pass workflow context for proper association
+          events = await this.fetchWorkflowEvents(jobId, {
+            forceRefresh: false,
+            preserveCache: true,
+            workflowId: this.state.currentLogsWorkflow?.flow_id
+          });
+          console.log(`[SettingsManager] Fetched ${events.length} fresh events for job ${jobId}`);
+          this.renderWorkflowLogs(events);
+        }
         
-        // Set up real-time updates if job is still running
+        // Set up real-time updates ONLY if job is still running
         if (this.state.runningJobs.has(this.state.currentLogsWorkflow?.flow_id)) {
           console.log(`[SettingsManager] Job is still running, setting up real-time log updates`);
           
@@ -3822,6 +4046,8 @@ class VibeSurfSettingsManager {
             this.hideLogsModal = originalHideLogsModal;
             originalHideLogsModal();
           };
+        } else {
+          console.log(`[SettingsManager] Job not running, no real-time updates needed for job ${jobId}`);
         }
         
       } catch (error) {
@@ -3834,125 +4060,324 @@ class VibeSurfSettingsManager {
       }
     }
     
-    // Render workflow logs
+    // Render workflow logs with improved UI
     renderWorkflowLogs(events) {
       if (!this.elements.logsContent) return;
       
       console.log(`[SettingsManager] Rendering logs with ${events.length} events`);
       
       if (events.length === 0) {
-        this.elements.logsContent.innerHTML = '<div class="log-entry-empty">No logs available yet. Events may still be processing...</div>';
+        this.elements.logsContent.innerHTML = `
+          <div class="log-empty-state">
+            <div class="log-empty-icon">📋</div>
+            <div class="log-empty-title">No Events Available</div>
+            <div class="log-empty-description">Events may still be processing or this workflow hasn't generated any logs yet.</div>
+          </div>
+        `;
         return;
       }
       
-      const logsHTML = events.map((event, index) => {
-        let eventData = event;
-        let timestamp, level, message, eventType, details = null;
-        
-        // Handle different event formats
-        if (typeof event === 'string') {
-          try {
-            eventData = JSON.parse(event);
-          } catch (e) {
-            // If parsing fails, treat as plain text
-            return this.renderLogEntry(new Date(), 'info', 'EVENT', event, null, index);
-          }
-        }
-        
-        // Extract event information
-        if (eventData && typeof eventData === 'object') {
-          timestamp = eventData.timestamp || eventData.time || Date.now();
-          level = eventData.level || eventData.type || 'info';
-          eventType = eventData.event || eventData.eventType || 'unknown';
-          
-          // Build message and details from event data
-          if (eventData.message) {
-            message = eventData.message;
-            // If there's additional data, show it as details
-            if (eventData.data && typeof eventData.data === 'object' && Object.keys(eventData.data).length > 0) {
-              details = JSON.stringify(eventData.data, null, 2);
-            }
-          } else if (eventData.data) {
-            if (typeof eventData.data === 'string') {
-              message = eventData.data;
-            } else {
-              message = `${eventType} event`;
-              details = JSON.stringify(eventData.data, null, 2);
-            }
-          } else {
-            message = `${eventType} event`;
-            // Show full event data as details, excluding common fields
-            const filteredData = { ...eventData };
-            delete filteredData.timestamp;
-            delete filteredData.time;
-            delete filteredData.event;
-            delete filteredData.eventType;
-            delete filteredData.level;
-            delete filteredData.type;
-            
-            if (Object.keys(filteredData).length > 0) {
-              details = JSON.stringify(filteredData, null, 2);
-            }
-          }
-        } else {
-          timestamp = Date.now();
-          level = 'info';
-          eventType = 'event';
-          message = String(eventData);
-        }
-        
-        // Determine log level styling
-        let logLevel = level.toLowerCase();
-        if (eventType === 'error' || eventType === 'failed') {
-          logLevel = 'error';
-        } else if (eventType === 'end' || eventType === 'on_end' || eventType === 'completed') {
-          logLevel = 'success';
-        } else if (eventType === 'vertices_sorted' || eventType === 'add_message') {
-          logLevel = 'info';
-        }
-        
-        return this.renderLogEntry(new Date(timestamp), logLevel, eventType, message, details, index);
+      // Group events by category for better organization
+      const groupedEvents = this.groupEventsByCategory(events);
+      
+      let logsHTML = '';
+      
+      // Add summary header
+      logsHTML += this.renderLogSummary(events, groupedEvents);
+      
+      // Render events with improved categorization
+      logsHTML += events.map((event, index) => {
+        return this.renderEnhancedLogEntry(event, index);
       }).join('');
       
       this.elements.logsContent.innerHTML = logsHTML;
       
+      // Add event listeners for expandable sections
+      this.bindLogEventListeners();
+      
       // Scroll to bottom
       this.elements.logsContent.scrollTop = this.elements.logsContent.scrollHeight;
       
-      console.log(`[SettingsManager] Rendered ${events.length} log entries`);
+      console.log(`[SettingsManager] Rendered ${events.length} enhanced log entries`);
     }
     
-    // Render individual log entry with improved layout
-    renderLogEntry(timestamp, logLevel, eventType, message, details = null, index = 0) {
-      const timeStr = timestamp.toLocaleTimeString();
-      const dateStr = timestamp.toLocaleDateString();
+    // Group events by category for better organization
+    groupEventsByCategory(events) {
+      const groups = {
+        system: [],
+        execution: [],
+        data: [],
+        errors: [],
+        completion: []
+      };
       
-      // Create expandable details section if details exist
-      const detailsSection = details ? `
+      events.forEach(event => {
+        const eventType = event.event || event.eventType || 'unknown';
+        
+        if (eventType.includes('error') || eventType.includes('failed')) {
+          groups.errors.push(event);
+        } else if (eventType.includes('end') || eventType.includes('completed') || eventType === 'on_end') {
+          groups.completion.push(event);
+        } else if (eventType.includes('data') || eventType.includes('message') || eventType.includes('output')) {
+          groups.data.push(event);
+        } else if (eventType.includes('vertices') || eventType.includes('start') || eventType.includes('init')) {
+          groups.system.push(event);
+        } else {
+          groups.execution.push(event);
+        }
+      });
+      
+      return groups;
+    }
+    
+    // Render log summary
+    renderLogSummary(events, groupedEvents) {
+      const totalEvents = events.length;
+      const errorCount = groupedEvents.errors.length;
+      const completionCount = groupedEvents.completion.length;
+      const isCompleted = completionCount > 0;
+      
+      return `
+        <div class="log-summary">
+          <div class="log-summary-header">
+            <h4>Event Summary</h4>
+            <div class="log-summary-badge ${isCompleted ? 'completed' : 'running'}">
+              ${isCompleted ? '✓ Completed' : '⏳ Running'}
+            </div>
+          </div>
+          <div class="log-summary-stats">
+            <div class="log-stat">
+              <span class="log-stat-label">Total Events:</span>
+              <span class="log-stat-value">${totalEvents}</span>
+            </div>
+            ${errorCount > 0 ? `
+              <div class="log-stat error">
+                <span class="log-stat-label">Errors:</span>
+                <span class="log-stat-value">${errorCount}</span>
+              </div>
+            ` : ''}
+            <div class="log-stat">
+              <span class="log-stat-label">Status:</span>
+              <span class="log-stat-value ${isCompleted ? 'success' : 'info'}">${isCompleted ? 'Completed' : 'Processing'}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    // Render enhanced log entry
+    renderEnhancedLogEntry(event, index) {
+      let eventData = event;
+      let timestamp, level, message, eventType, details = null;
+      
+      // Handle different event formats
+      if (typeof event === 'string') {
+        try {
+          eventData = JSON.parse(event);
+        } catch (e) {
+          return this.renderLogEntry(new Date(), 'info', 'EVENT', event, null, index);
+        }
+      }
+      
+      // Extract event information
+      if (eventData && typeof eventData === 'object') {
+        timestamp = eventData.timestamp || eventData.time || Date.now();
+        level = eventData.level || eventData.type || 'info';
+        eventType = eventData.event || eventData.eventType || 'unknown';
+        
+        // Build message and details from event data
+        if (eventData.message) {
+          message = eventData.message;
+          if (eventData.data && typeof eventData.data === 'object' && Object.keys(eventData.data).length > 0) {
+            details = eventData.data;
+          }
+        } else if (eventData.data) {
+          if (typeof eventData.data === 'string') {
+            message = eventData.data;
+          } else {
+            message = this.getEventTypeDescription(eventType);
+            details = eventData.data;
+          }
+        } else {
+          message = this.getEventTypeDescription(eventType);
+          const filteredData = { ...eventData };
+          delete filteredData.timestamp;
+          delete filteredData.time;
+          delete filteredData.event;
+          delete filteredData.eventType;
+          delete filteredData.level;
+          delete filteredData.type;
+          
+          if (Object.keys(filteredData).length > 0) {
+            details = filteredData;
+          }
+        }
+      } else {
+        timestamp = Date.now();
+        level = 'info';
+        eventType = 'event';
+        message = String(eventData);
+      }
+      
+      // Determine log level and category
+      const { logLevel, category, icon } = this.categorizeEvent(eventType, level);
+      
+      return this.renderEnhancedLogEntryHTML(new Date(timestamp), logLevel, eventType, message, details, index, category, icon);
+    }
+    
+    // Get user-friendly event type descriptions
+    getEventTypeDescription(eventType) {
+      const descriptions = {
+        'vertices_sorted': 'Workflow initialized and components sorted',
+        'on_end': 'Workflow execution completed',
+        'add_message': 'New message or output generated',
+        'stream_end': 'Data stream finished',
+        'error': 'An error occurred during execution',
+        'failed': 'Workflow execution failed',
+        'start': 'Component execution started',
+        'end': 'Component execution finished',
+        'unknown': 'System event'
+      };
+      
+      return descriptions[eventType] || `${eventType} event`;
+    }
+    
+    // Categorize events for better visual representation
+    categorizeEvent(eventType, level) {
+      let logLevel = level.toLowerCase();
+      let category = 'info';
+      let icon = '📄';
+      
+      if (eventType === 'error' || eventType === 'failed' || level === 'error') {
+        logLevel = 'error';
+        category = 'error';
+        icon = '❌';
+      } else if (eventType === 'end' || eventType === 'on_end' || eventType === 'completed') {
+        logLevel = 'success';
+        category = 'completion';
+        icon = '✅';
+      } else if (eventType === 'vertices_sorted' || eventType === 'start') {
+        logLevel = 'info';
+        category = 'system';
+        icon = '⚙️';
+      } else if (eventType === 'add_message' || eventType.includes('output')) {
+        logLevel = 'success';
+        category = 'data';
+        icon = '📤';
+      } else if (eventType.includes('stream')) {
+        logLevel = 'info';
+        category = 'data';
+        icon = '🔄';
+      } else {
+        category = 'execution';
+        icon = '▶️';
+      }
+      
+      return { logLevel, category, icon };
+    }
+    
+    // Render enhanced log entry HTML with improved design
+    renderEnhancedLogEntryHTML(timestamp, logLevel, eventType, message, details, index, category, icon) {
+      const timeStr = timestamp.toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      const dateStr = timestamp.toLocaleDateString();
+      const hasDetails = details && Object.keys(details).length > 0;
+      
+      // Format details for display
+      let detailsContent = '';
+      if (hasDetails) {
+        if (typeof details === 'string') {
+          detailsContent = details;
+        } else {
+          detailsContent = JSON.stringify(details, null, 2);
+        }
+      }
+      
+      const detailsSection = hasDetails ? `
         <div class="log-details" style="display: none;">
-          <pre class="log-details-content">${this.escapeHtml(details)}</pre>
+          <div class="log-details-header">Event Details:</div>
+          <pre class="log-details-content">${this.escapeHtml(detailsContent)}</pre>
         </div>
       ` : '';
       
-      const expandIcon = details ? `
-        <span class="log-expand-icon" onclick="this.closest('.log-entry-container').querySelector('.log-details').style.display = this.closest('.log-entry-container').querySelector('.log-details').style.display === 'none' ? 'block' : 'none'; this.textContent = this.textContent === '▶' ? '▼' : '▶';">▶</span>
+      const expandButton = hasDetails ? `
+        <button class="log-expand-btn" data-index="${index}">
+          <span class="expand-icon">▶</span>
+          <span class="expand-text">Details</span>
+        </button>
       ` : '';
       
       return `
-        <div class="log-entry-container ${logLevel}" data-index="${index}">
-          <div class="log-entry-header">
-            <div class="log-meta">
-              <span class="log-time" title="${dateStr} ${timeStr}">${timeStr}</span>
-              <span class="log-level-badge log-level-${logLevel}">${eventType.toUpperCase()}</span>
-              ${expandIcon}
+        <div class="log-entry-enhanced ${logLevel} ${category}" data-index="${index}">
+          <div class="log-entry-main">
+            <div class="log-event-icon">${icon}</div>
+            <div class="log-timestamp">
+              <div class="log-time">${timeStr}</div>
+              <div class="log-date" title="${dateStr}">${this.formatRelativeTime(timestamp)}</div>
             </div>
-            <div class="log-content">
-              <div class="log-message-text">${this.escapeHtml(message)}</div>
+            <div class="log-content-enhanced">
+              <div class="log-event-type">
+                <span class="event-category ${category}">${category.toUpperCase()}</span>
+                <span class="event-name">${eventType}</span>
+              </div>
+              <div class="log-message-enhanced">${this.escapeHtml(message)}</div>
+            </div>
+            <div class="log-actions">
+              ${expandButton}
             </div>
           </div>
           ${detailsSection}
         </div>
       `;
+    }
+    
+    // Format relative time for better readability
+    formatRelativeTime(timestamp) {
+      const now = new Date();
+      const diff = now - timestamp;
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+      
+      if (days > 0) return `${days}d ago`;
+      if (hours > 0) return `${hours}h ago`;
+      if (minutes > 0) return `${minutes}m ago`;
+      if (seconds > 0) return `${seconds}s ago`;
+      return 'now';
+    }
+    
+    // Bind event listeners for log interactions
+    bindLogEventListeners() {
+      if (!this.elements.logsContent) return;
+      
+      // Bind expand/collapse buttons
+      this.elements.logsContent.querySelectorAll('.log-expand-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const logEntry = btn.closest('.log-entry-enhanced');
+          const details = logEntry.querySelector('.log-details');
+          const icon = btn.querySelector('.expand-icon');
+          const text = btn.querySelector('.expand-text');
+          
+          if (details) {
+            const isExpanded = details.style.display !== 'none';
+            details.style.display = isExpanded ? 'none' : 'block';
+            icon.textContent = isExpanded ? '▶' : '▼';
+            text.textContent = isExpanded ? 'Details' : 'Hide';
+            btn.classList.toggle('expanded', !isExpanded);
+          }
+        });
+      });
+    }
+    
+    // Legacy render method for backward compatibility
+    renderLogEntry(timestamp, logLevel, eventType, message, details = null, index = 0) {
+      return this.renderEnhancedLogEntryHTML(timestamp, logLevel, eventType, message, details, index, 'info', '📄');
     }
     
     // Handle logs refresh using cached events with force refresh
