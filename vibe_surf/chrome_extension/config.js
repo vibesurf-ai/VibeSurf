@@ -3,7 +3,7 @@
 
 const VIBESURF_CONFIG = {
   // Backend server configuration
-  BACKEND_URL: 'http://127.0.0.1:9335',
+  BACKEND_URL: 'http://127.0.0.1:9336',
   
   // API related configuration
   API_PREFIX: '/api',

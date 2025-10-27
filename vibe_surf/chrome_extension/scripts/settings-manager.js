@@ -319,6 +319,12 @@ class VibeSurfSettingsManager {
     const enabledCheckbox = document.getElementById('schedule-enabled');
     if (enabledCheckbox) {
       enabledCheckbox.addEventListener('change', () => {
+        // DEBUG: Log when schedule enabled state changes
+        console.log('[SettingsManager] Schedule enabled checkbox changed:', {
+          checked: enabledCheckbox.checked,
+          currentScheduleValid: this.scheduleState.isValid
+        });
+        
         // Re-validate to enable/disable save button
         this.updateScheduleSaveButton(this.scheduleState.isValid);
       });
@@ -4850,7 +4856,19 @@ class VibeSurfSettingsManager {
       const enabledCheckbox = document.getElementById('schedule-enabled');
       const isEnabled = enabledCheckbox ? enabledCheckbox.checked : true;
       
-      saveButton.disabled = !isValid || !isEnabled;
+      // FIXED: Allow saving when schedule is disabled (to delete it)
+      // Only require valid cron expression when schedule is enabled
+      const shouldDisable = isEnabled && !isValid;
+      
+      console.log('[SettingsManager] updateScheduleSaveButton FIXED:', {
+        isValid,
+        isEnabled,
+        shouldDisableButton: shouldDisable,
+        logic: 'isEnabled && !isValid',
+        previousButtonState: saveButton.disabled
+      });
+      
+      saveButton.disabled = shouldDisable;
     }
 
     // Set schedule type
@@ -4946,8 +4964,18 @@ class VibeSurfSettingsManager {
         const enabledCheckbox = document.getElementById('schedule-enabled');
         const isEnabled = enabledCheckbox ? enabledCheckbox.checked : true;
         
+        // DEBUG: Log save attempt
+        console.log('[SettingsManager] handleScheduleSave DEBUG:', {
+          workflowId,
+          isEnabled,
+          hasExistingSchedule: !!this.state.currentScheduleWorkflow.schedule,
+          cronExpression: this.scheduleState.cronExpression,
+          scheduleValid: this.scheduleState.isValid
+        });
+        
         // If schedule is disabled, remove it
         if (!isEnabled && this.state.currentScheduleWorkflow.schedule) {
+          console.log('[SettingsManager] Deleting schedule because disabled');
           await this.apiClient.deleteSchedule(workflowId);
           
           this.emit('notification', {

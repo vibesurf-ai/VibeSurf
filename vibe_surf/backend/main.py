@@ -287,17 +287,17 @@ async def initialize_langflow_in_background():
                 all_types_dict = await get_and_cache_all_types_dict(get_settings_service())
                 current_time = asyncio.get_event_loop().time()
                 logger.info("Creating/updating starter projects")
-                import tempfile
+                # import tempfile
 
-                from filelock import FileLock
+                # from filelock import FileLock
 
-                lock_file = Path(tempfile.gettempdir()) / "langflow_starter_projects.lock"
-                lock = FileLock(lock_file, timeout=1)
-                with lock:
-                    await create_or_update_starter_projects(all_types_dict)
-                    logger.info(
-                        f"Starter projects created/updated in {asyncio.get_event_loop().time() - current_time:.2f}s"
-                    )
+                # lock_file = Path(tempfile.gettempdir()) / "langflow_starter_projects.lock"
+                # lock = FileLock(lock_file, timeout=1)
+                # with lock:
+                #     await create_or_update_starter_projects(all_types_dict)
+                #     logger.info(
+                #         f"Starter projects created/updated in {asyncio.get_event_loop().time() - current_time:.2f}s"
+                #     )
 
                 logger.info(
                     f"Background: Full component caching completed in {asyncio.get_event_loop().time() - current_time:.2f}s")
