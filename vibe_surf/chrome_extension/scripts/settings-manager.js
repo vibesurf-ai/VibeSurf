@@ -28,7 +28,10 @@ class VibeSurfSettingsManager {
       currentScheduleWorkflow: null,
       currentLogsWorkflow: null,
       currentLogsJobId: null,
-      currentDeleteWorkflow: null
+      currentDeleteWorkflow: null,
+      // Event cache to prevent competition between run monitoring and log display
+      eventCache: new Map(), // Map<jobId, {events: [], lastFetch: timestamp, isComplete: boolean}>
+      eventSubscribers: new Map() // Map<jobId, Set<callback functions>>
     };
     this.elements = {};
     this.eventListeners = new Map();
@@ -3493,65 +3496,165 @@ class VibeSurfSettingsManager {
       }
     }
     
-    // Monitor workflow job status
-    async monitorWorkflowJob(workflowId, jobId) {
-      const checkStatus = async () => {
-        try {
-          const eventsResponse = await this.apiClient.getWorkflowEvents(jobId);
-          console.log(`[SettingsManager] Checking workflow ${workflowId} job ${jobId} status, events:`, eventsResponse);
-          
-          // Parse events - API returns NDJSON format (newline-delimited JSON)
-          let events = [];
-          if (typeof eventsResponse === 'string') {
-            // Split by newlines and parse each line as JSON
-            const lines = eventsResponse.trim().split('\n');
-            events = lines.map(line => {
-              const trimmedLine = line.trim();
-              if (!trimmedLine) return null; // Skip empty lines
-              try {
-                return JSON.parse(trimmedLine);
-              } catch (e) {
-                console.warn(`[SettingsManager] Failed to parse event line: ${trimmedLine}`, e);
-                return null;
-              }
-            }).filter(event => event !== null);
-          } else if (Array.isArray(eventsResponse)) {
-            events = eventsResponse;
-          } else if (eventsResponse && typeof eventsResponse === 'object') {
-            events = [eventsResponse];
-          }
-          
-          console.log(`[SettingsManager] Parsed ${events.length} events for job ${jobId}`);
-          
-          // Check if workflow is still running based on event content
-          let isStillRunning = true;
-          
-          if (!events || events.length === 0) {
-            // No events means workflow might be finished or not started yet
-            console.log(`[SettingsManager] No events for job ${jobId}, checking if job still exists`);
-            isStillRunning = false;
-          } else {
-            // Check for completion indicators in events
-            const hasEndEvent = events.some(event => {
-              const eventType = event.event || event.eventType || '';
-              return eventType === 'on_end' ||
-                     eventType === 'end' ||
-                     eventType === 'completed' ||
-                     eventType === 'error' ||
-                     eventType === 'failed' ||
-                     eventType === 'stream_end';
-            });
-            
-            if (hasEndEvent) {
-              console.log(`[SettingsManager] Found completion event for job ${jobId}`);
-              isStillRunning = false;
+    // Unified event fetching with caching to prevent competition
+    async fetchWorkflowEvents(jobId, options = {}) {
+      const { forceRefresh = false, maxAge = 10000, preserveCache = true } = options;
+      
+      // Check cache first
+      const cached = this.state.eventCache.get(jobId);
+      const now = Date.now();
+      
+      // Persistent cache for completed workflows - don't refresh unless forced
+      if (cached && cached.isPersistent && !forceRefresh) {
+        console.log(`[SettingsManager] Using persistent cached events for completed job ${jobId}, count: ${cached.events.length}`);
+        return cached.events;
+      }
+      
+      if (cached && !forceRefresh && (now - cached.lastFetch) < maxAge) {
+        console.log(`[SettingsManager] Using cached events for job ${jobId}, cache hit preventing duplicate API call`);
+        return cached.events;
+      }
+      
+      try {
+        const eventsResponse = await this.apiClient.getWorkflowEvents(jobId);
+        
+        // Parse events - API returns NDJSON format (newline-delimited JSON)
+        let events = [];
+        if (typeof eventsResponse === 'string') {
+          // Split by newlines and parse each line as JSON
+          const lines = eventsResponse.trim().split('\n');
+          events = lines.map(line => {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) return null; // Skip empty lines
+            try {
+              return JSON.parse(trimmedLine);
+            } catch (e) {
+              console.warn(`[SettingsManager] Failed to parse event line: ${trimmedLine}`, e);
+              return null;
             }
+          }).filter(event => event !== null);
+        } else if (Array.isArray(eventsResponse)) {
+          events = eventsResponse;
+        } else if (eventsResponse && typeof eventsResponse === 'object') {
+          events = [eventsResponse];
+        }
+        
+        // Check if workflow is complete based on events
+        const hasEndEvent = events.some(event => {
+          const eventType = event.event || event.eventType || '';
+          return eventType === 'on_end' ||
+                 eventType === 'end' ||
+                 eventType === 'completed' ||
+                 eventType === 'error' ||
+                 eventType === 'failed' ||
+                 eventType === 'stream_end';
+        });
+        
+        // Improved cache update strategy: preserve existing events if new result is empty
+        let finalEvents = events;
+        if (preserveCache && cached && events.length === 0 && cached.events.length > 0) {
+          console.log(`[SettingsManager] Preserving cached events for job ${jobId} - API returned empty result`);
+          finalEvents = cached.events;
+          // Still update lastFetch to prevent excessive API calls
+          this.state.eventCache.set(jobId, {
+            events: cached.events,
+            lastFetch: now,
+            isComplete: cached.isComplete || hasEndEvent
+          });
+        } else {
+          // Normal cache update
+          this.state.eventCache.set(jobId, {
+            events: finalEvents,
+            lastFetch: now,
+            isComplete: hasEndEvent
+          });
+        }
+        
+        // Notify all subscribers with final events
+        const subscribers = this.state.eventSubscribers.get(jobId);
+        if (subscribers) {
+          subscribers.forEach(callback => {
+            try {
+              callback(finalEvents, hasEndEvent || (cached && cached.isComplete));
+            } catch (e) {
+              console.error(`[SettingsManager] Error notifying event subscriber:`, e);
+            }
+          });
+        }
+        
+        return finalEvents;
+        
+      } catch (error) {
+        console.error(`[SettingsManager] Failed to fetch events for job ${jobId}:`, error);
+        // Return cached events if available on error
+        if (cached && cached.events.length > 0) {
+          console.log(`[SettingsManager] Returning cached events due to API error for job ${jobId}`);
+          return cached.events;
+        }
+        throw error;
+      }
+    }
+    
+    // Subscribe to event updates for a job
+    subscribeToEvents(jobId, callback) {
+      console.log(`[SettingsManager] subscribeToEvents called for job ${jobId}`);
+      
+      if (!this.state.eventSubscribers.has(jobId)) {
+        this.state.eventSubscribers.set(jobId, new Set());
+        console.log(`[SettingsManager] Created new subscriber set for job ${jobId}`);
+      }
+      this.state.eventSubscribers.get(jobId).add(callback);
+      console.log(`[SettingsManager] Subscribed to events for job ${jobId}, total subscribers: ${this.state.eventSubscribers.get(jobId).size}`);
+      
+      // Return unsubscribe function
+      return () => {
+        console.log(`[SettingsManager] Unsubscribe function called for job ${jobId}`);
+        const subscribers = this.state.eventSubscribers.get(jobId);
+        if (subscribers) {
+          subscribers.delete(callback);
+          console.log(`[SettingsManager] Removed subscriber for job ${jobId}, remaining subscribers: ${subscribers.size}`);
+          if (subscribers.size === 0) {
+            this.state.eventSubscribers.delete(jobId);
+            console.log(`[SettingsManager] Removed empty subscriber set for job ${jobId}`);
           }
-          
-          if (!isStillRunning || !this.state.runningJobs.has(workflowId)) {
+        }
+        console.log(`[SettingsManager] Unsubscribed from events for job ${jobId}`);
+      };
+    }
+    
+    // Monitor workflow job status using cached events
+    async monitorWorkflowJob(workflowId, jobId) {
+      let unsubscribe;
+      let monitoringInterval;
+      
+      const checkStatus = async (events, isComplete) => {
+        try {
+          if (isComplete || !this.state.runningJobs.has(workflowId)) {
             // Workflow finished, remove from running jobs
-            console.log(`[SettingsManager] Workflow ${workflowId} finished, removing from running jobs`);
             this.state.runningJobs.delete(workflowId);
+            
+            // Clear monitoring interval
+            if (monitoringInterval) {
+              clearTimeout(monitoringInterval);
+              monitoringInterval = null;
+            }
+            
+            // Mark cache as persistent for completed workflows
+            const cached = this.state.eventCache.get(jobId);
+            if (cached && events.length > 0) {
+              this.state.eventCache.set(jobId, {
+                ...cached,
+                events: events,
+                isComplete: true,
+                isPersistent: true, // Mark as persistent
+                completedAt: Date.now()
+              });
+              console.log(`[SettingsManager] Marked job ${jobId} cache as persistent with ${events.length} events`);
+            }
+            
+            // Don't auto-delete persistent cache - only clean up subscribers
+            if (unsubscribe) unsubscribe();
+            
             this.renderWorkflows();
             
             this.emit('notification', {
@@ -3561,14 +3664,14 @@ class VibeSurfSettingsManager {
             return;
           }
           
-          // Continue monitoring
-          console.log(`[SettingsManager] Workflow ${workflowId} still running, will check again in 5 seconds`);
-          setTimeout(checkStatus, 5000);
-          
         } catch (error) {
           console.error('[SettingsManager] Failed to check workflow status:', error);
           // Stop monitoring on error but inform user
           this.state.runningJobs.delete(workflowId);
+          if (monitoringInterval) {
+            clearTimeout(monitoringInterval);
+            monitoringInterval = null;
+          }
           this.renderWorkflows();
           
           this.emit('notification', {
@@ -3578,8 +3681,40 @@ class VibeSurfSettingsManager {
         }
       };
       
+      // Subscribe to event updates
+      unsubscribe = this.subscribeToEvents(jobId, checkStatus);
+      
+      // Improved periodic event fetching with better caching
+      const fetchEvents = async () => {
+        if (!this.state.runningJobs.has(workflowId)) {
+          if (unsubscribe) unsubscribe();
+          if (monitoringInterval) {
+            clearTimeout(monitoringInterval);
+            monitoringInterval = null;
+          }
+          return;
+        }
+        
+        try {
+          // Use preserveCache to prevent overwriting existing events with empty results
+          await this.fetchWorkflowEvents(jobId, { preserveCache: true, maxAge: 8000 });
+          
+          // Schedule next fetch with adaptive interval
+          const cached = this.state.eventCache.get(jobId);
+          const nextInterval = cached && cached.isComplete ? 15000 : 7000; // Slower polling if complete
+          
+          monitoringInterval = setTimeout(fetchEvents, nextInterval);
+        } catch (error) {
+          console.error(`[SettingsManager] Failed to fetch events for job ${jobId}:`, error);
+          // Continue trying even on error, but with longer delay
+          monitoringInterval = setTimeout(fetchEvents, 15000);
+        }
+      };
+      
       // Start monitoring after a short delay
-      setTimeout(checkStatus, 2000);
+      setTimeout(() => {
+        fetchEvents(); // Initial fetch
+      }, 3000); // Slightly longer initial delay to let job start properly
     }
     
     // Handle workflow logs
@@ -3624,7 +3759,7 @@ class VibeSurfSettingsManager {
       this.state.currentLogsJobId = null;
     }
     
-    // Load workflow logs
+    // Load workflow logs using cached events
     async loadWorkflowLogs(jobId) {
       if (!this.elements.logsContent) return;
       
@@ -3639,32 +3774,55 @@ class VibeSurfSettingsManager {
         }
         
         console.log(`[SettingsManager] Loading logs for job ${jobId}`);
-        const eventsResponse = await this.apiClient.getWorkflowEvents(jobId);
-        console.log(`[SettingsManager] Received events for logs:`, eventsResponse);
         
-        // Parse events - API returns NDJSON format (newline-delimited JSON)
+        // Always try to use cached events first, with preference for non-empty cache
         let events = [];
-        if (typeof eventsResponse === 'string') {
-          // Split by newlines and parse each line as JSON
-          const lines = eventsResponse.trim().split('\n');
-          events = lines.map(line => {
-            const trimmedLine = line.trim();
-            if (!trimmedLine) return null; // Skip empty lines
-            try {
-              return JSON.parse(trimmedLine);
-            } catch (e) {
-              console.warn(`[SettingsManager] Failed to parse event line: ${trimmedLine}`, e);
-              return null;
-            }
-          }).filter(event => event !== null);
-        } else if (Array.isArray(eventsResponse)) {
-          events = eventsResponse;
-        } else if (eventsResponse && typeof eventsResponse === 'object') {
-          events = [eventsResponse];
+        const cached = this.state.eventCache.get(jobId);
+        
+        if (cached && cached.events.length > 0) {
+          console.log(`[SettingsManager] Using cached events for logs, count: ${cached.events.length}`);
+          events = cached.events;
+          
+          // Also fetch fresh events in background to update cache if needed, but don't wait for it
+          this.fetchWorkflowEvents(jobId, { preserveCache: true, maxAge: 5000 }).catch(error => {
+            console.warn(`[SettingsManager] Background event fetch failed for job ${jobId}:`, error);
+          });
+        } else {
+          console.log(`[SettingsManager] No usable cached events, fetching fresh for logs`);
+          // Use preserveCache: false for initial load to ensure we get events
+          events = await this.fetchWorkflowEvents(jobId, { forceRefresh: true, preserveCache: false });
         }
         
-        console.log(`[SettingsManager] Parsed ${events.length} events for logs display`);
+        console.log(`[SettingsManager] Rendering logs with ${events.length} events`);
         this.renderWorkflowLogs(events);
+        
+        // Set up real-time updates if job is still running
+        if (this.state.runningJobs.has(this.state.currentLogsWorkflow?.flow_id)) {
+          console.log(`[SettingsManager] Job is still running, setting up real-time log updates`);
+          
+          let unsubscribe;
+          const updateLogs = (newEvents, isComplete) => {
+            console.log(`[SettingsManager] Real-time log update with ${newEvents.length} events, complete: ${isComplete}`);
+            if (newEvents.length > 0) { // Only update if we have events
+              this.renderWorkflowLogs(newEvents);
+            }
+          };
+          
+          // Subscribe to event updates
+          unsubscribe = this.subscribeToEvents(jobId, updateLogs);
+          
+          // Clean up subscription when logs modal is closed
+          const originalHideLogsModal = this.hideLogsModal.bind(this);
+          this.hideLogsModal = () => {
+            if (unsubscribe) {
+              console.log(`[SettingsManager] Cleaning up log subscription for job ${jobId}`);
+              unsubscribe();
+            }
+            // Restore original method
+            this.hideLogsModal = originalHideLogsModal;
+            originalHideLogsModal();
+          };
+        }
         
       } catch (error) {
         console.error('[SettingsManager] Failed to load workflow logs:', error);
@@ -3683,13 +3841,13 @@ class VibeSurfSettingsManager {
       console.log(`[SettingsManager] Rendering logs with ${events.length} events`);
       
       if (events.length === 0) {
-        this.elements.logsContent.innerHTML = '<div class="log-entry info">No logs available yet. Events may still be processing...</div>';
+        this.elements.logsContent.innerHTML = '<div class="log-entry-empty">No logs available yet. Events may still be processing...</div>';
         return;
       }
       
       const logsHTML = events.map((event, index) => {
         let eventData = event;
-        let timestamp, level, message, eventType;
+        let timestamp, level, message, eventType, details = null;
         
         // Handle different event formats
         if (typeof event === 'string') {
@@ -3697,13 +3855,7 @@ class VibeSurfSettingsManager {
             eventData = JSON.parse(event);
           } catch (e) {
             // If parsing fails, treat as plain text
-            return `
-              <div class="log-entry info">
-                <span class="log-timestamp">${new Date().toLocaleString()}</span>
-                <span class="log-level">[EVENT]</span>
-                <span class="log-message">${this.escapeHtml(event)}</span>
-              </div>
-            `;
+            return this.renderLogEntry(new Date(), 'info', 'EVENT', event, null, index);
           }
         }
         
@@ -3713,13 +3865,34 @@ class VibeSurfSettingsManager {
           level = eventData.level || eventData.type || 'info';
           eventType = eventData.event || eventData.eventType || 'unknown';
           
-          // Build message from event data
+          // Build message and details from event data
           if (eventData.message) {
             message = eventData.message;
+            // If there's additional data, show it as details
+            if (eventData.data && typeof eventData.data === 'object' && Object.keys(eventData.data).length > 0) {
+              details = JSON.stringify(eventData.data, null, 2);
+            }
           } else if (eventData.data) {
-            message = `${eventType}: ${JSON.stringify(eventData.data, null, 2)}`;
+            if (typeof eventData.data === 'string') {
+              message = eventData.data;
+            } else {
+              message = `${eventType} event`;
+              details = JSON.stringify(eventData.data, null, 2);
+            }
           } else {
-            message = `${eventType}: ${JSON.stringify(eventData, null, 2)}`;
+            message = `${eventType} event`;
+            // Show full event data as details, excluding common fields
+            const filteredData = { ...eventData };
+            delete filteredData.timestamp;
+            delete filteredData.time;
+            delete filteredData.event;
+            delete filteredData.eventType;
+            delete filteredData.level;
+            delete filteredData.type;
+            
+            if (Object.keys(filteredData).length > 0) {
+              details = JSON.stringify(filteredData, null, 2);
+            }
           }
         } else {
           timestamp = Date.now();
@@ -3727,8 +3900,6 @@ class VibeSurfSettingsManager {
           eventType = 'event';
           message = String(eventData);
         }
-        
-        const timeStr = new Date(timestamp).toLocaleString();
         
         // Determine log level styling
         let logLevel = level.toLowerCase();
@@ -3740,13 +3911,7 @@ class VibeSurfSettingsManager {
           logLevel = 'info';
         }
         
-        return `
-          <div class="log-entry ${logLevel}">
-            <span class="log-timestamp">${timeStr}</span>
-            <span class="log-level">[${eventType.toUpperCase()}]</span>
-            <span class="log-message">${this.escapeHtml(message)}</span>
-          </div>
-        `;
+        return this.renderLogEntry(new Date(timestamp), logLevel, eventType, message, details, index);
       }).join('');
       
       this.elements.logsContent.innerHTML = logsHTML;
@@ -3757,10 +3922,65 @@ class VibeSurfSettingsManager {
       console.log(`[SettingsManager] Rendered ${events.length} log entries`);
     }
     
-    // Handle logs refresh
+    // Render individual log entry with improved layout
+    renderLogEntry(timestamp, logLevel, eventType, message, details = null, index = 0) {
+      const timeStr = timestamp.toLocaleTimeString();
+      const dateStr = timestamp.toLocaleDateString();
+      
+      // Create expandable details section if details exist
+      const detailsSection = details ? `
+        <div class="log-details" style="display: none;">
+          <pre class="log-details-content">${this.escapeHtml(details)}</pre>
+        </div>
+      ` : '';
+      
+      const expandIcon = details ? `
+        <span class="log-expand-icon" onclick="this.closest('.log-entry-container').querySelector('.log-details').style.display = this.closest('.log-entry-container').querySelector('.log-details').style.display === 'none' ? 'block' : 'none'; this.textContent = this.textContent === '▶' ? '▼' : '▶';">▶</span>
+      ` : '';
+      
+      return `
+        <div class="log-entry-container ${logLevel}" data-index="${index}">
+          <div class="log-entry-header">
+            <div class="log-meta">
+              <span class="log-time" title="${dateStr} ${timeStr}">${timeStr}</span>
+              <span class="log-level-badge log-level-${logLevel}">${eventType.toUpperCase()}</span>
+              ${expandIcon}
+            </div>
+            <div class="log-content">
+              <div class="log-message-text">${this.escapeHtml(message)}</div>
+            </div>
+          </div>
+          ${detailsSection}
+        </div>
+      `;
+    }
+    
+    // Handle logs refresh using cached events with force refresh
     async handleLogsRefresh() {
       if (this.state.currentLogsJobId) {
-        await this.loadWorkflowLogs(this.state.currentLogsJobId);
+        console.log(`[SettingsManager] Refreshing logs for job ${this.state.currentLogsJobId}`);
+        try {
+          // Force refresh to get latest events, but preserve cache if API returns empty
+          const events = await this.fetchWorkflowEvents(this.state.currentLogsJobId, {
+            forceRefresh: true,
+            preserveCache: true
+          });
+          console.log(`[SettingsManager] Refreshed logs with ${events.length} events`);
+          if (events.length > 0) {
+            this.renderWorkflowLogs(events);
+          } else {
+            this.emit('notification', {
+              message: 'No new log events available',
+              type: 'info'
+            });
+          }
+        } catch (error) {
+          console.error('[SettingsManager] Failed to refresh logs:', error);
+          this.emit('notification', {
+            message: `Failed to refresh logs: ${error.message}`,
+            type: 'error'
+          });
+        }
       }
     }
     
