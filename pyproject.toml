@@ -259,12 +259,13 @@ requires = ["setuptools>=61.0", "setuptools-scm>=6.2", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = { find = { where = ["."], include = ["vibe_surf*"] } }
+packages = { find = { where = ["."], include = ["vibe_surf*"], exclude = ["vibe_surf.frontend*"] } }
 
 [tool.setuptools.package-data]
 "vibe_surf" = [
     "backend/**/*",
-    "chrome_extension/**/*"
+    "chrome_extension/**/*",
+    "backend/frontend/**/*"
 ]
 
 [tool.setuptools.package-dir]

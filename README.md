@@ -81,7 +81,25 @@ uv venv --python 3.12
 uv pip install -e .
 ```
 
-### 3. Start Debugging
+### 3. Build Frontend (Optional)
+If you're working on frontend changes, you need to build and copy the frontend to the backend directory:
+
+```bash
+# Navigate to frontend directory
+cd vibe_surf/frontend
+
+# Install frontend dependencies
+npm ci
+
+# Build the frontend
+npm run build
+
+# Copy build output to backend directory
+mkdir -p ../backend/frontend
+cp -r build/* ../backend/frontend/
+```
+
+### 4. Start Debugging
 **Option 1: Direct Server**
 ```bash
 uvicorn vibe_surf.backend.main:app --host 127.0.0.1 --port 9335

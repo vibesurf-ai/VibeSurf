@@ -504,10 +504,10 @@ def setup_static_files(app: FastAPI, static_files_dir: Path) -> None:
 def get_static_files_dir():
     """Get the static files directory relative to VibeSurf's main.py file."""
     frontend_path = Path(__file__).parent / "frontend"
-    logger.info(f"Checking static files directory: {frontend_path}")
-    logger.info(f"Directory exists: {frontend_path.exists()}")
+    logger.debug(f"Checking static files directory: {frontend_path}")
+    logger.debug(f"Directory exists: {frontend_path.exists()}")
     if frontend_path.exists():
-        logger.info(f"Found static files at: {frontend_path}")
+        logger.debug(f"Found static files at: {frontend_path}")
         return frontend_path
     else:
         logger.error(f"Static files directory does not exist: {frontend_path}")
@@ -546,6 +546,8 @@ def create_app() -> FastAPI:
     from vibe_surf.langflow.logging.logger import configure
 
     lifespan = get_lifespan()
+
+    configure()
 
     app = FastAPI(
         title="VibeSurf Backend API",

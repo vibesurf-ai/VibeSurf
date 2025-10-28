@@ -82,7 +82,25 @@ uv venv --python 3.12
 uv pip install -e .
 ```
 
-### 3. 开始调试
+### 3. 构建前端（可选）
+如果您正在进行前端更改，需要构建前端并将其复制到后端目录：
+
+```bash
+# 导航到前端目录
+cd vibe_surf/frontend
+
+# 安装前端依赖
+npm ci
+
+# 构建前端
+npm run build
+
+# 将构建输出复制到后端目录
+mkdir -p ../backend/frontend
+cp -r build/* ../backend/frontend/
+```
+
+### 4. 开始调试
 **选项 1：直接服务器**
 ```bash
 uvicorn vibe_surf.backend.main:app --host 127.0.0.1 --port 9335

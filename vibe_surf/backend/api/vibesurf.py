@@ -36,12 +36,6 @@ class VibeSurfStatusResponse(BaseModel):
 VIBESURF_API_KEY_NAME = "VIBESURF_API_KEY"
 
 def validate_vibesurf_api_key(api_key: str) -> bool:
-    """
-    Validate VibeSurf API key with simple logic:
-    1. Must start with 'vs-'
-    2. Should match the example pattern: vs-Yx9MbwKJv2BqBKhlm9izdbBZaqfwrSQONUtVB3bGyADKrLXe
-    3. Check length
-    """
     if not api_key or not isinstance(api_key, str):
         return False
     
