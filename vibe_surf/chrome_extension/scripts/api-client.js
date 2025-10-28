@@ -574,6 +574,23 @@ class VibeSurfAPIClient {
     return this.get('/composio/status');
   }
 
+  // VibeSurf API Key Management
+  async verifyVibeSurfKey(apiKey) {
+    return this.post('/vibesurf/verify-key', { api_key: apiKey });
+  }
+
+  async getVibeSurfStatus() {
+    return this.get('/vibesurf/status');
+  }
+
+  async deleteVibeSurfKey() {
+    return this.delete('/vibesurf/key');
+  }
+
+  async validateVibeSurfKey() {
+    return this.get('/vibesurf/validate');
+  }
+
   // Workflow Management APIs (Langflow integration)
   async getWorkflows() {
     // Match the exact parameters from working curl command

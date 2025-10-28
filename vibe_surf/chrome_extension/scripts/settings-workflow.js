@@ -24,7 +24,11 @@ class VibeSurfSettingsWorkflow {
       eventCache: new Map(), // Map<jobId, {events: [], lastFetch: timestamp, isComplete: boolean, workflowId: string}>
       eventSubscribers: new Map(), // Map<jobId, Set<callback functions>>
       // Mapping from workflow ID to job IDs for completed workflows
-      workflowJobMapping: new Map() // Map<workflowId, {jobId: string, completedAt: timestamp, eventCount: number}>
+      workflowJobMapping: new Map(), // Map<workflowId, {jobId: string, completedAt: timestamp, eventCount: number}>
+      
+      // VibeSurf API Key state
+      vibeSurfApiKey: null,
+      vibeSurfKeyValid: false
     };
     
     // Schedule state for new interface
@@ -49,6 +53,14 @@ class VibeSurfSettingsWorkflow {
       workflowFilter: document.getElementById('workflow-filter'),
       workflowsList: document.getElementById('workflows-list'),
       workflowsLoading: document.getElementById('workflows-loading'),
+      
+      // VibeSurf API Key Modal
+      vibeSurfApiKeyModal: document.getElementById('vibesurf-api-key-modal'),
+      vibeSurfApiKeyInput: document.getElementById('vibesurf-api-key-input'),
+      openVibeSurfLink: document.getElementById('open-vibesurf-link'),
+      vibeSurfApiKeyCancel: document.getElementById('vibesurf-api-key-cancel'),
+      vibeSurfApiKeyConfirm: document.getElementById('vibesurf-api-key-confirm'),
+      vibeSurfApiKeyValidation: document.getElementById('vibesurf-api-key-validation'),
       
       // Workflow Schedule Modal
       workflowScheduleModal: document.getElementById('workflow-schedule-modal'),
@@ -90,6 +102,11 @@ class VibeSurfSettingsWorkflow {
     this.elements.workflowSearch?.addEventListener('input', this.handleWorkflowSearch.bind(this));
     this.elements.workflowFilter?.addEventListener('change', this.handleWorkflowFilter.bind(this));
     
+    // VibeSurf API Key Modal events
+    this.elements.openVibeSurfLink?.addEventListener('click', this.handleOpenVibeSurfLink.bind(this));
+    this.elements.vibeSurfApiKeyCancel?.addEventListener('click', this.hideVibeSurfApiKeyModal.bind(this));
+    this.elements.vibeSurfApiKeyConfirm?.addEventListener('click', this.handleVibeSurfApiKeyConfirm.bind(this));
+    
     // Workflow Schedule Modal events
     this.elements.presetScheduleSelect?.addEventListener('change', this.handleCronExpressionChange.bind(this));
     this.elements.customCronInput?.addEventListener('input', this.handleCronExpressionChange.bind(this));
@@ -106,6 +123,11 @@ class VibeSurfSettingsWorkflow {
     this.elements.deleteConfirm?.addEventListener('click', this.handleDeleteConfirm.bind(this));
     
     // Workflow modal close buttons
+    const vibeSurfModalClose = this.elements.vibeSurfApiKeyModal?.querySelector('.modal-close');
+    if (vibeSurfModalClose) {
+      vibeSurfModalClose.addEventListener('click', this.hideVibeSurfApiKeyModal.bind(this));
+    }
+    
     const scheduleModalClose = this.elements.workflowScheduleModal?.querySelector('.modal-close');
     if (scheduleModalClose) {
       scheduleModalClose.addEventListener('click', this.hideScheduleModal.bind(this));
@@ -167,10 +189,21 @@ class VibeSurfSettingsWorkflow {
       // Show loading state
       this.showWorkflowsLoading();
       
-      // Load workflows from backend
-      await this.loadWorkflows();
+      // Check VibeSurf API key first
+      const status = await this.checkVibeSurfStatus();
       
-      console.log('[SettingsWorkflow] Workflow content loaded');
+      if (status && status.connected && status.key_valid) {
+        console.log('[SettingsWorkflow] Valid VibeSurf API key found, loading workflows...');
+        // Load workflows from backend
+        await this.loadWorkflows();
+        console.log('[SettingsWorkflow] Workflow content loaded');
+      } else {
+        console.log('[SettingsWorkflow] No valid VibeSurf API key, showing setup modal automatically');
+        console.log('[SettingsWorkflow] Status details - connected:', status?.connected, 'key_valid:', status?.key_valid);
+        // Hide loading and show API key modal
+        this.hideWorkflowsLoading();
+        this.showVibeSurfApiKeyModal();
+      }
       
     } catch (error) {
       console.error('[SettingsWorkflow] Failed to load workflow content:', error);
@@ -179,6 +212,147 @@ class VibeSurfSettingsWorkflow {
         message: 'Failed to load workflows',
         type: 'error'
       });
+    }
+  }
+  
+  // Check VibeSurf API key status
+  async checkVibeSurfStatus() {
+    try {
+      console.log('[SettingsWorkflow] Checking VibeSurf status...');
+      const response = await this.apiClient.getVibeSurfStatus();
+      console.log('[SettingsWorkflow] VibeSurf status response:', response);
+      
+      this.state.vibeSurfKeyValid = response.connected && response.key_valid;
+      this.state.vibeSurfApiKey = response.has_key ? '***' : null;
+      
+      console.log('[SettingsWorkflow] VibeSurf state updated:', {
+        connected: response.connected,
+        keyValid: response.key_valid,
+        hasKey: response.has_key,
+        message: response.message
+      });
+      
+      return response;
+    } catch (error) {
+      console.error('[SettingsWorkflow] Failed to check VibeSurf status:', error);
+      this.state.vibeSurfKeyValid = false;
+      this.state.vibeSurfApiKey = null;
+      return {
+        connected: false,
+        key_valid: false,
+        has_key: false,
+        message: 'Status check failed'
+      };
+    }
+  }
+  
+  // Show VibeSurf API key modal
+  showVibeSurfApiKeyModal() {
+    console.log('[SettingsWorkflow] Showing VibeSurf API key modal');
+    console.log('[SettingsWorkflow] Modal element exists:', !!this.elements.vibeSurfApiKeyModal);
+    
+    if (this.elements.vibeSurfApiKeyModal) {
+      this.elements.vibeSurfApiKeyModal.classList.remove('hidden');
+      
+      // Clear previous input and validation
+      if (this.elements.vibeSurfApiKeyInput) {
+        this.elements.vibeSurfApiKeyInput.value = '';
+      }
+      this.hideVibeSurfApiKeyValidation();
+      
+      // Focus on input
+      setTimeout(() => {
+        if (this.elements.vibeSurfApiKeyInput) {
+          this.elements.vibeSurfApiKeyInput.focus();
+        }
+      }, 100);
+      
+      console.log('[SettingsWorkflow] VibeSurf API key modal shown successfully');
+    } else {
+      console.error('[SettingsWorkflow] VibeSurf API key modal element not found!');
+    }
+  }
+  
+  // Hide VibeSurf API key modal
+  hideVibeSurfApiKeyModal() {
+    if (this.elements.vibeSurfApiKeyModal) {
+      this.elements.vibeSurfApiKeyModal.classList.add('hidden');
+    }
+  }
+  
+  // Handle VibeSurf link open
+  handleOpenVibeSurfLink() {
+    // Open VibeSurf website in new tab using Chrome extension API
+    if (typeof chrome !== 'undefined' && chrome.tabs) {
+      chrome.tabs.create({ url: 'https://vibe-surf.com/' });
+    } else {
+      // Fallback for non-extension context
+      window.open('https://vibe-surf.com/', '_blank');
+    }
+  }
+  
+  // Handle VibeSurf API key confirm
+  async handleVibeSurfApiKeyConfirm() {
+    const apiKey = this.elements.vibeSurfApiKeyInput?.value?.trim();
+    
+    if (!apiKey) {
+      this.showVibeSurfApiKeyValidation('Please enter a VibeSurf API key', 'error');
+      return;
+    }
+
+    try {
+      this.showVibeSurfApiKeyValidation('Validating API key...', 'info');
+      
+      const response = await this.apiClient.verifyVibeSurfKey(apiKey);
+      
+      if (response.valid) {
+        this.showVibeSurfApiKeyValidation('API key is valid!', 'success');
+        
+        // Update state
+        this.state.vibeSurfKeyValid = true;
+        this.state.vibeSurfApiKey = '***';
+        
+        // Load workflows after successful validation
+        await this.loadWorkflows();
+        
+        // Close modal after short delay
+        setTimeout(() => {
+          this.hideVibeSurfApiKeyModal();
+        }, 1000);
+        
+        this.emit('notification', {
+          message: 'VibeSurf API key validated and saved successfully',
+          type: 'success'
+        });
+        
+      } else {
+        this.showVibeSurfApiKeyValidation('Invalid VibeSurf API key. Please check and try again.', 'error');
+      }
+      
+    } catch (error) {
+      console.error('[SettingsWorkflow] Failed to verify VibeSurf API key:', error);
+      this.showVibeSurfApiKeyValidation(`Failed to verify API key: ${error.message}`, 'error');
+    }
+  }
+  
+  // Show VibeSurf API key validation message
+  showVibeSurfApiKeyValidation(message, type) {
+    if (!this.elements.vibeSurfApiKeyValidation) return;
+    
+    const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+    this.elements.vibeSurfApiKeyValidation.innerHTML = `
+      <div class="validation-message ${className}">
+        ${this.escapeHtml(message)}
+      </div>
+    `;
+    this.elements.vibeSurfApiKeyValidation.style.display = 'block';
+  }
+
+  // Hide VibeSurf API key validation message
+  hideVibeSurfApiKeyValidation() {
+    if (this.elements.vibeSurfApiKeyValidation) {
+      this.elements.vibeSurfApiKeyValidation.style.display = 'none';
+      this.elements.vibeSurfApiKeyValidation.innerHTML = '';
     }
   }
   

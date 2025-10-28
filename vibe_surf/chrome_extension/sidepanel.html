@@ -921,6 +921,58 @@
         </div>
     </div>
 
+    <!-- VibeSurf API Key Setup Modal -->
+    <div id="vibesurf-api-key-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content composio-modal-content">
+            <div class="modal-header">
+                <h3>Setup VibeSurf API Key</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="api-key-setup-content">
+                    <div class="form-group">
+                        <label class="form-label required">VibeSurf API Key</label>
+                        <div class="api-key-field">
+                            <input type="password" id="vibesurf-api-key-input" class="form-input api-key-input"
+                                   placeholder="Enter your VibeSurf API key" required>
+                            <button type="button" class="api-key-toggle" title="Toggle visibility">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" stroke-width="2"/>
+                                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="form-help">
+                            <p>Your VibeSurf API key for accessing workflows functionality</p>
+                            <div class="help-link">
+                                <span>Get your API key from </span>
+                                <button id="open-vibesurf-link" class="link-btn">
+                                    vibe-surf.com
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M18 13V19C18 19.5304 17.7893 20.0391 17.4142 20.4142C17.0391 20.7893 16.5304 21 16 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V8C3 7.46957 3.21071 6.96086 3.58579 6.58579C3.96086 6.21071 4.46957 6 5 6H11M15 3H21M21 3V9M21 3L9 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                                <span> then login and create API key in profile</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="vibesurf-api-key-validation" class="validation-feedback hidden">
+                        <!-- Validation feedback will be shown here -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="form-btn secondary" id="vibesurf-api-key-cancel">Cancel</button>
+                <button type="button" class="form-btn primary" id="vibesurf-api-key-confirm">Verify & Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="loading-overlay hidden">
         <div class="loading-spinner"></div>
