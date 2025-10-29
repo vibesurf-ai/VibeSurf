@@ -394,6 +394,8 @@ def start_backend(port: int) -> None:
         sys.exit(1)
     except Exception as e:
         console.print(f"[red]❌ Failed to start backend: {e}[/red]")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 

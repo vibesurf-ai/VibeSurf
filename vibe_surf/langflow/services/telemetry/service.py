@@ -51,7 +51,7 @@ class TelemetryService(Service):
         self._curr_user_id = None
         
         # User ID persistence path
-        self.workspace_dir = os.getenv('VIBESURF_WORKSPACE', common.get_workspace_dir())
+        self.workspace_dir = common.get_workspace_dir()
         self.user_id_path = os.path.join(self.workspace_dir, 'telemetry', 'userid')
         
         self.architecture: str | None = None
