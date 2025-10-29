@@ -1,13 +1,10 @@
 // Background Script - VibeSurf Extension
 // Handles extension lifecycle, side panel management, and cross-context communication
 
-// Import configuration using importScripts for service worker
-try {
-  importScripts('config.js');
-  console.log('[VibeSurf] Configuration loaded');
-} catch (error) {
-  console.error('[VibeSurf] Failed to load configuration:', error);
-}
+// Import configuration using ES modules for service worker
+import { VIBESURF_CONFIG } from './config.js';
+
+console.log('[VibeSurf] Configuration loaded');
 
 class VibeSurfBackground {
   constructor() {
@@ -310,8 +307,8 @@ class VibeSurfBackground {
   }
 
   async initializeSettings() {
-    // Load configuration (use self instead of window in service worker)
-    const config = self.VIBESURF_CONFIG || {};
+    // Load configuration from ES module import
+    const config = VIBESURF_CONFIG || {};
     
     const defaultSettings = {
       backendUrl: config.BACKEND_URL || 'http://localhost:9335',
@@ -430,8 +427,8 @@ class VibeSurfBackground {
   }
 
   async checkBackendStatus(backendUrl = null) {
-    // Use configuration file value as default (use self instead of window in service worker)
-    const config = self.VIBESURF_CONFIG || {};
+    // Use configuration file value as default from ES module import
+    const config = VIBESURF_CONFIG || {};
     backendUrl = backendUrl || config.BACKEND_URL || 'http://localhost:9335';
     try {
       const response = await fetch(`${backendUrl}/health`, {

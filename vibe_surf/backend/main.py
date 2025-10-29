@@ -642,6 +642,17 @@ def create_app() -> FastAPI:
     app.include_router(health_check_router, tags=["langflow-health"])
     app.include_router(log_router, tags=["langflow-logs"])
 
+    @app.get("/health")
+    async def health_check():
+        """API health check"""
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "service": "VibeSurf Backend API",
+            "model": "single-task-execution",
+            "version": "2.0.0"
+        }
+
     # Session ID generation endpoint
     @app.get("/generate-session-id")
     async def generate_session_id(prefix: str = ""):

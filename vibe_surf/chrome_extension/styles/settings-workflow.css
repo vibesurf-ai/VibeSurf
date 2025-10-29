@@ -2026,6 +2026,11 @@
 .import-workflow-modal-content {
     max-width: 700px;
     border-radius: 16px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1050;
 }
 
 .import-methods {

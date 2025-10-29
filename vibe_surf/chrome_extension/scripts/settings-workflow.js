@@ -858,21 +858,21 @@ class VibeSurfSettingsWorkflow {
         
         if (!file) {
           this.showImportWorkflowValidation('Please select a JSON file', 'error');
-          return;
+          throw new Error('No file selected');
         }
         
         try {
           workflowJson = await this.readFileAsText(file);
         } catch (error) {
           this.showImportWorkflowValidation('Failed to read file', 'error');
-          return;
+          throw new Error('Failed to read file');
         }
       } else if (selectedMethod === 'json-text') {
         workflowJson = this.elements.workflowJsonInput?.value?.trim() || '';
         
         if (!workflowJson) {
           this.showImportWorkflowValidation('Please enter workflow JSON', 'error');
-          return;
+          throw new Error('No workflow JSON provided');
         }
       }
       

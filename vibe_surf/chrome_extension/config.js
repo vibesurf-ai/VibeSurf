@@ -42,6 +42,9 @@ const VIBESURF_CONFIG = {
 };
 
 // Export configuration for use in other files
+export { VIBESURF_CONFIG };
+
+// Legacy compatibility for non-module scripts
 if (typeof window !== 'undefined') {
   window.VIBESURF_CONFIG = VIBESURF_CONFIG;
 }
