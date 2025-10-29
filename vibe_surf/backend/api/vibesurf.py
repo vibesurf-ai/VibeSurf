@@ -2,8 +2,11 @@
 VibeSurf API Key Management
 Handles VibeSurf API key validation and storage
 """
-
+import copy
+import os
 import uuid
+import json
+import httpx
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -35,6 +38,15 @@ class VibeSurfStatusResponse(BaseModel):
 
 class UUIDResponse(BaseModel):
     uuid: str
+
+class ImportWorkflowRequest(BaseModel):
+    workflow_json: str
+
+class ImportWorkflowResponse(BaseModel):
+    success: bool
+    message: str
+    workflow_id: Optional[str] = None
+    edit_url: Optional[str] = None
 
 # Constants
 VIBESURF_API_KEY_NAME = "VIBESURF_API_KEY"
@@ -183,3 +195,130 @@ async def generate_uuid_v4():
     except Exception as e:
         logger.error(f"Error generating UUID: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate UUID")
+
+@router.post("/import-workflow", response_model=ImportWorkflowResponse)
+async def import_workflow(
+    request: ImportWorkflowRequest,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """Import workflow from JSON string"""
+    try:
+        # Parse and validate JSON
+        try:
+            workflow_data = json.loads(request.workflow_json)
+        except json.JSONDecodeError as e:
+            return ImportWorkflowResponse(
+                success=False,
+                message=f"Invalid JSON format: {str(e)}"
+            )
+        
+        # Validate required fields
+        required_fields = ["name", "description", "data"]
+        missing_fields = [field for field in required_fields if field not in workflow_data]
+        if missing_fields:
+            return ImportWorkflowResponse(
+                success=False,
+                message=f"Missing required fields: {', '.join(missing_fields)}"
+            )
+        
+        # Validate data structure
+        if not isinstance(workflow_data.get("data"), dict):
+            return ImportWorkflowResponse(
+                success=False,
+                message="'data' field must be an object"
+            )
+        
+        data = workflow_data["data"]
+        if "nodes" not in data or "edges" not in data:
+            return ImportWorkflowResponse(
+                success=False,
+                message="'data' must contain 'nodes' and 'edges' fields"
+            )
+        
+        # Get VibeSurf API key
+        api_key = await CredentialQueries.get_credential(db, VIBESURF_API_KEY_NAME)
+        if not api_key or not validate_vibesurf_api_key(api_key):
+            return ImportWorkflowResponse(
+                success=False,
+                message="Valid VibeSurf API key required"
+            )
+        
+        # Get backend base URL (assuming local langflow instance)
+        backend_port = os.getenv("VIBESURF_BACKEND_PORT", "9335")
+        backend_base_url = f'http://localhost:{backend_port}'
+        
+        # Get projects to obtain folder_id
+        try:
+            async with httpx.AsyncClient() as client:
+                projects_response = await client.get(
+                    f"{backend_base_url}/api/v1/projects/",
+                    timeout=30.0
+                )
+                
+                if projects_response.status_code != 200:
+                    return ImportWorkflowResponse(
+                        success=False,
+                        message="Failed to fetch projects"
+                    )
+                
+                projects = projects_response.json()
+                
+                # Use the first project's ID as folder_id
+                if isinstance(projects, list) and len(projects) > 0:
+                    folder_id = projects[0].get("id")
+                else:
+                    folder_id = ""
+                
+                # Generate new ID for imported workflow
+                new_id = str(uuid.uuid4())
+                
+                # Prepare workflow data for creation
+                import_data = copy.deepcopy(workflow_data)
+                import_data["id"] = new_id
+                import_data["folder_id"] = folder_id
+                
+                # Create workflow
+                create_response = await client.post(
+                    f"{backend_base_url}/api/v1/flows/",
+                    json=import_data,
+                    timeout=30.0
+                )
+                
+                if create_response.status_code not in [200, 201]:
+                    error_detail = create_response.text
+                    return ImportWorkflowResponse(
+                        success=False,
+                        message=f"Failed to create workflow: {error_detail}"
+                    )
+                
+                created_workflow = create_response.json()
+                workflow_id = created_workflow.get("id", new_id)
+                edit_url = f"{backend_base_url}/flow/{workflow_id}"
+                
+                logger.info(f"Successfully imported workflow: {workflow_id}")
+                return ImportWorkflowResponse(
+                    success=True,
+                    message="Workflow imported successfully",
+                    workflow_id=workflow_id,
+                    edit_url=edit_url
+                )
+                
+        except httpx.RequestError as e:
+            logger.error(f"HTTP request failed during workflow import: {e}")
+            return ImportWorkflowResponse(
+                success=False,
+                message="Failed to communicate with workflow service"
+            )
+        except Exception as e:
+            logger.error(f"Error during workflow creation: {e}")
+            return ImportWorkflowResponse(
+                success=False,
+                message=f"Failed to create workflow: {str(e)}"
+            )
+            
+    except Exception as e:
+        logger.error(f"Error importing workflow: {e}")
+        return ImportWorkflowResponse(
+            success=False,
+            message="Failed to import workflow"
+        )

@@ -51,6 +51,7 @@ class VibeSurfSettingsWorkflow {
       // Workflow Tab
       workflowTab: document.getElementById('workflow-tab'),
       createWorkflowBtn: document.getElementById('create-workflow-btn'),
+      importWorkflowBtn: document.getElementById('import-workflow-btn'),
       workflowSearch: document.getElementById('workflow-search'),
       workflowFilter: document.getElementById('workflow-filter'),
       workflowsList: document.getElementById('workflows-list'),
@@ -63,6 +64,20 @@ class VibeSurfSettingsWorkflow {
       createWorkflowCancel: document.getElementById('create-workflow-cancel'),
       createWorkflowConfirm: document.getElementById('create-workflow-confirm'),
       createWorkflowValidation: document.getElementById('create-workflow-validation'),
+      
+      // Import Workflow Modal
+      importWorkflowModal: document.getElementById('import-workflow-modal'),
+      workflowJsonInput: document.getElementById('workflow-json-input'),
+      workflowJsonFile: document.getElementById('workflow-json-file'),
+      selectJsonFileBtn: document.getElementById('select-json-file-btn'),
+      selectedFileInfo: document.getElementById('selected-file-info'),
+      selectedFileName: document.getElementById('selected-file-name'),
+      clearFileBtn: document.getElementById('clear-file-btn'),
+      jsonTextImport: document.getElementById('json-text-import'),
+      jsonFileImport: document.getElementById('json-file-import'),
+      importWorkflowCancel: document.getElementById('import-workflow-cancel'),
+      importWorkflowConfirm: document.getElementById('import-workflow-confirm'),
+      importWorkflowValidation: document.getElementById('import-workflow-validation'),
       
       // VibeSurf API Key Modal
       vibeSurfApiKeyModal: document.getElementById('vibesurf-api-key-modal'),
@@ -109,12 +124,20 @@ class VibeSurfSettingsWorkflow {
   bindEvents() {
     // Workflow tab events
     this.elements.createWorkflowBtn?.addEventListener('click', this.handleCreateWorkflow.bind(this));
+    this.elements.importWorkflowBtn?.addEventListener('click', this.handleImportWorkflow.bind(this));
     this.elements.workflowSearch?.addEventListener('input', this.handleWorkflowSearch.bind(this));
     this.elements.workflowFilter?.addEventListener('change', this.handleWorkflowFilter.bind(this));
     
     // Create Workflow Modal events
     this.elements.createWorkflowCancel?.addEventListener('click', this.hideCreateWorkflowModal.bind(this));
     this.elements.createWorkflowConfirm?.addEventListener('click', this.handleCreateWorkflowConfirm.bind(this));
+    
+    // Import Workflow Modal events
+    this.elements.importWorkflowCancel?.addEventListener('click', this.hideImportWorkflowModal.bind(this));
+    this.elements.importWorkflowConfirm?.addEventListener('click', this.handleImportWorkflowConfirm.bind(this));
+    this.elements.selectJsonFileBtn?.addEventListener('click', this.handleSelectJsonFile.bind(this));
+    this.elements.workflowJsonFile?.addEventListener('change', this.handleJsonFileChange.bind(this));
+    this.elements.clearFileBtn?.addEventListener('click', this.handleClearFile.bind(this));
     
     // VibeSurf API Key Modal events
     this.elements.openVibeSurfLink?.addEventListener('click', this.handleOpenVibeSurfLink.bind(this));
@@ -161,6 +184,11 @@ class VibeSurfSettingsWorkflow {
     if (createModalClose) {
       createModalClose.addEventListener('click', this.hideCreateWorkflowModal.bind(this));
     }
+    
+    const importModalClose = this.elements.importWorkflowModal?.querySelector('.modal-close');
+    if (importModalClose) {
+      importModalClose.addEventListener('click', this.hideImportWorkflowModal.bind(this));
+    }
 
     // --- New Schedule Modal Events ---
     const scheduleTypeSelect = document.getElementById('schedule-type-select');
@@ -198,6 +226,12 @@ class VibeSurfSettingsWorkflow {
         this.updateScheduleSaveButton(this.scheduleState.isValid);
       });
     }
+    
+    // Import method radio buttons
+    const importMethodRadios = document.querySelectorAll('input[name="import-method"]');
+    importMethodRadios.forEach(radio => {
+      radio.addEventListener('change', this.handleImportMethodChange.bind(this));
+    });
   }
 
   // Load workflow content when tab is opened
@@ -681,6 +715,244 @@ class VibeSurfSettingsWorkflow {
     if (this.elements.createWorkflowValidation) {
       this.elements.createWorkflowValidation.style.display = 'none';
       this.elements.createWorkflowValidation.innerHTML = '';
+    }
+  }
+  
+  // Handle import workflow button
+  handleImportWorkflow(event) {
+    // Prevent any default behavior
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
+    this.showImportWorkflowModal();
+  }
+  
+  // Show import workflow modal
+  showImportWorkflowModal() {
+    if (this.elements.importWorkflowModal) {
+      this.elements.importWorkflowModal.classList.remove('hidden');
+      
+      // Clear previous input and validation
+      if (this.elements.workflowJsonInput) {
+        this.elements.workflowJsonInput.value = '';
+      }
+      this.clearJsonFileSelection();
+      this.hideImportWorkflowValidation();
+      
+      // Set default import method to JSON file
+      const jsonFileRadio = document.querySelector('input[name="import-method"][value="json-file"]');
+      if (jsonFileRadio) {
+        jsonFileRadio.checked = true;
+        this.handleImportMethodChange();
+      }
+      
+      // Focus on textarea
+      setTimeout(() => {
+        if (this.elements.workflowJsonInput) {
+          this.elements.workflowJsonInput.focus();
+        }
+      }, 100);
+      
+      console.log('[SettingsWorkflow] Import workflow modal shown');
+    } else {
+      console.error('[SettingsWorkflow] Import workflow modal element not found!');
+    }
+  }
+  
+  // Hide import workflow modal
+  hideImportWorkflowModal() {
+    if (this.elements.importWorkflowModal) {
+      this.elements.importWorkflowModal.classList.add('hidden');
+    }
+  }
+  
+  // Handle import method change (JSON file vs text)
+  handleImportMethodChange() {
+    const selectedMethod = document.querySelector('input[name="import-method"]:checked')?.value;
+    
+    if (selectedMethod === 'json-file') {
+      this.elements.jsonFileImport?.classList.remove('hidden');
+      this.elements.jsonTextImport?.classList.add('hidden');
+    } else if (selectedMethod === 'json-text') {
+      this.elements.jsonFileImport?.classList.add('hidden');
+      this.elements.jsonTextImport?.classList.remove('hidden');
+    }
+    
+    this.hideImportWorkflowValidation();
+  }
+  
+  // Handle select JSON file button
+  handleSelectJsonFile() {
+    if (this.elements.workflowJsonFile) {
+      this.elements.workflowJsonFile.click();
+    }
+  }
+  
+  // Handle JSON file selection change
+  handleJsonFileChange(event) {
+    const file = event.target.files[0];
+    
+    if (file) {
+      if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+        this.showImportWorkflowValidation('Please select a valid JSON file', 'error');
+        this.clearJsonFileSelection();
+        return;
+      }
+      
+      // Show selected file info
+      if (this.elements.selectedFileName) {
+        this.elements.selectedFileName.textContent = file.name;
+      }
+      if (this.elements.selectedFileInfo) {
+        this.elements.selectedFileInfo.classList.remove('hidden');
+      }
+      
+      this.hideImportWorkflowValidation();
+    }
+  }
+  
+  // Handle clear file selection
+  handleClearFile() {
+    this.clearJsonFileSelection();
+  }
+  
+  // Clear JSON file selection
+  clearJsonFileSelection() {
+    if (this.elements.workflowJsonFile) {
+      this.elements.workflowJsonFile.value = '';
+    }
+    if (this.elements.selectedFileInfo) {
+      this.elements.selectedFileInfo.classList.add('hidden');
+    }
+    if (this.elements.selectedFileName) {
+      this.elements.selectedFileName.textContent = '';
+    }
+  }
+  
+  // Handle import workflow confirm
+  async handleImportWorkflowConfirm() {
+    // Prevent multiple simultaneous executions
+    if (this._isImportingWorkflow) {
+      return;
+    }
+    
+    this._isImportingWorkflow = true;
+    
+    // Disable the confirm button immediately
+    if (this.elements.importWorkflowConfirm) {
+      this.elements.importWorkflowConfirm.disabled = true;
+      const btnText = this.elements.importWorkflowConfirm.querySelector('.btn-text');
+      const btnLoading = this.elements.importWorkflowConfirm.querySelector('.btn-loading');
+      if (btnText) btnText.classList.add('hidden');
+      if (btnLoading) btnLoading.classList.remove('hidden');
+    }
+    
+    try {
+      const selectedMethod = document.querySelector('input[name="import-method"]:checked')?.value;
+      let workflowJson = '';
+      
+      if (selectedMethod === 'json-file') {
+        const file = this.elements.workflowJsonFile?.files[0];
+        
+        if (!file) {
+          this.showImportWorkflowValidation('Please select a JSON file', 'error');
+          return;
+        }
+        
+        try {
+          workflowJson = await this.readFileAsText(file);
+        } catch (error) {
+          this.showImportWorkflowValidation('Failed to read file', 'error');
+          return;
+        }
+      } else if (selectedMethod === 'json-text') {
+        workflowJson = this.elements.workflowJsonInput?.value?.trim() || '';
+        
+        if (!workflowJson) {
+          this.showImportWorkflowValidation('Please enter workflow JSON', 'error');
+          return;
+        }
+      }
+      
+      this.showImportWorkflowValidation('Importing workflow...', 'info');
+      
+      // Import the workflow
+      const response = await this.apiClient.importWorkflow(workflowJson);
+      
+      if (response.success) {
+        this.showImportWorkflowValidation('Workflow imported successfully!', 'success');
+        
+        // Wait a moment to show success message
+        setTimeout(() => {
+          this.hideImportWorkflowModal();
+          
+          // Reload workflows list
+          this.loadWorkflows();
+          
+          // Navigate to the imported workflow if edit_url is provided
+          if (response.edit_url) {
+            if (typeof chrome !== 'undefined' && chrome.tabs) {
+              chrome.tabs.create({ url: response.edit_url });
+            } else {
+              window.open(response.edit_url, '_blank');
+            }
+          }
+          
+          this.emit('notification', {
+            message: 'Workflow imported and opened for editing',
+            type: 'success'
+          });
+        }, 1000);
+      } else {
+        this.showImportWorkflowValidation(response.message || 'Failed to import workflow', 'error');
+      }
+      
+    } catch (error) {
+      console.error('[SettingsWorkflow] Failed to import workflow:', error);
+      this.showImportWorkflowValidation(`Failed to import workflow: ${error.message}`, 'error');
+    } finally {
+      // Reset import flag and re-enable button
+      this._isImportingWorkflow = false;
+      if (this.elements.importWorkflowConfirm) {
+        this.elements.importWorkflowConfirm.disabled = false;
+        const btnText = this.elements.importWorkflowConfirm.querySelector('.btn-text');
+        const btnLoading = this.elements.importWorkflowConfirm.querySelector('.btn-loading');
+        if (btnText) btnText.classList.remove('hidden');
+        if (btnLoading) btnLoading.classList.add('hidden');
+      }
+    }
+  }
+  
+  // Read file as text
+  readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = (e) => reject(new Error('Failed to read file'));
+      reader.readAsText(file);
+    });
+  }
+  
+  // Show import workflow validation message
+  showImportWorkflowValidation(message, type) {
+    if (!this.elements.importWorkflowValidation) return;
+    
+    const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+    this.elements.importWorkflowValidation.innerHTML = `
+      <div class="validation-message ${className}">
+        ${this.escapeHtml(message)}
+      </div>
+    `;
+    this.elements.importWorkflowValidation.style.display = 'block';
+  }
+
+  // Hide import workflow validation message
+  hideImportWorkflowValidation() {
+    if (this.elements.importWorkflowValidation) {
+      this.elements.importWorkflowValidation.style.display = 'none';
+      this.elements.importWorkflowValidation.innerHTML = '';
     }
   }
   

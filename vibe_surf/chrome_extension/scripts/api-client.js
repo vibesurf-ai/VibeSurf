@@ -680,6 +680,11 @@ class VibeSurfAPIClient {
       throw error;
     }
   }
+
+  // Import workflow from JSON string
+  async importWorkflow(workflowJson) {
+    return this.post('/vibesurf/import-workflow', { workflow_json: workflowJson });
+  }
 }
 
 // Custom error class for API errors

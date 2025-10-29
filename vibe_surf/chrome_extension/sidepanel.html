@@ -413,6 +413,16 @@
                                 </svg>
                                 Create Workflow
                             </button>
+                            <button id="import-workflow-btn" class="import-workflow-btn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Import Workflow
+                            </button>
                         </div>
                         
                         <!-- Search and Filter Bar -->
@@ -1011,6 +1021,97 @@
                 <button type="button" class="form-btn primary" id="create-workflow-confirm">
                     <span class="btn-text">Create Workflow</span>
                     <span class="btn-loading hidden">Creating...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Workflow Modal -->
+    <div id="import-workflow-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content import-workflow-modal-content">
+            <div class="modal-header">
+                <h3>Import Workflow</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="import-workflow-content">
+                    <div class="import-methods">
+                        <div class="import-method">
+                            <label class="import-method-label">
+                                <input type="radio" name="import-method" value="json-file" class="import-method-radio" checked>
+                                <span class="import-method-title">Import from JSON File</span>
+                            </label>
+                            <div class="import-method-description">Select a JSON file from your computer</div>
+                        </div>
+                        <div class="import-method">
+                            <label class="import-method-label">
+                                <input type="radio" name="import-method" value="json-text" class="import-method-radio">
+                                <span class="import-method-title">Import from JSON Text</span>
+                            </label>
+                            <div class="import-method-description">Paste workflow JSON directly</div>
+                        </div>
+                    </div>
+                    
+                    <!-- JSON File Import -->
+                    <div id="json-file-import" class="import-section">
+                        <div class="form-group">
+                            <label class="form-label required">Select JSON File</label>
+                            <div class="file-input-container">
+                                <input type="file" id="workflow-json-file" class="file-input" accept=".json" hidden>
+                                <button type="button" class="file-select-btn" id="select-json-file-btn">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    Choose JSON File
+                                </button>
+                                <div id="selected-file-info" class="selected-file-info hidden">
+                                    <span id="selected-file-name" class="file-name"></span>
+                                    <button type="button" id="clear-file-btn" class="clear-file-btn" title="Clear selection">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-help">Select a .json file containing the workflow configuration</div>
+                        </div>
+                    </div>
+                    
+                    <!-- JSON Text Import -->
+                    <div id="json-text-import" class="import-section hidden">
+                        <div class="form-group">
+                            <label class="form-label required">Workflow JSON</label>
+                            <textarea id="workflow-json-input" class="form-textarea import-json-textarea" rows="10"
+                                      placeholder='Paste your workflow JSON here, e.g.:
+{
+  "name": "My Workflow",
+  "description": "A sample workflow",
+  "data": {
+    "nodes": [...],
+    "edges": [...]
+  }
+}'></textarea>
+                            <div class="form-help">Paste the complete workflow JSON configuration</div>
+                        </div>
+                    </div>
+                    </div>
+                    
+                    <div id="import-workflow-validation" class="validation-feedback hidden">
+                        <!-- Validation feedback will be shown here -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="form-btn secondary" id="import-workflow-cancel">Cancel</button>
+                <button type="button" class="form-btn primary" id="import-workflow-confirm">
+                    <span class="btn-text">Import Workflow</span>
+                    <span class="btn-loading hidden">Importing...</span>
                 </button>
             </div>
         </div>
