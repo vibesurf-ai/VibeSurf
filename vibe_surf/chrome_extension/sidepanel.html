@@ -973,6 +973,49 @@
         </div>
     </div>
 
+    <!-- Create Workflow Modal -->
+    <div id="create-workflow-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content create-workflow-modal-content">
+            <div class="modal-header">
+                <h3>Create New Workflow</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="create-workflow-content">
+                    <div class="form-group">
+                        <label class="form-label required">Workflow Name</label>
+                        <input type="text" id="workflow-name-input" class="form-input"
+                               placeholder="Enter workflow name" required>
+                        <div class="form-help">Choose a descriptive name for your workflow</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Description (Optional)</label>
+                        <textarea id="workflow-description-input" class="form-textarea" rows="3"
+                                  placeholder="Enter workflow description"></textarea>
+                        <div class="form-help">Describe what this workflow will do</div>
+                    </div>
+                    
+                    <div id="create-workflow-validation" class="validation-feedback hidden">
+                        <!-- Validation feedback will be shown here -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="form-btn secondary" id="create-workflow-cancel">Cancel</button>
+                <button type="button" class="form-btn primary" id="create-workflow-confirm">
+                    <span class="btn-text">Create Workflow</span>
+                    <span class="btn-loading hidden">Creating...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="loading-overlay hidden">
         <div class="loading-spinner"></div>

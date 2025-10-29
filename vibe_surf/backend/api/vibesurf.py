@@ -3,6 +3,7 @@ VibeSurf API Key Management
 Handles VibeSurf API key validation and storage
 """
 
+import uuid
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -31,6 +32,9 @@ class VibeSurfStatusResponse(BaseModel):
     key_valid: bool
     has_key: bool
     message: str
+
+class UUIDResponse(BaseModel):
+    uuid: str
 
 # Constants
 VIBESURF_API_KEY_NAME = "VIBESURF_API_KEY"
@@ -168,3 +172,14 @@ async def validate_current_key(db: AsyncSession = Depends(get_db_session)):
     except Exception as e:
         logger.error(f"Error validating current VibeSurf API key: {e}")
         return {"valid": False, "message": "Failed to validate API key"}
+
+@router.get("/generate-uuid", response_model=UUIDResponse)
+async def generate_uuid_v4():
+    """Generate a new UUID v4"""
+    try:
+        new_uuid = str(uuid.uuid4())
+        logger.info(f"Generated UUID: {new_uuid}")
+        return UUIDResponse(uuid=new_uuid)
+    except Exception as e:
+        logger.error(f"Error generating UUID: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate UUID")

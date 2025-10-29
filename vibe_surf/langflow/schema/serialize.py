@@ -10,4 +10,5 @@ def str_to_uuid(v: str | UUID) -> UUID:
     return v
 
 
-UUIDstr = Annotated[UUID, BeforeValidator(str_to_uuid)]
+# UUIDstr = Annotated[UUID, BeforeValidator(str_to_uuid)]
+UUIDstr = UUID

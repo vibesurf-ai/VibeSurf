@@ -42,9 +42,11 @@ class VibeSurfSettingsWorkflow {
     
     this.elements = {};
     this.bindElements();
+    this.bindEvents();
   }
 
   bindElements() {
+    console.log('[SettingsWorkflow] bindElements called');
     this.elements = {
       // Workflow Tab
       workflowTab: document.getElementById('workflow-tab'),
@@ -53,6 +55,14 @@ class VibeSurfSettingsWorkflow {
       workflowFilter: document.getElementById('workflow-filter'),
       workflowsList: document.getElementById('workflows-list'),
       workflowsLoading: document.getElementById('workflows-loading'),
+      
+      // Create Workflow Modal
+      createWorkflowModal: document.getElementById('create-workflow-modal'),
+      workflowNameInput: document.getElementById('workflow-name-input'),
+      workflowDescriptionInput: document.getElementById('workflow-description-input'),
+      createWorkflowCancel: document.getElementById('create-workflow-cancel'),
+      createWorkflowConfirm: document.getElementById('create-workflow-confirm'),
+      createWorkflowValidation: document.getElementById('create-workflow-validation'),
       
       // VibeSurf API Key Modal
       vibeSurfApiKeyModal: document.getElementById('vibesurf-api-key-modal'),
@@ -102,6 +112,10 @@ class VibeSurfSettingsWorkflow {
     this.elements.workflowSearch?.addEventListener('input', this.handleWorkflowSearch.bind(this));
     this.elements.workflowFilter?.addEventListener('change', this.handleWorkflowFilter.bind(this));
     
+    // Create Workflow Modal events
+    this.elements.createWorkflowCancel?.addEventListener('click', this.hideCreateWorkflowModal.bind(this));
+    this.elements.createWorkflowConfirm?.addEventListener('click', this.handleCreateWorkflowConfirm.bind(this));
+    
     // VibeSurf API Key Modal events
     this.elements.openVibeSurfLink?.addEventListener('click', this.handleOpenVibeSurfLink.bind(this));
     this.elements.vibeSurfApiKeyCancel?.addEventListener('click', this.hideVibeSurfApiKeyModal.bind(this));
@@ -141,6 +155,11 @@ class VibeSurfSettingsWorkflow {
     const deleteModalClose = this.elements.workflowDeleteModal?.querySelector('.modal-close');
     if (deleteModalClose) {
       deleteModalClose.addEventListener('click', this.hideDeleteModal.bind(this));
+    }
+    
+    const createModalClose = this.elements.createWorkflowModal?.querySelector('.modal-close');
+    if (createModalClose) {
+      createModalClose.addEventListener('click', this.hideCreateWorkflowModal.bind(this));
     }
 
     // --- New Schedule Modal Events ---
@@ -487,21 +506,184 @@ class VibeSurfSettingsWorkflow {
   }
   
   // Handle create workflow button
-  handleCreateWorkflow() {
-    console.log('[SettingsWorkflow] Create workflow button clicked');
+  handleCreateWorkflow(event) {
+    // Prevent any default behavior
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     
-    // Get backend URL from API client or settings
-    const backendUrl = this.apiClient.baseURL || window.CONFIG?.BACKEND_URL || 'http://localhost:8000';
-    const createUrl = `${backendUrl}/flows`;
+    this.showCreateWorkflowModal();
+  }
+  
+  // Show create workflow modal
+  showCreateWorkflowModal() {
     
-    // Open in new tab using Chrome extension API
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-      chrome.tabs.create({ url: createUrl });
+    if (this.elements.createWorkflowModal) {
+      this.elements.createWorkflowModal.classList.remove('hidden');
+      
+      // Clear previous input and validation
+      if (this.elements.workflowNameInput) {
+        this.elements.workflowNameInput.value = '';
+        console.log('[SettingsWorkflow] Cleared workflow name input');
+      }
+      if (this.elements.workflowDescriptionInput) {
+        this.elements.workflowDescriptionInput.value = '';
+        console.log('[SettingsWorkflow] Cleared workflow description input');
+      }
+      this.hideCreateWorkflowValidation();
+      
+      // Focus on name input
+      setTimeout(() => {
+        if (this.elements.workflowNameInput) {
+          this.elements.workflowNameInput.focus();
+          console.log('[SettingsWorkflow] Focused on workflow name input');
+        }
+      }, 100);
+      
+      console.log('[SettingsWorkflow] *** CREATE WORKFLOW MODAL SHOWN SUCCESSFULLY ***');
     } else {
-      // Fallback for non-extension context
-      window.open(createUrl, '_blank');
+      console.error('[SettingsWorkflow] *** CRITICAL ERROR: Create workflow modal element not found! ***');
     }
   }
+  
+  // Hide create workflow modal
+  hideCreateWorkflowModal() {
+    if (this.elements.createWorkflowModal) {
+      this.elements.createWorkflowModal.classList.add('hidden');
+    }
+  }
+  
+  // Handle create workflow confirm
+  async handleCreateWorkflowConfirm() {
+    // Prevent multiple simultaneous executions
+    if (this._isCreatingWorkflow) {
+      return;
+    }
+    
+    this._isCreatingWorkflow = true;
+    
+    // Disable the confirm button immediately
+    if (this.elements.createWorkflowConfirm) {
+      this.elements.createWorkflowConfirm.disabled = true;
+    }
+    
+    const name = this.elements.workflowNameInput?.value?.trim();
+    const description = this.elements.workflowDescriptionInput?.value?.trim() || '';
+    
+    if (!name) {
+      this._isCreatingWorkflow = false;
+      if (this.elements.createWorkflowConfirm) {
+        this.elements.createWorkflowConfirm.disabled = false;
+      }
+      this.showCreateWorkflowValidation('Please enter a workflow name', 'error');
+      return;
+    }
+
+    try {
+      this.showCreateWorkflowValidation('Creating workflow...', 'info');
+
+      // Get projects to obtain folder_id
+      const projects = await this.apiClient.getProjects();
+      
+      // Use the first project's ID as folder_id (typically "Starter Project")
+      let folderId = null;
+      if (Array.isArray(projects) && projects.length > 0) {
+        folderId = projects[0].id;
+      } else {
+        folderId = "";
+      }
+      
+      // Create workflow data based on the template
+      const workflowData = {
+        name: name,
+        data: {
+          nodes: [],
+          edges: [],
+          viewport: {
+            zoom: 1,
+            x: 0,
+            y: 0
+          }
+        },
+        description: description,
+        is_component: false,
+        folder_id: folderId,
+        icon: null,
+        gradient: null,
+        endpoint_name: null,
+        tags: [],
+        mcp_enabled: true
+      };
+      
+      const response = await this.apiClient.createWorkflow(workflowData);
+      const workflowId = response.id;
+      this.showCreateWorkflowValidation('Workflow created successfully!', 'success');
+      
+      // Wait a moment to show success message
+      setTimeout(() => {
+        this.hideCreateWorkflowModal();
+        
+        // Reset creation flag and re-enable button
+        this._isCreatingWorkflow = false;
+        if (this.elements.createWorkflowConfirm) {
+          this.elements.createWorkflowConfirm.disabled = false;
+        }
+        
+        // Reload workflows list
+        this.loadWorkflows();
+        
+        // Navigate to the new workflow
+        const backendUrl = this.apiClient.baseURL || window.CONFIG?.BACKEND_URL || 'http://localhost:9335';
+        const editUrl = `${backendUrl}/flow/${workflowId}`;
+        
+        // Open in new tab using Chrome extension API
+        if (typeof chrome !== 'undefined' && chrome.tabs) {
+          chrome.tabs.create({ url: editUrl });
+        } else {
+          // Fallback for non-extension context
+          window.open(editUrl, '_blank');
+        }
+        
+        this.emit('notification', {
+          message: 'Workflow created and opened for editing',
+          type: 'success'
+        });
+      }, 1000);
+      
+    } catch (error) {
+      console.error('[SettingsWorkflow] Failed to create workflow:', error);
+      this.showCreateWorkflowValidation(`Failed to create workflow: ${error.message}`, 'error');
+      
+      // Reset creation flag and re-enable button on error
+      this._isCreatingWorkflow = false;
+      if (this.elements.createWorkflowConfirm) {
+        this.elements.createWorkflowConfirm.disabled = false;
+      }
+    }
+  }
+  
+  // Show create workflow validation message
+  showCreateWorkflowValidation(message, type) {
+    if (!this.elements.createWorkflowValidation) return;
+    
+    const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+    this.elements.createWorkflowValidation.innerHTML = `
+      <div class="validation-message ${className}">
+        ${this.escapeHtml(message)}
+      </div>
+    `;
+    this.elements.createWorkflowValidation.style.display = 'block';
+  }
+
+  // Hide create workflow validation message
+  hideCreateWorkflowValidation() {
+    if (this.elements.createWorkflowValidation) {
+      this.elements.createWorkflowValidation.style.display = 'none';
+      this.elements.createWorkflowValidation.innerHTML = '';
+    }
+  }
+  
   
   // Handle workflow search
   handleWorkflowSearch(event) {

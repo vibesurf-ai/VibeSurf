@@ -639,6 +639,47 @@ class VibeSurfAPIClient {
   async getSchedule(scheduleId) {
     return this.get(`/schedule/${encodeURIComponent(scheduleId)}`);
   }
+
+  // Get projects list to obtain folder_id
+  async getProjects() {
+    return this.get('/v1/projects/');
+  }
+
+  // Generate UUID from backend
+  async generateUUID() {
+    return this.get('/vibesurf/generate-uuid');
+  }
+
+  // Create new workflow
+  async createWorkflow(workflowData) {
+    // Use the specific endpoint that langflow expects
+    const url = `${this.baseURL}/api/v1/flows/`;
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(workflowData),
+        signal: AbortSignal.timeout(this.timeout)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new APIError(
+          `Failed to create workflow: ${response.status}`,
+          response.status,
+          errorData
+        );
+      }
+      
+      const responseData = await response.json();
+      return responseData;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 // Custom error class for API errors
