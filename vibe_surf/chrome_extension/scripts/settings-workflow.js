@@ -1119,6 +1119,14 @@ class VibeSurfSettingsWorkflow {
             </svg>
             Edit
           </button>
+          <button class="btn btn-secondary workflow-download-btn" data-workflow-id="${workflow.flow_id}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2"/>
+              <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2"/>
+              <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            Download
+          </button>
           <button class="btn btn-danger workflow-delete-btn" data-workflow-id="${workflow.flow_id}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <path d="M3 6H5H21" stroke="currentColor" stroke-width="2"/>
@@ -1180,6 +1188,14 @@ class VibeSurfSettingsWorkflow {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.handleWorkflowEdit(btn.dataset.workflowId);
+      });
+    });
+    
+    // Download buttons
+    this.elements.workflowsList.querySelectorAll('.workflow-download-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.handleWorkflowDownload(btn.dataset.workflowId);
       });
     });
     
@@ -2532,6 +2548,93 @@ class VibeSurfSettingsWorkflow {
       // Fallback for non-extension context
       window.open(editUrl, '_blank');
     }
+  }
+  
+  // Handle workflow download
+  async handleWorkflowDownload(workflowId) {
+    try {
+      console.log(`[SettingsWorkflow] Downloading workflow: ${workflowId}`);
+      
+      // Call the export API
+      const response = await this.apiClient.exportWorkflow(workflowId);
+      
+      if (response.success && response.file_path) {
+        // For Chrome extension, we need to trigger a browser download
+        // Since we can't directly access the saved file, we'll fetch the workflow data
+        // and trigger a download through the browser
+        
+        // Get the workflow data first
+        const workflowData = await this.apiClient.getWorkflow(workflowId);
+        
+        // Create the JSON blob
+        const jsonBlob = new Blob([JSON.stringify(workflowData, null, 2)], {
+          type: 'application/json'
+        });
+        
+        // Create download URL
+        const downloadUrl = URL.createObjectURL(jsonBlob);
+        
+        // Use the filename directly from the response (backend now returns just the filename)
+        const fileName = response.file_path || `workflow_${workflowId.slice(0, 4)}.json`;
+        
+        // Trigger download using Chrome extension API if available
+        if (typeof chrome !== 'undefined' && chrome.downloads) {
+          chrome.downloads.download({
+            url: downloadUrl,
+            filename: fileName,
+            saveAs: false
+          }, (downloadId) => {
+            if (chrome.runtime.lastError) {
+              console.error('[SettingsWorkflow] Chrome download failed:', chrome.runtime.lastError);
+              // Fallback to manual download
+              this.triggerManualDownload(downloadUrl, fileName);
+            } else {
+              this.emit('notification', {
+                message: 'Workflow downloaded successfully',
+                type: 'success'
+              });
+            }
+            // Clean up the blob URL
+            setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+          });
+        } else {
+          // Fallback for non-extension context or if chrome.downloads is not available
+          this.triggerManualDownload(downloadUrl, fileName);
+        }
+        
+      } else {
+        this.emit('notification', {
+          message: response.message || 'Failed to export workflow',
+          type: 'error'
+        });
+      }
+      
+    } catch (error) {
+      console.error('[SettingsWorkflow] Failed to download workflow:', error);
+      this.emit('notification', {
+        message: `Failed to download workflow: ${error.message}`,
+        type: 'error'
+      });
+    }
+  }
+  
+  // Trigger manual download using a temporary link
+  triggerManualDownload(url, filename) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    this.emit('notification', {
+      message: 'Workflow download started',
+      type: 'success'
+    });
+    
+    // Clean up the blob URL after a short delay
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   
   // Handle workflow delete

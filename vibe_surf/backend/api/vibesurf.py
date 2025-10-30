@@ -7,6 +7,7 @@ import os
 import uuid
 import json
 import httpx
+from pathlib import Path
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -47,6 +48,11 @@ class ImportWorkflowResponse(BaseModel):
     message: str
     workflow_id: Optional[str] = None
     edit_url: Optional[str] = None
+
+class ExportWorkflowResponse(BaseModel):
+    success: bool
+    message: str
+    file_path: Optional[str] = None
 
 # Constants
 VIBESURF_API_KEY_NAME = "VIBESURF_API_KEY"
@@ -325,4 +331,89 @@ async def import_workflow(
         return ImportWorkflowResponse(
             success=False,
             message="Failed to import workflow"
+        )
+
+@router.get("/export-workflow/{flow_id}", response_model=ExportWorkflowResponse)
+async def export_workflow(
+    flow_id: str,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """Export workflow to JSON file"""
+    try:
+        # Get VibeSurf API key
+        api_key = await CredentialQueries.get_credential(db, VIBESURF_API_KEY_NAME)
+        if not api_key or not validate_vibesurf_api_key(api_key):
+            return ExportWorkflowResponse(
+                success=False,
+                message="Valid VibeSurf API key required"
+            )
+        
+        # Get backend base URL (assuming local langflow instance)
+        backend_port = os.getenv("VIBESURF_BACKEND_PORT", "9335")
+        backend_base_url = f'http://localhost:{backend_port}'
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                # Fetch workflow data
+                workflow_response = await client.get(
+                    f"{backend_base_url}/api/v1/flows/{flow_id}",
+                    headers={"accept": "application/json"},
+                    timeout=30.0
+                )
+                
+                if workflow_response.status_code != 200:
+                    return ExportWorkflowResponse(
+                        success=False,
+                        message=f"Failed to fetch workflow: {workflow_response.status_code}"
+                    )
+                
+                workflow_data = workflow_response.json()
+                
+                # Get workflow name from the response
+                flow_name = workflow_data.get("name", "workflow")
+                # Sanitize filename by removing invalid characters
+                safe_flow_name = "".join(c for c in flow_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                safe_flow_name = safe_flow_name.replace(' ', '_')
+
+                flow_id_short = flow_id[:4]
+                filename = f"{safe_flow_name}-{flow_id_short}.json"
+                
+                # Get VibeSurf work directory and create workflows subdirectory
+                from vibe_surf import common
+                work_dir = common.get_workspace_dir()
+                workflows_dir = Path(work_dir) / "workflows"
+                workflows_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Full file path
+                file_path = workflows_dir / filename
+                
+                # Save workflow JSON to file
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(workflow_data, f, indent=2, ensure_ascii=False)
+                
+                logger.info(f"Successfully exported workflow {flow_id} to {file_path}")
+                return ExportWorkflowResponse(
+                    success=True,
+                    message="Workflow exported successfully",
+                    file_path=str(file_path)
+                )
+                
+        except httpx.RequestError as e:
+            logger.error(f"HTTP request failed during workflow export: {e}")
+            return ExportWorkflowResponse(
+                success=False,
+                message="Failed to communicate with workflow service"
+            )
+        except Exception as e:
+            logger.error(f"Error during workflow export: {e}")
+            return ExportWorkflowResponse(
+                success=False,
+                message=f"Failed to export workflow: {str(e)}"
+            )
+            
+    except Exception as e:
+        logger.error(f"Error exporting workflow: {e}")
+        return ExportWorkflowResponse(
+            success=False,
+            message="Failed to export workflow"
         )

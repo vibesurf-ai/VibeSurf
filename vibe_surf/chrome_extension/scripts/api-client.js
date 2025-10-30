@@ -613,8 +613,16 @@ class VibeSurfAPIClient {
     return this.get(`/v1/build/${encodeURIComponent(jobId)}/events`);
   }
 
+  async getWorkflow(flowId) {
+    return this.get(`/v1/flows/${encodeURIComponent(flowId)}`);
+  }
+
   async deleteWorkflow(flowId) {
     return this.delete(`/v1/flows/${encodeURIComponent(flowId)}`);
+  }
+
+  async exportWorkflow(flowId) {
+    return this.get(`/vibesurf/export-workflow/${encodeURIComponent(flowId)}`);
   }
 
   // Schedule Management APIs
