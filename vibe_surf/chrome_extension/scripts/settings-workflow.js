@@ -311,6 +311,13 @@ class VibeSurfSettingsWorkflow {
   
   // Handle VibeSurf link open
   handleOpenVibeSurfLink() {
+    // Prevent multiple simultaneous tab opening
+    if (this._isOpeningVibeSurfLink) {
+      return;
+    }
+    
+    this._isOpeningVibeSurfLink = true;
+    
     // Open VibeSurf website in new tab using Chrome extension API
     if (typeof chrome !== 'undefined' && chrome.tabs) {
       chrome.tabs.create({ url: 'https://vibe-surf.com/' });
@@ -318,15 +325,33 @@ class VibeSurfSettingsWorkflow {
       // Fallback for non-extension context
       window.open('https://vibe-surf.com/', '_blank');
     }
+    
+    // Reset flag after a short delay to prevent accidental double-clicks
+    setTimeout(() => {
+      this._isOpeningVibeSurfLink = false;
+    }, 1000);
   }
   
   // Handle VibeSurf API key confirm
   async handleVibeSurfApiKeyConfirm() {
+    // Prevent multiple simultaneous submissions
+    if (this._isVerifyingVibeSurfKey) {
+      return;
+    }
+    
+    this._isVerifyingVibeSurfKey = true;
+    
     const apiKey = this.elements.vibeSurfApiKeyInput?.value?.trim();
     
     if (!apiKey) {
+      this._isVerifyingVibeSurfKey = false;
       this.showVibeSurfApiKeyValidation('Please enter a VibeSurf API key', 'error');
       return;
+    }
+
+    // Disable the confirm button
+    if (this.elements.vibeSurfApiKeyConfirm) {
+      this.elements.vibeSurfApiKeyConfirm.disabled = true;
     }
 
     try {
@@ -361,6 +386,12 @@ class VibeSurfSettingsWorkflow {
     } catch (error) {
       console.error('[SettingsWorkflow] Failed to verify VibeSurf API key:', error);
       this.showVibeSurfApiKeyValidation(`Failed to verify API key: ${error.message}`, 'error');
+    } finally {
+      // Always reset the verification flag and re-enable button
+      this._isVerifyingVibeSurfKey = false;
+      if (this.elements.vibeSurfApiKeyConfirm) {
+        this.elements.vibeSurfApiKeyConfirm.disabled = false;
+      }
     }
   }
   
