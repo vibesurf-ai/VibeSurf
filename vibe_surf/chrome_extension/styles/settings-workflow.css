@@ -14,7 +14,9 @@
 }
 
 .create-workflow-btn,
-.import-workflow-btn {
+.import-workflow-btn,
+.workflow-templates-btn,
+.record-to-workflow-btn {
     display: inline-flex;
     align-items: center;
     gap: 10px;
@@ -36,7 +38,9 @@
 }
 
 .create-workflow-btn::before,
-.import-workflow-btn::before {
+.import-workflow-btn::before,
+.workflow-templates-btn::before,
+.record-to-workflow-btn::before {
     content: '';
     position: absolute;
     top: 0;
@@ -48,28 +52,38 @@
 }
 
 .create-workflow-btn:hover::before,
-.import-workflow-btn:hover::before {
+.import-workflow-btn:hover::before,
+.workflow-templates-btn:hover::before,
+.record-to-workflow-btn:hover::before {
     left: 100%;
 }
 
 .create-workflow-btn:hover,
-.import-workflow-btn:hover {
+.import-workflow-btn:hover,
+.workflow-templates-btn:hover,
+.record-to-workflow-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
 }
 
 .create-workflow-btn:active,
-.import-workflow-btn:active {
+.import-workflow-btn:active,
+.workflow-templates-btn:active,
+.record-to-workflow-btn:active {
     transform: translateY(0);
 }
 
 .create-workflow-btn svg,
-.import-workflow-btn svg {
+.import-workflow-btn svg,
+.workflow-templates-btn svg,
+.record-to-workflow-btn svg {
     transition: transform 0.3s ease;
 }
 
 .create-workflow-btn:hover svg,
-.import-workflow-btn:hover svg {
+.import-workflow-btn:hover svg,
+.workflow-templates-btn:hover svg,
+.record-to-workflow-btn:hover svg {
     transform: scale(1.1);
 }
 
@@ -2231,7 +2245,9 @@
     }
     
     .create-workflow-btn,
-    .import-workflow-btn {
+    .import-workflow-btn,
+    .workflow-templates-btn,
+    .record-to-workflow-btn {
         width: 100%;
         max-width: none;
     }
@@ -2249,8 +2265,78 @@
     }
     
     .create-workflow-btn,
-    .import-workflow-btn {
+    .import-workflow-btn,
+    .workflow-templates-btn,
+    .record-to-workflow-btn {
         padding: 12px 20px;
+        font-size: 14px;
+    }
+}
+
+/* Record to Workflow Modal Styles */
+.record-to-workflow-modal-content {
+    max-width: 500px;
+    border-radius: 16px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1050;
+}
+
+.coming-soon-message {
+    text-align: center;
+    padding: 40px 30px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 2px dashed var(--border-color);
+}
+
+.coming-soon-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    animation: pulse 2s infinite;
+}
+
+.coming-soon-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-color);
+    margin-bottom: 12px;
+}
+
+.coming-soon-description {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+/* Dark theme support for coming soon modal */
+[data-theme="dark"] .coming-soon-message,
+.dark-theme .coming-soon-message {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Responsive design for record to workflow modal */
+@media (max-width: 768px) {
+    .record-to-workflow-modal-content {
+        margin: 20px;
+        max-width: calc(100vw - 40px);
+    }
+    
+    .coming-soon-message {
+        padding: 30px 20px;
+    }
+    
+    .coming-soon-icon {
+        font-size: 40px;
+    }
+    
+    .coming-soon-title {
+        font-size: 20px;
+    }
+    
+    .coming-soon-description {
         font-size: 14px;
     }
 }

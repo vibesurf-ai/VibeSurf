@@ -51,6 +51,8 @@ class VibeSurfSettingsWorkflow {
       workflowTab: document.getElementById('workflow-tab'),
       createWorkflowBtn: document.getElementById('create-workflow-btn'),
       importWorkflowBtn: document.getElementById('import-workflow-btn'),
+      workflowTemplatesBtn: document.getElementById('workflow-templates-btn'),
+      recordToWorkflowBtn: document.getElementById('record-to-workflow-btn'),
       workflowSearch: document.getElementById('workflow-search'),
       workflowFilter: document.getElementById('workflow-filter'),
       workflowsList: document.getElementById('workflows-list'),
@@ -124,6 +126,8 @@ class VibeSurfSettingsWorkflow {
     // Workflow tab events
     this.elements.createWorkflowBtn?.addEventListener('click', this.handleCreateWorkflow.bind(this));
     this.elements.importWorkflowBtn?.addEventListener('click', this.handleImportWorkflow.bind(this));
+    this.elements.workflowTemplatesBtn?.addEventListener('click', this.handleWorkflowTemplates.bind(this));
+    this.elements.recordToWorkflowBtn?.addEventListener('click', this.handleRecordToWorkflow.bind(this));
     this.elements.workflowSearch?.addEventListener('input', this.handleWorkflowSearch.bind(this));
     this.elements.workflowFilter?.addEventListener('change', this.handleWorkflowFilter.bind(this));
     
@@ -2596,6 +2600,135 @@ class VibeSurfSettingsWorkflow {
         message: `Failed to delete workflow: ${error.message}`,
         type: 'error'
       });
+    }
+  }
+
+  // Handle workflow templates button
+  handleWorkflowTemplates(event) {
+    // Prevent any default behavior
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
+    // Prevent multiple simultaneous tab opening
+    if (this._isOpeningWorkflowTemplates) {
+      return;
+    }
+    
+    this._isOpeningWorkflowTemplates = true;
+    
+    // Open VibeSurf workflows page in new tab
+    if (typeof chrome !== 'undefined' && chrome.tabs) {
+      chrome.tabs.create({ url: 'https://vibe-surf.com/workflows' });
+    } else {
+      // Fallback for non-extension context
+      window.open('https://vibe-surf.com/workflows', '_blank');
+    }
+    
+    // Reset flag after a short delay to prevent accidental double-clicks
+    setTimeout(() => {
+      this._isOpeningWorkflowTemplates = false;
+    }, 1000);
+  }
+  
+  // Handle record workflow button
+  handleRecordToWorkflow(event) {
+    // Prevent any default behavior
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
+    // Prevent multiple simultaneous modal opening
+    if (this._isOpeningRecordModal) {
+      return;
+    }
+    
+    this._isOpeningRecordModal = true;
+    
+    this.showRecordToWorkflowModal();
+    
+    // Reset flag after modal is shown
+    setTimeout(() => {
+      this._isOpeningRecordModal = false;
+    }, 500);
+  }
+  
+  // Show record workflow modal
+  showRecordToWorkflowModal() {
+    // Create modal if it doesn't exist
+    if (!this.elements.recordToWorkflowModal) {
+      this.createRecordToWorkflowModal();
+    }
+    
+    if (this.elements.recordToWorkflowModal) {
+      this.elements.recordToWorkflowModal.classList.remove('hidden');
+    }
+  }
+  
+  // Create record workflow modal
+  createRecordToWorkflowModal() {
+    // Create modal HTML
+    const modalHTML = `
+      <div id="record-to-workflow-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content record-to-workflow-modal-content">
+          <div class="modal-header">
+            <h3>Record Workflow</h3>
+            <button class="modal-close">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="record-to-workflow-content">
+              <div class="coming-soon-message">
+                <div class="coming-soon-icon">🚧</div>
+                <div class="coming-soon-title">Feature Coming Soon</div>
+                <div class="coming-soon-description">
+                  This feature is currently under development. Please stay tuned for updates!
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="form-btn primary" id="record-to-workflow-got-it">Got it</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Get modal elements
+    this.elements.recordToWorkflowModal = document.getElementById('record-to-workflow-modal');
+    this.elements.recordToWorkflowGotIt = document.getElementById('record-to-workflow-got-it');
+    
+    // Bind events
+    if (this.elements.recordToWorkflowGotIt) {
+      this.elements.recordToWorkflowGotIt.addEventListener('click', this.hideRecordToWorkflowModal.bind(this));
+    }
+    
+    // Bind close button
+    const modalClose = this.elements.recordToWorkflowModal?.querySelector('.modal-close');
+    if (modalClose) {
+      modalClose.addEventListener('click', this.hideRecordToWorkflowModal.bind(this));
+    }
+    
+    // Bind overlay click
+    const modalOverlay = this.elements.recordToWorkflowModal?.querySelector('.modal-overlay');
+    if (modalOverlay) {
+      modalOverlay.addEventListener('click', this.hideRecordToWorkflowModal.bind(this));
+    }
+  }
+  
+  // Hide record workflow modal
+  hideRecordToWorkflowModal() {
+    if (this.elements.recordToWorkflowModal) {
+      this.elements.recordToWorkflowModal.classList.add('hidden');
     }
   }
 
