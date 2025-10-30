@@ -691,19 +691,14 @@ class VibeSurfSettingsWorkflow {
       this.clearJsonFileSelection();
       this.hideImportWorkflowValidation();
       
-      // Set default import method to JSON file
-      const jsonFileRadio = document.querySelector('input[name="import-method"][value="json-file"]');
-      if (jsonFileRadio) {
-        jsonFileRadio.checked = true;
-        this.handleImportMethodChange();
-      }
-      
-      // Focus on textarea
+      // Set default import method to JSON file after modal is fully rendered
       setTimeout(() => {
-        if (this.elements.workflowJsonInput) {
-          this.elements.workflowJsonInput.focus();
+        const jsonFileRadio = document.querySelector('input[name="import-method"][value="json-file"]');
+        if (jsonFileRadio) {
+          jsonFileRadio.checked = true;
+          this.handleImportMethodChange();
         }
-      }, 100);
+      }, 50);
     } else {
       console.error('[SettingsWorkflow] ❌ CRITICAL ERROR: Import workflow modal element not found!');
     }
@@ -732,10 +727,19 @@ class VibeSurfSettingsWorkflow {
   }
   
   // Handle select JSON file button
-  handleSelectJsonFile() {
-    if (this.elements.workflowJsonFile) {
-      this.elements.workflowJsonFile.click();
+  handleSelectJsonFile(event) {
+    // Prevent any propagation and default behavior
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
     }
+    
+    // Ensure file input is properly accessible before clicking
+    setTimeout(() => {
+      if (this.elements.workflowJsonFile) {
+        this.elements.workflowJsonFile.click();
+      }
+    }, 10);
   }
   
   // Handle JSON file selection change
