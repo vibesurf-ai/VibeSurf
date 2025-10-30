@@ -722,14 +722,12 @@ class VibeSurfSettingsWorkflow {
       this.clearJsonFileSelection();
       this.hideImportWorkflowValidation();
       
-      // Set default import method to JSON file after modal is fully rendered
-      setTimeout(() => {
-        const jsonFileRadio = document.querySelector('input[name="import-method"][value="json-file"]');
-        if (jsonFileRadio) {
-          jsonFileRadio.checked = true;
-          this.handleImportMethodChange();
-        }
-      }, 50);
+      // Set default import method to JSON file immediately (no setTimeout to avoid conflicts)
+      const jsonFileRadio = document.querySelector('input[name="import-method"][value="json-file"]');
+      if (jsonFileRadio) {
+        jsonFileRadio.checked = true;
+        this.handleImportMethodChange();
+      }
     } else {
       console.error('[SettingsWorkflow] ❌ CRITICAL ERROR: Import workflow modal element not found!');
     }
@@ -746,6 +744,8 @@ class VibeSurfSettingsWorkflow {
   handleImportMethodChange() {
     const selectedMethod = document.querySelector('input[name="import-method"]:checked')?.value;
     
+    console.log('[SettingsWorkflow] Import method changed to:', selectedMethod);
+    
     if (selectedMethod === 'json-file') {
       this.elements.jsonFileImport?.classList.remove('hidden');
       this.elements.jsonTextImport?.classList.add('hidden');
@@ -759,26 +759,48 @@ class VibeSurfSettingsWorkflow {
   
   // Handle select JSON file button
   handleSelectJsonFile(event) {
+    // Prevent multiple simultaneous file selections
+    if (this._isSelectingJsonFile) {
+      return;
+    }
+    
     // Prevent any propagation and default behavior
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
     
-    // Ensure file input is properly accessible before clicking
+    this._isSelectingJsonFile = true;
+    
+    // Clear any existing selection first to ensure change event fires
+    if (this.elements.workflowJsonFile) {
+      this.elements.workflowJsonFile.value = '';
+    }
+    
+    // Trigger file selection immediately (no setTimeout to avoid conflicts)
     setTimeout(() => {
       if (this.elements.workflowJsonFile) {
         this.elements.workflowJsonFile.click();
       }
-    }, 10);
+      // Reset flag after a brief delay
+      setTimeout(() => {
+        this._isSelectingJsonFile = false;
+      }, 100);
+    }, 0);
   }
   
   // Handle JSON file selection change
   handleJsonFileChange(event) {
     const file = event.target.files[0];
     
+    console.log('[SettingsWorkflow] File selected:', file ? file.name : 'none');
+    
     if (file) {
-      if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+      // Validate file type
+      const isValidJson = file.type === 'application/json' || file.name.endsWith('.json');
+      
+      if (!isValidJson) {
+        console.log('[SettingsWorkflow] Invalid file type:', file.type, file.name);
         this.showImportWorkflowValidation('Please select a valid JSON file', 'error');
         this.clearJsonFileSelection();
         return;
@@ -793,6 +815,9 @@ class VibeSurfSettingsWorkflow {
       }
       
       this.hideImportWorkflowValidation();
+      console.log('[SettingsWorkflow] File selection successful:', file.name);
+    } else {
+      console.log('[SettingsWorkflow] No file selected or file cleared');
     }
   }
   
@@ -2259,7 +2284,6 @@ class VibeSurfSettingsWorkflow {
     
     if (cronExpression) {
       this.scheduleState.cronExpression = cronExpression;
-      this.scheduleState.isValid = this.validateCronExpression(cronExpression);
       this.updateScheduleSaveButton(this.scheduleState.isValid);
     }
   }
@@ -2346,43 +2370,6 @@ class VibeSurfSettingsWorkflow {
     if (cronInput) {
       this.scheduleState.cronExpression = cronInput.value.trim();
       this.validateAndPreviewSchedule();
-    }
-  }
-
-  // Validate cron expression
-  validateCronExpression(cronExpression) {
-    if (!cronExpression || typeof cronExpression !== 'string') {
-      return false;
-    }
-    
-    try {
-      // Use cron-parser library for professional validation
-      if (typeof cronParser !== 'undefined') {
-        cronParser.parseExpression(cronExpression);
-        return true;
-      } else {
-        // Fallback to basic validation if library not available
-        const parts = cronExpression.trim().split(/\s+/);
-        
-        if (parts.length !== 5) {
-          return false;
-        }
-        
-        // Simple validation for each part
-        for (let i = 0; i < parts.length; i++) {
-          const part = parts[i];
-          
-          // Allow common cron special characters
-          if (!/^[0-9,\-*/]+$/.test(part)) {
-            return false;
-          }
-        }
-        
-        return true;
-      }
-    } catch (error) {
-      console.warn('[SettingsWorkflow] Cron expression validation failed:', error);
-      return false;
     }
   }
 
