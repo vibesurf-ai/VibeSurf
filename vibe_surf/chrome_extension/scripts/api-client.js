@@ -65,7 +65,6 @@ class VibeSurfAPIClient {
     
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        console.log(`[API] ${method} ${url} (attempt ${attempt + 1}/${retries + 1})`);
         
         const response = await fetch(url, config);
         
@@ -87,7 +86,6 @@ class VibeSurfAPIClient {
           );
         }
 
-        console.log(`[API] ${method} ${url} - Success`);
         return responseData;
 
       } catch (error) {
@@ -197,10 +195,10 @@ class VibeSurfAPIClient {
     try {
       const status = await this.getTaskStatus();
       
-      console.log('[API] Task status check result:', {
-        has_active_task: status.has_active_task,
-        active_task: status.active_task
-      });
+      // console.log('[API] Task status check result:', {
+      //   has_active_task: status.has_active_task,
+      //   active_task: status.active_task
+      // });
       
       // Check if there's an active task and its status
       const hasActiveTask = status.has_active_task;
@@ -215,11 +213,11 @@ class VibeSurfAPIClient {
       const taskStatus = activeTask.status || '';
       const isRunning = runningStates.includes(taskStatus.toLowerCase());
       
-      console.log('[API] Task running check:', {
-        taskStatus,
-        isRunning,
-        runningStates
-      });
+      // console.log('[API] Task running check:', {
+      //   taskStatus,
+      //   isRunning,
+      //   runningStates
+      // });
       
       return {
         isRunning,
