@@ -46,7 +46,6 @@ class VibeSurfSettingsWorkflow {
   }
 
   bindElements() {
-    console.log('[SettingsWorkflow] bindElements called');
     this.elements = {
       // Workflow Tab
       workflowTab: document.getElementById('workflow-tab'),
@@ -218,11 +217,6 @@ class VibeSurfSettingsWorkflow {
     const enabledCheckbox = document.getElementById('schedule-enabled');
     if (enabledCheckbox) {
       enabledCheckbox.addEventListener('change', () => {
-        console.log('[SettingsWorkflow] Schedule enabled checkbox changed:', {
-          checked: enabledCheckbox.checked,
-          currentScheduleValid: this.scheduleState.isValid
-        });
-        
         this.updateScheduleSaveButton(this.scheduleState.isValid);
       });
     }
@@ -237,7 +231,6 @@ class VibeSurfSettingsWorkflow {
   // Load workflow content when tab is opened
   async loadWorkflowContent() {
     try {
-      console.log('[SettingsWorkflow] Loading workflow content...');
       
       // Show loading state
       this.showWorkflowsLoading();
@@ -246,13 +239,9 @@ class VibeSurfSettingsWorkflow {
       const status = await this.checkVibeSurfStatus();
       
       if (status && status.connected && status.key_valid) {
-        console.log('[SettingsWorkflow] Valid VibeSurf API key found, loading workflows...');
         // Load workflows from backend
         await this.loadWorkflows();
-        console.log('[SettingsWorkflow] Workflow content loaded');
       } else {
-        console.log('[SettingsWorkflow] No valid VibeSurf API key, showing setup modal automatically');
-        console.log('[SettingsWorkflow] Status details - connected:', status?.connected, 'key_valid:', status?.key_valid);
         // Hide loading and show API key modal
         this.hideWorkflowsLoading();
         this.showVibeSurfApiKeyModal();
@@ -271,19 +260,10 @@ class VibeSurfSettingsWorkflow {
   // Check VibeSurf API key status
   async checkVibeSurfStatus() {
     try {
-      console.log('[SettingsWorkflow] Checking VibeSurf status...');
       const response = await this.apiClient.getVibeSurfStatus();
-      console.log('[SettingsWorkflow] VibeSurf status response:', response);
       
       this.state.vibeSurfKeyValid = response.connected && response.key_valid;
       this.state.vibeSurfApiKey = response.has_key ? '***' : null;
-      
-      console.log('[SettingsWorkflow] VibeSurf state updated:', {
-        connected: response.connected,
-        keyValid: response.key_valid,
-        hasKey: response.has_key,
-        message: response.message
-      });
       
       return response;
     } catch (error) {
@@ -301,8 +281,6 @@ class VibeSurfSettingsWorkflow {
   
   // Show VibeSurf API key modal
   showVibeSurfApiKeyModal() {
-    console.log('[SettingsWorkflow] Showing VibeSurf API key modal');
-    console.log('[SettingsWorkflow] Modal element exists:', !!this.elements.vibeSurfApiKeyModal);
     
     if (this.elements.vibeSurfApiKeyModal) {
       this.elements.vibeSurfApiKeyModal.classList.remove('hidden');
@@ -319,8 +297,6 @@ class VibeSurfSettingsWorkflow {
           this.elements.vibeSurfApiKeyInput.focus();
         }
       }, 100);
-      
-      console.log('[SettingsWorkflow] VibeSurf API key modal shown successfully');
     } else {
       console.error('[SettingsWorkflow] VibeSurf API key modal element not found!');
     }
@@ -412,28 +388,18 @@ class VibeSurfSettingsWorkflow {
   // Load workflows from backend
   async loadWorkflows() {
     try {
-      console.log('[SettingsWorkflow] Loading workflows from backend...');
-      console.log('[SettingsWorkflow] API client base URL:', this.apiClient.baseURL);
-      console.log('[SettingsWorkflow] API client prefix:', this.apiClient.apiPrefix);
       
       const response = await this.apiClient.getWorkflows();
-      console.log('[SettingsWorkflow] Workflows response:', response);
-      console.log('[SettingsWorkflow] Response type:', typeof response);
-      console.log('[SettingsWorkflow] Response keys:', response ? Object.keys(response) : 'null response');
       
       // Handle different response structures
       let workflows = [];
       if (Array.isArray(response)) {
         workflows = response;
-        console.log('[SettingsWorkflow] Response is array, length:', workflows.length);
       } else if (response.flows && Array.isArray(response.flows)) {
         workflows = response.flows;
-        console.log('[SettingsWorkflow] Response has flows array, length:', workflows.length);
       } else if (response.data && Array.isArray(response.data)) {
         workflows = response.data;
-        console.log('[SettingsWorkflow] Response has data array, length:', workflows.length);
       } else {
-        console.warn('[SettingsWorkflow] Unexpected response structure:', response);
         workflows = [];
       }
       
@@ -450,21 +416,14 @@ class VibeSurfSettingsWorkflow {
         endpoint_name: workflow.endpoint_name
       }));
       
-      console.log('[SettingsWorkflow] Converted workflows:', this.state.workflows.length);
-      console.log('[SettingsWorkflow] First workflow sample:', this.state.workflows[0]);
-      
       // Load schedule information for workflows
       await this.loadWorkflowSchedules();
       
       // Apply current search and filter
       this.filterWorkflows();
       
-      console.log('[SettingsWorkflow] Loaded workflows:', this.state.workflows.length);
-      
     } catch (error) {
       console.error('[SettingsWorkflow] Failed to load workflows:', error);
-      console.error('[SettingsWorkflow] Error details:', error.message);
-      console.error('[SettingsWorkflow] Error stack:', error.stack);
       this.state.workflows = [];
       this.state.filteredWorkflows = [];
       this.renderWorkflows();
@@ -476,7 +435,6 @@ class VibeSurfSettingsWorkflow {
   async loadWorkflowSchedules() {
     try {
       const response = await this.apiClient.getSchedules();
-      console.log('[SettingsWorkflow] Schedule API response:', response);
       
       let schedules = [];
       if (Array.isArray(response)) {
@@ -494,8 +452,6 @@ class VibeSurfSettingsWorkflow {
         }
       }
       
-      console.log('[SettingsWorkflow] Processed schedules:', schedules);
-      
       // Add schedule information to workflows
       if (Array.isArray(schedules) && schedules.length > 0) {
         this.state.workflows.forEach(workflow => {
@@ -504,7 +460,6 @@ class VibeSurfSettingsWorkflow {
           workflow.schedule = schedule;
         });
       } else {
-        console.log('[SettingsWorkflow] No schedules found or empty schedule array');
         // Set all workflows as unscheduled
         this.state.workflows.forEach(workflow => {
           workflow.scheduled = false;
@@ -513,7 +468,6 @@ class VibeSurfSettingsWorkflow {
       }
       
     } catch (error) {
-      console.error('[SettingsWorkflow] Failed to load workflow schedules:', error);
       // Continue without schedule information - set all as unscheduled
       this.state.workflows.forEach(workflow => {
         workflow.scheduled = false;
@@ -559,11 +513,9 @@ class VibeSurfSettingsWorkflow {
       // Clear previous input and validation
       if (this.elements.workflowNameInput) {
         this.elements.workflowNameInput.value = '';
-        console.log('[SettingsWorkflow] Cleared workflow name input');
       }
       if (this.elements.workflowDescriptionInput) {
         this.elements.workflowDescriptionInput.value = '';
-        console.log('[SettingsWorkflow] Cleared workflow description input');
       }
       this.hideCreateWorkflowValidation();
       
@@ -571,11 +523,9 @@ class VibeSurfSettingsWorkflow {
       setTimeout(() => {
         if (this.elements.workflowNameInput) {
           this.elements.workflowNameInput.focus();
-          console.log('[SettingsWorkflow] Focused on workflow name input');
         }
       }, 100);
-      
-      console.log('[SettingsWorkflow] *** CREATE WORKFLOW MODAL SHOWN SUCCESSFULLY ***');
+
     } else {
       console.error('[SettingsWorkflow] *** CRITICAL ERROR: Create workflow modal element not found! ***');
     }
@@ -733,7 +683,7 @@ class VibeSurfSettingsWorkflow {
   showImportWorkflowModal() {
     if (this.elements.importWorkflowModal) {
       this.elements.importWorkflowModal.classList.remove('hidden');
-      
+
       // Clear previous input and validation
       if (this.elements.workflowJsonInput) {
         this.elements.workflowJsonInput.value = '';
@@ -754,10 +704,8 @@ class VibeSurfSettingsWorkflow {
           this.elements.workflowJsonInput.focus();
         }
       }, 100);
-      
-      console.log('[SettingsWorkflow] Import workflow modal shown');
     } else {
-      console.error('[SettingsWorkflow] Import workflow modal element not found!');
+      console.error('[SettingsWorkflow] ❌ CRITICAL ERROR: Import workflow modal element not found!');
     }
   }
   
@@ -993,13 +941,11 @@ class VibeSurfSettingsWorkflow {
     }
     
     this.state.filteredWorkflows = filtered;
-    console.log('[SettingsWorkflow] Filtered workflows for rendering:', filtered.length);
     this.renderWorkflows();
   }
   
   // Render workflows list
   renderWorkflows() {
-    console.log('[SettingsWorkflow] renderWorkflows called');
     
     if (!this.elements.workflowsList) {
       console.error('[SettingsWorkflow] workflowsList element not found!');
@@ -1009,7 +955,6 @@ class VibeSurfSettingsWorkflow {
     this.hideWorkflowsLoading();
     
     const workflows = this.state.filteredWorkflows;
-    console.log('[SettingsWorkflow] Rendering workflows:', workflows.length);
     
     if (workflows.length === 0) {
       const isEmpty = this.state.workflows.length === 0;
@@ -1203,7 +1148,6 @@ class VibeSurfSettingsWorkflow {
   // Handle workflow run
   async handleWorkflowRun(workflowId) {
     try {
-      console.log(`[SettingsWorkflow] Running workflow ${workflowId}`);
       
       const response = await this.apiClient.runWorkflow(workflowId);
       const jobId = response.job_id || response.id;
@@ -1239,7 +1183,6 @@ class VibeSurfSettingsWorkflow {
   // Handle workflow pause
   async handleWorkflowPause(workflowId, jobId) {
     try {
-      console.log(`[SettingsWorkflow] Pausing workflow ${workflowId}, job ${jobId}`);
       
       await this.apiClient.cancelWorkflow(jobId);
       
@@ -1267,40 +1210,22 @@ class VibeSurfSettingsWorkflow {
   async fetchWorkflowEvents(jobId, options = {}) {
     const { forceRefresh = false, maxAge = 10000, preserveCache = true, workflowId = null } = options;
     
-    console.log(`[SettingsWorkflow] 🔄 FETCHING EVENTS for job ${jobId}`, {
-      forceRefresh,
-      maxAge,
-      preserveCache,
-      workflowId
-    });
-    
     // Check cache first
     const cached = this.state.eventCache.get(jobId);
     const now = Date.now();
     
-    console.log(`[SettingsWorkflow] Cache check:`, {
-      exists: !!cached,
-      isPersistent: cached?.isPersistent,
-      isComplete: cached?.isComplete,
-      eventCount: cached?.events?.length || 0,
-      workflowId: cached?.workflowId,
-      ageMs: cached ? now - cached.lastFetch : 'N/A'
-    });
-    
+
     // Persistent cache for completed workflows - NEVER refresh unless explicitly forced
     if (cached && cached.isPersistent && !forceRefresh) {
-      console.log(`[SettingsWorkflow] ✅ Using persistent cached events for completed job ${jobId}, count: ${cached.events.length}`);
       return cached.events;
     }
     
     // For completed workflows, always prefer cached events to prevent loss
     if (cached && cached.isComplete && cached.events.length > 0 && !forceRefresh) {
-      console.log(`[SettingsWorkflow] Using cached events for completed job ${jobId}, preventing loss of ${cached.events.length} events`);
       return cached.events;
     }
     
     if (cached && !forceRefresh && (now - cached.lastFetch) < maxAge) {
-      console.log(`[SettingsWorkflow] Using cached events for job ${jobId}, cache hit preventing duplicate API call`);
       return cached.events;
     }
     
@@ -1346,12 +1271,10 @@ class VibeSurfSettingsWorkflow {
       if (cached && cached.events.length > 0) {
         if (events.length === 0) {
           // API returned empty - always preserve existing cache
-          console.log(`[SettingsWorkflow] Preserving ${cached.events.length} cached events for job ${jobId} - API returned empty result`);
           finalEvents = cached.events;
           shouldUpdateCache = false; // Don't update cache with empty result
         } else if (events.length < cached.events.length && !hasEndEvent) {
           // API returned fewer events and workflow not complete - suspicious, preserve cache
-          console.log(`[SettingsWorkflow] Preserving ${cached.events.length} cached events for job ${jobId} - API returned fewer events (${events.length})`);
           finalEvents = cached.events;
           shouldUpdateCache = false;
         } else {
@@ -1373,7 +1296,6 @@ class VibeSurfSettingsWorkflow {
         if (cacheEntry.isComplete && finalEvents.length > 0) {
           cacheEntry.isPersistent = true;
           cacheEntry.completedAt = now;
-          console.log(`[SettingsWorkflow] Marking job ${jobId} cache as persistent with ${finalEvents.length} events`);
           
           // Update workflow-to-job mapping for completed workflows
           if (cacheEntry.workflowId) {
@@ -1382,7 +1304,6 @@ class VibeSurfSettingsWorkflow {
               completedAt: now,
               eventCount: finalEvents.length
             });
-            console.log(`[SettingsWorkflow] Updated workflow mapping: ${cacheEntry.workflowId} -> ${jobId}`);
           }
         }
         
@@ -1433,28 +1354,21 @@ class VibeSurfSettingsWorkflow {
   
   // Subscribe to event updates for a job
   subscribeToEvents(jobId, callback) {
-    console.log(`[SettingsWorkflow] subscribeToEvents called for job ${jobId}`);
     
     if (!this.state.eventSubscribers.has(jobId)) {
       this.state.eventSubscribers.set(jobId, new Set());
-      console.log(`[SettingsWorkflow] Created new subscriber set for job ${jobId}`);
     }
     this.state.eventSubscribers.get(jobId).add(callback);
-    console.log(`[SettingsWorkflow] Subscribed to events for job ${jobId}, total subscribers: ${this.state.eventSubscribers.get(jobId).size}`);
     
     // Return unsubscribe function
     return () => {
-      console.log(`[SettingsWorkflow] Unsubscribe function called for job ${jobId}`);
       const subscribers = this.state.eventSubscribers.get(jobId);
       if (subscribers) {
         subscribers.delete(callback);
-        console.log(`[SettingsWorkflow] Removed subscriber for job ${jobId}, remaining subscribers: ${subscribers.size}`);
         if (subscribers.size === 0) {
           this.state.eventSubscribers.delete(jobId);
-          console.log(`[SettingsWorkflow] Removed empty subscriber set for job ${jobId}`);
         }
       }
-      console.log(`[SettingsWorkflow] Unsubscribed from events for job ${jobId}`);
     };
   }
   
@@ -1476,19 +1390,12 @@ class VibeSurfSettingsWorkflow {
         unsubscribe();
         unsubscribe = null;
       }
-      console.log(`[SettingsWorkflow] Stopped monitoring job ${jobId}`);
     };
     
     const checkStatus = async (events, isComplete) => {
       try {
         if (isComplete || !this.state.runningJobs.has(workflowId)) {
-          // Workflow finished, remove from running jobs
-          console.log(`[SettingsWorkflow] ⚠️ WORKFLOW COMPLETION DETECTED: ${workflowId}, jobId: ${jobId}`);
-          console.log(`[SettingsWorkflow] Events received: ${events.length}, isComplete: ${isComplete}`);
-          console.log(`[SettingsWorkflow] RunningJobs before deletion:`, Array.from(this.state.runningJobs.keys()));
-          
           this.state.runningJobs.delete(workflowId);
-          console.log(`[SettingsWorkflow] RunningJobs after deletion:`, Array.from(this.state.runningJobs.keys()));
           
           // Mark cache as persistent for completed workflows - NEVER allow overwriting
           const cached = this.state.eventCache.get(jobId);
@@ -1518,8 +1425,6 @@ class VibeSurfSettingsWorkflow {
               });
               console.log(`[SettingsWorkflow] Updated workflow mapping on completion: ${cached.workflowId} -> ${jobId}`);
             }
-            
-            console.log(`[SettingsWorkflow] ✅ PERMANENTLY cached job ${jobId} with ${events.length} events - cache is now read-only`);
           } else {
             console.log(`[SettingsWorkflow] ❌ FAILED to cache job ${jobId} - cached: ${!!cached}, events: ${events.length}`);
           }
@@ -1607,16 +1512,12 @@ class VibeSurfSettingsWorkflow {
   
   // Handle workflow logs
   async handleWorkflowLogs(workflowId, jobId) {
-    console.log(`[SettingsWorkflow] 📋 OPENING LOGS: workflowId=${workflowId}, jobId=${jobId}`);
     
     const workflow = this.state.workflows.find(w => w.flow_id === workflowId);
     if (!workflow) {
       console.log(`[SettingsWorkflow] ❌ Workflow not found: ${workflowId}`);
       return;
     }
-    
-    console.log(`[SettingsWorkflow] Found workflow: ${workflow.name}`);
-    console.log(`[SettingsWorkflow] Is workflow running?`, this.state.runningJobs.has(workflowId));
     
     this.state.currentLogsWorkflow = workflow;
     this.state.currentLogsJobId = jobId;
@@ -1630,7 +1531,6 @@ class VibeSurfSettingsWorkflow {
       const workflowMapping = this.state.workflowJobMapping.get(workflowId);
       if (workflowMapping && workflowMapping.jobId) {
         effectiveJobId = workflowMapping.jobId;
-        console.log(`[SettingsWorkflow] Found mapped jobId for workflow ${workflowId}: ${effectiveJobId}`);
         this.state.currentLogsJobId = effectiveJobId;
       } else {
         // Fallback: Look for cached events associated with this workflow
@@ -1649,8 +1549,7 @@ class VibeSurfSettingsWorkflow {
             const timeB = cacheB.completedAt || cacheB.lastFetch || 0;
             return timeB - timeA; // Most recent first
           })[0];
-          
-          console.log(`[SettingsWorkflow] No mapping found, using most recent cached job for workflow ${workflowId}: ${effectiveJobId}`);
+
           this.state.currentLogsJobId = effectiveJobId;
         } else {
           console.log(`[SettingsWorkflow] No cached logs found for workflow ${workflowId}`);
@@ -1705,25 +1604,12 @@ class VibeSurfSettingsWorkflow {
         return;
       }
       
-      console.log(`[SettingsWorkflow] Loading logs for job ${jobId}`);
-      console.log(`[SettingsWorkflow] Current workflow:`, this.state.currentLogsWorkflow?.name);
-      console.log(`[SettingsWorkflow] Running jobs:`, Array.from(this.state.runningJobs.keys()));
-      
       // First, ALWAYS check persistent cache - this is the key fix
       let events = [];
       const cached = this.state.eventCache.get(jobId);
       
-      console.log(`[SettingsWorkflow] Cache status for job ${jobId}:`, {
-        exists: !!cached,
-        isPersistent: cached?.isPersistent,
-        isComplete: cached?.isComplete,
-        eventCount: cached?.events?.length || 0,
-        lastFetch: cached?.lastFetch ? new Date(cached.lastFetch).toLocaleTimeString() : 'never'
-      });
-      
       // Prioritize persistent cached events (completed workflows)
       if (cached && cached.isPersistent && cached.events.length > 0) {
-        console.log(`[SettingsWorkflow] Using PERSISTENT cached events for completed job ${jobId}, count: ${cached.events.length}`);
         events = cached.events;
         
         // For completed workflows, render immediately and don't fetch fresh events
@@ -1738,7 +1624,6 @@ class VibeSurfSettingsWorkflow {
       
       // For non-persistent cache or empty cache
       if (cached && cached.events.length > 0) {
-        console.log(`[SettingsWorkflow] Using cached events for job ${jobId}, count: ${cached.events.length}`);
         events = cached.events;
         
         // Render cached events immediately for better UX
@@ -1746,7 +1631,6 @@ class VibeSurfSettingsWorkflow {
         
         // Check if this is a completed workflow that should be marked as persistent
         if (cached.isComplete && !cached.isPersistent) {
-          console.log(`[SettingsWorkflow] Marking completed job ${jobId} as persistent to prevent future overwrites`);
           this.state.eventCache.set(jobId, {
             ...cached,
             isPersistent: true,
@@ -1756,24 +1640,20 @@ class VibeSurfSettingsWorkflow {
         
         // Only fetch fresh events for running jobs (don't fetch for completed jobs)
         if (this.state.runningJobs.has(this.state.currentLogsWorkflow?.flow_id) && !cached.isComplete && !cached.isPersistent) {
-          console.log(`[SettingsWorkflow] Job still running, fetching fresh events in background`);
           this.fetchWorkflowEvents(jobId, { preserveCache: true, maxAge: 2000 }).then(freshEvents => {
             if (freshEvents.length > events.length) {
-              console.log(`[SettingsWorkflow] Fresh events available, updating logs: ${freshEvents.length} events`);
               this.renderWorkflowLogs(freshEvents);
             }
           }).catch(error => {
             console.warn(`[SettingsWorkflow] Background event fetch failed for job ${jobId}:`, error);
           });
         } else if (cached.isComplete || cached.isPersistent) {
-          console.log(`[SettingsWorkflow] Using completed workflow logs from cache, no fresh fetch needed`);
           // Update job info display to show completion status
           if (this.elements.logsJobId) {
             this.elements.logsJobId.textContent = `${jobId} (Completed)`;
           }
         }
       } else {
-        console.log(`[SettingsWorkflow] No cached events, fetching fresh for job ${jobId}`);
         // Only fetch fresh if no cache exists - but preserve any existing cache
         // Pass workflow context for proper association
         events = await this.fetchWorkflowEvents(jobId, {
@@ -1781,17 +1661,14 @@ class VibeSurfSettingsWorkflow {
           preserveCache: true,
           workflowId: this.state.currentLogsWorkflow?.flow_id
         });
-        console.log(`[SettingsWorkflow] Fetched ${events.length} fresh events for job ${jobId}`);
         this.renderWorkflowLogs(events);
       }
       
       // Set up real-time updates ONLY if job is still running
       if (this.state.runningJobs.has(this.state.currentLogsWorkflow?.flow_id)) {
-        console.log(`[SettingsWorkflow] Job is still running, setting up real-time log updates`);
         
         let unsubscribe;
         const updateLogs = (newEvents, isComplete) => {
-          console.log(`[SettingsWorkflow] Real-time log update with ${newEvents.length} events, complete: ${isComplete}`);
           if (newEvents.length > 0) { // Only update if we have events
             this.renderWorkflowLogs(newEvents);
           }
@@ -2486,14 +2363,6 @@ class VibeSurfSettingsWorkflow {
     // Only require valid cron expression when schedule is enabled
     const shouldDisable = isEnabled && !isValid;
     
-    console.log('[SettingsWorkflow] updateScheduleSaveButton FIXED:', {
-      isValid,
-      isEnabled,
-      shouldDisableButton: shouldDisable,
-      logic: 'isEnabled && !isValid',
-      previousButtonState: saveButton.disabled
-    });
-    
     saveButton.disabled = shouldDisable;
   }
 
@@ -2566,19 +2435,9 @@ class VibeSurfSettingsWorkflow {
       const workflowId = this.state.currentScheduleWorkflow.flow_id;
       const enabledCheckbox = document.getElementById('schedule-enabled');
       const isEnabled = enabledCheckbox ? enabledCheckbox.checked : true;
-      
-      // DEBUG: Log save attempt
-      console.log('[SettingsWorkflow] handleScheduleSave DEBUG:', {
-        workflowId,
-        isEnabled,
-        hasExistingSchedule: !!this.state.currentScheduleWorkflow.schedule,
-        cronExpression: this.scheduleState.cronExpression,
-        scheduleValid: this.scheduleState.isValid
-      });
-      
+
       // If schedule is disabled, remove it
       if (!isEnabled && this.state.currentScheduleWorkflow.schedule) {
-        console.log('[SettingsWorkflow] Deleting schedule because disabled');
         await this.apiClient.deleteSchedule(workflowId);
         
         this.emit('notification', {
@@ -2635,7 +2494,6 @@ class VibeSurfSettingsWorkflow {
   
   // Handle workflow edit
   handleWorkflowEdit(workflowId) {
-    console.log(`[SettingsWorkflow] Edit workflow ${workflowId}`);
     
     // Get backend URL from API client or settings
     const backendUrl = this.apiClient.baseURL || window.CONFIG?.BACKEND_URL || 'http://localhost:8000';
@@ -2689,10 +2547,8 @@ class VibeSurfSettingsWorkflow {
       
       // Check if workflow has an associated schedule and delete it first
       if (workflow.scheduled && workflow.schedule) {
-        console.log(`[SettingsWorkflow] Deleting associated schedule for workflow ${workflowId}`);
         try {
           await this.apiClient.deleteSchedule(workflowId);
-          console.log(`[SettingsWorkflow] Successfully deleted schedule for workflow ${workflowId}`);
         } catch (scheduleError) {
           console.warn(`[SettingsWorkflow] Failed to delete schedule for workflow ${workflowId}:`, scheduleError);
         }
