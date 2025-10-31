@@ -250,13 +250,13 @@ async def import_workflow(
             if "sourceHandle" in edge:
                 edge_before = edge["sourceHandle"]
                 edge["sourceHandle"] = re.sub(r'\s+', '', edge_before).strip()
-                edge_after = edge["sourceHandle"]
+                # edge_after = edge["sourceHandle"]
                 # print(f"{edge_before} -> {edge_after}")
 
             if "targetHandle" in edge:
                 edge_before = edge["targetHandle"]
-                edge["targetHandle"] = re.sub(r'\s+', '', edge["targetHandle"]).strip()
-                edge_after = edge["targetHandle"]
+                edge["targetHandle"] = re.sub(r'\s+', '', edge_before).strip()
+                # edge_after = edge["targetHandle"]
                 # print(f"{edge_before} -> {edge_after}")
         
         # Get VibeSurf API key
