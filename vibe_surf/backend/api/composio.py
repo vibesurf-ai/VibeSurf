@@ -100,6 +100,51 @@ class ComposioConnectionStatusResponse(BaseModel):
     last_checked: str
 
 
+async def add_or_update_composio_apikey(composio_api_key):
+    from vibe_surf.langflow.services.deps import (
+        get_variable_service,
+        session_scope,
+        get_settings_service
+    )
+    from vibe_surf.langflow.services.auth.utils import create_super_user, get_current_user
+    from vibe_surf.langflow.services.variable.constants import CREDENTIAL_TYPE
+
+    async with session_scope() as async_session:
+        settings_service = get_settings_service()
+        username = settings_service.auth_settings.SUPERUSER
+        password = settings_service.auth_settings.SUPERUSER_PASSWORD.get_secret_value()
+        super_user = await create_super_user(
+            db=async_session,
+            username=username,
+            password=password
+        )
+        variable_service = get_variable_service()
+        await variable_service.initialize_user_variables(super_user.id, async_session)
+
+        variables_list = await variable_service.list_variables(
+            user_id=super_user.id,
+            session=async_session
+        )
+        composio_key_name = "COMPOSIO_API_KEY"
+        if composio_key_name not in variables_list:
+            await variable_service.create_variable(
+                user_id=super_user.id,
+                name=composio_key_name,
+                value=composio_api_key,
+                type_=CREDENTIAL_TYPE,
+                session=async_session,
+                default_fields=[]
+            )
+        else:
+            await variable_service.update_variable(
+                user_id=super_user.id,
+                name=composio_key_name,
+                value=composio_api_key,
+                session=async_session
+            )
+        logger.info(f"Set {composio_key_name} to Langflow Variable Database.")
+
+
 async def _get_composio_api_key_from_db() -> Optional[str]:
     """Get Composio API key from database credentials table (encrypted)"""
     try:
@@ -353,7 +398,7 @@ async def verify_composio_api_key(
 
             # Update shared state with new Composio instance
             shared_state.composio_instance = temp_composio
-
+            await add_or_update_composio_apikey(request.api_key)
             return ComposioKeyVerifyResponse(
                 valid=True,
                 message="API key verified successfully" + (" and stored in database" if store_success else ""),
