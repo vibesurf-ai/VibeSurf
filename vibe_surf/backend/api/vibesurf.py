@@ -6,6 +6,7 @@ import copy
 import os
 import uuid
 import json
+import re
 import httpx
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -213,7 +214,8 @@ async def import_workflow(
         try:
             # In case user uses org langflow
             workflow_json = request.workflow_json
-            workflow_json = workflow_json.replace("langflow.", 'vibe_surf.langflow.')
+            workflow_json = workflow_json.replace("from langflow.", 'from vibe_surf.langflow.')
+            workflow_json = workflow_json.replace("import langflow.", 'import vibe_surf.langflow.')
             workflow_data = json.loads(workflow_json)
         except json.JSONDecodeError as e:
             return ImportWorkflowResponse(
@@ -243,6 +245,19 @@ async def import_workflow(
                 success=False,
                 message="'data' must contain 'nodes' and 'edges' fields"
             )
+
+        for edge in data["edges"]:
+            if "sourceHandle" in edge:
+                edge_before = edge["sourceHandle"]
+                edge["sourceHandle"] = re.sub(r'\s+', '', edge_before).strip()
+                edge_after = edge["sourceHandle"]
+                # print(f"{edge_before} -> {edge_after}")
+
+            if "targetHandle" in edge:
+                edge_before = edge["targetHandle"]
+                edge["targetHandle"] = re.sub(r'\s+', '', edge["targetHandle"]).strip()
+                edge_after = edge["targetHandle"]
+                # print(f"{edge_before} -> {edge_after}")
         
         # Get VibeSurf API key
         api_key = await CredentialQueries.get_credential(db, VIBESURF_API_KEY_NAME)
