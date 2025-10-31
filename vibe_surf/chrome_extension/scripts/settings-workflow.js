@@ -148,8 +148,6 @@ class VibeSurfSettingsWorkflow {
     this.elements.vibeSurfApiKeyConfirm?.addEventListener('click', this.handleVibeSurfApiKeyConfirm.bind(this));
     
     // Workflow Schedule Modal events
-    this.elements.presetScheduleSelect?.addEventListener('change', this.handleCronExpressionChange.bind(this));
-    this.elements.customCronInput?.addEventListener('input', this.handleCronExpressionChange.bind(this));
     this.elements.scheduleCancel?.addEventListener('click', this.hideScheduleModal.bind(this));
     this.elements.scheduleSave?.addEventListener('click', this.handleScheduleSave.bind(this));
     
@@ -2304,6 +2302,7 @@ class VibeSurfSettingsWorkflow {
     
     if (cronExpression) {
       this.scheduleState.cronExpression = cronExpression;
+      this.scheduleState.isValid = true; // Set valid state when cron expression is generated
       this.updateScheduleSaveButton(this.scheduleState.isValid);
     }
   }
@@ -2381,15 +2380,6 @@ class VibeSurfSettingsWorkflow {
           hoursInterval.value = '1';
         }
         break;
-    }
-  }
-
-  // Handle cron expression change
-  handleCronExpressionChange() {
-    const cronInput = document.getElementById('custom-cron-input');
-    if (cronInput) {
-      this.scheduleState.cronExpression = cronInput.value.trim();
-      this.validateAndPreviewSchedule();
     }
   }
 
@@ -2473,6 +2463,19 @@ class VibeSurfSettingsWorkflow {
   async handleScheduleSave() {
     if (!this.state.currentScheduleWorkflow) return;
     
+    // Prevent multiple simultaneous executions
+    if (this._isSavingSchedule) {
+      return;
+    }
+    
+    this._isSavingSchedule = true;
+    
+    // Disable the save button immediately
+    const saveButton = document.getElementById('schedule-save');
+    if (saveButton) {
+      saveButton.disabled = true;
+    }
+    
     try {
       const workflowId = this.state.currentScheduleWorkflow.flow_id;
       const enabledCheckbox = document.getElementById('schedule-enabled');
@@ -2531,6 +2534,12 @@ class VibeSurfSettingsWorkflow {
         message: `Failed to save schedule: ${error.message}`,
         type: 'error'
       });
+    } finally {
+      // Always reset the saving flag and re-enable button
+      this._isSavingSchedule = false;
+      if (saveButton) {
+        saveButton.disabled = false;
+      }
     }
   }
   
@@ -2538,7 +2547,7 @@ class VibeSurfSettingsWorkflow {
   handleWorkflowEdit(workflowId) {
     
     // Get backend URL from API client or settings
-    const backendUrl = this.apiClient.baseURL || window.CONFIG?.BACKEND_URL || 'http://localhost:8000';
+    const backendUrl = this.apiClient.baseURL || window.CONFIG?.BACKEND_URL || 'http://localhost:9335';
     const editUrl = `${backendUrl}/flow/${workflowId}`;
     
     // Open in new tab using Chrome extension API

@@ -213,8 +213,7 @@ async def import_workflow(
         try:
             # In case user uses org langflow
             workflow_json = request.workflow_json
-            workflow_json = workflow_json.replace("from langflow", 'from vibesurf.langflow')
-            workflow_json = workflow_json.replace("import langflow", 'import vibesurf.langflow')
+            workflow_json = workflow_json.replace("langflow.", 'vibesurf.langflow.')
             workflow_data = json.loads(workflow_json)
         except json.JSONDecodeError as e:
             return ImportWorkflowResponse(
