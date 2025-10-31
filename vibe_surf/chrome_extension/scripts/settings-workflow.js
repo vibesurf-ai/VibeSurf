@@ -241,17 +241,20 @@ class VibeSurfSettingsWorkflow {
       const status = await this.checkVibeSurfStatus();
       
       if (status && status.connected && status.key_valid) {
-        // Load workflows from backend
+        // Show workflow interface and load workflows from backend
+        this.showWorkflowInterface();
         await this.loadWorkflows();
       } else {
-        // Hide loading and show API key modal
+        // Hide loading, hide workflow interface, and show API key modal
         this.hideWorkflowsLoading();
+        this.hideWorkflowInterface();
         this.showVibeSurfApiKeyModal();
       }
       
     } catch (error) {
       console.error('[SettingsWorkflow] Failed to load workflow content:', error);
       this.hideWorkflowsLoading();
+      this.hideWorkflowInterface();
       this.emit('notification', {
         message: 'Failed to load workflows',
         type: 'error'
@@ -308,6 +311,11 @@ class VibeSurfSettingsWorkflow {
   hideVibeSurfApiKeyModal() {
     if (this.elements.vibeSurfApiKeyModal) {
       this.elements.vibeSurfApiKeyModal.classList.add('hidden');
+    }
+    
+    // Hide workflow interface when modal is closed without valid API key
+    if (!this.state.vibeSurfKeyValid) {
+      this.hideWorkflowInterface();
     }
   }
   
@@ -368,7 +376,8 @@ class VibeSurfSettingsWorkflow {
         this.state.vibeSurfKeyValid = true;
         this.state.vibeSurfApiKey = '***';
         
-        // Load workflows after successful validation
+        // Show workflow interface and load workflows after successful validation
+        this.showWorkflowInterface();
         await this.loadWorkflows();
         
         // Close modal after short delay
@@ -524,6 +533,44 @@ class VibeSurfSettingsWorkflow {
     if (this.elements.workflowsLoading) {
       this.elements.workflowsLoading.style.display = 'none';
     }
+  }
+  
+  // Show workflow interface elements (buttons, search, filter, list)
+  showWorkflowInterface() {
+    const interfaceElements = [
+      this.elements.createWorkflowBtn,
+      this.elements.importWorkflowBtn,
+      this.elements.workflowTemplatesBtn,
+      this.elements.recordToWorkflowBtn,
+      this.elements.workflowSearch,
+      this.elements.workflowFilter,
+      this.elements.workflowsList
+    ];
+    
+    interfaceElements.forEach(element => {
+      if (element) {
+        element.style.display = '';
+      }
+    });
+  }
+  
+  // Hide workflow interface elements (buttons, search, filter, list)
+  hideWorkflowInterface() {
+    const interfaceElements = [
+      this.elements.createWorkflowBtn,
+      this.elements.importWorkflowBtn,
+      this.elements.workflowTemplatesBtn,
+      this.elements.recordToWorkflowBtn,
+      this.elements.workflowSearch,
+      this.elements.workflowFilter,
+      this.elements.workflowsList
+    ];
+    
+    interfaceElements.forEach(element => {
+      if (element) {
+        element.style.display = 'none';
+      }
+    });
   }
   
   // Handle create workflow button
