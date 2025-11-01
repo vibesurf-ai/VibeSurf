@@ -424,6 +424,31 @@ async def _load_enabled_composio_toolkits():
         return {}
 
 
+async def load_composio():
+    # Load and register Composio tools from enabled toolkits
+    global composio_instance
+    from .api.composio import _get_composio_api_key_from_db
+    api_key = await _get_composio_api_key_from_db()
+    if api_key:
+        try:
+            # Create Composio instance
+            composio_instance = Composio(
+                api_key=api_key,
+                provider=LangchainProvider()
+            )
+            logger.info("Successfully create Composio instance!")
+        except Exception as e:
+            logger.error(f"Failed to create Composio instance: {e}")
+            composio_instance = None
+    toolkit_tools_dict = await _load_enabled_composio_toolkits()
+    if toolkit_tools_dict:
+        await vibesurf_tools.register_composio_clients(
+            composio_instance=composio_instance,
+            toolkit_tools_dict=toolkit_tools_dict
+        )
+        logger.info(f"✅ Registered Composio tools from {len(toolkit_tools_dict)} enabled toolkits")
+
+
 async def initialize_vibesurf_components():
     """Initialize VibeSurf components from environment variables and default LLM profile"""
     global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager, current_llm_profile_name, composio_instance
@@ -524,27 +549,7 @@ async def initialize_vibesurf_components():
             await vibesurf_tools.register_mcp_clients()
             logger.info(f"✅ Registered {len(mcp_server_config['mcpServers'])} MCP servers")
 
-        # Load and register Composio tools from enabled toolkits
-        from .api.composio import _get_composio_api_key_from_db
-        api_key = await _get_composio_api_key_from_db()
-        if api_key:
-            try:
-                # Create Composio instance
-                composio_instance = Composio(
-                    api_key=api_key,
-                    provider=LangchainProvider()
-                )
-                logger.info("Successfully create Composio instance!")
-            except Exception as e:
-                logger.error(f"Failed to create Composio instance: {e}")
-                composio_instance = None
-        toolkit_tools_dict = await _load_enabled_composio_toolkits()
-        if toolkit_tools_dict:
-            await vibesurf_tools.register_composio_clients(
-                composio_instance=composio_instance,
-                toolkit_tools_dict=toolkit_tools_dict
-            )
-            logger.info(f"✅ Registered Composio tools from {len(toolkit_tools_dict)} enabled toolkits")
+        load_composio_task = asyncio.create_task(load_composio())
 
         # Initialize browser manager
         if browser_manager:

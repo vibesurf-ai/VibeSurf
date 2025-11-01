@@ -192,6 +192,10 @@ async def initialize_langflow_in_background():
         configure_langflow_envs()
 
         settings_service = get_settings_service()
+        custom_workflow_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "workflows"))
+        logger.info("Custom workflow path: {}".format(custom_workflow_path))
+        settings_service.settings.update_settings(components_path=custom_workflow_path)
+
         for key, value in os.environ.items():
             if key.startswith("LANGFLOW_"):
                 new_key = key.replace("LANGFLOW_", "").lower()

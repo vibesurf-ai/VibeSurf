@@ -331,6 +331,21 @@ async def test_website_api(main_browser_session: AgentBrowserSession):
     # pdb.set_trace()
 
 
+async def test_page_element(browser_session: AgentBrowserSession):
+    await browser_session.navigate_to_url("https://github.com/", new_tab=True)
+    await asyncio.sleep(1)
+    page = await browser_session.get_current_page()
+    css_selector = r"#FormControl--\:Rjqhb\: > div > button"
+    element = await page.get_elements_by_css_selector(css_selector)
+    mouse = await page.mouse
+    await mouse.scroll(x=0, y=100, delta_x=0, delta_y=1000)
+    await page.press("Enter")
+    pdb.set_trace()
+    if element:
+        await element[0].click()
+
+
+
 async def main():
     """
     Main function to run all browser session tests.
@@ -366,7 +381,8 @@ async def main():
             # await test_agent_tab_isolation(manager)
             # await test_browser_state_capture(manager)
             # await get_all_css_selector(main_browser_session)
-            await test_website_api(main_browser_session)
+            # await test_website_api(main_browser_session)
+            await test_page_element(browser_session=main_browser_session)
 
     except Exception as e:
         logging.error(f"An error occurred during tests: {e}", exc_info=True)
