@@ -10,10 +10,10 @@ from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.langflow.schema.message import Message
 
 
-class BrowserClickComponent(Component):
-    display_name = "Click element"
-    description = "Browser click element"
-    icon = "mouse-pointer-click"
+class BrowserHoverElementComponent(Component):
+    display_name = "Hover element"
+    description = "Browser hover element"
+    icon = "circle-ellipsis"
 
     inputs = [
         HandleInput(
@@ -46,20 +46,6 @@ class BrowserClickComponent(Component):
             info="LLM Model defined by VibeSurf",
             input_types=["BaseChatModel"],
             advanced=True
-        ),
-        DropdownInput(
-            name="click_button",
-            display_name="Click Button",
-            options=["left", "right"],
-            value="left",
-            advanced=True
-        ),
-        IntInput(
-            name="click_count",
-            display_name="Click Count",
-            info="Click Count",
-            advanced=True,
-            value=1,
         )
     ]
 
@@ -67,12 +53,12 @@ class BrowserClickComponent(Component):
         Output(
             display_name="Browser Session",
             name="output_browser_session",
-            method="browser_click",
+            method="browser_hover_element",
             types=["AgentBrowserSession"]
         )
     ]
 
-    async def browser_click(self) -> AgentBrowserSession:
+    async def browser_hover_element(self) -> AgentBrowserSession:
         try:
             page = await self.browser_session.get_current_page()
             element = None
@@ -91,7 +77,7 @@ class BrowserClickComponent(Component):
                 self.status = "No element found!"
                 raise ValueError("No element found!")
 
-            await element.click(button=self.click_button, click_count=self.click_count, modifiers=['Control'])
+            await element.hover()
         except Exception as e:
             import traceback
             traceback.print_exc()
