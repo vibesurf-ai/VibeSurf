@@ -337,12 +337,16 @@ async def test_page_element(browser_session: AgentBrowserSession):
     page = await browser_session.get_current_page()
     css_selector = r"#FormControl--\:Rjqhb\: > div > button"
     element = await page.get_elements_by_css_selector(css_selector)
+    await page.get_element()
     mouse = await page.mouse
     await mouse.scroll(x=0, y=100, delta_x=0, delta_y=1000)
     await page.press("Enter")
+
     pdb.set_trace()
     if element:
         await element[0].click()
+        await element[0].click(button='left', click_count=1, modifiers=['Control'])
+        await element[0].fill("Hello World")
 
 
 
