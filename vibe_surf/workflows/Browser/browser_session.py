@@ -19,12 +19,14 @@ class BrowserSessionComponent(Component):
             display_name="Use Main Session",
             info="Use the main browser session",
             value=False,
+            advanced=True
         ),
         MessageTextInput(
             name="target_id",
             display_name="Target ID",
             info="Browser tab id",
             value='',
+            advanced=True
         )
     ]
 
