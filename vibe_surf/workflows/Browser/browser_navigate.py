@@ -6,7 +6,6 @@ from vibe_surf.langflow.custom import Component
 from vibe_surf.langflow.inputs import MessageTextInput, HandleInput
 from vibe_surf.langflow.io import BoolInput, IntInput, Output
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.langflow.schema.message import Message
 
 
 class BrowserNavigateComponent(Component):
@@ -33,7 +32,7 @@ class BrowserNavigateComponent(Component):
     outputs = [
         Output(
             display_name="Browser Session",
-            name="browser_session",
+            name="output_browser_session",
             method="browser_navigation",
             types=["AgentBrowserSession"]
         )
@@ -42,8 +41,9 @@ class BrowserNavigateComponent(Component):
     async def browser_navigation(self) -> AgentBrowserSession:
         try:
             await self.browser_session.navigate_to_url(self.url)
-            return self.browser_session
         except Exception as e:
             import traceback
             traceback.print_exc()
             raise e
+        finally:
+            return self.browser_session

@@ -1,13 +1,14 @@
 import asyncio
 from typing import Any, List
 from uuid import uuid4
+from browser_use.llm.base import BaseChatModel
 
 from vibe_surf.langflow.custom import Component
 from vibe_surf.langflow.inputs import MessageTextInput, HandleInput, DropdownInput
 from vibe_surf.langflow.io import BoolInput, IntInput, Output
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.langflow.schema.message import Message
-from browser_use.llm.base import BaseChatModel
+
 
 class BrowserClickComponent(Component):
     display_name = "Click element"
@@ -65,7 +66,7 @@ class BrowserClickComponent(Component):
     outputs = [
         Output(
             display_name="Browser Session",
-            name="browser_session",
+            name="output_browser_session",
             method="browser_click",
             types=["AgentBrowserSession"]
         )
@@ -91,9 +92,9 @@ class BrowserClickComponent(Component):
                 raise ValueError("No element found!")
 
             await element.click(button=self.click_button, click_count=self.click_count, modifiers=['Control'])
-
-            return self.browser_session
         except Exception as e:
             import traceback
             traceback.print_exc()
             raise e
+        finally:
+            return self.browser_session

@@ -6,7 +6,6 @@ from vibe_surf.langflow.custom import Component
 from vibe_surf.langflow.inputs import MessageTextInput, HandleInput, DropdownInput
 from vibe_surf.langflow.io import BoolInput, IntInput, Output
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.langflow.schema.message import Message
 
 
 class BrowserSearchComponent(Component):
@@ -40,9 +39,10 @@ class BrowserSearchComponent(Component):
     outputs = [
         Output(
             display_name="Browser Session",
-            name="browser_session",
+            name="output_browser_session",
             method="browser_search",
-            types=["AgentBrowserSession"]
+            types=["AgentBrowserSession"],
+            required_inputs=['browser_session']
         )
     ]
 
@@ -63,7 +63,7 @@ class BrowserSearchComponent(Component):
 
             if self.engine.lower() not in search_engines:
                 self.status = f'Unsupported search engine: {self.engine.lower()}. Options: duckduckgo, google, bing'
-                return self.browser_session
+                raise ValueError(self.status)
 
             search_url = search_engines[self.engine.lower()]
 
@@ -80,8 +80,9 @@ class BrowserSearchComponent(Component):
             await event
             await event.event_result(raise_if_any=True, raise_if_none=False)
             self.status = f"Searched {self.engine.title()} for {self.query}"
-            return self.browser_session
         except Exception as e:
             import traceback
             traceback.print_exc()
             raise e
+        finally:
+            return self.browser_session
