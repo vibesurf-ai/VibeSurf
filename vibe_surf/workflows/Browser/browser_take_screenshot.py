@@ -58,7 +58,7 @@ class BrowserTakeScreenshotComponent(Component):
             workspace_dir = get_workspace_dir()
             screenshot_dir = os.path.join(workspace_dir, "workflows", "screenshots")
             os.makedirs(screenshot_dir, exist_ok=True)
-            _screenshot_path = os.path.join(screenshot_dir, f"{self._id}-{datetime.now().strftime('%d-%m-%Y_%H-%M-%S"')}.png")
+            _screenshot_path = os.path.join(screenshot_dir, f"{self._id}-{datetime.now().strftime('%d-%m-%Y_%H-%M-%S')}.png")
             screenshot_data = base64.b64decode(page_png)
             Path(_screenshot_path).write_bytes(screenshot_data)
             self._screenshot_path = _screenshot_path

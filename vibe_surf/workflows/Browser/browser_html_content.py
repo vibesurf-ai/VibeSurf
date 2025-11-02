@@ -56,7 +56,7 @@ class BrowserHtmlContentComponent(Component):
             workspace_dir = get_workspace_dir()
             html_dir = os.path.join(workspace_dir, "workflows", "htmls")
             os.makedirs(html_dir, exist_ok=True)
-            _html_path = os.path.join(html_dir, f"{self._id}-{datetime.now().strftime('%d-%m-%Y-%H-%M-%S"')}.html")
+            _html_path = os.path.join(html_dir, f"{self._id}-{datetime.now().strftime('%d-%m-%Y-%H-%M-%S')}.html")
             with open(_html_path, "w", encoding="utf-8") as f:
                 f.write(html_content)
             self._html_path = _html_path

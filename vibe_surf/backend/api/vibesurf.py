@@ -395,7 +395,7 @@ async def export_workflow(
                 # Get VibeSurf work directory and create workflows subdirectory
                 from vibe_surf import common
                 work_dir = common.get_workspace_dir()
-                workflows_dir = Path(work_dir) / "workflows"
+                workflows_dir = Path(work_dir) / "workflows" / "exported_json"
                 workflows_dir.mkdir(parents=True, exist_ok=True)
                 
                 # Full file path
