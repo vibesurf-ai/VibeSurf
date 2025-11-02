@@ -9,7 +9,7 @@ from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 
 
 class BrowserSearchComponent(Component):
-    display_name = "Browser Search"
+    display_name = "Search"
     description = "Search information in Browser"
     icon = "search"
 

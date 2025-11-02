@@ -11,7 +11,7 @@ from vibe_surf.langflow.schema.message import Message
 
 
 class BrowserInputTextComponent(Component):
-    display_name = "Input Text to an element"
+    display_name = "Input Text"
     description = "Browser input Text to an element"
     icon = "text-cursor-input"
 

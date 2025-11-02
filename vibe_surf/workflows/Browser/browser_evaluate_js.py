@@ -42,13 +42,15 @@ class BrowserEvaluateJavaScriptComponent(Component):
             display_name="Browser Session",
             name="output_browser_session",
             method="pass_browser_session",
-            types=["AgentBrowserSession"]
+            types=["AgentBrowserSession"],
+            group_outputs=True,
         ),
         Output(
             display_name="Evaluate Result",
             name="evaluate_result",
             method="browser_evaluate_result",
-            types=["Message"]
+            types=["Message"],
+            group_outputs=True,
         ),
     ]
 

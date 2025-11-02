@@ -11,7 +11,7 @@ from vibe_surf.langflow.schema.message import Message
 
 
 class BrowserDragDropComponent(Component):
-    display_name = "Drag and drop element"
+    display_name = "Drag and drop"
     description = "Browser drag and drop element"
     icon = "grip"
 

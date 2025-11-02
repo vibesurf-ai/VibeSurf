@@ -9,7 +9,7 @@ from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 
 
 class BrowserPressKeyComponent(Component):
-    display_name = "Browser Press Key"
+    display_name = "Press Key"
     description = "Press and send keys to browser"
     icon = "keyboard"
 

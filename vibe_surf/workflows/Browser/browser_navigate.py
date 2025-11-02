@@ -9,7 +9,7 @@ from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 
 
 class BrowserNavigateComponent(Component):
-    display_name = "Browser Navigate"
+    display_name = "Navigation"
     description = "Navigates to a specific url"
     icon = "circle-arrow-out-up-right"
 
