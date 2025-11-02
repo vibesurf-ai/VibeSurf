@@ -4,16 +4,16 @@ from uuid import uuid4
 from browser_use.llm.base import BaseChatModel
 
 from vibe_surf.langflow.custom import Component
-from vibe_surf.langflow.inputs import MessageTextInput, HandleInput, DropdownInput
+from vibe_surf.langflow.inputs import MessageTextInput, HandleInput, DropdownInput, StrInput
 from vibe_surf.langflow.io import BoolInput, IntInput, Output
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.langflow.schema.message import Message
 
 
-class BrowserHoverElementComponent(Component):
-    display_name = "Hover element"
-    description = "Browser hover element"
-    icon = "circle-ellipsis"
+class BrowserSelectOptionsComponent(Component):
+    display_name = "Select Options"
+    description = "Browser select options"
+    icon = "square-check"
 
     inputs = [
         HandleInput(
@@ -22,6 +22,13 @@ class BrowserHoverElementComponent(Component):
             info="Browser Session defined by VibeSurf",
             input_types=["AgentBrowserSession"],
             required=True
+        ),
+        StrInput(
+            name="select_option",
+            display_name="Select Option",
+            info="Select Option",
+            required=True,
+            list=True
         ),
         MessageTextInput(
             name="css_selector",
@@ -53,12 +60,12 @@ class BrowserHoverElementComponent(Component):
         Output(
             display_name="Browser Session",
             name="output_browser_session",
-            method="browser_hover_element",
+            method="browser_focus_element",
             types=["AgentBrowserSession"]
         )
     ]
 
-    async def browser_hover_element(self) -> AgentBrowserSession:
+    async def browser_focus_element(self) -> AgentBrowserSession:
         try:
             page = await self.browser_session.get_current_page()
             element = None
@@ -77,8 +84,8 @@ class BrowserHoverElementComponent(Component):
                 self.status = "No element found!"
                 raise ValueError("No element found!")
 
-            await element.hover()
-            self.status = f"Hovered on element {element}"
+            await element.select_option(self.select_option)
+            self.status = f"Selected {self.select_option} on element {element}"
         except Exception as e:
             import traceback
             traceback.print_exc()

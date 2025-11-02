@@ -91,6 +91,7 @@ class BrowserInputTextComponent(Component):
                 raise ValueError("No element found!")
 
             await element.fill(self.input_text, clear=self.clear_text)
+            self.status = f"Input text: {self.input_text} on element {element}"
         except Exception as e:
             import traceback
             traceback.print_exc()

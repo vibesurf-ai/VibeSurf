@@ -78,6 +78,7 @@ class BrowserFocusElementComponent(Component):
                 raise ValueError("No element found!")
 
             await element.focus()
+            self.status = f"Focused on element {element}"
         except Exception as e:
             import traceback
             traceback.print_exc()

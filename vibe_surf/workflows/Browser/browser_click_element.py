@@ -92,6 +92,7 @@ class BrowserClickElementComponent(Component):
                 raise ValueError("No element found!")
 
             await element.click(button=self.click_button, click_count=self.click_count, modifiers=['Control'])
+            self.status = f"Clicked on element {element}"
         except Exception as e:
             import traceback
             traceback.print_exc()
