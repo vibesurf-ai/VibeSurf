@@ -1,4 +1,5 @@
 import asyncio
+import pdb
 from typing import Any, List
 from uuid import uuid4
 from browser_use.llm.base import BaseChatModel
@@ -8,6 +9,7 @@ from vibe_surf.langflow.inputs import MessageTextInput, HandleInput, DropdownInp
 from vibe_surf.langflow.io import BoolInput, IntInput, Output
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.langflow.schema.message import Message
+from vibe_surf.langflow.schema.dotdict import dotdict
 
 class LLMProfilesComponent(Component):
     display_name = "LLM profiles"
@@ -16,13 +18,12 @@ class LLMProfilesComponent(Component):
 
     inputs = [
         DropdownInput(
-            name="llm_profiles",
-            display_name="LLM profiles",
-            info="Available llm profiles",
-            options=[],
-            value='',
-            input_types=["AgentBrowserSession"],
-            required=True
+            name="llm_profile_name",
+            display_name="LLM profile",
+            info="LLM profile name",
+            options=[],  
+            value=None,
+            real_time_refresh=True
         )
     ]
 
@@ -35,20 +36,61 @@ class LLMProfilesComponent(Component):
         )
     ]
 
+    async def update_build_config(self, build_config: dotdict, field_value: Any, field_name: str | None = None):
+        """Update build config with dynamic LLM profile options."""
+        if field_name == "llm_profile_name" or field_name is None:
+            # Get LLM profiles dynamically
+            llm_profile_options = await self.get_llm_profile_names()
+            build_config["llm_profile_name"]["options"] = llm_profile_options
+        return build_config
+
+    async def get_llm_profile_names(self) -> list[str]:
+        """Get all available LLM profile names."""
+        try:
+            from vibe_surf.backend.database.queries import LLMProfileQueries
+            from vibe_surf.backend import shared_state
+            from vibe_surf.backend.utils.llm_factory import create_llm_from_profile
+
+            async for db_session in shared_state.db_manager.get_session():
+                profiles = await LLMProfileQueries.list_profiles(
+                    db=db_session,
+                    active_only=True,
+                    limit=1000,
+                    offset=0
+                )
+                return [profile.profile_name for profile in profiles if profile.profile_name]
+        except Exception:
+            return []
+
+    async def get_default_llm_profiles(self) -> list[str]:
+        """Get default LLM profile names."""
+        try:
+            from vibe_surf.backend.database.queries import LLMProfileQueries
+            from vibe_surf.backend import shared_state
+            from vibe_surf.backend.utils.llm_factory import create_llm_from_profile
+
+            async for db_session in shared_state.db_manager.get_session():
+                profiles = await LLMProfileQueries.list_profiles(
+                    db=db_session,
+                    active_only=True,
+                    limit=1000,
+                    offset=0
+                )
+                return [profile.profile_name for profile in profiles if profile.is_default]
+        except Exception:
+            return []
+
     async def get_llm_profile_model(self) -> BaseChatModel | None:
-        """Close a specific session."""
-        if self.browser_session is None:
-            raise RuntimeError("Browser session not found")
-        if self.browser_session.main_browser_session is None:
-            self.status = "Current Browser Session is main browser session. We can not close it."
-            return Message(text=self.status)
-        else:
-            try:
-                from vibe_surf.backend.shared_state import browser_manager
-                await browser_manager.unregister_agent(self.browser_session.id, close_tabs=True)
-                self.status = "Successfully closed browser session."
-                return Message(text=self.status)
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                self.status = "Failed to close browser session. {}".format(e)
+        """Get the LLM model from the selected profile."""
+        from vibe_surf.backend.database.queries import LLMProfileQueries
+        from vibe_surf.backend import shared_state
+        from vibe_surf.backend.utils.llm_factory import create_llm_from_profile
+
+        async for db_session in shared_state.db_manager.get_session():
+            llm_profile = await LLMProfileQueries.get_profile_with_decrypted_key(db_session, self.llm_profile_name)
+            if not llm_profile:
+                self.status = f"{self.llm_profile_name} not found!"
+                raise ValueError(self.status)
+
+            llm = create_llm_from_profile(llm_profile)
+            return llm
