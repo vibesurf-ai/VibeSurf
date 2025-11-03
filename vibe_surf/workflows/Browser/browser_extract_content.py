@@ -139,7 +139,7 @@ class BrowserExtractContentComponent(Component):
                     Output(
                         display_name="Extracted Content",
                         name="extracted_content",
-                        method="browser_extract_content",
+                        method="browser_extract_structured_content",
                         types=["Data"],
                         group_outputs=True,
                     ).to_dict()
@@ -149,7 +149,7 @@ class BrowserExtractContentComponent(Component):
                     Output(
                         display_name="Extracted Content",
                         name="extracted_content",
-                        method="browser_extract_structured_content",
+                        method="browser_extract_content",
                         types=["Message"],
                         group_outputs=True,
                     ).to_dict()
@@ -161,7 +161,7 @@ class BrowserExtractContentComponent(Component):
         try:
             output_model_ = build_model_from_schema(self.output_schema)
             page = await self.browser_session.get_current_page()
-            extracted_result = await page.page.extract_content(
+            extracted_result = await page.extract_content(
                 self.extract_goal,
                 output_model_,
                 llm=self.llm,
@@ -179,7 +179,7 @@ class BrowserExtractContentComponent(Component):
             class CommonExtractModel(BaseModel):
                 extracted_content: str
             page = await self.browser_session.get_current_page()
-            extracted_result = await page.page.extract_content(
+            extracted_result = await page.extract_content(
                 self.extract_goal,
                 CommonExtractModel,
                 llm=self.llm,

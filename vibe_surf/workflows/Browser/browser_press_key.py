@@ -42,6 +42,7 @@ class BrowserPressKeyComponent(Component):
         try:
             page = await self.browser_session.get_current_page()
             await page.press(self.keys)
+            self.status = f"Successfully pressed {self.keys} on page."
         except Exception as e:
             import traceback
             traceback.print_exc()
