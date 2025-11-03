@@ -91,14 +91,6 @@ class BrowserExtractContentComponent(Component):
                     "edit_mode": EditMode.INLINE,
                 },
             ],
-            value=[
-                {
-                    "name": "field",
-                    "description": "description of field",
-                    "type": "str",
-                    "multiple": "False",
-                }
-            ],
         ),
     ]
 
