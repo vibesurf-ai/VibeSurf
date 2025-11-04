@@ -1052,7 +1052,8 @@ class VibeSurfAgent:
             browser_manager: BrowserManager,
             tools: VibeSurfTools,
             workspace_dir: str = "./workspace",
-            settings: Optional[VibeSurfAgentSettings] = None
+            settings: Optional[VibeSurfAgentSettings] = None,
+            extend_system_prompt: Optional[str] = None,
     ):
         """Initialize VibeSurfAgent with required components"""
         self.llm: BaseChatModel = llm
@@ -1063,7 +1064,7 @@ class VibeSurfAgent:
         self.tools: VibeSurfTools = tools
         self.workspace_dir = workspace_dir
         os.makedirs(self.workspace_dir, exist_ok=True)
-
+        self.extend_system_prompt = extend_system_prompt
         self.cur_session_id = None
         self.file_system: Optional[CustomFileSystem] = None
         self.message_history = []
@@ -1643,6 +1644,8 @@ Please continue with your assigned work, incorporating this guidance only if it'
 
             if not self.message_history:
                 vibesurf_system_prompt = VIBESURF_SYSTEM_PROMPT
+                if self.extend_system_prompt:
+                    vibesurf_system_prompt += f"\n Extend System Prompt provided by user:\n {self.extend_system_prompt}"
                 if self.settings.agent_mode == "thinking":
                     vibesurf_system_prompt += """
 You must ALWAYS respond with a valid JSON in this exact format:
