@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="styles/settings-integrations.css">
     <link rel="stylesheet" href="styles/settings-utilities.css">
     <link rel="stylesheet" href="styles/settings-responsive.css">
+    <link rel="stylesheet" href="styles/settings-workflow.css">
     
     <!-- Responsive Styles -->
     <link rel="stylesheet" href="styles/responsive.css">
@@ -54,6 +55,22 @@
                 </div>
             </div>
             <div class="header-right">
+                <button id="upgrade-btn" class="icon-btn upgrade-btn hidden" title="Extension Update Available">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 4V15M12 4L8 8M12 4L16 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 17V19C4 19.5304 4.46957 20 5 20H19C19.5304 20 20 19.5304 20 19V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <div class="upgrade-tooltip">
+                        <div class="upgrade-tooltip-title">VibeSurf Extension Update Available</div>
+                        <div>A newer VibeSurf extension is available. Download and install for the best experience:</div>
+                        <ul class="upgrade-tooltip-steps">
+                            <li>Extract the downloaded zip file</li>
+                            <li>Open chrome://extensions</li>
+                            <li>Enable Developer mode</li>
+                            <li>Click "Load unpacked" and select the extracted folder</li>
+                        </ul>
+                    </div>
+                </button>
                 <button id="new-session-btn" class="icon-btn" title="New Session">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -297,6 +314,20 @@
                     </svg>
                     General
                 </button>
+                <button class="settings-tab" data-tab="workflow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
+                        <path d="M19.07 4.93L17.66 3.52C17.2794 3.13921 16.7794 2.92631 16.2575 2.92631C15.7356 2.92631 15.2356 3.13921 14.855 3.52L3 15.37V19H6.63L18.48 7.15C18.8608 6.76944 19.0737 6.26944 19.0737 5.7475C19.0737 5.22556 18.8608 4.72556 18.48 4.345L17.07 2.93" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M16 5L19 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Workflows
+                </button>
+                <button class="settings-tab" data-tab="integrations">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
+                        <path d="M10 13C10.4295 13.5741 10.9774 14.0491 11.6066 14.3929C12.2357 14.7367 12.9315 14.9411 13.6467 14.9923C14.3618 15.0435 15.0796 14.9403 15.7513 14.6897C16.4231 14.4392 17.0331 14.047 17.54 13.54L20.54 10.54C21.4508 9.59695 21.9548 8.33394 21.9434 7.02296C21.932 5.71198 21.4061 4.45791 20.4791 3.53087C19.5521 2.60383 18.298 2.07799 16.987 2.0666C15.676 2.0552 14.413 2.55918 13.47 3.47L11.75 5.18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M14 11C13.5705 10.4259 13.0226 9.95090 12.3934 9.60712C11.7643 9.26335 11.0685 9.05888 10.3533 9.00771C9.63819 8.95654 8.92037 9.05968 8.24864 9.31023C7.57691 9.56077 6.96687 9.95295 6.46 10.46L3.46 13.46C2.54918 14.403 2.04520 15.6661 2.0566 16.977C2.06799 18.288 2.59383 19.5421 3.52087 20.4691C4.44791 21.3962 5.70198 21.922 7.01296 21.9334C8.32394 21.9448 9.58695 21.4408 10.53 20.53L12.24 18.82" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Integrations
+                </button>
                 <button class="settings-tab" data-tab="llm-profiles">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
                         <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -317,12 +348,6 @@
                         <circle cx="11" cy="11" r="2" stroke="currentColor" stroke-width="2"/>
                     </svg>
                     Voice
-                </button>
-                <button class="settings-tab" data-tab="integrations">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
-                        <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    Integrations
                 </button>
             </div>
             
@@ -389,6 +414,74 @@
                                     </button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Workflow Tab -->
+                <div id="workflow-tab" class="settings-tab-content">
+                    <div class="workflows-container">
+                        <!-- Create Workflow Button -->
+                        <div class="workflows-header">
+                            <button id="create-workflow-btn" class="create-workflow-btn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                                Create Workflow
+                            </button>
+                            <button id="import-workflow-btn" class="import-workflow-btn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Import Workflow
+                            </button>
+                            <button id="workflow-templates-btn" class="workflow-templates-btn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M4 4V20H20V8H14V4H4ZM12 12V6H6V12H12ZM18 18V10H12V18H18Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Workflow Templates
+                            </button>
+                            <button id="record-to-workflow-btn" class="record-to-workflow-btn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/>
+                                    <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                                </svg>
+                                Record Workflow
+                            </button>
+                        </div>
+                        
+                        <!-- Search and Filter Bar -->
+                        <div class="workflows-controls">
+                            <div class="search-filter-bar">
+                                <div class="search-input-container">
+                                    <input type="text" id="workflow-search" placeholder="Search workflows..." class="search-input">
+                                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                                        <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                                <select id="workflow-filter" class="filter-select">
+                                    <option value="all">All Workflows</option>
+                                    <option value="scheduled">Scheduled</option>
+                                    <option value="unscheduled">Unscheduled</option>
+                                    <option value="running">Running</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Workflows List -->
+                        <div id="workflows-list" class="workflows-list">
+                            <!-- Workflows will be populated here -->
+                        </div>
+                        
+                        <!-- Loading State -->
+                        <div id="workflows-loading" class="loading-state hidden">
+                            <div class="loading-spinner"></div>
+                            <div class="loading-text">Loading workflows...</div>
                         </div>
                     </div>
                 </div>
@@ -491,8 +584,10 @@
                                 <div class="loading-text">Loading toolkits...</div>
                             </div>
                         </div>
+                        
                     </div>
                 </div>
+                
             </div>
         </div>
     </div>
@@ -647,6 +742,409 @@
         </div>
     </div>
 
+    <!-- Workflow Schedule Modal -->
+    <div id="workflow-schedule-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content workflow-schedule-modal-content">
+            <div class="modal-header">
+                <h3 id="schedule-modal-title">Schedule Workflow</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="schedule-content">
+                    <div class="form-group">
+                        <label class="form-label">Workflow Name</label>
+                        <div id="schedule-workflow-name" class="workflow-name-display"></div>
+                    </div>
+                    
+                    <!-- Schedule Configuration -->
+                    <div class="schedule-configuration-section">
+                        <h4>Schedule Configuration</h4>
+
+                    <!-- Simplified Schedule Builder -->
+                    <div class="schedule-builder">
+                        <div class="builder-row">
+                            <div class="builder-group">
+                                <label class="form-label">Schedule Type</label>
+                                <select id="schedule-type-select" class="form-select">
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="every-x-minutes">Every X Minutes</option>
+                                    <option value="every-x-hours">Every X Hours</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                            
+                            <!-- Every X Minutes -->
+                            <div id="every-x-minutes-options" class="schedule-options hidden">
+                                <div class="builder-row">
+                                    <div class="builder-group">
+                                        <label class="form-label">Minute Interval</label>
+                                        <input type="number" id="minutes-interval" class="form-input" min="1" max="59" value="1">
+                                        <div class="form-help">Every <span id="minutes-label">1</span> minute(s)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Every X Hours -->
+                            <div id="every-x-hours-options" class="schedule-options hidden">
+                                <div class="builder-row">
+                                    <div class="builder-group">
+                                        <label class="form-label">Hour Interval</label>
+                                        <input type="number" id="hours-interval" class="form-input" min="1" max="23" value="1">
+                                        <div class="form-help">Every <span id="hours-label">1</span> hour(s)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Daily -->
+                            <div id="daily-options" class="schedule-options">
+                                <div class="builder-row">
+                                    <div class="builder-group">
+                                        <label class="form-label">Time</label>
+                                        <input type="time" id="daily-time" class="form-input" value="08:00">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Weekly -->
+                            <div id="weekly-options" class="schedule-options hidden">
+                                <div class="builder-row">
+                                    <div class="builder-group">
+                                        <label class="form-label">Day of Week</label>
+                                        <select id="weekly-day" class="form-select">
+                                            <option value="1">Monday</option>
+                                            <option value="2">Tuesday</option>
+                                            <option value="3">Wednesday</option>
+                                            <option value="4">Thursday</option>
+                                            <option value="5">Friday</option>
+                                            <option value="6">Saturday</option>
+                                            <option value="0">Sunday</option>
+                                        </select>
+                                    </div>
+                                    <div class="builder-group">
+                                        <label class="form-label">Time</label>
+                                        <input type="time" id="weekly-time" class="form-input" value="09:00">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Monthly -->
+                            <div id="monthly-options" class="schedule-options hidden">
+                                <div class="builder-row">
+                                    <div class="builder-group">
+                                        <label class="form-label">Day of Month</label>
+                                        <input type="number" id="monthly-day" class="form-input" min="1" max="31" value="1">
+                                        <div class="form-help">Day 1-31 (use 1 for 1st of month)</div>
+                                    </div>
+                                    <div class="builder-group">
+                                        <label class="form-label">Time</label>
+                                        <input type="time" id="monthly-time" class="form-input" value="09:00">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Schedule Preview (Removed) -->
+
+                    <!-- Schedule Settings -->
+                    <div class="schedule-settings-section">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <input type="checkbox" id="schedule-enabled" checked>
+                                <span>Enable Schedule</span>
+                            </label>
+                            <div class="form-help">Uncheck to disable the schedule without deleting it</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Schedule Description (Optional)</label>
+                            <textarea id="schedule-description" class="form-textarea" rows="2" placeholder="e.g., Daily data sync, Weekly report generation"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="form-btn secondary" id="schedule-cancel">Cancel</button>
+                <button type="button" class="form-btn primary" id="schedule-save" disabled>
+                    <span class="btn-text">Save Schedule</span>
+                    <span class="btn-loading hidden">Saving...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workflow Logs Modal -->
+    <div id="workflow-logs-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content workflow-logs-modal-content">
+            <div class="modal-header">
+                <h3 id="logs-modal-title">Workflow Logs</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="logs-content">
+                    <div class="logs-header">
+                        <div class="logs-info">
+                            <div id="logs-workflow-name" class="logs-workflow-name"></div>
+                            <div id="logs-job-id" class="logs-job-id"></div>
+                        </div>
+                        <div class="logs-controls">
+                            <button id="logs-refresh-btn" class="logs-refresh-btn" title="Refresh Logs">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1 4V10H7M23 20V14H17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M3.51 15A9 9 0 0 0 18.36 18.36L23 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                            <button id="logs-clear-btn" class="logs-clear-btn" title="Clear Logs">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="logs-container" class="logs-container">
+                        <div id="logs-content" class="logs-list">
+                            <!-- Logs will be populated here -->
+                        </div>
+                        <div id="logs-loading" class="logs-loading hidden">
+                            <div class="loading-spinner"></div>
+                            <div class="loading-text">Loading logs...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="form-btn secondary" id="logs-close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workflow Delete Confirmation Modal -->
+    <div id="workflow-delete-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content workflow-delete-modal-content">
+            <div class="modal-header">
+                <h3>Delete Workflow</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="delete-content">
+                    <div class="warning-icon">⚠️</div>
+                    <div class="delete-message">
+                        <p>Are you sure you want to delete this workflow?</p>
+                        <div id="delete-workflow-name" class="delete-workflow-name"></div>
+                        <p class="warning-text">This action cannot be undone. All schedule information will also be removed.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="form-btn secondary" id="delete-cancel">Cancel</button>
+                <button type="button" class="form-btn danger" id="delete-confirm">Delete Workflow</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VibeSurf API Key Setup Modal -->
+    <div id="vibesurf-api-key-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content composio-modal-content">
+            <div class="modal-header">
+                <h3>Setup VibeSurf API Key</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="api-key-setup-content">
+                    <div class="form-group">
+                        <label class="form-label required">VibeSurf API Key</label>
+                        <div class="api-key-field">
+                            <input type="password" id="vibesurf-api-key-input" class="form-input api-key-input"
+                                   placeholder="Enter your VibeSurf API key" required>
+                            <button type="button" class="api-key-toggle" title="Toggle visibility">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" stroke-width="2"/>
+                                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="form-help">
+                            <p>Your VibeSurf API key for accessing workflows functionality</p>
+                            <div class="help-link">
+                                <span>Get your API key from </span>
+                                <button id="open-vibesurf-link" class="link-btn">
+                                    vibe-surf.com
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M18 13V19C18 19.5304 17.7893 20.0391 17.4142 20.4142C17.0391 20.7893 16.5304 21 16 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V8C3 7.46957 3.21071 6.96086 3.58579 6.58579C3.96086 6.21071 4.46957 6 5 6H11M15 3H21M21 3V9M21 3L9 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                                <span> then login and create API key in profile</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="vibesurf-api-key-validation" class="validation-feedback hidden">
+                        <!-- Validation feedback will be shown here -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="form-btn secondary" id="vibesurf-api-key-cancel">Cancel</button>
+                <button type="button" class="form-btn primary" id="vibesurf-api-key-confirm">Verify & Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Workflow Modal -->
+    <div id="create-workflow-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content create-workflow-modal-content">
+            <div class="modal-header">
+                <h3>Create New Workflow</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="create-workflow-content">
+                    <div class="form-group">
+                        <label class="form-label required">Workflow Name</label>
+                        <input type="text" id="workflow-name-input" class="form-input"
+                               placeholder="Enter workflow name" required>
+                        <div class="form-help">Choose a descriptive name for your workflow</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Description (Optional)</label>
+                        <textarea id="workflow-description-input" class="form-textarea" rows="3"
+                                  placeholder="Enter workflow description"></textarea>
+                        <div class="form-help">Describe what this workflow will do</div>
+                    </div>
+                    
+                    <div id="create-workflow-validation" class="validation-feedback hidden">
+                        <!-- Validation feedback will be shown here -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="form-btn secondary" id="create-workflow-cancel">Cancel</button>
+                <button type="button" class="form-btn primary" id="create-workflow-confirm">
+                    <span class="btn-text">Create Workflow</span>
+                    <span class="btn-loading hidden">Creating...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Workflow Modal -->
+    <div id="import-workflow-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content import-workflow-modal-content">
+            <div class="modal-header">
+                <h3>Import Workflow</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="import-workflow-content">
+                    <div class="import-methods">
+                        <div class="import-method">
+                            <label class="import-method-label">
+                                <input type="radio" name="import-method" value="json-file" class="import-method-radio" checked>
+                                <span class="import-method-title">Import from JSON File</span>
+                            </label>
+                            <div class="import-method-description">Select a JSON file from your computer</div>
+                        </div>
+                        <div class="import-method">
+                            <label class="import-method-label">
+                                <input type="radio" name="import-method" value="json-text" class="import-method-radio">
+                                <span class="import-method-title">Import from JSON Text</span>
+                            </label>
+                            <div class="import-method-description">Paste workflow JSON directly</div>
+                        </div>
+                    </div>
+                    
+                    <!-- JSON File Import -->
+                    <div id="json-file-import" class="import-section">
+                        <div class="form-group">
+                            <label class="form-label required">Select JSON File</label>
+                            <div class="file-input-container">
+                                <input type="file" id="workflow-json-file" class="hidden" accept=".json">
+                                <button type="button" class="file-select-btn" id="select-json-file-btn">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    Choose JSON File
+                                </button>
+                                <div id="selected-file-info" class="selected-file-info hidden">
+                                    <span id="selected-file-name" class="file-name"></span>
+                                    <button type="button" id="clear-file-btn" class="clear-file-btn" title="Clear selection">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-help">Select a .json file containing the workflow configuration</div>
+                        </div>
+                    </div>
+                    
+                    <!-- JSON Text Import -->
+                    <div id="json-text-import" class="import-section hidden">
+                        <div class="form-group">
+                            <label class="form-label required">Workflow JSON</label>
+                            <textarea id="workflow-json-input" class="form-textarea import-json-textarea" rows="10"
+                                      placeholder='Paste your workflow JSON here, e.g.:
+{
+  "name": "My Workflow",
+  "description": "A sample workflow",
+  "data": {
+    "nodes": [...],
+    "edges": [...]
+  }
+}'></textarea>
+                            <div class="form-help">Paste the complete workflow JSON configuration</div>
+                        </div>
+                    </div>
+                    
+                    <div id="import-workflow-validation" class="validation-feedback hidden">
+                        <!-- Validation feedback will be shown here -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="form-btn secondary" id="import-workflow-cancel">Cancel</button>
+                <button type="button" class="form-btn primary" id="import-workflow-confirm">
+                    <span class="btn-text">Import Workflow</span>
+                    <span class="btn-loading hidden">Importing...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="loading-overlay hidden">
         <div class="loading-spinner"></div>
@@ -654,6 +1152,7 @@
     </div>
 
     <!-- Scripts -->
+    <script src="scripts/version.js"></script>
     <script src="config.js"></script>
     <script src="scripts/markdown-it.min.js"></script>
     <script src="scripts/api-client.js"></script>
@@ -662,11 +1161,17 @@
     <script src="scripts/user-settings-storage.js"></script>
     <!-- Voice Recording -->
     <script src="scripts/voice-recorder.js"></script>
+    
     <!-- Specialized UI Managers -->
     <script src="scripts/modal-manager.js"></script>
+    <script src="scripts/settings-integrations.js"></script>
+    <script src="scripts/settings-workflow.js"></script>
+    <script src="scripts/settings-general.js"></script>
+    <script src="scripts/settings-profiles.js"></script>
     <script src="scripts/settings-manager.js"></script>
     <script src="scripts/history-manager.js"></script>
     <script src="scripts/file-manager.js"></script>
+    
     <!-- Core UI Manager -->
     <script src="scripts/ui-manager.js"></script>
     <script src="scripts/main.js"></script>

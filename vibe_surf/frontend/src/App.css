@@ -1,0 +1,231 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Prevent react flow to overflow the page */
+body {
+  overflow: hidden;
+}
+
+.App {
+  text-align: center;
+}
+
+.label {
+  user-select: none;
+  -webkit-user-select: none; /* Safari */
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none;
+}
+
+.react-flow__node {
+  height: auto;
+  border-radius: auto;
+  min-width: inherit;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@font-face {
+  font-family: text-security-disc;
+  src: url("assets/text-security-disc.woff") format("woff");
+}
+
+.jv-indent {
+  border-radius: 10px;
+}
+
+.jv-indent::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 10px;
+}
+*::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: hsl(var(--muted)) !important;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border)) !important;
+  border-radius: 999px !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--placeholder-foreground)) !important;
+}
+
+.jv-indent::-webkit-scrollbar-track {
+  background-color: hsl(var(--muted)) !important;
+  border-radius: 10px;
+}
+
+.jv-indent::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border)) !important;
+  border-radius: 999px !important;
+}
+
+.jv-indent::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--placeholder-foreground)) !important;
+}
+
+.custom-hover {
+  transition: background-color 0.5s ease;
+}
+
+.custom-hover:hover {
+  background-color: rgba(99, 102, 241, 0.1); /* Medium indigo color with 20% opacity */
+}
+
+/* This CSS is to not apply the border for the column having 'no-border' class */
+.no-border.ag-cell:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+.no-border.ag-cell {
+  border: none !important;
+  outline: none !important;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--selected) !important;
+  stroke-width: 2px !important;
+}
+.react-flow__controls-button svg {
+  fill: none !important;
+}
+
+.react-flow__edge .react-flow__edge-path {
+  transition: color;
+  stroke: var(--connection) !important;
+  transition-duration: 150ms;
+  stroke-width: 2px !important;
+}
+.react-flow__connection path {
+  transition: color;
+  stroke: var(--connection) !important;
+  transition-duration: 150ms;
+  stroke-width: 2px !important;
+}
+
+.react-flow__edge.running .react-flow__edge-path {
+  stroke: hsl(var(--foreground)) !important;
+  stroke-width: 2px !important;
+}
+
+.react-flow__edge.not-running .react-flow__edge-path {
+  stroke: hsl(var(--foreground)) !important;
+  stroke-width: 1px !important;
+}
+
+.react-flow__edge.ran .react-flow__edge-path {
+  stroke: hsl(var(--foreground)) !important;
+  stroke-width: 2px !important;
+}
+
+.ag-react-container {
+  width: 100%;
+  height: 100%;
+}
+
+.react-flow__resize-control.handle {
+  width: 0.75rem !important;
+  height: 0.75rem !important;
+  background-color: white !important;
+  border-color: var(--border) !important;
+  z-index: 50 !important;
+  border-radius: 20% !important;
+}
+
+code {
+  font-family: var(--font-mono) s !important;
+}
+
+.ag-cell {
+  --ag-internal-calculated-line-height: none !important;
+}
+
+.ag-cell-wrapper > *:not(.ag-cell-value):not(.ag-group-value) {
+  --ag-internal-calculated-line-height: none !important;
+}
+
+.arrow-hide::-webkit-inner-spin-button,
+.arrow-hide::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.ag-large-text-input.ag-text-area.ag-input-field {
+  background-color: hsl(var(--background)) !important;
+}
+
+.ag-large-text-input.ag-text-area.ag-input-field textarea {
+  resize: none !important;
+  height: 100% !important;
+}
+
+.cell-disable-edit {
+  cursor: not-allowed;
+}
+
+.cell-disable-edit.ag-cell-focus {
+  outline: none !important;
+  border: 0px !important;
+  box-shadow: none !important;
+  border-radius: 0px !important;
+}
+
+.cm-gutters {
+  display: none !important;
+}
+
+.user-select-none {
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Sidebar segmented layout utility */
+.sidebar-segmented {
+  max-width: calc(var(--sidebar-width) - (var(--sidebar-width-icon) + 0.1rem));
+  width: var(--sidebar-width);
+}

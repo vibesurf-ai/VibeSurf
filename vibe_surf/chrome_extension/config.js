@@ -31,7 +31,7 @@ const VIBESURF_CONFIG = {
   // Social media links
   SOCIAL_LINKS: {
     github: "https://github.com/vibesurf-ai/VibeSurf",
-    discord: "https://discord.gg/EZ2YnUXP",
+    discord: "https://discord.gg/86SPfhRVbk",
     x: "https://x.com/warmshao",
     reportBug: "https://github.com/vibesurf-ai/VibeSurf/issues/new/choose",
     website: "https://vibe-surf.com/"
@@ -41,7 +41,7 @@ const VIBESURF_CONFIG = {
   DEBUG: false
 };
 
-// Export configuration for use in other files
+// Make config available globally for Chrome extension
 if (typeof window !== 'undefined') {
   window.VIBESURF_CONFIG = VIBESURF_CONFIG;
 }

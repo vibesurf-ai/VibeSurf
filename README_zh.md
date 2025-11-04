@@ -52,6 +52,13 @@ uv pip install vibesurf -U
 uv run vibesurf
 ```
 
+**注意**：从 Chrome 142 开始，不再支持 `--load-extension` 标志，这意味着 VibeSurf 无法自动加载扩展。如果启动 VibeSurf 后找不到 VibeSurf 扩展，请从[这里](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip)手动下载并按照以下步骤操作：
+
+- 解压下载的 zip 文件
+- 打开 chrome://extensions
+- 启用开发者模式
+- 点击"加载已解压的扩展程序"并选择解压后的文件夹
+
 ### 4. 开始使用
 
 <video src="https://github.com/user-attachments/assets/86dba2e4-3f33-4ccf-b400-d07cf1a481a0" controls="controls">Your browser does not support playing this video!</video>
@@ -82,7 +89,25 @@ uv venv --python 3.12
 uv pip install -e .
 ```
 
-### 3. 开始调试
+### 3. 构建前端（可选）
+如果您正在进行前端更改，需要构建前端并将其复制到后端目录：
+
+```bash
+# 导航到前端目录
+cd vibe_surf/frontend
+
+# 安装前端依赖
+npm ci
+
+# 构建前端
+npm run build
+
+# 将构建输出复制到后端目录
+mkdir -p ../backend/frontend
+cp -r build/* ../backend/frontend/
+```
+
+### 4. 开始调试
 **选项 1：直接服务器**
 ```bash
 uvicorn vibe_surf.backend.main:app --host 127.0.0.1 --port 9335
@@ -103,7 +128,7 @@ uv run vibesurf
 - [x] **第三方集成** - *已完成*
   通过 Composio 集成连接数百种常用工具，包括 Gmail、Notion、Google Calendar、Slack、Trello、GitHub 等，将浏览与强大的自动化功能相结合
 
-- [ ] **智能浏览器工作流** - *进行中*
+- [x] **智能浏览器工作流** - *已完成*
   创建自定义拖拽式和对话式工作流，用于自动登录、数据收集和复杂的浏览器自动化任务
 
 - [ ] **强大的编码代理** - *进行中*
@@ -130,5 +155,6 @@ VibeSurf 建立在其他优秀的开源项目之上：
 
 - [Browser Use](https://github.com/browser-use/browser-use)
 - [LangGraph](https://github.com/langchain-ai/langgraph)
+- [Langflow](https://github.com/langflow-ai/langflow)
 
 非常感谢他们的创作者和贡献者！

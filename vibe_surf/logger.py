@@ -71,9 +71,9 @@ def setup_logger(name: str = "vibesurf") -> logging.Logger:
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
         
-        logger.info(f"Logger initialized. Log level: {logging.getLevelName(log_level)}")
-        logger.info(f"WorkSpace directory: {workspace_dir}")
-        logger.info(f"Log file: {log_filepath}")
+        # logger.info(f"Logger initialized. Log level: {logging.getLevelName(log_level)}")
+        # logger.info(f"WorkSpace directory: {workspace_dir}")
+        # logger.info(f"Log file: {log_filepath}")
         
     except Exception as e:
         logger.error(f"Failed to setup file logging: {e}")

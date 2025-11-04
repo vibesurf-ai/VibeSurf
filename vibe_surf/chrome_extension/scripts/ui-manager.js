@@ -18,13 +18,13 @@ class VibeSurfUIManager {
     this.fileManager = null;
     this.modalManager = null;
     this.voiceRecorder = null;
-    
+
     // Initialize user settings storage
     this.userSettingsStorage = null;
-    
+
     // Track if we're currently restoring selections to prevent override
     this.isRestoringSelections = false;
-    
+
     this.bindElements();
     this.initializeTabSelector(); // Initialize tab selector before binding events
     this.initializeSkillSelector(); // Initialize skill selector
@@ -39,40 +39,41 @@ class VibeSurfUIManager {
     this.elements = {
       // Header elements
       newSessionBtn: document.getElementById('new-session-btn'),
+      upgradeBtn: document.getElementById('upgrade-btn'),
       historyBtn: document.getElementById('history-btn'),
       settingsBtn: document.getElementById('settings-btn'),
-      
+
       // Session info
       sessionId: document.getElementById('session-id'),
       copySessionBtn: document.getElementById('copy-session-btn'),
-      
+
       // Activity area
       activityLog: document.getElementById('activity-log'),
-      
+
       // Control panel
       controlPanel: document.getElementById('control-panel'),
       cancelBtn: document.getElementById('cancel-btn'),
       resumeBtn: document.getElementById('resume-btn'),
       terminateBtn: document.getElementById('terminate-btn'),
-      
+
       // Input area
       llmProfileSelect: document.getElementById('llm-profile-select'),
       agentModeSelect: document.getElementById('agent-mode-select'),
       taskInput: document.getElementById('task-input'),
       sendBtn: document.getElementById('send-btn'),
       voiceRecordBtn: document.getElementById('voice-record-btn'),
-      
+
       // Tab selector elements
       tabSelectorDropdown: document.getElementById('tab-selector-dropdown'),
       tabSelectorCancel: document.getElementById('tab-selector-cancel'),
       tabSelectorConfirm: document.getElementById('tab-selector-confirm'),
       selectAllTabs: document.getElementById('select-all-tabs'),
       tabOptionsList: document.getElementById('tab-options-list'),
-      
+
       // Skill selector elements
       skillSelectorDropdown: document.getElementById('skill-selector-dropdown'),
       skillOptionsList: document.getElementById('skill-options-list'),
-      
+
       // Loading
       loadingOverlay: document.getElementById('loading-overlay')
     };
@@ -90,23 +91,23 @@ class VibeSurfUIManager {
     try {
       // Initialize modal manager first (others may depend on it)
       this.modalManager = new VibeSurfModalManager();
-      
+
       // Initialize user settings storage
       this.userSettingsStorage = new VibeSurfUserSettingsStorage();
-      
+
       // Initialize voice recorder
       this.voiceRecorder = new VibeSurfVoiceRecorder(this.apiClient);
       this.setupVoiceRecorderCallbacks();
-      
+
       // Initialize other managers
       this.settingsManager = new VibeSurfSettingsManager(this.apiClient);
       this.historyManager = new VibeSurfHistoryManager(this.apiClient);
       this.fileManager = new VibeSurfFileManager(this.sessionManager);
-      
+
       // Set up inter-manager communication
       this.setupManagerEvents();
-      
-      
+
+
     } catch (error) {
       console.error('[UIManager] Failed to initialize managers:', error);
       this.showNotification('Failed to initialize UI components', 'error');
@@ -121,15 +122,15 @@ class VibeSurfUIManager {
       if (!this.isRestoringSelections) {
         this.updateLLMProfileSelect();
       }
-      
+
       // Also update voice button state when profiles are updated (ASR profiles might have changed)
       this.updateVoiceButtonState();
     });
-    
+
     this.settingsManager.on('notification', (data) => {
       this.showNotification(data.message, data.type);
     });
-    
+
     this.settingsManager.on('loading', (data) => {
       if (data.hide) {
         this.hideLoading();
@@ -137,12 +138,12 @@ class VibeSurfUIManager {
         this.showLoading(data.message);
       }
     });
-    
+
     this.settingsManager.on('error', (data) => {
       console.error('[UIManager] Settings error:', data.error);
       this.showNotification(data.message || 'Settings error occurred', 'error');
     });
-    
+
     this.settingsManager.on('confirmDeletion', (data) => {
       this.modalManager.showConfirmModal(
         'Delete Profile',
@@ -157,12 +158,12 @@ class VibeSurfUIManager {
         }
       );
     });
-    
+
     this.settingsManager.on('selectNewDefault', (data) => {
       const options = data.otherProfiles.map(profile =>
         `<option value="${profile.profile_name}">${profile.profile_name}</option>`
       ).join('');
-      
+
       const modalData = this.modalManager.createModal(`
         <div class="select-default-modal">
           <p>You are deleting the default LLM profile. Please select a new default profile:</p>
@@ -177,11 +178,11 @@ class VibeSurfUIManager {
       `, {
         title: 'Select New Default Profile'
       });
-      
+
       const select = document.getElementById('new-default-select');
       const confirmBtn = modalData.modal.querySelector('.confirm-btn');
       const cancelBtn = modalData.modal.querySelector('.cancel-btn');
-      
+
       confirmBtn.addEventListener('click', () => {
         const newDefaultId = select.value;
         if (newDefaultId && data.callback) {
@@ -189,17 +190,17 @@ class VibeSurfUIManager {
         }
         modalData.close();
       });
-      
+
       cancelBtn.addEventListener('click', () => {
         modalData.close();
       });
     });
-    
+
     // History Manager Events
     this.historyManager.on('loadSession', (data) => {
       this.loadSession(data.sessionId);
     });
-    
+
     this.historyManager.on('loading', (data) => {
       if (data.hide) {
         this.hideLoading();
@@ -207,16 +208,16 @@ class VibeSurfUIManager {
         this.showLoading(data.message);
       }
     });
-    
+
     this.historyManager.on('notification', (data) => {
       this.showNotification(data.message, data.type);
     });
-    
+
     this.historyManager.on('error', (data) => {
       console.error('[UIManager] History error:', data.error);
       this.showNotification(data.message || 'History error occurred', 'error');
     });
-    
+
     // File Manager Events
     this.fileManager.on('loading', (data) => {
       if (data.hide) {
@@ -225,16 +226,16 @@ class VibeSurfUIManager {
         this.showLoading(data.message);
       }
     });
-    
+
     this.fileManager.on('notification', (data) => {
       this.showNotification(data.message, data.type);
     });
-    
+
     this.fileManager.on('error', (data) => {
       console.error('[UIManager] File error:', data.error);
       this.showNotification(data.message || 'File error occurred', 'error');
     });
-    
+
     // Modal Manager Events (if needed for future extensions)
     this.modalManager.on('modalClosed', (data) => {
       // Handle modal close events if needed
@@ -277,7 +278,7 @@ class VibeSurfUIManager {
         this.elements.voiceRecordBtn.classList.remove('recording');
         this.elements.voiceRecordBtn.setAttribute('title', 'Voice Input');
         this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Click to start voice recording');
-        
+
         // Clear duration display
         this.updateRecordingDuration('0:00', 0);
       }
@@ -289,7 +290,7 @@ class VibeSurfUIManager {
     if (this.elements.voiceRecordBtn) {
       // Update the tooltip with duration
       this.elements.voiceRecordBtn.setAttribute('data-tooltip', `Recording... ${formattedDuration} - Click to stop`);
-      
+
       // Create or update duration display element
       let durationElement = this.elements.voiceRecordBtn.querySelector('.recording-duration');
       if (!durationElement) {
@@ -297,7 +298,7 @@ class VibeSurfUIManager {
         durationElement.className = 'recording-duration';
         this.elements.voiceRecordBtn.appendChild(durationElement);
       }
-      
+
       durationElement.textContent = formattedDuration;
     }
   }
@@ -312,29 +313,29 @@ class VibeSurfUIManager {
     // Insert transcribed text into the input field
     const currentValue = this.elements.taskInput.value;
     const cursorPosition = this.elements.taskInput.selectionStart;
-    
+
     // Insert at cursor position or append to end
     const beforeCursor = currentValue.substring(0, cursorPosition);
     const afterCursor = currentValue.substring(cursorPosition);
     const newValue = beforeCursor + transcribedText + afterCursor;
-    
+
     this.elements.taskInput.value = newValue;
-    
+
     // Trigger input change event for validation and auto-resize
     this.handleTaskInputChange({ target: this.elements.taskInput });
-    
+
     // Set cursor position after the inserted text
     const newCursorPosition = cursorPosition + transcribedText.length;
     this.elements.taskInput.setSelectionRange(newCursorPosition, newCursorPosition);
     this.elements.taskInput.focus();
-    
+
     this.showNotification('Voice transcription completed', 'success');
   }
 
   // Handle transcription errors
   handleTranscriptionError(errorMessage, errorType) {
     let userMessage = 'Voice transcription failed';
-    
+
     if (errorType === 'recording') {
       userMessage = `Recording failed: ${errorMessage}`;
     } else if (errorType === 'transcription') {
@@ -344,45 +345,46 @@ class VibeSurfUIManager {
         userMessage = `Transcription failed: ${errorMessage}`;
       }
     }
-    
+
     this.showNotification(userMessage, 'error');
   }
 
   bindEvents() {
     // Header buttons
     this.elements.newSessionBtn?.addEventListener('click', this.handleNewSession.bind(this));
+    this.elements.upgradeBtn?.addEventListener('click', this.handleUpgrade.bind(this));
     this.elements.historyBtn?.addEventListener('click', this.handleShowHistory.bind(this));
     this.elements.settingsBtn?.addEventListener('click', this.handleShowSettings.bind(this));
-    
+
     // Session controls
     this.elements.copySessionBtn?.addEventListener('click', this.handleCopySession.bind(this));
-    
+
     // Task controls
     this.elements.cancelBtn?.addEventListener('click', this.handleCancelTask.bind(this));
     this.elements.resumeBtn?.addEventListener('click', this.handleResumeTask.bind(this));
     this.elements.terminateBtn?.addEventListener('click', this.handleTerminateTask.bind(this));
-    
+
     // Input handling
     this.elements.sendBtn?.addEventListener('click', this.handleSendTask.bind(this));
     this.elements.voiceRecordBtn?.addEventListener('click', this.handleVoiceRecord.bind(this));
-    
+
     // Task input handling
     this.elements.taskInput?.addEventListener('keydown', this.handleTaskInputKeydown.bind(this));
     this.elements.taskInput?.addEventListener('input', this.handleTaskInputChange.bind(this));
-    
+
     // LLM profile selection handling
     this.elements.llmProfileSelect?.addEventListener('change', this.handleLlmProfileChange.bind(this));
-    
+
     // Agent mode selection handling
     this.elements.agentModeSelect?.addEventListener('change', this.handleAgentModeChange.bind(this));
-    
+
     // Initialize auto-resize for textarea
     if (this.elements.taskInput) {
       this.autoResizeTextarea(this.elements.taskInput);
       // Set initial send button state
       this.handleTaskInputChange({ target: this.elements.taskInput });
     }
-    
+
     // Bind initial task suggestions if present
     this.bindTaskSuggestionEvents();
   }
@@ -401,7 +403,7 @@ class VibeSurfUIManager {
     this.sessionManager.on('pollingStopped', this.handlePollingStopped.bind(this));
     this.sessionManager.on('sessionError', this.handleSessionError.bind(this));
     this.sessionManager.on('taskError', this.handleTaskError.bind(this));
-    
+
     // Start periodic task status check
     this.startTaskStatusMonitoring();
   }
@@ -417,11 +419,11 @@ class VibeSurfUIManager {
   handleSessionLoaded(data) {
     // Update session display
     this.updateSessionDisplay(data.sessionId);
-    
+
     // Load and display activity logs
     const activityLogs = this.sessionManager.getActivityLogs();
     this.displayActivityLogs(activityLogs);
-    
+
     // Update control panel
     const taskStatus = this.sessionManager.getTaskStatus();
     if (taskStatus) {
@@ -430,7 +432,7 @@ class VibeSurfUIManager {
   }
 
   handleTaskSubmitted(data) {
-    
+
     this.updateControlPanel('running');
     this.clearTaskInput();
   }
@@ -455,26 +457,26 @@ class VibeSurfUIManager {
   }
 
   handleTaskCompleted(data) {
-    
-    
+
+
     const message = data.status === 'done' ? 'Task completed successfully!' : 'Task completed with errors';
     const type = data.status === 'done' ? 'success' : 'error';
-    
+
     // Check if we need to respect minimum visibility period
     if (this.controlPanelMinVisibilityActive) {
-      
+
       const remainingTime = 1000;
       setTimeout(() => {
-        
+
         this.updateControlPanel('ready');
       }, remainingTime);
     } else {
-      
+
       this.updateControlPanel('ready');
     }
-    
+
     this.showNotification(message, type);
-    
+
     // Clear uploaded files when task is completed
     this.fileManager.clearUploadedFiles();
   }
@@ -499,17 +501,17 @@ class VibeSurfUIManager {
 
   handleTaskError(data) {
     console.error('[UIManager] Task error:', data.error);
-    
-    
+
+
     // Check if this is an LLM connection failure
     if (data.error && typeof data.error === 'object' && data.error.error === 'llm_connection_failed') {
-      
+
       // Show LLM connection failed modal instead of generic notification
       this.showLLMConnectionFailedModal(data.error);
       this.updateControlPanel('ready'); // Reset UI since task failed to start
       return;
     } else if (data.error && typeof data.error === 'string' && data.error.includes('llm_connection_failed')) {
-      
+
       // Handle case where error is a string containing the error type
       this.showLLMConnectionFailedModal({
         message: data.error,
@@ -518,20 +520,20 @@ class VibeSurfUIManager {
       this.updateControlPanel('ready'); // Reset UI since task failed to start
       return;
     }
-    
+
     // Default error handling for other types of errors
     this.showNotification(`Task error: ${data.error}`, 'error');
-    
+
     this.updateControlPanel('error');
-    
+
     // Optional: Verify task status after a delay
     setTimeout(() => {
       this.checkTaskStatus().then(status => {
         if (!status.isRunning) {
-          
+
           this.updateControlPanel('ready');
         } else {
-          
+
         }
       }).catch(err => {
         console.warn('[UIManager] Could not verify task status after error:', err);
@@ -544,15 +546,15 @@ class VibeSurfUIManager {
     try {
       const statusCheck = await this.apiClient.checkTaskRunning();
       const wasRunning = this.state.isTaskRunning;
-      
+
       this.state.isTaskRunning = statusCheck.isRunning;
       this.state.taskInfo = statusCheck.taskInfo;
-      
+
       // Update UI state when task status changes
       if (wasRunning !== statusCheck.isRunning) {
         this.updateUIForTaskStatus(statusCheck.isRunning);
       }
-      
+
       return statusCheck;
     } catch (error) {
       console.error('[UIManager] Failed to check task status:', error);
@@ -577,7 +579,7 @@ class VibeSurfUIManager {
   updateUIForTaskStatus(isRunning) {
     const taskStatus = this.sessionManager.getTaskStatus();
     const isPaused = taskStatus === 'paused';
-    
+
     // Disable/enable input elements based on task status
     if (this.elements.taskInput) {
       // Allow input when paused or not running
@@ -590,22 +592,22 @@ class VibeSurfUIManager {
         this.elements.taskInput.placeholder = 'Ask anything (/ for skills, @ to specify tab)';
       }
     }
-    
+
     if (this.elements.sendBtn) {
       // Enable send button when paused or when can submit new task
       this.elements.sendBtn.disabled = (isRunning && !isPaused) || (!isPaused && !this.canSubmitTask()) || (isPaused && !this.canAddNewTask());
     }
-    
+
     if (this.elements.llmProfileSelect) {
       // Allow LLM profile change only when not running
       this.elements.llmProfileSelect.disabled = isRunning && !isPaused;
     }
-    
+
     if (this.elements.agentModeSelect) {
       // Allow agent mode change only when not running
       this.elements.agentModeSelect.disabled = isRunning && !isPaused;
     }
-    
+
     // Update voice record button state - disable during task execution unless paused
     if (this.elements.voiceRecordBtn) {
       const shouldDisableVoice = isRunning && !isPaused;
@@ -622,17 +624,17 @@ class VibeSurfUIManager {
         }
       }
     }
-    
+
     // Update file manager state - keep disabled during pause (as per requirement)
     this.fileManager.setEnabled(!isRunning);
-    
+
     // Also disable header buttons when task is running (but not when paused)
     const headerButtons = [
       this.elements.newSessionBtn,
       this.elements.historyBtn,
       this.elements.settingsBtn
     ];
-    
+
     headerButtons.forEach(button => {
       if (button) {
         const shouldDisable = isRunning && !isPaused;
@@ -649,45 +651,45 @@ class VibeSurfUIManager {
   }
 
   forceUpdateUIForPausedState() {
-    
+
     // Enable input during pause
     if (this.elements.taskInput) {
       this.elements.taskInput.disabled = false;
       this.elements.taskInput.placeholder = 'Add additional information or guidance...';
     }
-    
+
     if (this.elements.sendBtn) {
       const hasText = this.elements.taskInput?.value.trim().length > 0;
       this.elements.sendBtn.disabled = !hasText;
     }
-    
+
     // Enable voice record button during pause
     if (this.elements.voiceRecordBtn) {
       this.elements.voiceRecordBtn.disabled = false;
       this.elements.voiceRecordBtn.classList.remove('task-running-disabled');
       this.elements.voiceRecordBtn.setAttribute('title', 'Click to start voice recording');
     }
-    
+
     // Keep LLM profile disabled during pause (user doesn't need to change it)
     if (this.elements.llmProfileSelect) {
       this.elements.llmProfileSelect.disabled = true;
     }
-    
+
     // Keep agent mode disabled during pause (user doesn't need to change it)
     if (this.elements.agentModeSelect) {
       this.elements.agentModeSelect.disabled = true;
     }
-    
+
     // Keep file manager disabled during pause
     this.fileManager.setEnabled(false);
-    
+
     // Keep header buttons disabled during pause (only input, send, and voice should be available)
     const headerButtons = [
       this.elements.newSessionBtn,
       this.elements.historyBtn,
       this.elements.settingsBtn
     ];
-    
+
     headerButtons.forEach(button => {
       if (button) {
         button.disabled = true;
@@ -698,43 +700,43 @@ class VibeSurfUIManager {
   }
 
   forceUpdateUIForRunningState() {
-    
-    
+
+
     // Disable input during running
     if (this.elements.taskInput) {
       this.elements.taskInput.disabled = true;
       this.elements.taskInput.placeholder = 'Task is running - please wait...';
     }
-    
+
     if (this.elements.sendBtn) {
       this.elements.sendBtn.disabled = true;
     }
-    
+
     if (this.elements.llmProfileSelect) {
       this.elements.llmProfileSelect.disabled = true;
     }
-    
+
     if (this.elements.agentModeSelect) {
       this.elements.agentModeSelect.disabled = true;
     }
-    
+
     // Disable voice record button during running
     if (this.elements.voiceRecordBtn) {
       this.elements.voiceRecordBtn.disabled = true;
       this.elements.voiceRecordBtn.classList.add('task-running-disabled');
       this.elements.voiceRecordBtn.setAttribute('title', 'Voice input disabled while task is running');
     }
-    
+
     // Update file manager state
     this.fileManager.setEnabled(false);
-    
+
     // Disable header buttons when task is running
     const headerButtons = [
       this.elements.newSessionBtn,
       this.elements.historyBtn,
       this.elements.settingsBtn
     ];
-    
+
     headerButtons.forEach(button => {
       if (button) {
         button.disabled = true;
@@ -760,7 +762,7 @@ class VibeSurfUIManager {
     const taskInfo = this.state.taskInfo;
     const taskId = taskInfo?.task_id || 'unknown';
     const sessionId = taskInfo?.session_id || 'unknown';
-    
+
     return this.modalManager.showConfirmModalAsync(
       'Task Currently Running',
       `A task is currently ${taskInfo?.status || 'running'}. You must stop the current task before you can ${action}.`,
@@ -789,12 +791,12 @@ class VibeSurfUIManager {
       const canProceed = await this.showTaskRunningWarning('create a new session');
       if (!canProceed) return;
     }
-    
+
     try {
       this.showLoading('Creating new session...');
-      
+
       const sessionId = await this.sessionManager.createSession();
-      
+
       this.hideLoading();
     } catch (error) {
       this.hideLoading();
@@ -809,7 +811,7 @@ class VibeSurfUIManager {
       const canProceed = await this.showTaskRunningWarning('view session history');
       if (!canProceed) return;
     }
-    
+
     this.historyManager.showHistory();
   }
 
@@ -820,7 +822,7 @@ class VibeSurfUIManager {
       const canProceed = await this.showTaskRunningWarning('access settings');
       if (!canProceed) return;
     }
-    
+
     this.settingsManager.showSettings();
   }
 
@@ -831,10 +833,10 @@ class VibeSurfUIManager {
       const canProceed = await this.showTaskRunningWarning('access settings');
       if (!canProceed) return;
     }
-    
+
     // Show settings and navigate directly to LLM profiles tab
     this.settingsManager.showSettings();
-    
+
     // Switch to LLM profiles tab after settings are shown
     setTimeout(() => {
       const llmTab = document.querySelector('.settings-tab[data-tab="llm-profiles"]');
@@ -846,18 +848,59 @@ class VibeSurfUIManager {
 
   async handleCopySession() {
     const sessionId = this.sessionManager.getCurrentSessionId();
-    
+
     if (!sessionId) {
       this.showNotification('No active session to copy', 'warning');
       return;
     }
-    
+
     try {
       await navigator.clipboard.writeText(sessionId);
       this.showNotification('Session ID copied to clipboard!', 'success');
     } catch (error) {
       console.error('[UIManager] Failed to copy session ID:', error);
       this.showNotification('Failed to copy session ID', 'error');
+    }
+  }
+
+  // Upgrade Handler
+  async handleUpgrade() {
+    try {
+      console.log('[UIManager] Starting extension upgrade...');
+      
+      // Download the latest extension zip from GitHub releases
+      const downloadUrl = 'https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip';
+      
+      // Open download URL in new tab
+      const downloadResult = await chrome.runtime.sendMessage({
+        type: 'OPEN_FILE_URL',
+        data: { fileUrl: downloadUrl }
+      });
+      
+      if (!downloadResult || !downloadResult.success) {
+        throw new Error(downloadResult?.error || 'Failed to open download URL');
+      }
+      
+      console.log('[UIManager] Successfully opened download tab:', downloadResult.tabId);
+      
+      // Also open chrome://extensions in a new tab
+      const extensionsResult = await chrome.runtime.sendMessage({
+        type: 'OPEN_FILE_URL',
+        data: { fileUrl: 'chrome://extensions' }
+      });
+      
+      if (!extensionsResult || !extensionsResult.success) {
+        console.warn('[UIManager] Failed to open chrome://extensions:', extensionsResult?.error);
+        // Don't throw error here as download was successful
+      } else {
+        console.log('[UIManager] Successfully opened chrome://extensions tab:', extensionsResult.tabId);
+      }
+      
+      this.showNotification('Extension download started and chrome://extensions opened. Please follow the installation instructions.', 'info');
+      
+    } catch (error) {
+      console.error('[UIManager] Upgrade failed:', error);
+      this.showNotification(`Failed to start upgrade: ${error.message}`, 'error');
     }
   }
 
@@ -880,12 +923,12 @@ class VibeSurfUIManager {
     // Enhanced task status check - disable recording during task execution unless paused
     const taskStatus = this.sessionManager.getTaskStatus();
     const isTaskRunning = this.state.isTaskRunning;
-    
+
     if (isTaskRunning && taskStatus !== 'paused') {
       this.showNotification('Cannot record voice while task is running. Stop the current task or wait for it to complete.', 'warning');
       return;
     }
-    
+
     // Additional check: if task is paused, allow voice input but show info message
     if (isTaskRunning && taskStatus === 'paused') {
       console.log('[UIManager] Task is paused, allowing voice input');
@@ -906,15 +949,15 @@ class VibeSurfUIManager {
       } else {
         // Start recording
         console.log('[UIManager] Starting voice recording');
-        
+
         // Request microphone permission first
         try {
           // For Chrome extensions, ensure we have proper user gesture context
           console.log('[UIManager] Requesting microphone permission with user gesture context');
-          
+
           // Add a small delay to ensure user gesture is properly registered
           await new Promise(resolve => setTimeout(resolve, 100));
-          
+
           const hasPermission = await this.voiceRecorder.requestMicrophonePermission();
           if (!hasPermission) {
             this.showNotification('Microphone permission denied. Please allow microphone access to use voice input.', 'error');
@@ -922,11 +965,11 @@ class VibeSurfUIManager {
           }
         } catch (permissionError) {
           console.error('[UIManager] Microphone permission error:', permissionError);
-          
+
           // Handle different types of permission errors with detailed guidance
           let errorMessage = 'Microphone permission denied';
           let detailedHelp = '';
-          
+
           if (permissionError.name === 'MicrophonePermissionError') {
             errorMessage = permissionError.message;
             if (permissionError.userAction) {
@@ -939,11 +982,11 @@ class VibeSurfUIManager {
             errorMessage = `Microphone access error: ${permissionError.message}`;
             detailedHelp = 'Please ensure your browser allows microphone access and that a microphone is connected.';
           }
-          
+
           // Show detailed error message
           const fullMessage = detailedHelp ? `${errorMessage}\n\n${detailedHelp}` : errorMessage;
           this.showNotification(fullMessage, 'error');
-          
+
           // Also log detailed error for debugging
           console.error('[UIManager] Detailed microphone permission error:', {
             name: permissionError.name,
@@ -951,7 +994,7 @@ class VibeSurfUIManager {
             userAction: permissionError.userAction,
             originalError: permissionError.originalError
           });
-          
+
           this.updateVoiceRecordingUI(false);
           return;
         }
@@ -968,7 +1011,7 @@ class VibeSurfUIManager {
 
   async handleSendTask() {
     const taskDescription = this.elements.taskInput?.value.trim();
-    
+
     if (!taskDescription) {
       this.showNotification('Please enter a task description', 'warning');
       this.elements.taskInput?.focus();
@@ -984,20 +1027,20 @@ class VibeSurfUIManager {
 
       if (isPaused) {
         // Handle adding new task to paused execution
-        
+
         await this.sessionManager.addNewTaskToPaused(taskDescription);
-        
+
         // Clear the input after successful addition
         this.clearTaskInput();
         this.showNotification('Additional information added to the task', 'success');
-        
+
         // Automatically resume the task after adding new information
-        
+
         await this.sessionManager.resumeTask('Auto-resume after adding new task information');
-        
+
         return;
       }
-      
+
       // For non-paused states, check if any task is running
       const statusCheck = await this.checkTaskStatus();
       if (statusCheck.isRunning) {
@@ -1007,9 +1050,9 @@ class VibeSurfUIManager {
           return;
         }
       }
-      
+
       const llmProfile = this.elements.llmProfileSelect?.value;
-      
+
       // Check if LLM profile is selected
       if (!llmProfile || llmProfile.trim() === '') {
         // Check if there are any LLM profiles available
@@ -1023,38 +1066,38 @@ class VibeSurfUIManager {
         }
         return;
       }
-      
+
       // Immediately clear welcome message and show user request
       this.clearWelcomeMessage();
-      
+
       const taskData = {
         task_description: taskDescription,
         llm_profile_name: llmProfile,
         agent_mode: this.elements.agentModeSelect?.value || 'thinking'
       };
-      
+
       // Add uploaded files path if any
       const filePath = this.fileManager.getUploadedFilesForTask();
       if (filePath) {
         taskData.upload_files_path = filePath;
-        
+
       }
-      
+
       // Add selected tabs information if any
       const selectedTabsData = this.getSelectedTabsForTask();
       if (selectedTabsData) {
         taskData.selected_tabs = selectedTabsData;
       }
-      
+
       // Add selected skills information if any
       const selectedSkillsData = this.getSelectedSkillsForTask();
       if (selectedSkillsData) {
         taskData.selected_skills = selectedSkillsData;
       }
-      
-      
+
+
       await this.sessionManager.submitTask(taskData);
-      
+
       // Clear uploaded files after successful task submission
       this.fileManager.clearUploadedFiles();
     } catch (error) {
@@ -1090,9 +1133,9 @@ class VibeSurfUIManager {
       if (wasMonitoring) {
         this.stopTaskStatusMonitoring();
       }
-      
+
       await this.sessionManager.stopTask('User clicked terminate');
-      
+
       // Restart monitoring after a brief delay if it was running
       if (wasMonitoring) {
         setTimeout(() => {
@@ -1113,7 +1156,7 @@ class VibeSurfUIManager {
       this.handleSendTask();
       return;
     }
-    
+
     // Handle tab token deletion
     if (event.key === 'Backspace' || event.key === 'Delete') {
       if (this.handleTabTokenDeletion(event)) {
@@ -1140,14 +1183,14 @@ class VibeSurfUIManager {
     const input = event.target;
     const cursorPos = input.selectionStart;
     const text = input.value;
-    
+
     // Unicode markers for tab tokens
     const startMarker = '\u200B'; // Zero-width space
     const endMarker = '\u200C';   // Zero-width non-joiner
-    
+
     let tokenStart = -1;
     let tokenEnd = -1;
-    
+
     if (event.key === 'Backspace') {
       // Only delete if cursor is directly adjacent to end of token
       // Check if the character immediately before cursor is an endMarker
@@ -1175,20 +1218,20 @@ class VibeSurfUIManager {
         }
       }
     }
-    
+
     // If we found a complete token, delete it
     if (tokenStart !== -1 && tokenEnd !== -1) {
       const beforeToken = text.substring(0, tokenStart);
       const afterToken = text.substring(tokenEnd);
       input.value = beforeToken + afterToken;
       input.setSelectionRange(tokenStart, tokenStart);
-      
+
       // Trigger input change event for validation
       this.handleTaskInputChange({ target: input });
-      
+
       return true; // Prevent default behavior
     }
-    
+
     return false; // Allow default behavior
   }
 
@@ -1196,14 +1239,14 @@ class VibeSurfUIManager {
     const input = event.target;
     const cursorPos = input.selectionStart;
     const text = input.value;
-    
+
     // Unicode markers for skill tokens
     const startMarker = '\u200D'; // Zero-width joiner
     const endMarker = '\u200E';   // Left-to-right mark
-    
+
     let tokenStart = -1;
     let tokenEnd = -1;
-    
+
     if (event.key === 'Backspace') {
       // Only delete if cursor is directly adjacent to end of token
       if (cursorPos > 0 && text[cursorPos - 1] === endMarker) {
@@ -1229,49 +1272,49 @@ class VibeSurfUIManager {
         }
       }
     }
-    
+
     // If we found a complete token, delete it
     if (tokenStart !== -1 && tokenEnd !== -1) {
       const beforeToken = text.substring(0, tokenStart);
       const afterToken = text.substring(tokenEnd);
       input.value = beforeToken + afterToken;
       input.setSelectionRange(tokenStart, tokenStart);
-      
+
       // Trigger input change event for validation
       this.handleTaskInputChange({ target: input });
-      
+
       return true; // Prevent default behavior
     }
-    
+
     return false; // Allow default behavior
   }
 
   async handleLlmProfileChange(event) {
     const selectedProfile = event.target.value;
-    
-    
-    
+
+
+
     try {
       // Save the selected LLM profile to user settings storage
       if (this.userSettingsStorage) {
-        
+
         await this.userSettingsStorage.setSelectedLlmProfile(selectedProfile);
-        
-        
+
+
         // Verify the save
         const verified = await this.userSettingsStorage.getSelectedLlmProfile();
-        
-        
+
+
         // Also save to localStorage as backup for browser restart scenarios
         localStorage.setItem('vibesurf-llm-profile-backup', selectedProfile);
-        
+
       } else {
         console.warn('[UIManager] userSettingsStorage not available for LLM profile save');
       }
     } catch (error) {
       console.error('[UIManager] Failed to save LLM profile selection:', error);
     }
-    
+
     // Re-validate send button state when LLM profile changes
     if (this.elements.taskInput) {
       this.handleTaskInputChange({ target: this.elements.taskInput });
@@ -1280,30 +1323,30 @@ class VibeSurfUIManager {
 
   async handleAgentModeChange(event) {
     const selectedMode = event.target.value;
-    
-    
-    
+
+
+
     try {
       // Save the selected agent mode to user settings storage
       if (this.userSettingsStorage) {
-        
+
         await this.userSettingsStorage.setSelectedAgentMode(selectedMode);
-        
-        
+
+
         // Verify the save
         const verified = await this.userSettingsStorage.getSelectedAgentMode();
-        
-        
+
+
         // Also save to localStorage as backup for browser restart scenarios
         localStorage.setItem('vibesurf-agent-mode-backup', selectedMode);
-        
+
       } else {
         console.warn('[UIManager] userSettingsStorage not available for agent mode save');
       }
     } catch (error) {
       console.error('[UIManager] Failed to save agent mode selection:', error);
     }
-    
+
     // Re-validate send button state when agent mode changes
     if (this.elements.taskInput) {
       this.handleTaskInputChange({ target: this.elements.taskInput });
@@ -1317,13 +1360,13 @@ class VibeSurfUIManager {
     const hasLlmProfile = llmProfile && llmProfile.trim() !== '';
     const taskStatus = this.sessionManager.getTaskStatus();
     const isPaused = taskStatus === 'paused';
-    
+
     // Check for @ character to trigger tab selector
     this.handleTabSelectorInput(event);
-    
+
     // Check for / character to trigger skill selector
     this.handleSkillSelectorInput(event);
-    
+
     // Update send button state - special handling for pause state
     if (this.elements.sendBtn) {
       if (isPaused) {
@@ -1334,32 +1377,32 @@ class VibeSurfUIManager {
         this.elements.sendBtn.disabled = !(hasText && hasLlmProfile && !this.state.isTaskRunning);
       }
     }
-    
+
     // Auto-resize textarea based on content
     this.autoResizeTextarea(textarea);
   }
-  
+
   autoResizeTextarea(textarea) {
     if (!textarea) return;
-    
+
     // Reset height to auto to get the natural scrollHeight
     textarea.style.height = 'auto';
-    
+
     // Calculate the new height based on content
     const minHeight = 44; // Min height from CSS
     const maxHeight = 200; // Max height from CSS
     const newHeight = Math.max(minHeight, Math.min(maxHeight, textarea.scrollHeight));
-    
+
     // Apply the new height
     textarea.style.height = newHeight + 'px';
   }
 
   // UI Display Methods
   updateSessionDisplay(sessionId) {
-    
+
     if (this.elements.sessionId) {
       this.elements.sessionId.textContent = sessionId || '-';
-      
+
     } else {
       console.error('[UIManager] Session ID element not found');
     }
@@ -1370,57 +1413,57 @@ class VibeSurfUIManager {
     const cancelBtn = this.elements.cancelBtn;
     const resumeBtn = this.elements.resumeBtn;
     const terminateBtn = this.elements.terminateBtn;
-    
+
     console.log(`[UIManager] updateControlPanel called with status: ${status}`);
-    
+
     if (!panel) {
       console.error('[UIManager] Control panel element not found');
       return;
     }
-    
+
     // Clear any existing auto-hide timeout
     if (this.controlPanelTimeout) {
       clearTimeout(this.controlPanelTimeout);
       this.controlPanelTimeout = null;
     }
-    
+
     switch (status) {
       case 'ready':
-        
+
         panel.classList.add('hidden');
         panel.classList.remove('error-state');
         break;
-        
+
       case 'running':
-        
+
         panel.classList.remove('hidden');
         panel.classList.remove('error-state');
         cancelBtn?.classList.remove('hidden');
         resumeBtn?.classList.add('hidden');
         terminateBtn?.classList.add('hidden');
-        
+
         // For fast-completing tasks, ensure minimum visibility duration
         this.ensureMinimumControlPanelVisibility();
         break;
-        
+
       case 'paused':
-        
+
         panel.classList.remove('hidden');
         panel.classList.remove('error-state');
         cancelBtn?.classList.add('hidden');
         resumeBtn?.classList.remove('hidden');
         terminateBtn?.classList.remove('hidden');
         break;
-        
+
       case 'error':
-        
+
         panel.classList.remove('hidden');
         panel.classList.add('error-state');
         cancelBtn?.classList.remove('hidden');
         resumeBtn?.classList.add('hidden');
         terminateBtn?.classList.remove('hidden');
         break;
-        
+
       case 'done':
       case 'completed':
       case 'finished':
@@ -1429,22 +1472,22 @@ class VibeSurfUIManager {
         panel.classList.add('hidden');
         panel.classList.remove('error-state');
         break;
-        
+
       default:
         console.log(`[UIManager] Unknown control panel status: ${status}, hiding panel`);
         panel.classList.add('hidden');
         panel.classList.remove('error-state');
     }
   }
-  
+
   ensureMinimumControlPanelVisibility() {
     // Set a flag to prevent immediate hiding of control panel for fast tasks
     this.controlPanelMinVisibilityActive = true;
-    
+
     // Clear the flag after minimum visibility period (2 seconds)
     setTimeout(() => {
       this.controlPanelMinVisibilityActive = false;
-      
+
     }, 2000);
   }
 
@@ -1495,7 +1538,7 @@ class VibeSurfUIManager {
         </div>
       </div>
     `;
-    
+
     if (this.elements.activityLog) {
       this.elements.activityLog.innerHTML = welcomeHTML;
       this.bindTaskSuggestionEvents();
@@ -1504,19 +1547,19 @@ class VibeSurfUIManager {
 
   bindTaskSuggestionEvents() {
     const taskSuggestions = document.querySelectorAll('.task-suggestion');
-    
+
     taskSuggestions.forEach(suggestion => {
       suggestion.addEventListener('click', () => {
         const taskDescription = suggestion.querySelector('.task-description').textContent;
-        
+
         // Populate task input with suggestion (only description, no title prefix)
         if (this.elements.taskInput) {
           this.elements.taskInput.value = taskDescription;
           this.elements.taskInput.focus();
-          
+
           // Trigger input change event for validation and auto-resize
           this.handleTaskInputChange({ target: this.elements.taskInput });
-          
+
           // Auto-send the task
           setTimeout(() => {
             this.handleSendTask();
@@ -1528,17 +1571,17 @@ class VibeSurfUIManager {
 
   displayActivityLogs(logs) {
     this.clearActivityLog();
-    
+
     if (logs.length === 0) {
       this.showWelcomeMessage();
       return;
     }
-    
+
     logs.forEach(log => this.addActivityLog(log));
-    
+
     // Bind link click handlers to all existing activity items after loading
     this.bindLinkHandlersToAllActivityItems();
-    
+
     this.scrollActivityToBottom();
   }
 
@@ -1553,19 +1596,19 @@ class VibeSurfUIManager {
   addActivityLog(activityData) {
     // Filter out "done" status messages from UI display only
     const agentStatus = activityData.agent_status || activityData.status || '';
-    
+
     // Filter done messages that are just status updates without meaningful content
     if (agentStatus.toLowerCase() === 'done') {
       return;
     }
-    
+
     if (this.elements.activityLog) {
       // Remove welcome message if present
       const welcomeMsg = this.elements.activityLog.querySelector('.welcome-message');
       if (welcomeMsg) {
         welcomeMsg.remove();
       }
-      
+
       // Check if this is a suggestion_tasks message
       if (agentStatus.toLowerCase() === 'suggestion_tasks') {
         // For suggestion_tasks, only show suggestion cards, not the normal message
@@ -1576,10 +1619,10 @@ class VibeSurfUIManager {
         const activityItem = this.createActivityItem(activityData);
         this.elements.activityLog.appendChild(activityItem);
         activityItem.classList.add('fade-in');
-        
+
         // Bind copy button functionality
         this.bindCopyButtonEvent(activityItem, activityData);
-        
+
         // Bind link click handlers to prevent extension freezing
         this.bindLinkClickHandlers(activityItem);
       }
@@ -1588,24 +1631,24 @@ class VibeSurfUIManager {
 
   addSuggestionTaskCards(activityData) {
     const agentMsg = activityData.agent_msg || activityData.message || '';
-    
+
     if (!agentMsg || typeof agentMsg !== 'string') {
       return;
     }
-    
+
     // Parse tasks by splitting on newlines and filtering empty lines
     const tasks = agentMsg.split('\n')
       .map(task => task.trim())
       .filter(task => task.length > 0);
-    
+
     if (tasks.length === 0) {
       return;
     }
-    
+
     // Create suggestion cards container
     const suggestionsContainer = document.createElement('div');
     suggestionsContainer.className = 'suggestion-tasks-container';
-    
+
     // Add header for suggestion cards
     const headerElement = document.createElement('div');
     headerElement.className = 'suggestion-tasks-header';
@@ -1613,18 +1656,18 @@ class VibeSurfUIManager {
       <h4>Suggestion Follow-Up Tasks</h4>
     `;
     suggestionsContainer.appendChild(headerElement);
-    
+
     // Create cards container
     const cardsContainer = document.createElement('div');
     cardsContainer.className = 'suggestion-cards';
-    
+
     // Create individual task cards
     tasks.forEach((task, index) => {
       const taskCard = document.createElement('div');
       taskCard.className = 'suggestion-task-card';
       taskCard.setAttribute('data-task', task);
       taskCard.setAttribute('data-index', index);
-      
+
       taskCard.innerHTML = `
         <div class="suggestion-card-icon">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1640,18 +1683,18 @@ class VibeSurfUIManager {
           </svg>
         </div>
       `;
-      
+
       // Add click event handler
       taskCard.addEventListener('click', (e) => {
         e.preventDefault();
         this.handleSuggestionTaskClick(task);
       });
-      
+
       cardsContainer.appendChild(taskCard);
     });
-    
+
     suggestionsContainer.appendChild(cardsContainer);
-    
+
     // Add the suggestions container to the activity log
     if (this.elements.activityLog) {
       this.elements.activityLog.appendChild(suggestionsContainer);
@@ -1660,38 +1703,38 @@ class VibeSurfUIManager {
   }
 
   handleSuggestionTaskClick(taskDescription) {
-    
-    
+
+
     // First check if task is running
     if (this.state.isTaskRunning) {
       this.showNotification('Cannot submit task while another task is running', 'warning');
       return;
     }
-    
+
     // Check if LLM profile is selected
     const llmProfile = this.elements.llmProfileSelect?.value;
     if (!llmProfile || llmProfile.trim() === '') {
       this.showLLMProfileRequiredModal('select');
       return;
     }
-    
+
     // Set the task description in the input first
     if (!this.elements.taskInput) {
       console.error('[UIManager] Task input element not found');
       this.showNotification('Task input not available', 'error');
       return;
     }
-    
-    
+
+
     this.elements.taskInput.value = taskDescription;
     this.elements.taskInput.focus();
-    
+
     // Trigger input change event for validation and auto-resize
     this.handleTaskInputChange({ target: this.elements.taskInput });
-    
+
     // Auto-submit the task after a short delay
     setTimeout(() => {
-      
+
       this.handleSendTask();
     }, 100);
   }
@@ -1704,12 +1747,12 @@ class VibeSurfUIManager {
 
   createActivityItem(data) {
     const item = document.createElement('div');
-    
+
     // Extract activity data with correct keys
     const agentName = data.agent_name || 'system';
     const agentStatus = data.agent_status || data.status || 'info';
     const agentMsg = data.agent_msg || data.message || data.action_description || 'No description';
-    
+
     // Use backend timestamp if available, otherwise generate frontend timestamp
     let timestamp;
     if (data.timestamp) {
@@ -1717,20 +1760,20 @@ class VibeSurfUIManager {
     } else {
       timestamp = new Date().toLocaleString();
     }
-    
+
     // Extract token and cost information
     const totalTokens = data.total_tokens;
     const totalCost = data.total_cost;
-    
+
     // Determine if this is a user message (should be on the right)
     const isUser = agentName.toLowerCase() === 'user';
-    
+
     // Set CSS classes based on agent type and status
     item.className = `activity-item ${isUser ? 'user-message' : 'agent-message'} ${agentStatus}`;
-    
+
     // Build metadata display (timestamp, tokens, cost)
     let metadataHtml = `<span class="message-time">${timestamp}</span>`;
-    
+
     if (totalTokens !== undefined || totalCost !== undefined) {
       metadataHtml += '<span class="message-metrics">';
       if (totalTokens !== undefined) {
@@ -1743,7 +1786,7 @@ class VibeSurfUIManager {
       }
       metadataHtml += '</span>';
     }
-    
+
     // Create the message structure similar to chat interface
     item.innerHTML = `
       <div class="message-container ${isUser ? 'user-container' : 'agent-container'}">
@@ -1767,18 +1810,18 @@ class VibeSurfUIManager {
         </div>
       </div>
     `;
-    
+
     return item;
   }
 
   bindCopyButtonEvent(activityItem, activityData) {
     const copyBtn = activityItem.querySelector('.copy-message-btn');
-    
+
     if (copyBtn) {
       copyBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
+
         await this.copyMessageToClipboard(activityData);
       });
     }
@@ -1787,43 +1830,43 @@ class VibeSurfUIManager {
   bindLinkClickHandlers(activityItem) {
     // Handle all link clicks within activity items to prevent extension freezing
     const links = activityItem.querySelectorAll('a');
-    
+
     links.forEach(link => {
       // Check if handler is already attached to prevent double binding
       if (link.hasAttribute('data-link-handler-attached')) {
         return;
       }
-      
+
       link.setAttribute('data-link-handler-attached', 'true');
-      
+
       link.addEventListener('click', async (e) => {
         console.log('[VibeSurf] Link click event detected:', e);
-        
+
         // Comprehensive event prevention
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation(); // Prevent any other handlers
-        
+
         // Remove href temporarily to prevent default browser behavior
         const originalHref = link.getAttribute('href');
         const dataFilePath = link.getAttribute('data-file-path');
         link.setAttribute('href', '#');
-        
+
         // Use data-file-path if available (for file:// links), otherwise use href
         const targetUrl = dataFilePath || originalHref;
         if (!targetUrl || (targetUrl === '#' && !dataFilePath)) return;
-        
+
         // Debounce - prevent rapid repeated clicks
         if (link.hasAttribute('data-link-processing')) {
           console.log('[VibeSurf] Link already processing, ignoring duplicate click');
           return;
         }
-        
+
         link.setAttribute('data-link-processing', 'true');
-        
+
         try {
           console.log('[VibeSurf] Processing link:', targetUrl);
-          
+
           // Handle file:// links using existing logic
           if (targetUrl.startsWith('file://')) {
             await this.handleFileLinkClick(targetUrl);
@@ -1836,7 +1879,7 @@ class VibeSurfUIManager {
           else {
             await this.handleOtherLinkClick(targetUrl);
           }
-          
+
           console.log('[VibeSurf] Link processed successfully:', targetUrl);
         } catch (error) {
           console.error('[VibeSurf] Error handling link click:', error);
@@ -1844,7 +1887,7 @@ class VibeSurfUIManager {
         } finally {
           // Restore original href
           link.setAttribute('href', originalHref);
-          
+
           // Remove processing flag after a short delay
           setTimeout(() => {
             link.removeAttribute('data-link-processing');
@@ -1856,13 +1899,13 @@ class VibeSurfUIManager {
 
   async handleFileLinkClick(fileUrl) {
     console.log('[UIManager] Opening file URL:', fileUrl);
-    
+
     // Use the background script to handle file URLs
     const result = await chrome.runtime.sendMessage({
       type: 'OPEN_FILE_URL',
       data: { fileUrl }
     });
-    
+
     if (!result.success) {
       throw new Error(result.error || 'Failed to open file');
     }
@@ -1870,20 +1913,20 @@ class VibeSurfUIManager {
 
   async handleHttpLinkClick(url) {
     console.log('[VibeSurf] Opening HTTP URL:', url);
-    
+
     try {
       // Open HTTP/HTTPS links in a new tab
       const result = await chrome.runtime.sendMessage({
         type: 'OPEN_FILE_URL',
         data: { fileUrl: url }
       });
-      
+
       console.log('[VibeSurf] Background script response:', result);
-      
+
       if (!result || !result.success) {
         throw new Error(result?.error || 'Failed to create tab for URL');
       }
-      
+
       console.log('[VibeSurf] Successfully opened tab:', result.tabId);
     } catch (error) {
       console.error('[VibeSurf] Error opening HTTP URL:', error);
@@ -1893,7 +1936,7 @@ class VibeSurfUIManager {
 
   async handleOtherLinkClick(url) {
     console.log('[UIManager] Opening other URL:', url);
-    
+
     // For relative URLs or other protocols, try to open in new tab
     try {
       // Use the background script to handle URL opening
@@ -1901,7 +1944,7 @@ class VibeSurfUIManager {
         type: 'OPEN_FILE_URL',
         data: { fileUrl: url }
       });
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to open URL');
       }
@@ -1914,7 +1957,7 @@ class VibeSurfUIManager {
             type: 'OPEN_FILE_URL',
             data: { fileUrl: absoluteUrl }
           });
-          
+
           if (!result.success) {
             throw new Error(result.error || 'Failed to open absolute URL');
           }
@@ -1931,7 +1974,7 @@ class VibeSurfUIManager {
     try {
       // Extract only the message content (no agent info or timestamps)
       const agentMsg = activityData.agent_msg || activityData.message || activityData.action_description || 'No description';
-      
+
       // Convert to plain text
       let messageText = '';
       if (typeof agentMsg === 'object') {
@@ -1953,19 +1996,19 @@ class VibeSurfUIManager {
           .replace(/\s+/g, ' ')           // Normalize whitespace
           .trim();                        // Remove leading/trailing whitespace
       }
-      
+
       // Check clipboard API availability
-      
-      
-      
-      
+
+
+
+
       // Try multiple clipboard methods
       let copySuccess = false;
       let lastError = null;
-      
+
       // Method 1: Chrome extension messaging approach
       try {
-        
+
         await new Promise((resolve, reject) => {
           chrome.runtime.sendMessage({
             type: 'COPY_TO_CLIPBOARD',
@@ -1981,29 +2024,29 @@ class VibeSurfUIManager {
           });
         });
         copySuccess = true;
-        
+
       } catch (extensionError) {
         console.warn('[UIManager] Chrome extension messaging failed:', extensionError);
         lastError = extensionError;
       }
-      
+
       // Method 2: Modern clipboard API (if extension method failed)
       if (!copySuccess && navigator.clipboard && navigator.clipboard.writeText) {
         try {
-          
+
           await navigator.clipboard.writeText(messageText);
           copySuccess = true;
-          
+
         } catch (clipboardError) {
           console.warn('[UIManager] Modern clipboard API failed:', clipboardError);
           lastError = clipboardError;
         }
       }
-      
+
       // Method 3: Fallback using execCommand
       if (!copySuccess) {
         try {
-          
+
           const textArea = document.createElement('textarea');
           textArea.value = messageText;
           textArea.style.position = 'fixed';
@@ -2014,13 +2057,13 @@ class VibeSurfUIManager {
           textArea.focus();
           textArea.select();
           textArea.setSelectionRange(0, textArea.value.length);
-          
+
           const success = document.execCommand('copy');
           document.body.removeChild(textArea);
-          
+
           if (success) {
             copySuccess = true;
-            
+
           } else {
             console.warn('[UIManager] execCommand returned false');
           }
@@ -2029,15 +2072,15 @@ class VibeSurfUIManager {
           lastError = execError;
         }
       }
-      
+
       if (copySuccess) {
         // Show visual feedback
         this.showCopyFeedback();
-        
+
       } else {
         throw new Error(`All clipboard methods failed. Last error: ${lastError?.message || 'Unknown error'}`);
       }
-      
+
     } catch (error) {
       console.error('[UIManager] Failed to copy message:', error);
       this.showNotification('Copy Fail: ' + error.message, 'error');
@@ -2075,15 +2118,15 @@ class VibeSurfUIManager {
 
   formatActivityContent(content) {
     if (!content) return 'No content';
-    
+
     // Handle object content
     if (typeof content === 'object') {
       return `<pre class="json-content">${JSON.stringify(content, null, 2)}</pre>`;
     }
-    
+
     // Convert content to string
     let formattedContent = String(content);
-    
+
     // Use markdown-it library for proper markdown rendering if available
     if (typeof markdownit !== 'undefined') {
       try {
@@ -2094,16 +2137,16 @@ class VibeSurfUIManager {
           linkify: true,      // Autoconvert URL-like text to links
           typographer: true   // Enable some language-neutral replacement + quotes beautification
         });
-        
+
         // Override link renderer to handle file:// protocol
         const defaultLinkRenderer = md.renderer.rules.link_open || function(tokens, idx, options, env, renderer) {
           return renderer.renderToken(tokens, idx, options);
         };
-        
+
         md.renderer.rules.link_open = function (tokens, idx, options, env, renderer) {
           const token = tokens[idx];
           const href = token.attrGet('href');
-          
+
           if (href && href.startsWith('file://')) {
             // Convert file:// links to our custom file-link format
             token.attrSet('href', '#');
@@ -2111,17 +2154,17 @@ class VibeSurfUIManager {
             token.attrSet('data-file-path', href);
             token.attrSet('title', `Click to open file: ${href}`);
           }
-          
+
           return defaultLinkRenderer(tokens, idx, options, env, renderer);
         };
-        
+
         // Add task list support manually (markdown-it doesn't have built-in task lists)
         formattedContent = this.preprocessTaskLists(formattedContent);
-        
+
         // Pre-process both regular file paths and file:// markdown links
         const regularFilePathRegex = /\[([^\]]+)\]\(([^)]*\/[^)]*\.[^)]+)\)/g;
         const markdownFileLinkRegex = /\[([^\]]+)\]\((file:\/\/[^)]+)\)/g;
-        
+
         // Handle regular file paths (convert to file:// format)
         formattedContent = formattedContent.replace(regularFilePathRegex, (match, linkText, filePath) => {
           // Only process if it looks like a file path (contains / and extension) and not already a URL
@@ -2131,19 +2174,19 @@ class VibeSurfUIManager {
           }
           return match;
         });
-        
+
         // Handle file:// links
         formattedContent = formattedContent.replace(markdownFileLinkRegex, (match, linkText, fileUrl) => {
           // Convert to HTML format that markdown-it will preserve
           return `<a href="${fileUrl}" class="file-link-markdown">${linkText}</a>`;
         });
-        
+
         // Parse markdown
         const htmlContent = md.render(formattedContent);
-        
+
         // Post-process to handle local file path links
         let processedContent = htmlContent;
-        
+
         // Convert our pre-processed file:// links to proper file-link format
         const preProcessedFileLinkRegex = /<a href="(file:\/\/[^"]+)"[^>]*class="file-link-markdown"[^>]*>([^<]*)<\/a>/g;
         processedContent = processedContent.replace(preProcessedFileLinkRegex, (match, fileUrl, linkText) => {
@@ -2151,58 +2194,58 @@ class VibeSurfUIManager {
             // Keep original URL but properly escape HTML attributes
             // Don't decode/encode to preserve original spaces and special characters
             const escapedUrl = fileUrl.replace(/"/g, '&quot;');
-            
+
             return `<a href="#" class="file-link" data-file-path="${escapedUrl}" title="Click to open file: ${linkText}">${linkText}</a>`;
           } catch (error) {
             console.error('[UIManager] Error processing pre-processed file:// link:', error);
             return match;
           }
         });
-        
+
         // Add custom classes and post-process
         return processedContent
           .replace(/<pre><code/g, '<pre class="code-block"><code')
           .replace(/<code>/g, '<code class="inline-code">')
           .replace(/<table>/g, '<table class="markdown-table">')
           .replace(/<blockquote>/g, '<blockquote class="markdown-quote">');
-        
+
       } catch (error) {
         console.warn('[UIManager] markdown-it parsing failed, falling back to basic formatting:', error);
         // Fall through to basic formatting
       }
     }
-    
+
     // Fallback: Enhanced basic markdown-like formatting
     formattedContent = this.preprocessTaskLists(formattedContent);
-    
+
     // Bold text **text**
     formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
+
     // Italic text *text*
     formattedContent = formattedContent.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    
+
     // Code blocks ```code```
     formattedContent = formattedContent.replace(/```([\s\S]*?)```/g, '<pre class="code-block">$1</pre>');
-    
+
     // Inline code `code`
     formattedContent = formattedContent.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
-    
+
     // Headers
     formattedContent = formattedContent.replace(/^### (.*$)/gm, '<h3>$1</h3>');
     formattedContent = formattedContent.replace(/^## (.*$)/gm, '<h2>$1</h2>');
     formattedContent = formattedContent.replace(/^# (.*$)/gm, '<h1>$1</h1>');
-    
+
     // Lists - regular
     formattedContent = formattedContent.replace(/^- (.*$)/gm, '<li>$1</li>');
     formattedContent = formattedContent.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
-    
+
     // Convert URLs to links
     const httpUrlRegex = /(https?:\/\/[^\s]+)/g;
     formattedContent = formattedContent.replace(httpUrlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-    
+
     // Convert newlines to br tags
     formattedContent = formattedContent.replace(/\n/g, '<br>');
-    
+
     return formattedContent;
   }
 
@@ -2226,7 +2269,7 @@ class VibeSurfUIManager {
     if (this.elements.taskInput) {
       this.elements.taskInput.value = '';
     }
-    
+
     if (this.elements.sendBtn) {
       this.elements.sendBtn.disabled = true;
     }
@@ -2238,14 +2281,14 @@ class VibeSurfUIManager {
       const canProceed = await this.showTaskRunningWarning('load a different session');
       if (!canProceed) return;
     }
-    
+
     try {
       this.showLoading('Loading session...');
-      
+
       const success = await this.sessionManager.loadSession(sessionId);
-      
+
       this.hideLoading();
-      
+
       if (!success) {
         this.showNotification('Failed to load session', 'error');
       }
@@ -2257,14 +2300,14 @@ class VibeSurfUIManager {
 
   async updateLLMProfileSelect() {
     if (!this.elements.llmProfileSelect) return;
-    
+
     // Preserve current user selection if any (to avoid overriding during profile updates)
     const currentSelection = this.elements.llmProfileSelect.value;
-    
+
     const profiles = this.settingsManager.getLLMProfiles();
     const select = this.elements.llmProfileSelect;
     select.innerHTML = '';
-    
+
     if (profiles.length === 0) {
       // Add placeholder option when no profiles available
       const placeholderOption = document.createElement('option');
@@ -2280,10 +2323,10 @@ class VibeSurfUIManager {
       emptyOption.textContent = 'Select LLM Profile...';
       emptyOption.disabled = true;
       select.appendChild(emptyOption);
-      
+
       // Determine selection priority: current selection > saved selection > default profile
       let targetSelection = currentSelection; // Preserve current selection first
-      
+
       // If no current selection, get saved selection
       if (!targetSelection) {
         try {
@@ -2294,24 +2337,24 @@ class VibeSurfUIManager {
           console.error('[UIManager] Failed to get saved LLM profile selection:', error);
         }
       }
-      
+
       // Add actual profiles
       let hasSelectedProfile = false;
       let hasTargetProfile = false;
-      
+
       profiles.forEach(profile => {
         const option = document.createElement('option');
         option.value = profile.profile_name;
         option.textContent = profile.profile_name;
-        
+
         // Check if this profile matches our target selection
         if (targetSelection && profile.profile_name === targetSelection) {
           hasTargetProfile = true;
         }
-        
+
         select.appendChild(option);
       });
-      
+
       // Apply selection based on priority
       if (hasTargetProfile) {
         select.value = targetSelection;
@@ -2324,9 +2367,9 @@ class VibeSurfUIManager {
           hasSelectedProfile = true;
         }
       }
-      
+
     }
-    
+
     // Update send button state if taskInput exists
     if (this.elements.taskInput) {
       this.handleTaskInputChange({ target: this.elements.taskInput });
@@ -2339,7 +2382,7 @@ class VibeSurfUIManager {
     const message = isConfigureAction
       ? 'No LLM profiles are configured. You need to configure at least one LLM profile before sending tasks.'
       : 'Please select an LLM profile from the dropdown to proceed with your task.';
-    
+
     const options = isConfigureAction
       ? {
           confirmText: 'Open Settings',
@@ -2358,7 +2401,7 @@ class VibeSurfUIManager {
             this.handleShowLLMSettings();
           }
         };
-    
+
     this.modalManager.showWarningModal(title, message, options);
   }
 
@@ -2368,7 +2411,7 @@ class VibeSurfUIManager {
     const message = isConfigureAction
       ? 'No voice recognition (ASR) profiles are configured. You need to configure at least one voice profile before using voice input.'
       : 'Please configure a voice recognition profile to use voice input functionality.';
-    
+
     const options = isConfigureAction
       ? {
           confirmText: 'Open Voice Settings',
@@ -2384,7 +2427,7 @@ class VibeSurfUIManager {
             this.handleShowVoiceSettings();
           }
         };
-    
+
     this.modalManager.showWarningModal(title, message, options);
   }
 
@@ -2395,10 +2438,10 @@ class VibeSurfUIManager {
       const canProceed = await this.showTaskRunningWarning('access voice settings');
       if (!canProceed) return;
     }
-    
+
     // Show settings and navigate directly to Voice profiles tab
     this.settingsManager.showSettings();
-    
+
     // Switch to Voice profiles tab after settings are shown
     setTimeout(() => {
       const voiceTab = document.querySelector('.settings-tab[data-tab="voice-profiles"]');
@@ -2409,14 +2452,14 @@ class VibeSurfUIManager {
   }
 
   showLLMConnectionFailedModal(errorData) {
-    
-    
+
+
     const llmProfile = errorData.llm_profile || 'unknown';
     const errorMessage = errorData.message || 'Cannot connect to LLM API';
-    
+
     const title = 'LLM Connection Failed';
     const message = `${errorMessage}\n\nThe LLM profile "${llmProfile}" cannot be reached. Please check your LLM configuration and API credentials.`;
-    
+
     const options = {
       confirmText: 'Update LLM Profile',
       cancelText: 'Cancel',
@@ -2425,8 +2468,8 @@ class VibeSurfUIManager {
         this.handleShowLLMProfileSettings(llmProfile);
       }
     };
-    
-    
+
+
     this.modalManager.showWarningModal(title, message, options);
   }
 
@@ -2437,10 +2480,10 @@ class VibeSurfUIManager {
       const canProceed = await this.showTaskRunningWarning('access settings');
       if (!canProceed) return;
     }
-    
+
     // Show settings and navigate to the specific LLM profile
     this.settingsManager.showSettings();
-    
+
     // Navigate to LLM profiles section and edit the specific profile
     // We'll add a method to settings manager to handle this
     if (this.settingsManager.navigateToLLMProfile) {
@@ -2451,7 +2494,7 @@ class VibeSurfUIManager {
   // Loading and notifications
   showLoading(message = 'Loading...') {
     this.state.isLoading = true;
-    
+
     if (this.elements.loadingOverlay) {
       const textElement = this.elements.loadingOverlay.querySelector('.loading-text');
       if (textElement) {
@@ -2463,7 +2506,7 @@ class VibeSurfUIManager {
 
   hideLoading() {
     this.state.isLoading = false;
-    
+
     if (this.elements.loadingOverlay) {
       this.elements.loadingOverlay.classList.add('hidden');
     }
@@ -2481,9 +2524,9 @@ class VibeSurfUIManager {
       'list': 'list',
       'progress': 'progress'
     };
-    
+
     const chromeType = validTypes[type] || 'basic';
-    
+
     // Send notification to background script for display
     chrome.runtime.sendMessage({
       type: 'SHOW_NOTIFICATION',
@@ -2501,13 +2544,13 @@ class VibeSurfUIManager {
       if (this.userSettingsStorage && this.elements.llmProfileSelect) {
         // Check current options available
         const availableOptions = Array.from(this.elements.llmProfileSelect.options).map(opt => opt.value);
-        
+
         const savedLlmProfile = await this.userSettingsStorage.getSelectedLlmProfile();
-        
+
         if (savedLlmProfile && savedLlmProfile.trim() !== '') {
           // Check if the saved profile exists in the current options
           const option = this.elements.llmProfileSelect.querySelector(`option[value="${savedLlmProfile}"]`);
-          
+
           if (option) {
             this.elements.llmProfileSelect.value = savedLlmProfile;
           } else {
@@ -2516,7 +2559,7 @@ class VibeSurfUIManager {
         } else {
           // Check localStorage backup for browser restart scenarios
           const backupProfile = localStorage.getItem('vibesurf-llm-profile-backup');
-          
+
           if (backupProfile) {
             const option = this.elements.llmProfileSelect.querySelector(`option[value="${backupProfile}"]`);
             if (option) {
@@ -2539,10 +2582,10 @@ class VibeSurfUIManager {
   // Check and update voice button state based on ASR profile availability
   async updateVoiceButtonState() {
     if (!this.elements.voiceRecordBtn) return;
-    
+
     try {
       const isVoiceAvailable = await this.voiceRecorder.isVoiceRecordingAvailable();
-      
+
       if (!isVoiceAvailable) {
         // Add visual indication but keep button enabled for click handling
         this.elements.voiceRecordBtn.classList.add('voice-disabled');
@@ -2571,56 +2614,58 @@ class VibeSurfUIManager {
       // Check for microphone permission parameter first (like Doubao AI)
       const urlParams = new URLSearchParams(window.location.search);
       const enterParam = urlParams.get('enter');
-      
+
       if (enterParam === 'mic-permission') {
         console.log('[UIManager] Detected microphone permission request parameter');
         this.showMicrophonePermissionRequest();
         return; // Skip normal initialization for permission request
       }
-      
+
       this.showLoading('Initializing VibeSurf...');
-      
+
       // Initialize user settings storage first
       if (this.userSettingsStorage) {
-        
+
         await this.userSettingsStorage.initialize();
-        
+
       } else {
         console.error('[UIManager] userSettingsStorage not available during initialization');
       }
-      
+
       // Load settings data through settings manager
-      
+
       await this.settingsManager.loadSettingsData();
-      
-      
+
+
       // Now restore user selections AFTER profiles are loaded but before any other initialization
-      
+
       this.isRestoringSelections = true;
-      
+
       try {
         // Restore LLM profile selection first
         await this.restoreLlmProfileSelection();
-        
+
         // Restore agent mode selection
         await this.restoreAgentModeSelection();
       } finally {
         this.isRestoringSelections = false;
       }
-      
+
       // Check and update voice button state based on ASR profile availability
       await this.updateVoiceButtonState();
-      
-      
+
+      // Check version and show upgrade button if needed
+      await this.checkVersionAndShowUpgrade();
+
       // Create initial session if none exists
-      
+
       if (!this.sessionManager.getCurrentSession()) {
-        
+
         await this.sessionManager.createSession();
       }
-      
+
       this.hideLoading();
-      
+
     } catch (error) {
       this.hideLoading();
       console.error('[UIManager] Initialization failed:', error);
@@ -2633,7 +2678,7 @@ class VibeSurfUIManager {
     console.log('[UIManager] Showing simplified microphone permission request');
     console.log('[UIManager] Current URL:', window.location.href);
     console.log('[UIManager] URL params:', window.location.search);
-    
+
     // Simple approach: just try to get permission directly
     this.requestMicrophonePermissionDirectly();
   }
@@ -2641,24 +2686,24 @@ class VibeSurfUIManager {
   // Direct microphone permission request (simplified like Doubao AI)
   async requestMicrophonePermissionDirectly() {
     console.log('[UIManager] Requesting microphone permission directly');
-    
+
     try {
       // Immediately try to get microphone permission
       console.log('[UIManager] Calling getUserMedia...');
       console.log('[UIManager] User agent:', navigator.userAgent);
       console.log('[UIManager] Location protocol:', window.location.protocol);
       console.log('[UIManager] Location href:', window.location.href);
-      
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: false
       });
-      
+
       console.log('[UIManager] Microphone permission granted!');
-      
+
       // Stop the stream immediately (we just need permission)
       stream.getTracks().forEach(track => track.stop());
-      
+
       // Send success message back to original tab
       console.log('[UIManager] Sending success message...');
       chrome.runtime.sendMessage({
@@ -2667,19 +2712,19 @@ class VibeSurfUIManager {
       }, (response) => {
         console.log('[UIManager] Success message response:', response);
       });
-      
+
       // Close this tab after a short delay
       setTimeout(() => {
         console.log('[UIManager] Closing tab...');
         window.close();
       }, 1000);
-      
+
     } catch (error) {
       console.error('[UIManager] Microphone permission denied:', error);
       console.log('[UIManager] Error name:', error.name);
       console.log('[UIManager] Error message:', error.message);
       console.log('[UIManager] Error stack:', error.stack);
-      
+
       // Send error message back to original tab
       console.log('[UIManager] Sending error message...');
       chrome.runtime.sendMessage({
@@ -2690,7 +2735,7 @@ class VibeSurfUIManager {
       }, (response) => {
         console.log('[UIManager] Error message response:', response);
       });
-      
+
       // Close this tab after a short delay
       setTimeout(() => {
         console.log('[UIManager] Closing tab after error...');
@@ -2701,13 +2746,13 @@ class VibeSurfUIManager {
   // Restore agent mode selection from user settings storage
   async restoreAgentModeSelection() {
     try {
-      
+
       if (this.userSettingsStorage && this.elements.agentModeSelect) {
         // Check current options available
         const availableOptions = Array.from(this.elements.agentModeSelect.options).map(opt => opt.value);
-        
+
         const savedAgentMode = await this.userSettingsStorage.getSelectedAgentMode();
-        
+
         if (savedAgentMode && savedAgentMode.trim() !== '') {
           // Restore any saved agent mode, including 'thinking'
           this.elements.agentModeSelect.value = savedAgentMode;
@@ -2722,7 +2767,7 @@ class VibeSurfUIManager {
         } else {
           // Check localStorage backup for browser restart scenarios
           const backupMode = localStorage.getItem('vibesurf-agent-mode-backup');
-          
+
           if (backupMode) {
             const option = this.elements.agentModeSelect.querySelector(`option[value="${backupMode}"]`);
             if (option) {
@@ -2742,6 +2787,77 @@ class VibeSurfUIManager {
     }
   }
 
+  // Version checking and upgrade button management
+  async checkVersionAndShowUpgrade() {
+    try {
+      console.log('[UIManager] Checking version for upgrade notification...');
+      
+      // Get extension version from version.js
+      const extensionVersion = window.VIBESURF_EXTENSION_VERSION;
+      if (!extensionVersion) {
+        console.warn('[UIManager] Extension version not found');
+        return;
+      }
+      
+      console.log('[UIManager] Extension version:', extensionVersion);
+      
+      // Get VibeSurf backend version from API
+      const versionResponse = await this.apiClient.getVibeSurfVersion();
+      const backendVersion = versionResponse.version;
+      
+      if (!backendVersion) {
+        console.warn('[UIManager] Backend version not found');
+        return;
+      }
+      
+      console.log('[UIManager] Backend version:', backendVersion);
+      
+      // Compare versions - show upgrade if extension version is different from backend
+      const shouldShowUpgrade = this.compareVersions(extensionVersion, backendVersion);
+      
+      if (shouldShowUpgrade) {
+        console.log('[UIManager] Extension version mismatch detected, showing upgrade button');
+        this.showUpgradeButton();
+      } else {
+        console.log('[UIManager] Extension version is up to date');
+        this.hideUpgradeButton();
+      }
+      
+    } catch (error) {
+      console.error('[UIManager] Failed to check version:', error);
+      // Don't show upgrade button on error to avoid false positives
+    }
+  }
+  
+  // Compare versions - returns true if extension needs upgrade
+  compareVersions(extensionVersion, backendVersion) {
+    // Remove any +dev suffix from extension version for comparison
+    const cleanExtensionVersion = extensionVersion.replace(/\+.*$/, '');
+    const cleanBackendVersion = backendVersion.replace(/\+.*$/, '');
+    
+    console.log('[UIManager] Comparing versions:', cleanExtensionVersion, 'vs', cleanBackendVersion);
+    
+    // Simple string comparison - if they're different, show upgrade
+    // This handles cases where extension is older, newer, or just different
+    return cleanExtensionVersion !== cleanBackendVersion;
+  }
+  
+  // Show upgrade button with animation
+  showUpgradeButton() {
+    if (this.elements.upgradeBtn) {
+      this.elements.upgradeBtn.classList.remove('hidden');
+      console.log('[UIManager] Upgrade button shown');
+    }
+  }
+  
+  // Hide upgrade button
+  hideUpgradeButton() {
+    if (this.elements.upgradeBtn) {
+      this.elements.upgradeBtn.classList.add('hidden');
+      console.log('[UIManager] Upgrade button hidden');
+    }
+  }
+
   // Cleanup
   destroy() {
     // Prevent multiple cleanup calls
@@ -2749,20 +2865,20 @@ class VibeSurfUIManager {
       console.log('[UIManager] Cleanup already in progress, skipping...');
       return;
     }
-    
+
     this.isDestroying = true;
     console.log('[UIManager] Destroying UI manager...');
-    
+
     try {
       // Stop task status monitoring
       this.stopTaskStatusMonitoring();
-      
+
       // Cleanup voice recorder
       if (this.voiceRecorder) {
         this.voiceRecorder.cleanup();
         this.voiceRecorder = null;
       }
-      
+
       // Cleanup managers with error handling
       if (this.settingsManager) {
         try {
@@ -2774,7 +2890,7 @@ class VibeSurfUIManager {
         }
         this.settingsManager = null;
       }
-      
+
       if (this.historyManager) {
         try {
           if (typeof this.historyManager.destroy === 'function') {
@@ -2785,7 +2901,7 @@ class VibeSurfUIManager {
         }
         this.historyManager = null;
       }
-      
+
       if (this.fileManager) {
         try {
           if (typeof this.fileManager.destroy === 'function') {
@@ -2796,7 +2912,7 @@ class VibeSurfUIManager {
         }
         this.fileManager = null;
       }
-      
+
       if (this.modalManager) {
         try {
           if (typeof this.modalManager.destroy === 'function') {
@@ -2807,14 +2923,14 @@ class VibeSurfUIManager {
         }
         this.modalManager = null;
       }
-      
+
       // Clear state
       this.state = {
         isLoading: false,
         isTaskRunning: false,
         taskInfo: null
       };
-      
+
       console.log('[UIManager] UI manager cleanup complete');
     } catch (error) {
       console.error('[UIManager] Error during destroy:', error);
@@ -2825,8 +2941,8 @@ class VibeSurfUIManager {
 
   // Tab Selector Methods
   initializeTabSelector() {
-    
-    
+
+
     // Initialize tab selector state
     this.tabSelectorState = {
       isVisible: false,
@@ -2835,19 +2951,19 @@ class VibeSurfUIManager {
       atPosition: -1 // Position where @ was typed
     };
 
-    
-    
+
+
     // Bind tab selector events
     this.bindTabSelectorEvents();
   }
 
   bindTabSelectorEvents() {
-    
-    
-    
+
+
+
     // Select all radio button
     this.elements.selectAllTabs?.addEventListener('change', this.handleSelectAllTabs.bind(this));
-    
+
     // Hide on click outside
     document.addEventListener('click', (event) => {
       if (this.tabSelectorState.isVisible &&
@@ -2857,8 +2973,8 @@ class VibeSurfUIManager {
         this.hideTabSelector();
       }
     });
-    
-    
+
+
   }
 
   handleTabSelectorInput(event) {
@@ -2867,15 +2983,15 @@ class VibeSurfUIManager {
       console.warn('[UIManager] Tab selector state not initialized');
       return;
     }
-    
+
     const inputValue = event.target.value;
     const cursorPosition = event.target.selectionStart;
-    
-    
-    
+
+
+
     // Check if @ was just typed
     if (inputValue[cursorPosition - 1] === '@') {
-      
+
       this.tabSelectorState.atPosition = cursorPosition - 1;
       this.showTabSelector();
     } else if (this.tabSelectorState.isVisible) {
@@ -2883,24 +2999,24 @@ class VibeSurfUIManager {
       if (this.tabSelectorState.atPosition >= 0 &&
           (this.tabSelectorState.atPosition >= inputValue.length ||
            inputValue[this.tabSelectorState.atPosition] !== '@')) {
-        
+
         this.hideTabSelector();
         return;
       }
-      
+
       // Hide tab selector if user continues typing after @
       const textAfterAt = inputValue.substring(this.tabSelectorState.atPosition + 1, cursorPosition);
       if (textAfterAt.length > 0 && !textAfterAt.match(/^[\s]*$/)) {
-        
+
         this.hideTabSelector();
       }
     }
   }
 
   async showTabSelector() {
-    
-    
-    
+
+
+
     if (!this.elements.tabSelectorDropdown || !this.elements.taskInput) {
       console.error('[UIManager] Tab selector elements not found', {
         dropdown: this.elements.tabSelectorDropdown,
@@ -2910,26 +3026,26 @@ class VibeSurfUIManager {
     }
 
     try {
-      
+
       // Fetch tab data from backend
       await this.populateTabSelector();
-      
-      
+
+
       // Position the dropdown relative to the input
       this.positionTabSelector();
-      
-      
+
+
       // Show the dropdown with explicit visibility
       this.elements.tabSelectorDropdown.classList.remove('hidden');
       this.elements.tabSelectorDropdown.style.display = 'block';
       this.elements.tabSelectorDropdown.style.visibility = 'visible';
       this.elements.tabSelectorDropdown.style.opacity = '1';
       this.tabSelectorState.isVisible = true;
-      
-      
-      
-      
-      
+
+
+
+
+
     } catch (error) {
       console.error('[UIManager] Failed to show tab selector:', error);
       this.showNotification('Failed to load browser tabs', 'error');
@@ -2944,21 +3060,21 @@ class VibeSurfUIManager {
     this.tabSelectorState.isVisible = false;
     this.tabSelectorState.selectedTabs = [];
     this.tabSelectorState.atPosition = -1;
-    
-    
+
+
   }
 
   positionTabSelector() {
     if (!this.elements.tabSelectorDropdown || !this.elements.taskInput) return;
-    
+
     const inputRect = this.elements.taskInput.getBoundingClientRect();
     const dropdown = this.elements.tabSelectorDropdown;
-    
-    
-    
+
+
+
     // Calculate 90% width of input
     const dropdownWidth = inputRect.width * 0.9;
-    
+
     // Position dropdown ABOVE the input (not below)
     dropdown.style.position = 'fixed';
     dropdown.style.bottom = `${window.innerHeight - inputRect.top + 5}px`; // Above the input
@@ -2967,38 +3083,38 @@ class VibeSurfUIManager {
     dropdown.style.zIndex = '9999';
     dropdown.style.maxHeight = '300px';
     dropdown.style.overflowY = 'auto';
-    
-    
+
+
   }
 
   async populateTabSelector() {
     try {
-      
+
       // Get all tabs and active tab from backend
       const [allTabsResponse, activeTabResponse] = await Promise.all([
         this.apiClient.getAllBrowserTabs(),
         this.apiClient.getActiveBrowserTab()
       ]);
-      
-      
-      
+
+
+
       const allTabs = allTabsResponse.tabs || allTabsResponse || {};
       const activeTab = activeTabResponse.tab || activeTabResponse || {};
       const activeTabId = Object.keys(activeTab)[0];
-      
-      
-      
+
+
+
       this.tabSelectorState.allTabs = allTabs;
-      
+
       // Clear existing options
       if (this.elements.tabOptionsList) {
         this.elements.tabOptionsList.innerHTML = '';
-        
+
       } else {
         console.error('[UIManager] tabOptionsList element not found!');
         return;
       }
-      
+
       // Add fallback test data if no tabs returned
       if (Object.keys(allTabs).length === 0) {
         console.warn('[UIManager] No tabs returned from API, adding test data for debugging');
@@ -3007,31 +3123,31 @@ class VibeSurfUIManager {
           'test-2': { title: 'Test Tab 2', url: 'https://google.com' },
           'test-3': { title: 'Very Long Tab Title That Should Be Truncated', url: 'https://github.com' }
         };
-        
+
         Object.entries(testTabs).forEach(([tabId, tabInfo]) => {
           const isActive = tabId === 'test-1';
-          
+
           const option = this.createTabOption(tabId, tabInfo, isActive);
           this.elements.tabOptionsList.appendChild(option);
         });
-        
+
         this.tabSelectorState.allTabs = testTabs;
       } else {
         // Add real tab options
         Object.entries(allTabs).forEach(([tabId, tabInfo]) => {
           const isActive = tabId === activeTabId;
-          
+
           const option = this.createTabOption(tabId, tabInfo, isActive);
           this.elements.tabOptionsList.appendChild(option);
         });
       }
-      
+
       // Reset select all checkbox
       if (this.elements.selectAllTabs) {
         this.elements.selectAllTabs.checked = false;
       }
-      
-      
+
+
     } catch (error) {
       console.error('[UIManager] Failed to populate tab selector:', error);
       throw error;
@@ -3042,12 +3158,12 @@ class VibeSurfUIManager {
     const option = document.createElement('div');
     option.className = `tab-option ${isActive ? 'active-tab' : ''}`;
     option.dataset.tabId = tabId;
-    
+
     // Format title (first 20 characters)
     const displayTitle = tabInfo.title ?
       (tabInfo.title.length > 20 ? tabInfo.title.substring(0, 20) + '...' : tabInfo.title) :
       'Unknown Title';
-    
+
     option.innerHTML = `
       <input type="radio" class="tab-radio" id="tab-${tabId}" name="tab-selection" value="${tabId}">
       <label for="tab-${tabId}" class="tab-label">
@@ -3056,23 +3172,23 @@ class VibeSurfUIManager {
         ${isActive ? '<span class="active-indicator">(Active)</span>' : ''}
       </label>
     `;
-    
+
     // Add change event to radio button for auto-confirm
     const radio = option.querySelector('.tab-radio');
     radio?.addEventListener('change', this.handleTabSelection.bind(this));
-    
+
     return option;
   }
 
   handleTabSelection(event) {
     const tabId = event.target.value;
-    
+
     if (event.target.checked) {
       // For radio buttons, replace the selected tabs array with just this tab
       this.tabSelectorState.selectedTabs = [tabId];
-      
-      
-      
+
+
+
       // Auto-confirm selection immediately
       this.confirmTabSelection();
     }
@@ -3083,9 +3199,9 @@ class VibeSurfUIManager {
       // "Select All" means list all tabs in the input
       const allTabIds = Object.keys(this.tabSelectorState.allTabs);
       this.tabSelectorState.selectedTabs = allTabIds;
-      
-      
-      
+
+
+
       // Auto-confirm selection immediately
       this.confirmTabSelection();
     }
@@ -3093,10 +3209,10 @@ class VibeSurfUIManager {
 
   updateSelectAllState() {
     if (!this.elements.selectAllTabs || !this.elements.tabOptionsList) return;
-    
+
     const checkboxes = this.elements.tabOptionsList.querySelectorAll('.tab-checkbox');
     const checkedBoxes = this.elements.tabOptionsList.querySelectorAll('.tab-checkbox:checked');
-    
+
     if (checkboxes.length === 0) {
       this.elements.selectAllTabs.indeterminate = false;
       this.elements.selectAllTabs.checked = false;
@@ -3117,27 +3233,27 @@ class VibeSurfUIManager {
       this.showNotification('Please select at least one tab', 'warning');
       return;
     }
-    
+
     // Replace @ with selected tabs information
     this.insertSelectedTabsIntoInput();
-    
+
     // Hide the selector
     this.hideTabSelector();
-    
+
     console.log(`[UIManager] ${this.tabSelectorState.selectedTabs.length} tab(s) selected and confirmed`);
   }
 
   insertSelectedTabsIntoInput() {
     if (!this.elements.taskInput) return;
-    
+
     const input = this.elements.taskInput;
     const currentValue = input.value;
     const atPosition = this.tabSelectorState.atPosition;
-    
+
     // Use special Unicode characters as boundaries for easy deletion
     const TAB_START_MARKER = '\u200B'; // Zero-width space
     const TAB_END_MARKER = '\u200C'; // Zero-width non-joiner
-    
+
     // Create tab information string in new format: @ tab_id: title[:20]
     const selectedTabsInfo = this.tabSelectorState.selectedTabs.map(tabId => {
       const tabInfo = this.tabSelectorState.allTabs[tabId];
@@ -3146,17 +3262,17 @@ class VibeSurfUIManager {
         'Unknown';
       return `${TAB_START_MARKER}@ ${tabId}: ${displayTitle}${TAB_END_MARKER}`;
     }).join(' ');
-    
+
     // Replace @ with tab selection (preserve the @ symbol)
     const beforeAt = currentValue.substring(0, atPosition);
     const afterAt = currentValue.substring(atPosition + 1);
     const newValue = `${beforeAt}${selectedTabsInfo} ${afterAt}`;
-    
+
     input.value = newValue;
-    
+
     // Trigger input change event for validation
     this.handleTaskInputChange({ target: input });
-    
+
     // Set cursor position after the inserted text
     const newCursorPosition = beforeAt.length + selectedTabsInfo.length + 1; // Add space
     input.setSelectionRange(newCursorPosition, newCursorPosition);
@@ -3168,7 +3284,7 @@ class VibeSurfUIManager {
     if (this.tabSelectorState.selectedTabs.length === 0) {
       return null;
     }
-    
+
     const selectedTabsData = {};
     this.tabSelectorState.selectedTabs.forEach(tabId => {
       const tabInfo = this.tabSelectorState.allTabs[tabId];
@@ -3179,7 +3295,7 @@ class VibeSurfUIManager {
         };
       }
     });
-    
+
     return selectedTabsData;
   }
 
@@ -3237,10 +3353,10 @@ class VibeSurfUIManager {
 
       // Update filter based on text after /
       const textAfterSlash = inputValue.substring(this.skillSelectorState.slashPosition + 1, cursorPosition);
-      
+
       // Only consider text up to the next space or special character
       const filterText = textAfterSlash.split(/[\s@]/)[0];
-      
+
       if (this.skillSelectorState.currentFilter !== filterText) {
         this.skillSelectorState.currentFilter = filterText;
         this.filterSkills();
@@ -3356,7 +3472,7 @@ class VibeSurfUIManager {
 
   filterSkills() {
     const filter = this.skillSelectorState.currentFilter.toLowerCase();
-    
+
     if (!filter) {
       this.skillSelectorState.filteredSkills = this.skillSelectorState.allSkills;
     } else {

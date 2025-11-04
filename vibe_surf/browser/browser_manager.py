@@ -54,6 +54,8 @@ class BrowserManager:
         if agent_id in self._agent_sessions:
             logger.info(f"Agent {agent_id} is already registered.")
             agent_session = self._agent_sessions[agent_id]
+            old_target_id = agent_session.agent_focus.target_id if agent_session.agent_focus else None
+            target_id = target_id or old_target_id
         else:
             agent_session = AgentBrowserSession(
                 id=agent_id,
@@ -97,7 +99,7 @@ class BrowserManager:
         # Get or create available target
         if target_id is None:
             new_target = await self.main_browser_session.cdp_client.send.Target.createTarget(
-                params={'url': 'about:blank'})
+                params={'url': 'chrome://newtab/'})
             target_id = new_target["targetId"]
 
         await agent_session.connect_agent(target_id=target_id)
@@ -235,7 +237,7 @@ class BrowserManager:
         if tab_infos:
             target_id = tab_infos[0].target_id
         else:
-            target_id = await self.main_browser_session.navigate_to_url(url="about:blank", new_tab=True)
+            target_id = await self.main_browser_session.navigate_to_url(url="chrome://newtab/", new_tab=True)
         return target_id
 
     async def get_activate_tab(self) -> Optional[TabInfo]:

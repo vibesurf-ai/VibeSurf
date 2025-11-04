@@ -65,7 +65,6 @@ class VibeSurfAPIClient {
     
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        console.log(`[API] ${method} ${url} (attempt ${attempt + 1}/${retries + 1})`);
         
         const response = await fetch(url, config);
         
@@ -87,7 +86,6 @@ class VibeSurfAPIClient {
           );
         }
 
-        console.log(`[API] ${method} ${url} - Success`);
         return responseData;
 
       } catch (error) {
@@ -197,10 +195,10 @@ class VibeSurfAPIClient {
     try {
       const status = await this.getTaskStatus();
       
-      console.log('[API] Task status check result:', {
-        has_active_task: status.has_active_task,
-        active_task: status.active_task
-      });
+      // console.log('[API] Task status check result:', {
+      //   has_active_task: status.has_active_task,
+      //   active_task: status.active_task
+      // });
       
       // Check if there's an active task and its status
       const hasActiveTask = status.has_active_task;
@@ -215,11 +213,11 @@ class VibeSurfAPIClient {
       const taskStatus = activeTask.status || '';
       const isRunning = runningStates.includes(taskStatus.toLowerCase());
       
-      console.log('[API] Task running check:', {
-        taskStatus,
-        isRunning,
-        runningStates
-      });
+      // console.log('[API] Task running check:', {
+      //   taskStatus,
+      //   isRunning,
+      //   runningStates
+      // });
       
       return {
         isRunning,
@@ -572,6 +570,131 @@ class VibeSurfAPIClient {
 
   async getComposioStatus() {
     return this.get('/composio/status');
+  }
+
+  // VibeSurf API Key Management
+  async verifyVibeSurfKey(apiKey) {
+    return this.post('/vibesurf/verify-key', { api_key: apiKey });
+  }
+
+  async getVibeSurfStatus() {
+    return this.get('/vibesurf/status');
+  }
+
+  async deleteVibeSurfKey() {
+    return this.delete('/vibesurf/key');
+  }
+
+  async validateVibeSurfKey() {
+    return this.get('/vibesurf/validate');
+  }
+
+  // Workflow Management APIs (Langflow integration)
+  async getWorkflows() {
+    // Match the exact parameters from working curl command
+    const params = {
+      remove_example_flows: true,
+      components_only: false,
+      get_all: true
+    };
+    
+    return this.get('/v1/flows/', { params });
+  }
+
+  async runWorkflow(flowId) {
+    return this.post(`/v1/build/${encodeURIComponent(flowId)}/flow`, {});
+  }
+
+  async cancelWorkflow(jobId) {
+    return this.post(`/v1/build/${encodeURIComponent(jobId)}/cancel`, {});
+  }
+
+  async getWorkflowEvents(jobId) {
+    return this.get(`/v1/build/${encodeURIComponent(jobId)}/events`);
+  }
+
+  async getWorkflow(flowId) {
+    return this.get(`/v1/flows/${encodeURIComponent(flowId)}`);
+  }
+
+  async deleteWorkflow(flowId) {
+    return this.delete(`/v1/flows/${encodeURIComponent(flowId)}`);
+  }
+
+  async exportWorkflow(flowId) {
+    return this.get(`/vibesurf/export-workflow/${encodeURIComponent(flowId)}`);
+  }
+
+  // Schedule Management APIs
+  async getSchedules() {
+    return this.get('/schedule');
+  }
+
+  async createSchedule(scheduleData) {
+    return this.post('/schedule', scheduleData);
+  }
+
+  async updateSchedule(scheduleId, scheduleData) {
+    return this.put(`/schedule/${encodeURIComponent(scheduleId)}`, scheduleData);
+  }
+
+  async deleteSchedule(scheduleId) {
+    return this.delete(`/schedule/${encodeURIComponent(scheduleId)}`);
+  }
+
+  async getSchedule(scheduleId) {
+    return this.get(`/schedule/${encodeURIComponent(scheduleId)}`);
+  }
+
+  // Get projects list to obtain folder_id
+  async getProjects() {
+    return this.get('/v1/projects/');
+  }
+
+  // Generate UUID from backend
+  async generateUUID() {
+    return this.get('/vibesurf/generate-uuid');
+  }
+
+  // Create new workflow
+  async createWorkflow(workflowData) {
+    // Use the specific endpoint that langflow expects
+    const url = `${this.baseURL}/api/v1/flows/`;
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(workflowData),
+        signal: AbortSignal.timeout(this.timeout)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new APIError(
+          `Failed to create workflow: ${response.status}`,
+          response.status,
+          errorData
+        );
+      }
+      
+      const responseData = await response.json();
+      return responseData;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Import workflow from JSON string
+  async importWorkflow(workflowJson) {
+    return this.post('/vibesurf/import-workflow', { workflow_json: workflowJson });
+  }
+
+  // Get VibeSurf backend version
+  async getVibeSurfVersion() {
+    return this.get('/vibesurf/version');
   }
 }
 

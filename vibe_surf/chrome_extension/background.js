@@ -1,12 +1,23 @@
 // Background Script - VibeSurf Extension
 // Handles extension lifecycle, side panel management, and cross-context communication
 
-// Import configuration using importScripts for service worker
+// Load configuration using importScripts for service worker
 try {
-  importScripts('config.js');
+  importScripts('./config.js');
   console.log('[VibeSurf] Configuration loaded');
 } catch (error) {
   console.error('[VibeSurf] Failed to load configuration:', error);
+  // Fallback configuration
+  self.VIBESURF_CONFIG = {
+    BACKEND_URL: 'http://127.0.0.1:9335',
+    SOCIAL_LINKS: {
+      github: "https://github.com/vibesurf-ai/VibeSurf",
+      discord: "https://discord.gg/86SPfhRVbk",
+      x: "https://x.com/warmshao",
+      reportBug: "https://github.com/vibesurf-ai/VibeSurf/issues/new/choose",
+      website: "https://vibe-surf.com/"
+    }
+  };
 }
 
 class VibeSurfBackground {
@@ -310,7 +321,7 @@ class VibeSurfBackground {
   }
 
   async initializeSettings() {
-    // Load configuration (use self instead of window in service worker)
+    // Load configuration from service worker global
     const config = self.VIBESURF_CONFIG || {};
     
     const defaultSettings = {
@@ -381,7 +392,6 @@ class VibeSurfBackground {
     // Try to use extension icons in order of preference, but don't validate with fetch
     const iconCandidates = [
       iconUrl ? chrome.runtime.getURL(iconUrl) : null,
-      chrome.runtime.getURL('icons/icon48.png'),
       chrome.runtime.getURL('icons/logo.png')
     ].filter(Boolean);
     
@@ -430,7 +440,7 @@ class VibeSurfBackground {
   }
 
   async checkBackendStatus(backendUrl = null) {
-    // Use configuration file value as default (use self instead of window in service worker)
+    // Use configuration file value as default from service worker global
     const config = self.VIBESURF_CONFIG || {};
     backendUrl = backendUrl || config.BACKEND_URL || 'http://localhost:9335';
     try {

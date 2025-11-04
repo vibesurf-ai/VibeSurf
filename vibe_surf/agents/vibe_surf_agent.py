@@ -1052,7 +1052,8 @@ class VibeSurfAgent:
             browser_manager: BrowserManager,
             tools: VibeSurfTools,
             workspace_dir: str = "./workspace",
-            settings: Optional[VibeSurfAgentSettings] = None
+            settings: Optional[VibeSurfAgentSettings] = None,
+            extend_system_prompt: Optional[str] = None,
     ):
         """Initialize VibeSurfAgent with required components"""
         self.llm: BaseChatModel = llm
@@ -1063,7 +1064,7 @@ class VibeSurfAgent:
         self.tools: VibeSurfTools = tools
         self.workspace_dir = workspace_dir
         os.makedirs(self.workspace_dir, exist_ok=True)
-
+        self.extend_system_prompt = extend_system_prompt
         self.cur_session_id = None
         self.file_system: Optional[CustomFileSystem] = None
         self.message_history = []
@@ -1643,6 +1644,8 @@ Please continue with your assigned work, incorporating this guidance only if it'
 
             if not self.message_history:
                 vibesurf_system_prompt = VIBESURF_SYSTEM_PROMPT
+                if self.extend_system_prompt:
+                    vibesurf_system_prompt += f"\n Extend System Prompt provided by user:\n {self.extend_system_prompt}"
                 if self.settings.agent_mode == "thinking":
                     vibesurf_system_prompt += """
 You must ALWAYS respond with a valid JSON in this exact format:
@@ -1685,7 +1688,7 @@ Action list should NEVER be empty and Each step can only output one action. If m
             latest_version = await check_latest_vibesurf_version()
             current_version = get_vibesurf_version()
             if latest_version and latest_version != current_version:
-                update_msg = f'📦 Newer version of vibesurf available: {latest_version} (current: {current_version}). \nUpgrade with: \n`uv pip install vibesurf -U`\nor\nDownload [Windows Installer](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-windows-x64.exe).'
+                update_msg = f'📦 Newer version of vibesurf available: {latest_version} (current: {current_version}). \nUpgrade with: \n`uv pip install vibesurf -U`\nor\nDownload [Windows Installer](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-windows-x64.exe).\n\nYou can find more information at [release page](https://github.com/vibesurf-ai/VibeSurf/releases).'
                 logger.info(update_msg)
                 activity_update_tip = {
                     "agent_name": 'System',

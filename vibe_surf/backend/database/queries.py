@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func, desc, and_, or_
 from sqlalchemy.orm import selectinload
-from .models import Task, TaskStatus, LLMProfile, UploadedFile, McpProfile, VoiceProfile, VoiceModelType, ComposioToolkit, Credential
+from .models import Task, TaskStatus, LLMProfile, UploadedFile, McpProfile, VoiceProfile, VoiceModelType, ComposioToolkit, Credential, Schedule
 from ..utils.encryption import encrypt_api_key, decrypt_api_key
 import logging
 import json
@@ -1427,3 +1427,256 @@ class CredentialQueries:
         except Exception as e:
             logger.error(f"Failed to list credential names: {e}")
             return []
+
+
+class ScheduleQueries:
+    """Query operations for Schedule model"""
+
+    @staticmethod
+    async def create_schedule(
+            db: AsyncSession,
+            flow_id: str,
+            cron_expression: Optional[str] = None,
+            is_enabled: bool = True,
+            description: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Create a new schedule"""
+        try:
+            # Calculate next execution time if cron expression is provided
+            from datetime import datetime, timezone
+            from croniter import croniter
+            
+            next_execution_at = None
+            if cron_expression:
+                try:
+                    cron = croniter(cron_expression, datetime.now(timezone.utc))
+                    next_execution_at = cron.get_next(datetime)
+                except (ValueError, TypeError):
+                    raise ValueError("Invalid cron expression format")
+
+            schedule = Schedule(
+                flow_id=flow_id,
+                cron_expression=cron_expression,
+                is_enabled=is_enabled,
+                description=description,
+                next_execution_at=next_execution_at,
+                execution_count=0
+            )
+
+            db.add(schedule)
+            await db.flush()
+            await db.refresh(schedule)
+
+            # Extract data immediately to avoid greenlet issues
+            schedule_data = {
+                "id": schedule.id,
+                "flow_id": schedule.flow_id,
+                "cron_expression": schedule.cron_expression,
+                "is_enabled": schedule.is_enabled,
+                "description": schedule.description,
+                "last_execution_at": schedule.last_execution_at,
+                "next_execution_at": schedule.next_execution_at,
+                "execution_count": schedule.execution_count,
+                "created_at": schedule.created_at,
+                "updated_at": schedule.updated_at
+            }
+
+            return schedule_data
+        except Exception as e:
+            logger.error(f"Failed to create schedule for flow {flow_id}: {e}")
+            raise
+
+    @staticmethod
+    async def get_schedule(db: AsyncSession, schedule_id: str) -> Optional[Schedule]:
+        """Get schedule by ID"""
+        try:
+            result = await db.execute(
+                select(Schedule).where(Schedule.id == schedule_id)
+            )
+            schedule = result.scalar_one_or_none()
+            if schedule:
+                # Ensure all attributes are loaded by accessing them
+                _ = (schedule.id, schedule.flow_id, schedule.created_at, schedule.updated_at)
+            return schedule
+        except Exception as e:
+            logger.error(f"Failed to get schedule {schedule_id}: {e}")
+            raise
+
+    @staticmethod
+    async def get_schedule_by_flow_id(db: AsyncSession, flow_id: str) -> Optional[Schedule]:
+        """Get schedule by flow ID"""
+        try:
+            result = await db.execute(
+                select(Schedule).where(Schedule.flow_id == flow_id)
+            )
+            schedule = result.scalar_one_or_none()
+            if schedule:
+                # Ensure all attributes are loaded by accessing them
+                _ = (schedule.id, schedule.flow_id, schedule.created_at, schedule.updated_at)
+            return schedule
+        except Exception as e:
+            logger.error(f"Failed to get schedule for flow {flow_id}: {e}")
+            raise
+
+    @staticmethod
+    async def list_schedules(
+            db: AsyncSession,
+            enabled_only: bool = False,
+            limit: int = -1,
+            offset: int = 0
+    ) -> List[Schedule]:
+        """List all schedules"""
+        try:
+            query = select(Schedule)
+
+            if enabled_only:
+                query = query.where(Schedule.is_enabled == True)
+
+            query = query.order_by(desc(Schedule.created_at))
+
+            # Handle -1 as "get all records"
+            if limit != -1:
+                query = query.limit(limit)
+
+            # Always apply offset if provided
+            if offset > 0:
+                query = query.offset(offset)
+
+            result = await db.execute(query)
+            schedules = result.scalars().all()
+
+            # Ensure all attributes are loaded for each schedule
+            for schedule in schedules:
+                _ = (schedule.id, schedule.flow_id, schedule.created_at, schedule.updated_at)
+
+            return schedules
+        except Exception as e:
+            logger.error(f"Failed to list schedules: {e}")
+            raise
+
+    @staticmethod
+    async def update_schedule(
+            db: AsyncSession,
+            schedule_id: str,
+            updates: Dict[str, Any]
+    ) -> bool:
+        """Update schedule"""
+        try:
+            # Handle cron expression validation and next execution calculation
+            if "cron_expression" in updates and updates["cron_expression"]:
+                from datetime import datetime, timezone
+                from croniter import croniter
+                
+                try:
+                    cron = croniter(updates["cron_expression"], datetime.now(timezone.utc))
+                    updates["next_execution_at"] = cron.get_next(datetime)
+                except (ValueError, TypeError):
+                    raise ValueError("Invalid cron expression format")
+            elif "cron_expression" in updates and updates["cron_expression"] is None:
+                updates["next_execution_at"] = None
+
+            result = await db.execute(
+                update(Schedule)
+                .where(Schedule.id == schedule_id)
+                .values(**updates)
+            )
+
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to update schedule {schedule_id}: {e}")
+            raise
+
+    @staticmethod
+    async def update_schedule_by_flow_id(
+            db: AsyncSession,
+            flow_id: str,
+            updates: Dict[str, Any]
+    ) -> bool:
+        """Update schedule by flow ID"""
+        try:
+            # Handle cron expression validation and next execution calculation
+            if "cron_expression" in updates and updates["cron_expression"]:
+                from datetime import datetime, timezone
+                from croniter import croniter
+                
+                try:
+                    cron = croniter(updates["cron_expression"], datetime.now(timezone.utc))
+                    updates["next_execution_at"] = cron.get_next(datetime)
+                except (ValueError, TypeError):
+                    raise ValueError("Invalid cron expression format")
+            elif "cron_expression" in updates and updates["cron_expression"] is None:
+                updates["next_execution_at"] = None
+
+            result = await db.execute(
+                update(Schedule)
+                .where(Schedule.flow_id == flow_id)
+                .values(**updates)
+            )
+
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to update schedule for flow {flow_id}: {e}")
+            raise
+
+    @staticmethod
+    async def delete_schedule(db: AsyncSession, schedule_id: str) -> bool:
+        """Delete schedule"""
+        try:
+            result = await db.execute(
+                delete(Schedule).where(Schedule.id == schedule_id)
+            )
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to delete schedule {schedule_id}: {e}")
+            raise
+
+    @staticmethod
+    async def delete_schedule_by_flow_id(db: AsyncSession, flow_id: str) -> bool:
+        """Delete schedule by flow ID"""
+        try:
+            result = await db.execute(
+                delete(Schedule).where(Schedule.flow_id == flow_id)
+            )
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to delete schedule for flow {flow_id}: {e}")
+            raise
+
+    @staticmethod
+    async def get_enabled_schedules(db: AsyncSession) -> List[Schedule]:
+        """Get all enabled schedules"""
+        try:
+            result = await db.execute(
+                select(Schedule).where(Schedule.is_enabled == True)
+                .order_by(desc(Schedule.created_at))
+            )
+            schedules = result.scalars().all()
+
+            # Ensure all attributes are loaded for each schedule
+            for schedule in schedules:
+                _ = (schedule.id, schedule.flow_id, schedule.created_at, schedule.updated_at)
+
+            return schedules
+        except Exception as e:
+            logger.error(f"Failed to get enabled schedules: {e}")
+            raise
+
+    @staticmethod
+    async def increment_execution_count(db: AsyncSession, schedule_id: str) -> bool:
+        """Increment execution count for a schedule"""
+        try:
+            from datetime import datetime, timezone
+            
+            result = await db.execute(
+                update(Schedule)
+                .where(Schedule.id == schedule_id)
+                .values(
+                    execution_count=Schedule.execution_count + 1,
+                    last_execution_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc)
+                )
+            )
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to increment execution count for schedule {schedule_id}: {e}")
+            raise

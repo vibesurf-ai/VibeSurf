@@ -478,7 +478,7 @@ class AgentBrowserSession(BrowserSession):
             if new_tab:
                 # Create new tab directly via CDP - no event system overhead
                 result = await self._cdp_client_root.send.Target.createTarget(
-                    params={'url': 'about:blank', 'newWindow': False, 'background': False}
+                    params={'url': 'chrome://newtab/', 'newWindow': False, 'background': False}
                 )
                 target_id = result['targetId']
 
