@@ -124,8 +124,10 @@ jobs:
         VERSION=$(python -m setuptools_scm)
         echo "Version from setuptools-scm: $VERSION"
         
-        # Extract version parts (remove any +dev suffix for extension)
-        CLEAN_VERSION=$(echo $VERSION | sed 's/+.*//')
+        # Extract Chrome-compatible version (only numbers and dots)
+        # Remove everything after + and any non-numeric/non-dot characters
+        TEMP_VERSION=$(echo $VERSION | sed 's/+.*//')
+        CLEAN_VERSION=$(echo $TEMP_VERSION | sed 's/[^0-9.]//g')
         echo "Clean version for extension: $CLEAN_VERSION"
         
         # Update manifest.json version
@@ -194,6 +196,42 @@ jobs:
         grep -A 20 "dependencies = \[" pyproject.toml || echo "No dependencies section found"
         echo "=== vibe_surf/__init__.py ==="
         head -5 vibe_surf/__init__.py || echo "No __init__.py found"
+
+    # Install dependencies for version extraction
+    - name: Install dependencies for version extraction
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install setuptools-scm[toml]
+
+    # Update Extension Version
+    - name: Update Extension Version
+      shell: bash
+      run: |
+        echo "=== Updating Extension Version ==="
+        
+        # Get version from setuptools-scm
+        VERSION=$(python -m setuptools_scm)
+        echo "Version from setuptools-scm: $VERSION"
+        
+        # Extract version parts (remove any +dev suffix for extension)
+        CLEAN_VERSION=$(echo $VERSION | sed 's/+.*//')
+        echo "Clean version for extension: $CLEAN_VERSION"
+        
+        # Update manifest.json version
+        cd vibe_surf/chrome_extension
+        python -c "import json; import sys; version = sys.argv[1]; manifest = json.load(open('manifest.json', 'r')); manifest['version'] = version; json.dump(manifest, open('manifest.json', 'w'), indent=2); print(f'Updated manifest.json version to {version}')" "$CLEAN_VERSION"
+        
+        # Create version.js file
+        echo "// Extension version - auto-generated during build" > scripts/version.js
+        echo "window.VIBESURF_EXTENSION_VERSION = '$CLEAN_VERSION';" >> scripts/version.js
+        echo "console.log('[VibeSurf] Extension version:', '$CLEAN_VERSION');" >> scripts/version.js
+        
+        echo "=== Version files updated ==="
+        echo "manifest.json version:"
+        grep -A1 -B1 '"version"' manifest.json
+        echo "version.js content:"
+        cat scripts/version.js
 
     # Set up Node.js for frontend build
     - name: Set up Node.js

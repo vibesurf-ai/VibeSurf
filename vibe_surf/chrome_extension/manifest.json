@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VibeSurf: Your browser assistant for vibe surfing",
-  "version": "1.0.0",
+  "version": "0.1.44.73",
   "description": "Let's vibe surfing the world",
   "icons": {
     "16": "icons/logo.png",
@@ -33,8 +33,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_end"
     }
   ],
@@ -49,11 +53,18 @@
   "side_panel": {
     "default_path": "sidepanel.html"
   },
-
   "web_accessible_resources": [
     {
-      "resources": ["sidepanel.html", "styles/*", "scripts/*", "config.js", "icons/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "sidepanel.html",
+        "styles/*",
+        "scripts/*",
+        "config.js",
+        "icons/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

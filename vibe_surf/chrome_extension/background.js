@@ -392,7 +392,6 @@ class VibeSurfBackground {
     // Try to use extension icons in order of preference, but don't validate with fetch
     const iconCandidates = [
       iconUrl ? chrome.runtime.getURL(iconUrl) : null,
-      chrome.runtime.getURL('icons/icon48.png'),
       chrome.runtime.getURL('icons/logo.png')
     ].filter(Boolean);
     

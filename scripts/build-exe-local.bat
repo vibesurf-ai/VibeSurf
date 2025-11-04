@@ -45,7 +45,84 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-:: Install local VibeSurf and PyInstaller
+:: Install dependencies for version extraction and build
+echo [INFO] Installing dependencies for version extraction and build...
+uv pip install setuptools-scm[toml]
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] Failed to install setuptools-scm
+    exit /b 1
+)
+
+:: Step 2.1: Update Extension Version
+echo [INFO] Updating Extension Version...
+for /f "tokens=*" %%i in ('python -m setuptools_scm') do set VERSION=%%i
+echo Version from setuptools-scm: %VERSION%
+
+:: Extract Chrome-compatible version (only numbers and dots)
+:: Remove everything after + and any non-numeric/non-dot characters
+for /f "tokens=1 delims=+" %%a in ("%VERSION%") do set TEMP_VERSION=%%a
+:: Use PowerShell to clean version - only keep digits and dots
+for /f "usebackq tokens=*" %%b in (`powershell -Command "('%TEMP_VERSION%' -replace '[^0-9.]', '')"`) do set CLEAN_VERSION=%%b
+echo Clean version for extension: %CLEAN_VERSION%
+
+:: Update manifest.json version
+cd vibe_surf\chrome_extension
+python -c "import json; import sys; version = sys.argv[1]; manifest = json.load(open('manifest.json', 'r')); manifest['version'] = version; json.dump(manifest, open('manifest.json', 'w'), indent=2); print(f'Updated manifest.json version to {version}')" "%CLEAN_VERSION%"
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] Failed to update manifest.json
+    exit /b 1
+)
+
+:: Create version.js file
+echo // Extension version - auto-generated during build > scripts\version.js
+echo window.VIBESURF_EXTENSION_VERSION = '%CLEAN_VERSION%'; >> scripts\version.js
+echo console.log('[VibeSurf] Extension version:', '%CLEAN_VERSION%'); >> scripts\version.js
+
+echo [SUCCESS] Extension version files updated
+echo manifest.json version:
+findstr "version" manifest.json
+echo version.js content:
+type scripts\version.js
+
+cd ..\..
+
+:: Step 2.2: Build frontend
+echo [INFO] Building frontend...
+cd vibe_surf\frontend
+
+:: Check if package.json exists
+if not exist "package.json" (
+    echo [ERROR] Frontend package.json not found!
+    exit /b 1
+)
+
+:: Install frontend dependencies and build
+call npm ci
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] Failed to install frontend dependencies
+    exit /b 1
+)
+
+call npm run build
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] Failed to build frontend
+    exit /b 1
+)
+
+:: Copy build folder to backend directory as frontend
+if not exist "..\backend\frontend" mkdir "..\backend\frontend"
+xcopy /E /I /Y build\* ..\backend\frontend\
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] Failed to copy frontend build
+    exit /b 1
+)
+
+echo [SUCCESS] Frontend build completed
+dir ..\backend\frontend\
+
+cd ..\..
+
+:: Step 2.3: Install local VibeSurf and PyInstaller
 echo [INFO] Installing local vibesurf in development mode and pyinstaller...
 uv pip install -e .
 if %ERRORLEVEL% neq 0 (
