@@ -51,6 +51,13 @@ Start the VibeSurf browser assistant
 uv run vibesurf
 ```
 
+**Note**: Starting from Chrome 142, the `--load-extension` flag is no longer supported, which means VibeSurf cannot automatically load the extension. If you cannot find the VibeSurf extension after starting VibeSurf, please download it manually from [here](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip) and follow these steps:
+
+- Extract the downloaded zip file
+- Open chrome://extensions
+- Enable Developer mode
+- Click "Load unpacked" and select the extracted folder
+
 ### 4. Start to Use
 
 <video src="https://github.com/user-attachments/assets/86dba2e4-3f33-4ccf-b400-d07cf1a481a0" controls="controls">Your browser does not support playing this video!</video>
@@ -119,7 +126,7 @@ We're building VibeSurf to be your ultimate AI browser companion. Here's what's 
 - [x] **Third-Party Integrations** - *Completed*
   Connect with hundreds of popular tools including Gmail, Notion, Google Calendar, Slack, Trello, GitHub, and more through Composio integration to combine browsing with powerful automation capabilities
 
-- [ ] **Agentic Browser Workflow** - *In Progress*
+- [x] **Agentic Browser Workflow** - *Completed*
   Create custom drag-and-drop and conversation-based workflows for auto-login, data collection, and complex browser automation tasks
 
 - [ ] **Powerful Coding Agent** - *In Progress*
@@ -148,6 +155,7 @@ VibeSurf builds on top of other awesome open-source projects:
 
 - [Browser Use](https://github.com/browser-use/browser-use)
 - [LangGraph](https://github.com/langchain-ai/langgraph)
+- [Langflow](https://github.com/langflow-ai/langflow)
 
 Huge thanks to their creators and contributors!
 
