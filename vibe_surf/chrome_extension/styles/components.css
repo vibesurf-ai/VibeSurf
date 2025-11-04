@@ -904,7 +904,7 @@
   color: white !important;
   border: 2px solid transparent;
   animation: upgradeGlow 2s ease-in-out infinite alternate;
-  overflow: hidden;
+  /* Removed overflow: hidden to allow tooltip to show */
 }
 
 .upgrade-btn::before {
@@ -964,34 +964,32 @@
 /* Upgrade Tooltip */
 .upgrade-tooltip {
   position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: var(--text-primary);
-  color: var(--bg-primary);
-  padding: var(--spacing-md);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-xs);
-  white-space: nowrap;
+  top: calc(100% + 8px);
+  right: 0;
+  background-color: #2d3748;
+  color: #ffffff;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--transition-fast);
-  margin-bottom: 8px;
-  z-index: 1000;
-  min-width: 280px;
+  transition: opacity 0.2s ease;
+  z-index: 20000;
+  width: 280px;
+  max-width: calc(100vw - 40px);
   white-space: normal;
   text-align: left;
   line-height: 1.4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .upgrade-tooltip::after {
   content: '';
   position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 100%;
+  right: 16px;
   border: 6px solid transparent;
-  border-top-color: var(--text-primary);
+  border-bottom-color: #2d3748;
 }
 
 .upgrade-btn:hover .upgrade-tooltip {
@@ -999,28 +997,41 @@
 }
 
 .upgrade-tooltip-title {
-  font-weight: var(--font-weight-semibold);
-  margin-bottom: var(--spacing-xs);
+  font-weight: 600;
+  margin-bottom: 8px;
   color: #ff6b35;
+  font-size: 13px;
+}
+
+.upgrade-tooltip > div {
+  color: #ffffff;
+  margin-bottom: 8px;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .upgrade-tooltip-steps {
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 8px 0 0 0;
 }
 
 .upgrade-tooltip-steps li {
-  margin-bottom: var(--spacing-xs);
-  padding-left: var(--spacing-sm);
+  margin-bottom: 6px;
+  padding-left: 16px;
   position: relative;
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1.3;
 }
 
 .upgrade-tooltip-steps li::before {
-  content: '●';
+  content: '•';
   position: absolute;
   left: 0;
   color: #ff6b35;
+  font-weight: bold;
+  font-size: 14px;
 }
 
 .upgrade-tooltip-steps li:last-child {

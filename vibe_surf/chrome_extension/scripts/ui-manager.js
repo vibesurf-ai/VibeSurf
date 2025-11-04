@@ -872,17 +872,31 @@ class VibeSurfUIManager {
       const downloadUrl = 'https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip';
       
       // Open download URL in new tab
-      const result = await chrome.runtime.sendMessage({
+      const downloadResult = await chrome.runtime.sendMessage({
         type: 'OPEN_FILE_URL',
         data: { fileUrl: downloadUrl }
       });
       
-      if (!result || !result.success) {
-        throw new Error(result?.error || 'Failed to open download URL');
+      if (!downloadResult || !downloadResult.success) {
+        throw new Error(downloadResult?.error || 'Failed to open download URL');
       }
       
-      console.log('[UIManager] Successfully opened download tab:', result.tabId);
-      this.showNotification('Extension download started. Please follow the installation instructions.', 'info');
+      console.log('[UIManager] Successfully opened download tab:', downloadResult.tabId);
+      
+      // Also open chrome://extensions in a new tab
+      const extensionsResult = await chrome.runtime.sendMessage({
+        type: 'OPEN_FILE_URL',
+        data: { fileUrl: 'chrome://extensions' }
+      });
+      
+      if (!extensionsResult || !extensionsResult.success) {
+        console.warn('[UIManager] Failed to open chrome://extensions:', extensionsResult?.error);
+        // Don't throw error here as download was successful
+      } else {
+        console.log('[UIManager] Successfully opened chrome://extensions tab:', extensionsResult.tabId);
+      }
+      
+      this.showNotification('Extension download started and chrome://extensions opened. Please follow the installation instructions.', 'info');
       
     } catch (error) {
       console.error('[UIManager] Upgrade failed:', error);
