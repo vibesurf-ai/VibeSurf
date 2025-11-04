@@ -1,6 +1,6 @@
 # VibeSurf：强大的浏览器助手，用于氛围冲浪
 
-[![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/EZ2YnUXP)
+[![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/86SPfhRVbk)
 [![WarmShao](https://img.shields.io/twitter/follow/warmshao?style=social)](https://x.com/warmshao)
 
 VibeSurf 是一个开源的 AI 代理浏览器，它革新了浏览器自动化和研究。
