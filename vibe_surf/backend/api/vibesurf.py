@@ -41,6 +41,9 @@ class VibeSurfStatusResponse(BaseModel):
 class UUIDResponse(BaseModel):
     uuid: str
 
+class VersionResponse(BaseModel):
+    version: str
+
 class ImportWorkflowRequest(BaseModel):
     workflow_json: str
 
@@ -431,3 +434,15 @@ async def export_workflow(
             success=False,
             message="Failed to export workflow"
         )
+
+@router.get("/version", response_model=VersionResponse)
+async def get_vibesurf_version():
+    """Get VibeSurf package version"""
+    try:
+        import vibe_surf
+        version = vibe_surf.__version__
+        logger.info(f"VibeSurf version: {version}")
+        return VersionResponse(version=version)
+    except Exception as e:
+        logger.error(f"Error getting VibeSurf version: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get version")
