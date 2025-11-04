@@ -41,10 +41,7 @@ const VIBESURF_CONFIG = {
   DEBUG: false
 };
 
-// Export configuration for use in other files
-export { VIBESURF_CONFIG };
-
-// Legacy compatibility for non-module scripts
+// Make config available globally for Chrome extension
 if (typeof window !== 'undefined') {
   window.VIBESURF_CONFIG = VIBESURF_CONFIG;
 }

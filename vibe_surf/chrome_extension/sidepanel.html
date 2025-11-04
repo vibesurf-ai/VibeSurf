@@ -55,6 +55,22 @@
                 </div>
             </div>
             <div class="header-right">
+                <button id="upgrade-btn" class="icon-btn upgrade-btn hidden" title="Extension Update Available">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 4V15M12 4L8 8M12 4L16 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 17V19C4 19.5304 4.46957 20 5 20H19C19.5304 20 20 19.5304 20 19V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <div class="upgrade-tooltip">
+                        <div class="upgrade-tooltip-title">Extension Update Required</div>
+                        <div>Your extension version is outdated. Please update:</div>
+                        <ul class="upgrade-tooltip-steps">
+                            <li>Extract downloaded zip file</li>
+                            <li>Open chrome://extensions</li>
+                            <li>Enable Developer mode</li>
+                            <li>Click "Load unpacked" and select extracted folder</li>
+                        </ul>
+                    </div>
+                </button>
                 <button id="new-session-btn" class="icon-btn" title="New Session">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1136,6 +1152,7 @@
     </div>
 
     <!-- Scripts -->
+    <script src="scripts/version.js"></script>
     <script src="config.js"></script>
     <script src="scripts/markdown-it.min.js"></script>
     <script src="scripts/api-client.js"></script>
@@ -1154,9 +1171,6 @@
     <script src="scripts/settings-manager.js"></script>
     <script src="scripts/history-manager.js"></script>
     <script src="scripts/file-manager.js"></script>
-    
-    <!-- Test Suite (Development Only) -->
-    <script src="scripts/schedule-test.js"></script>
     
     <!-- Core UI Manager -->
     <script src="scripts/ui-manager.js"></script>

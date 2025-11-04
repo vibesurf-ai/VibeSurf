@@ -691,6 +691,11 @@ class VibeSurfAPIClient {
   async importWorkflow(workflowJson) {
     return this.post('/vibesurf/import-workflow', { workflow_json: workflowJson });
   }
+
+  // Get VibeSurf backend version
+  async getVibeSurfVersion() {
+    return this.get('/vibesurf/version');
+  }
 }
 
 // Custom error class for API errors

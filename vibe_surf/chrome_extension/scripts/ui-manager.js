@@ -39,6 +39,7 @@ class VibeSurfUIManager {
     this.elements = {
       // Header elements
       newSessionBtn: document.getElementById('new-session-btn'),
+      upgradeBtn: document.getElementById('upgrade-btn'),
       historyBtn: document.getElementById('history-btn'),
       settingsBtn: document.getElementById('settings-btn'),
 
@@ -351,6 +352,7 @@ class VibeSurfUIManager {
   bindEvents() {
     // Header buttons
     this.elements.newSessionBtn?.addEventListener('click', this.handleNewSession.bind(this));
+    this.elements.upgradeBtn?.addEventListener('click', this.handleUpgrade.bind(this));
     this.elements.historyBtn?.addEventListener('click', this.handleShowHistory.bind(this));
     this.elements.settingsBtn?.addEventListener('click', this.handleShowSettings.bind(this));
 
@@ -858,6 +860,33 @@ class VibeSurfUIManager {
     } catch (error) {
       console.error('[UIManager] Failed to copy session ID:', error);
       this.showNotification('Failed to copy session ID', 'error');
+    }
+  }
+
+  // Upgrade Handler
+  async handleUpgrade() {
+    try {
+      console.log('[UIManager] Starting extension upgrade...');
+      
+      // Download the latest extension zip from GitHub releases
+      const downloadUrl = 'https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip';
+      
+      // Open download URL in new tab
+      const result = await chrome.runtime.sendMessage({
+        type: 'OPEN_FILE_URL',
+        data: { fileUrl: downloadUrl }
+      });
+      
+      if (!result || !result.success) {
+        throw new Error(result?.error || 'Failed to open download URL');
+      }
+      
+      console.log('[UIManager] Successfully opened download tab:', result.tabId);
+      this.showNotification('Extension download started. Please follow the installation instructions.', 'info');
+      
+    } catch (error) {
+      console.error('[UIManager] Upgrade failed:', error);
+      this.showNotification(`Failed to start upgrade: ${error.message}`, 'error');
     }
   }
 
@@ -2611,6 +2640,8 @@ class VibeSurfUIManager {
       // Check and update voice button state based on ASR profile availability
       await this.updateVoiceButtonState();
 
+      // Check version and show upgrade button if needed
+      await this.checkVersionAndShowUpgrade();
 
       // Create initial session if none exists
 
@@ -2739,6 +2770,77 @@ class VibeSurfUIManager {
       }
     } catch (error) {
       console.error('[UIManager] Failed to restore agent mode selection:', error);
+    }
+  }
+
+  // Version checking and upgrade button management
+  async checkVersionAndShowUpgrade() {
+    try {
+      console.log('[UIManager] Checking version for upgrade notification...');
+      
+      // Get extension version from version.js
+      const extensionVersion = window.VIBESURF_EXTENSION_VERSION;
+      if (!extensionVersion) {
+        console.warn('[UIManager] Extension version not found');
+        return;
+      }
+      
+      console.log('[UIManager] Extension version:', extensionVersion);
+      
+      // Get VibeSurf backend version from API
+      const versionResponse = await this.apiClient.getVibeSurfVersion();
+      const backendVersion = versionResponse.version;
+      
+      if (!backendVersion) {
+        console.warn('[UIManager] Backend version not found');
+        return;
+      }
+      
+      console.log('[UIManager] Backend version:', backendVersion);
+      
+      // Compare versions - show upgrade if extension version is different from backend
+      const shouldShowUpgrade = this.compareVersions(extensionVersion, backendVersion);
+      
+      if (shouldShowUpgrade) {
+        console.log('[UIManager] Extension version mismatch detected, showing upgrade button');
+        this.showUpgradeButton();
+      } else {
+        console.log('[UIManager] Extension version is up to date');
+        this.hideUpgradeButton();
+      }
+      
+    } catch (error) {
+      console.error('[UIManager] Failed to check version:', error);
+      // Don't show upgrade button on error to avoid false positives
+    }
+  }
+  
+  // Compare versions - returns true if extension needs upgrade
+  compareVersions(extensionVersion, backendVersion) {
+    // Remove any +dev suffix from extension version for comparison
+    const cleanExtensionVersion = extensionVersion.replace(/\+.*$/, '');
+    const cleanBackendVersion = backendVersion.replace(/\+.*$/, '');
+    
+    console.log('[UIManager] Comparing versions:', cleanExtensionVersion, 'vs', cleanBackendVersion);
+    
+    // Simple string comparison - if they're different, show upgrade
+    // This handles cases where extension is older, newer, or just different
+    return cleanExtensionVersion !== cleanBackendVersion;
+  }
+  
+  // Show upgrade button with animation
+  showUpgradeButton() {
+    if (this.elements.upgradeBtn) {
+      this.elements.upgradeBtn.classList.remove('hidden');
+      console.log('[UIManager] Upgrade button shown');
+    }
+  }
+  
+  // Hide upgrade button
+  hideUpgradeButton() {
+    if (this.elements.upgradeBtn) {
+      this.elements.upgradeBtn.classList.add('hidden');
+      console.log('[UIManager] Upgrade button hidden');
     }
   }
 
