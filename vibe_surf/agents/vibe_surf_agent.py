@@ -824,7 +824,7 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
             await main_browser_session.get_or_create_cdp_session(target_id=target_id)
         else:
             new_target = await main_browser_session.cdp_client.send.Target.createTarget(
-                params={'url': 'about:blank'})
+                params={'url': 'chrome://newtab/'})
             target_id = new_target["targetId"]
             await main_browser_session.get_or_create_cdp_session(target_id=target_id)
         agent = BrowserUseAgent(

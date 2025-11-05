@@ -238,7 +238,7 @@ class AgentBrowserSession(BrowserSession):
                 target_id = [page for page in page_targets if page.get('type') == 'page'][0]['targetId']
                 self.logger.debug(f'📄 Using existing page with target ID: {target_id}')
 
-            self.agent_focus = await CDPSession.for_target(self._cdp_client_root, target_id, new_socket=False)
+            self.agent_focus = await CDPSession.for_target(self._cdp_client_root, target_id)
 
             if self.agent_focus:
                 self._cdp_session_pool[target_id] = self.agent_focus
@@ -290,8 +290,7 @@ class AgentBrowserSession(BrowserSession):
         assigned_target_ids = self._cdp_session_pool.keys()
         if target_id not in assigned_target_ids:
             self.logger.info(f"Agent {self.id}: Assigned target {target_id}")
-            self.agent_focus = await CDPSession.for_target(self._cdp_client_root, target_id, new_socket=True,
-                                                           cdp_url=self.cdp_url)
+            self.agent_focus = await CDPSession.for_target(self._cdp_client_root, target_id)
             # await self.agent_focus.cdp_client.send.Target.activateTarget(
             #     params={'targetId': target_id})
             await self.agent_focus.cdp_client.send.Runtime.runIfWaitingForDebugger(
@@ -681,14 +680,13 @@ class AgentBrowserSession(BrowserSession):
             raise
 
     async def get_or_create_cdp_session(
-            self, target_id: TargetID | None = None, focus: bool = True, new_socket: bool | None = None
+            self, target_id: TargetID | None = None, focus: bool = True
     ) -> CDPSession:
         """Get or create a CDP session for a target.
 
         Args:
                 target_id: Target ID to get session for. If None, uses current agent focus.
                 focus: If True, switches agent focus to this target. If False, just returns session without changing focus.
-                new_socket: If True, create a dedicated WebSocket connection. If None (default), creates new socket for new targets only.
 
         Returns:
                 CDPSession for the specified target.
@@ -721,17 +719,9 @@ class AgentBrowserSession(BrowserSession):
             self._cdp_session_pool[target_id] = self.agent_focus
             return self.agent_focus
 
-        # Create new session for this target
-        # Default to True for new sessions (each new target gets its own WebSocket)
-        should_use_new_socket = True if new_socket is None else new_socket
-        self.logger.debug(
-            f'[get_or_create_cdp_session] Creating new CDP session for target {target_id} (new_socket={should_use_new_socket})'
-        )
         session = await CDPSession.for_target(
             self._cdp_client_root,
-            target_id,
-            new_socket=should_use_new_socket,
-            cdp_url=self.cdp_url if should_use_new_socket else None,
+            target_id
         )
         self._cdp_session_pool[target_id] = session
         # log length of _cdp_session_pool
