@@ -609,7 +609,7 @@ class ComposioBaseComponent(Component):
                                 name=inp.name,
                                 display_name=getattr(inp, "display_name", inp.name.replace("_", " ").title()),
                                 required=inp.name in required_fields_set,
-                                advanced=inp.name not in required_fields_set,
+                                advanced=False,
                                 info=getattr(inp, "info", "Upload file for this field"),
                                 show=True,
                                 file_types=[
@@ -649,8 +649,9 @@ class ComposioBaseComponent(Component):
                                 inp.info = f"{inp.name.replace('_', ' ').title()} field"
 
                             # Set advanced status for non-file-upload fields
-                            if inp.name not in required_fields_set:
-                                inp.advanced = True
+                            # if inp.name not in required_fields_set:
+                            #     inp.advanced = True
+                            inp.advanced = False
 
                             # Skip entity_id being mapped to user_id parameter
                             if inp.name == "user_id" and getattr(self, "entity_id", None) == getattr(

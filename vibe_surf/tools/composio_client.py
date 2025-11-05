@@ -146,7 +146,7 @@ class ComposioClient:
 
             for param_name, param_schema in properties.items():
                 # Convert JSON Schema type to Python type
-                param_type = self._json_schema_to_python_type(param_schema, f'{action_name}_{param_name}')
+                param_type = self._json_schema_to_python_type(param_schema, f'{param_name}')
 
                 # Determine if field is required and handle defaults
                 if param_name in required:

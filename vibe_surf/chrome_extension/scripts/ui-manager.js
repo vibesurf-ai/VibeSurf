@@ -2514,28 +2514,30 @@ class VibeSurfUIManager {
 
   showNotification(message, type = 'info') {
     // Map UI notification types to valid Chrome notification types
-    const validTypes = {
-      'info': 'basic',
-      'success': 'basic',
-      'warning': 'basic',
-      'error': 'basic',
-      'basic': 'basic',
-      'image': 'image',
-      'list': 'list',
-      'progress': 'progress'
-    };
+    if(type === "error") {
+      const validTypes = {
+        'info': 'basic',
+        'success': 'basic',
+        'warning': 'basic',
+        'error': 'basic',
+        'basic': 'basic',
+        'image': 'image',
+        'list': 'list',
+        'progress': 'progress'
+      };
 
-    const chromeType = validTypes[type] || 'basic';
+      const chromeType = validTypes[type] || 'basic';
 
-    // Send notification to background script for display
-    chrome.runtime.sendMessage({
-      type: 'SHOW_NOTIFICATION',
-      data: {
-        title: 'VibeSurf',
-        message,
-        type: chromeType
-      }
-    });
+      // Send notification to background script for display
+      chrome.runtime.sendMessage({
+        type: 'SHOW_NOTIFICATION',
+        data: {
+          title: 'VibeSurf',
+          message,
+          type: chromeType
+        }
+      });
+    }
   }
 
   // Restore LLM profile selection from user settings storage
