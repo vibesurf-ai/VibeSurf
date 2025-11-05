@@ -33,7 +33,6 @@ class FileExtractionAction(BaseModel):
     )
     query: str = Field(
         default="Extract and summarize the content from this file",
-        description='Query or instruction for content extraction',
     )
 
 
@@ -125,6 +124,10 @@ class SkillSearchAction(BaseModel):
     query: str = Field(
         description='Search query to generate multiple search tasks and find relevant information',
     )
+    rank: bool = Field(
+        default=False,
+        description='Whether to use LLM ranking for results. If True, uses LLM to rank all results. If False, returns 5 results from each search tab (all, news, videos).',
+    )
 
 
 class SkillCrawlAction(BaseModel):
@@ -136,7 +139,6 @@ class SkillCrawlAction(BaseModel):
         default=None,
         min_length=4,
         max_length=4,
-        description='Optional 4 character Tab ID to extract from specific tab',
     )
 
 
@@ -146,7 +148,6 @@ class SkillSummaryAction(BaseModel):
         default=None,
         min_length=4,
         max_length=4,
-        description='Optional 4 character Tab ID to summarize specific tab',
     )
 
 
@@ -156,7 +157,6 @@ class SkillTakeScreenshotAction(BaseModel):
         default=None,
         min_length=4,
         max_length=4,
-        description='Optional 4 character Tab ID to take screenshot of specific tab',
     )
 
 
@@ -176,7 +176,6 @@ class SkillCodeAction(BaseModel):
         default=None,
         min_length=4,
         max_length=4,
-        description='Optional 4 character Tab ID to execute code on specific tab',
     )
 
 

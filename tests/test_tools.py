@@ -153,7 +153,12 @@ async def test_composio_integrations():
     def configure_tools(entity_id: str, app_name: str, limit: int | None = None) -> Dict:
         if limit is None:
             limit = 999
-
+        raw_tools = composio.tools.get_raw_composio_tools(toolkits=[app_name.lower()], limit=999)
+        raw_tool = raw_tools[-1]
+        tool_dict = raw_tool.__dict__ if hasattr(raw_tool, "__dict__") else raw_tool
+        parameters_schema = tool_dict.get("input_parameters", {})
+        pdb.set_trace()
+        tool_dict = raw_tool.__dict__ if hasattr(raw_tool, "__dict__") else raw_tool
         tools = composio.tools.get(user_id=entity_id, toolkits=[app_name.lower()], limit=limit)
         configured_tools = []
         tools_list = []
@@ -234,6 +239,7 @@ async def test_composio_integrations():
         connected_account = connection_request.wait_for_connection()
         print(connection_request.redirect_url)
         connected_ret = _find_active_connection_for_app(entity_id=entity_id, app_name=app_name)
+
 
 if __name__ == '__main__':
     # asyncio.run(test_tools_with_mcp())
