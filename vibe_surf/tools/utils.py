@@ -676,7 +676,7 @@ def _generate_video_extraction_js() -> str:
       if (a && h3 && txt) {
         items.push({
           title: h3.innerText.trim(),
-          content: txt.split('\n').filter(l => l.trim()).slice(1, 3).join(' ').trim(),
+          summary: txt.split('\n').filter(l => l.trim()).slice(1, 3).join(' ').trim(),
           url: a.href
         });
       }
@@ -832,10 +832,10 @@ def _generate_news_extraction_js() -> str:
                 
                 results.push({
                     title: title || 'No title',
-                    snippet: snippetEl ? snippetEl.textContent.trim() : 'No description available',
+                    summary: snippetEl ? snippetEl.textContent.trim() : 'No description available',
                     source: sourceEl ? sourceEl.textContent.trim() : 'Unknown source',
                     time: timeEl ? timeEl.textContent.trim() : '',
-                    link: url || 'No URL',
+                    url: url || 'No URL',
                     source_tab: 'news',
                     extraction_method: extractionMethod
                 });
@@ -1055,50 +1055,6 @@ async def _perform_tab_search(browser_session, search_url: str, tab_name: str, q
         logger.warning(f"Failed to search {tab_name} tab: {e}")
         return []
 
-
-async def fallback_sequential_search(browser_session, query: str, max_results: int = 10):
-    """
-    Old fallback method: Sequential search (kept for compatibility)
-    
-    Args:
-        browser_session: Active browser session to use for searching
-        query: Search query string
-        max_results: Maximum number of results to return
-        
-    Returns:
-        List of unique search results from all tabs
-    """
-    try:
-        # Define search URLs for different tabs
-        search_urls = {
-            'all': f'https://www.google.com/search?q={query}',
-            'news': f'https://www.google.com/search?q={query}&tbm=nws',
-            'videos': f'https://www.google.com/search?q={query}&tbm=vid'
-        }
-        
-        all_results = []
-        
-        # Search each tab sequentially (since we're using same browser session)
-        for tab_name, search_url in search_urls.items():
-            tab_results = await _perform_tab_search(browser_session, search_url, tab_name, query)
-            if tab_results:
-                all_results.extend(tab_results)
-        
-        # Remove duplicates based on URL
-        unique_results = []
-        seen_urls = set()
-        
-        for result in all_results:
-            url = result.get('url', '')
-            if url and url not in seen_urls and url != 'No URL':
-                seen_urls.add(url)
-                unique_results.append(result)
-        
-        return unique_results[:max_results]
-        
-    except Exception as e:
-        logger.error(f"Fallback sequential search failed for query '{query}': {e}")
-        return []
     
 async def _extract_structured_content(browser_session, query: str, llm: BaseChatModel,
                                       target_id: str | None = None, extract_links: bool = False):

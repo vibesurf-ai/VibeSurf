@@ -103,7 +103,8 @@ class VibeSurfTools:
                 browser_session = await browser_manager.register_agent(agent_id, target_id=None)
 
                 # Attempt Google AI model search with udm=50
-                ai_search_results = await google_ai_model_search(browser_session, params.query, max_results=15)
+                # ai_search_results = await google_ai_model_search(browser_session, params.query, max_results=15)
+                ai_search_results = None
 
                 # Step 2: If AI search fails or returns insufficient results, use fallback method
                 if not ai_search_results or len(ai_search_results) == 0:
@@ -160,21 +161,8 @@ class VibeSurfTools:
                         url = result.get('url', 'No URL')
                         summary = result.get('summary', 'No description available')
                         source = result.get('source', '')
-                        source_tab = result.get('source_tab', '')
 
-                        # Add source information if available
-                        source_info = ""
-                        if source and source != 'Unknown source':
-                            source_info += f" | Source: {source}"
-                        if source_tab and source_tab != 'other':
-                            source_info += f" | Tab: {source_tab}"
-
-                        results_text += f"{i + 1}. **{title}**{source_info}\n   URL: {url}\n   Summary: {summary}\n\n"
-
-                    # Add search method information
-                    search_method = "Google AI model search" if ai_search_results else "Parallel fallback search"
-                    ranking_method = "LLM ranked" if params.rank and len(all_results) > 10 else "Unranked"
-                    results_text += f"\n_Search Method: {search_method} ({ranking_method})_"
+                        results_text += f"{i + 1}. **{title}**\n   URL: {url}\n   Summary: {summary}\n\n"
                 else:
                     results_text = f"No results found for query: {params.query}"
 
