@@ -373,7 +373,7 @@ async def google_ai_model_search(browser_session, query: str, max_results: int =
 (async function() {
     try {
         // Retry logic: attempt 3 times with delays
-        for (let attempt = 1; attempt <= 3; attempt++) {
+        for (let attempt = 1; attempt <= 5; attempt++) {
             // Wait before each attempt (longer wait for first attempt)
             await new Promise(resolve => setTimeout(resolve, attempt === 1 ? 1500 : 800));
             
@@ -433,7 +433,7 @@ async def google_ai_model_search(browser_session, query: str, max_results: int =
                 }
             }
             
-            if (!clicked && attempt < 3) {
+            if (!clicked && attempt < 5) {
                 console.log(`Attempt ${attempt}: Show more button not found, retrying...`);
                 continue;
             }
@@ -459,7 +459,7 @@ async def google_ai_model_search(browser_session, query: str, max_results: int =
             logger.warning(f"Failed to click show more button: {e}")
         
         # Wait a bit more for content to load after clicking
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
         
         # Extract news list using JavaScript
         extraction_js = """
@@ -663,29 +663,261 @@ async def fallback_parallel_search(browser_manager, query: str, max_results: int
 
 
 def _generate_video_extraction_js() -> str:
-    """Generate JavaScript code for video search extraction"""
-    return """
+    """Generate JavaScript code for robust video search extraction"""
+    js_code = r"""
 (function(){
   try {
-    const items = [];
-    document.querySelectorAll('div[data-hveid]').forEach(div => {
-      const a = div.querySelector('a[href]');
-      const h3 = div.querySelector('h3');
-      const txt = div.innerText;
-      console.log(div);
-      if (a && h3 && txt) {
-        items.push({
-          title: h3.innerText.trim(),
-          summary: txt.split('\n').filter(l => l.trim()).slice(1, 3).join(' ').trim(),
-          url: a.href
-        });
+    const results = [];
+    let extractionMethod = 'unknown';
+    
+    // Video platform domains to look for
+    const videoDomains = [
+      'youtube.com', 'youtu.be', 'vimeo.com', 'dailymotion.com',
+      'twitch.tv', 'tiktok.com', 'bilibili.com', 'niconico.jp'
+    ];
+    
+    // Non-video domains to exclude
+    const excludeDomains = [
+      'maps.google.com', 'google.com/search', 'google.com/travel',
+      'google.com/finance', 'google.com/shopping', 'google.com/books'
+    ];
+    
+    // Strategy 1: Look for actual video containers with video elements
+    let containers = document.querySelectorAll('div[data-hveid]:has(video), div[data-hveid]:has(img[src*="ytimg"]), div[jscontroller*="rTuANe"]');
+    if (containers.length > 0) {
+      extractionMethod = 'video_elements';
+      console.log('Strategy 1 - Video elements found:', containers.length);
+    }
+    
+    // Strategy 2: Look for YouTube/video platform specific links
+    if (containers.length === 0) {
+      const videoSelectors = videoDomains.map(domain =>
+        `div[data-hveid]:has(a[href*="${domain}"])`
+      ).join(', ');
+      containers = document.querySelectorAll(videoSelectors);
+      if (containers.length > 0) {
+        extractionMethod = 'video_platform_links';
+        console.log('Strategy 2 - Video platform links:', containers.length);
       }
-    });
-    return JSON.stringify(items.slice(0, 10));
+    }
+    
+    // Strategy 3: Look for containers with duration indicators
+    if (containers.length === 0) {
+      containers = document.querySelectorAll('div[data-hveid]:has(.kSFuOd), div[data-hveid]:has(.c8rnLc), div[data-hveid]:has([class*="duration"])');
+      if (containers.length > 0) {
+        extractionMethod = 'duration_indicators';
+        console.log('Strategy 3 - Duration indicators:', containers.length);
+      }
+    }
+    
+    console.log('Using extraction method:', extractionMethod, 'with', containers.length, 'containers');
+    
+    // Helper function to check if URL is a video URL
+    function isVideoUrl(url) {
+      if (!url) return false;
+      
+      // Check if URL contains video platform domains
+      const hasVideoDomain = videoDomains.some(domain => url.includes(domain));
+      
+      // Check if URL contains excluded domains
+      const hasExcludedDomain = excludeDomains.some(domain => url.includes(domain));
+      
+      // Check for video-specific URL patterns
+      const hasVideoPattern = /\/(watch|video|v)[\?\/]/.test(url) || url.includes('watch?v=');
+      
+      return hasVideoDomain || (hasVideoPattern && !hasExcludedDomain);
+    }
+    
+    // Helper function to check if container has video indicators
+    function hasVideoIndicators(container) {
+      // Check for video elements
+      if (container.querySelector('video')) return true;
+      
+      // Check for YouTube thumbnail patterns
+      if (container.querySelector('img[src*="ytimg"]')) return true;
+      if (container.querySelector('img[src*="encrypted-tbn"]')) return true;
+      
+      // Check for duration indicators
+      const durationElements = container.querySelectorAll('span, div');
+      for (const el of durationElements) {
+        if (el.textContent && /\\d+:\\d+/.test(el.textContent.trim())) {
+          return true;
+        }
+      }
+      
+      // Check for video-specific classes
+      if (container.querySelector('.DqfBw, .kSFuOd, .c8rnLc, [class*="video"], [class*="duration"]')) {
+        return true;
+      }
+      
+      return false;
+    }
+    
+    console.log('Using extraction method:', extractionMethod, 'with', containers.length, 'containers');
+    
+    for (let i = 0; i < containers.length && results.length < 10; i++) {
+      const container = containers[i];
+      console.log('Processing video container', i + 1, '/', containers.length);
+      
+      // Extract URL first to validate if it's a video
+      let url = '';
+      const linkSelectors = [
+        'a[href*="youtube.com/watch"]', 'a[href*="youtu.be"]',
+        'a[href*="vimeo.com"]', 'a[href*="bilibili.com"]',
+        'a[data-curl]', 'a[href*="video"]', 'a[href]'
+      ];
+      
+      for (const sel of linkSelectors) {
+        const linkEl = container.querySelector(sel);
+        if (linkEl && linkEl.href) {
+          url = linkEl.href;
+          // Clean Google redirect URLs
+          if (url.includes('/url?q=')) {
+            const urlMatch = url.match(/[?&]q=([^&]*)/);
+            if (urlMatch) {
+              url = decodeURIComponent(urlMatch[1]);
+            }
+          }
+          console.log('Found URL with selector:', sel);
+          break;
+        }
+      }
+      
+      // Skip if URL is not a video URL
+      if (!isVideoUrl(url)) {
+        console.log('Skipping non-video URL:', url.substring(0, 50));
+        continue;
+      }
+      
+      // Skip if container doesn't have video indicators
+      if (!hasVideoIndicators(container)) {
+        console.log('Skipping container without video indicators');
+        continue;
+      }
+      
+      // Extract title with multiple strategies
+      let title = '';
+      const titleSelectors = [
+        'h3.LC20lb', 'h3.MBeuO', 'h3.DKV0Md', 'h3',
+        '[role="heading"]', '.LC20lb', '.DKV0Md'
+      ];
+      
+      for (const sel of titleSelectors) {
+        const titleEl = container.querySelector(sel);
+        if (titleEl && titleEl.textContent && titleEl.textContent.trim()) {
+          title = titleEl.textContent.trim();
+          console.log('Found title with selector:', sel);
+          break;
+        }
+      }
+      
+      // Extract duration
+      let duration = '';
+      const durationSelectors = [
+        '.c8rnLc span', '.kSFuOd span', '[class*="duration"]',
+        '.zKugA span', '.kSFuOd', '.c8rnLc'
+      ];
+      
+      for (const sel of durationSelectors) {
+        const durationEl = container.querySelector(sel);
+        if (durationEl && durationEl.textContent) {
+          const durationText = durationEl.textContent.trim();
+          if (/\\d+:\\d+/.test(durationText)) {
+            duration = durationText;
+            console.log('Found duration with selector:', sel);
+            break;
+          }
+        }
+      }
+      
+      // Fallback: search all spans for duration pattern
+      if (!duration) {
+        const allSpans = container.querySelectorAll('span');
+        for (const span of allSpans) {
+          if (span.textContent && /\\d+:\\d+/.test(span.textContent.trim())) {
+            duration = span.textContent.trim();
+            console.log('Found duration in span fallback:', duration);
+            break;
+          }
+        }
+      }
+      
+      // Extract source/channel
+      let source = '';
+      const sourceSelectors = [
+        '.gqF9jc span', '.ApHyTb span', 'cite', '.qLRx3b',
+        '.notranslate span', '[role="text"]'
+      ];
+      
+      for (const sel of sourceSelectors) {
+        const sourceEl = container.querySelector(sel);
+        if (sourceEl && sourceEl.textContent && sourceEl.textContent.trim()) {
+          const sourceText = sourceEl.textContent.trim();
+          if (sourceText && sourceText.length > 2 && !sourceText.includes('›')) {
+            source = sourceText;
+            console.log('Found source with selector:', sel);
+            break;
+          }
+        }
+      }
+      
+      // Extract description/summary
+      let summary = '';
+      const summarySelectors = [
+        '.ITZIwc', '.fzUZNc div', '.VwiC3b', '.yXK7lf'
+      ];
+      
+      for (const sel of summarySelectors) {
+        const summaryEl = container.querySelector(sel);
+        if (summaryEl && summaryEl.textContent) {
+          const summaryText = summaryEl.textContent.trim();
+          if (summaryText && summaryText.length > 10 && summaryText.length < 500) {
+            summary = summaryText;
+            console.log('Found summary with selector:', sel);
+            break;
+          }
+        }
+      }
+      
+      // Only add if we have meaningful data (at least title OR url)
+      if (title || url) {
+        console.log('Adding video result:', {
+          title: title.substring(0, 50),
+          url: url.substring(0, 50),
+          source: source,
+          duration: duration
+        });
+        
+        results.push({
+          title: title || 'No title',
+          url: url || 'No URL',
+          summary: summary || 'No description available',
+          source: source || 'Unknown source',
+          duration: duration || '',
+          source_tab: 'videos',
+          extraction_method: extractionMethod
+        });
+      } else {
+        console.log('Skipped container - no title and no URL found');
+      }
+    }
+    
+    console.log('Extracted', results.length, 'video results using', extractionMethod);
+    return JSON.stringify(results);
+    
   } catch(e) {
-    return 'Error: ' + e.message;
+    console.error('Video extraction error:', e);
+    return JSON.stringify([{
+      title: 'Error extracting video results',
+      url: window.location.href,
+      summary: 'JavaScript extraction failed: ' + e.message,
+      source_tab: 'videos',
+      error: e.toString()
+    }]);
   }
 })()"""
+
+    return js_code
 
 def _generate_news_extraction_js() -> str:
     """Generate JavaScript code for news search extraction"""
@@ -1038,8 +1270,19 @@ async def _perform_tab_search(browser_session, search_url: str, tab_name: str, q
         
         # Navigate to search URL
         await browser_session.navigate_to_url(search_url, new_tab=False)
-        await asyncio.sleep(1.5)  # Wait for page to load
-        
+
+        for _ in range(5):
+            try:
+                cdp_session = await browser_session.get_or_create_cdp_session()
+                ready_state = await cdp_session.cdp_client.send.Runtime.evaluate(
+                    params={'expression': 'document.readyState'}, session_id=cdp_session.session_id
+                )
+                if ready_state and ready_state.get("value", "loading") == "complete":
+                    break
+            except Exception:
+                pass
+            await asyncio.sleep(1)
+
         # Get tab-specific extraction JavaScript
         if tab_name == 'videos':
             extraction_js = _generate_video_extraction_js()

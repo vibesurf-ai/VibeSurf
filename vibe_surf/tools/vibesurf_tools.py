@@ -103,8 +103,7 @@ class VibeSurfTools:
                 browser_session = await browser_manager.register_agent(agent_id, target_id=None)
 
                 # Attempt Google AI model search with udm=50
-                # ai_search_results = await google_ai_model_search(browser_session, params.query, max_results=15)
-                ai_search_results = None
+                ai_search_results = await google_ai_model_search(browser_session, params.query, max_results=15)
 
                 # Step 2: If AI search fails or returns insufficient results, use fallback method
                 if not ai_search_results or len(ai_search_results) == 0:
