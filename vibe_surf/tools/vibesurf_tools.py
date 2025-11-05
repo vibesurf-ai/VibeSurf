@@ -399,14 +399,14 @@ class VibeSurfTools:
 
                 from vibe_surf.tools.utils import generate_java_script_code
 
-                success, execute_result, js_code = generate_java_script_code(params.code_requirement,
+                success, execute_result, js_code = await generate_java_script_code(params.code_requirement,
                                                                              page_extraction_llm, browser_session,
                                                                              MAX_ITERATIONS=5)
                 msg = f'```javascript\n{js_code}\n```\nResult:\n```json\n {execute_result}\n```\n'
                 if success:
-                    return ActionResult(error=msg)
-                else:
                     return ActionResult(extracted_content=msg)
+                else:
+                    return ActionResult(error=msg)
 
             except Exception as e:
                 logger.error(f'❌ Skill Code failed: {e}')

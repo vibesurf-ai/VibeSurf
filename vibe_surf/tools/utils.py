@@ -662,24 +662,210 @@ async def fallback_parallel_search(browser_manager, query: str, max_results: int
                 logger.warning(f"Failed to cleanup agent {agent_id}: {cleanup_error}")
 
 
-async def _perform_tab_search(browser_session, search_url: str, tab_name: str, query: str):
-    """
-    Helper function to perform search on a specific tab
-    """
-    try:
-        logger.info(f"Searching {tab_name} tab for query: {query}")
+def _generate_video_extraction_js() -> str:
+    """Generate JavaScript code for video search extraction"""
+    return """
+(function(){
+  try {
+    const items = [];
+    document.querySelectorAll('div[data-hveid]').forEach(div => {
+      const a = div.querySelector('a[href]');
+      const h3 = div.querySelector('h3');
+      const txt = div.innerText;
+      console.log(div);
+      if (a && h3 && txt) {
+        items.push({
+          title: h3.innerText.trim(),
+          content: txt.split('\n').filter(l => l.trim()).slice(1, 3).join(' ').trim(),
+          url: a.href
+        });
+      }
+    });
+    return JSON.stringify(items.slice(0, 10));
+  } catch(e) {
+    return 'Error: ' + e.message;
+  }
+})()"""
+
+def _generate_news_extraction_js() -> str:
+    """Generate JavaScript code for news search extraction"""
+    return """
+(function () {
+    try {
+        const results = [];
+        let extractionMethod = 'unknown';
         
-        # Navigate to search URL
-        await browser_session.navigate_to_url(search_url, new_tab=False)
-        await asyncio.sleep(1.5)  # Wait for page to load
+        // Strategy 1: Enhanced news selector strategy with CB data-hveid
+        let containers = document.querySelectorAll('div[data-hveid*="CB"]');
+        console.log(`Strategy 1 - CB containers: ${containers.length}`);
         
-        # Extract results using JavaScript
-        extraction_js = """
+        // Strategy 2: General news containers
+        if (containers.length === 0) {
+            containers = document.querySelectorAll('div[data-hveid]:has(.WlydOe), .SoaBEf, .MjjYud');
+            extractionMethod = 'general_news';
+            console.log(`Strategy 2 - General news containers: ${containers.length}`);
+        } else {
+            extractionMethod = 'cb_hveid';
+        }
+        
+        // Strategy 3: Fallback to any div with news-like content
+        if (containers.length === 0) {
+            containers = document.querySelectorAll('.g, .tF2Cxc, div:has(h3):has(a[href])');
+            extractionMethod = 'broad_fallback';
+            console.log(`Strategy 3 - Broad fallback: ${containers.length}`);
+        }
+        
+        // Strategy 4: Final fallback - search by text patterns
+        if (containers.length === 0) {
+            const allDivs = document.querySelectorAll('div');
+            containers = Array.from(allDivs).filter(div => {
+                const text = div.textContent || '';
+                const hasTimePattern = /\\d+\\s*(hours?|mins?|days?|ago|前|小时|分钟|天)/.test(text);
+                const hasLink = div.querySelector('a[href]');
+                const hasHeading = div.querySelector('h3, [role="heading"]');
+                return hasTimePattern && hasLink && hasHeading;
+            });
+            extractionMethod = 'pattern_based';
+            console.log(`Strategy 4 - Pattern-based fallback: ${containers.length}`);
+        }
+        
+        console.log(`Using extraction method: ${extractionMethod} with ${containers.length} containers`);
+        
+        for (let i = 0; i < containers.length && results.length < 10; i++) {
+            const item = containers[i];
+            console.log(`Processing news container ${i + 1}/${containers.length}`);
+            
+            // Multiple strategies for different news layouts with debugging
+            let linkEl = item.querySelector('a.WlydOe') ||
+                        item.querySelector('a[href*="news"]') ||
+                        item.querySelector('a[href]');
+                        
+            let titleEl = item.querySelector('[role="heading"]') ||
+                         item.querySelector('h3') ||
+                         item.querySelector('.LC20lb') ||
+                         item.querySelector('.DKV0Md');
+            
+            console.log(`News container ${i + 1}: found link=${!!linkEl}, found title=${!!titleEl}`);
+            
+            // Enhanced link finding for news
+            if (!linkEl) {
+                const linkSelectors = ['a[href*="http"]', 'a[href^="/url"]', 'a'];
+                for (const sel of linkSelectors) {
+                    const links = item.querySelectorAll(sel);
+                    for (const link of links) {
+                        if (link.href && !link.href.includes('google.com/search')) {
+                            linkEl = link;
+                            console.log(`News container ${i + 1}: found link with selector "${sel}"`);
+                            break;
+                        }
+                    }
+                    if (linkEl) break;
+                }
+            }
+            
+            // Enhanced title finding for news
+            if (!titleEl) {
+                const titleSelectors = ['.BNeawe', '.LC20lb', 'h1', 'h2', 'h3', 'h4', '[data-hveid] h3'];
+                for (const sel of titleSelectors) {
+                    titleEl = item.querySelector(sel);
+                    if (titleEl && titleEl.textContent.trim()) {
+                        console.log(`News container ${i + 1}: found title with selector "${sel}"`);
+                        break;
+                    }
+                }
+            }
+                         
+            let snippetEl = item.querySelector('.GI74Re') ||
+                           item.querySelector('.VwiC3b') ||
+                           item.querySelector('.yXK7lf') ||
+                           item.querySelector('.s') ||
+                           item.querySelector('.BNeawe');
+                           
+            let sourceEl = item.querySelector('.MgUUmf span') ||
+                          item.querySelector('.ApHyTb') ||
+                          item.querySelector('.fG8Fp') ||
+                          item.querySelector('.citation') ||
+                          item.querySelector('.iUh30');
+                          
+            let timeEl = item.querySelector('[data-ts]') ||
+                        item.querySelector('.f') ||
+                        item.querySelector('.LEwnzc') ||
+                        item.querySelector('time') ||
+                        item.querySelector('.SlP8xc');
+            
+            // Enhanced time extraction
+            if (!timeEl) {
+                const textContent = item.textContent || '';
+                const timeMatch = textContent.match(/(\\d+\\s*(hours?|mins?|days?)\\s*ago|\\d+天前|\\d+小时前|\\d+分钟前)/i);
+                if (timeMatch) {
+                    timeEl = { textContent: timeMatch[0] };
+                }
+            }
+            
+            // Relaxed condition: only need link OR title
+            if (linkEl || titleEl) {
+                let url = '';
+                if (linkEl) {
+                    url = linkEl.href;
+                    // Clean Google redirect URLs
+                    if (url && url.includes('/url?q=')) {
+                        const urlMatch = url.match(/[?&]q=([^&]*)/);
+                        if (urlMatch) {
+                            url = decodeURIComponent(urlMatch[1]);
+                        }
+                    }
+                }
+                
+                let title = '';
+                if (titleEl) {
+                    title = titleEl.textContent ? titleEl.textContent.trim() : '';
+                }
+                
+                // If no title but we have link, try to extract from container
+                if (!title && linkEl) {
+                    const containerText = item.textContent || item.innerText || '';
+                    const lines = containerText.split('\\n').filter(l => l.trim());
+                    title = lines.find(line => line.length > 10 && line.length < 200) || 'News Article';
+                }
+                
+                console.log(`News container ${i + 1}: Adding item - title="${title.substring(0, 50)}", url="${url.substring(0, 50)}"`);
+                
+                results.push({
+                    title: title || 'No title',
+                    snippet: snippetEl ? snippetEl.textContent.trim() : 'No description available',
+                    source: sourceEl ? sourceEl.textContent.trim() : 'Unknown source',
+                    time: timeEl ? timeEl.textContent.trim() : '',
+                    link: url || 'No URL',
+                    source_tab: 'news',
+                    extraction_method: extractionMethod
+                });
+            } else {
+                console.log(`News container ${i + 1}: Skipped - no link and no title found`);
+            }
+        }
+        
+        console.log(`Extracted ${results.length} news results using ${extractionMethod}`);
+        return JSON.stringify(results);
+    } catch (e) {
+        console.error('News extraction error:', e);
+        return JSON.stringify([{
+            title: 'Error extracting news results',
+            link: window.location.href,
+            snippet: 'JavaScript extraction failed: ' + e.message,
+            source_tab: 'news',
+            error: e.toString()
+        }]);
+    }
+})()"""
+
+def _generate_general_extraction_js() -> str:
+    """Generate JavaScript code for general search extraction"""
+    return """
 (function() {
     try {
         const results = [];
         
-        // Multiple selector strategies for different Google layouts
+        // Multiple selector strategies for general search results
         const selectors = [
             'div[data-sokoban-container] div[data-sokoban-feature]',
             'div.g:not(.g-blk)',
@@ -689,15 +875,19 @@ async def _perform_tab_search(browser_session, search_url: str, tab_name: str, q
         ];
         
         let resultElements = [];
+        let selectorUsed = '';
         
         // Try each selector until we find results
         for (const selector of selectors) {
             const elements = document.querySelectorAll(selector);
             if (elements.length > 0) {
                 resultElements = Array.from(elements).slice(0, 10);
+                selectorUsed = selector;
                 break;
             }
         }
+        
+        console.log(`Used selector: ${selectorUsed}, found ${resultElements.length} elements`);
         
         // If no results found with specific selectors, try broader search
         if (resultElements.length === 0) {
@@ -706,6 +896,7 @@ async def _perform_tab_search(browser_session, search_url: str, tab_name: str, q
                 .map(h3 => h3.closest('div'))
                 .filter(div => div && div.querySelector('a[href]'))
                 .slice(0, 10);
+            console.log(`Fallback h3 search found ${resultElements.length} elements`);
         }
         
         for (let i = 0; i < Math.min(resultElements.length, 10); i++) {
@@ -763,56 +954,119 @@ async def _perform_tab_search(browser_session, search_url: str, tab_name: str, q
                     title: title || 'No title',
                     url: url || 'No URL',
                     summary: summary || 'No description available',
-                    source_tab: window.location.search.includes('tbm=nws') ? 'news' :
-                               window.location.search.includes('tbm=vid') ? 'videos' : 'all'
+                    source_tab: 'all'
                 });
             }
         }
         
+        console.log(`Extracted ${results.length} general search results`);
         return JSON.stringify(results);
         
     } catch (e) {
+        console.error('General search extraction error:', e);
         return JSON.stringify([{
             title: 'Error extracting results',
             url: window.location.href,
             summary: 'JavaScript extraction failed: ' + e.message,
-            source_tab: 'error'
+            source_tab: 'all'
         }]);
     }
-})()
-"""
-        
-        # Execute extraction JavaScript
-        cdp_session = await browser_session.get_or_create_cdp_session()
-        result = await cdp_session.cdp_client.send.Runtime.evaluate(
-            params={'expression': extraction_js, 'returnByValue': True, 'awaitPromise': True},
-            session_id=cdp_session.session_id,
-        )
-        
-        if result.get('exceptionDetails'):
-            logger.warning(f"JavaScript extraction failed for {tab_name}: {result['exceptionDetails']}")
-            return []
-        
-        result_data = result.get('result', {})
-        value = result_data.get('value', '[]')
-        
+})()"""
+
+async def _execute_extraction_with_retry(browser_session, extraction_js: str, tab_name: str, max_retries: int = 2):
+    """Execute JavaScript extraction with retry logic and detailed logging"""
+    cdp_session = await browser_session.get_or_create_cdp_session()
+    
+    for attempt in range(max_retries + 1):
         try:
-            tab_results = json.loads(value)
-            if isinstance(tab_results, list):
-                logger.info(f"Found {len(tab_results)} results in {tab_name} tab")
-                return tab_results
+            result = await cdp_session.cdp_client.send.Runtime.evaluate(
+                params={'expression': extraction_js, 'returnByValue': True, 'awaitPromise': True},
+                session_id=cdp_session.session_id,
+            )
+            
+            if result.get('exceptionDetails'):
+                logger.warning(f"JavaScript extraction failed for {tab_name} (attempt {attempt + 1}): {result['exceptionDetails']}")
+                if attempt < max_retries:
+                    await asyncio.sleep(1)  # Wait before retry
+                    continue
+                return []
+            
+            result_data = result.get('result', {})
+            value = result_data.get('value', '[]')
+            
+            try:
+                tab_results = json.loads(value)
+                if isinstance(tab_results, list):
+                    # Log detailed results for debugging
+                    logger.info(f"Found {len(tab_results)} results in {tab_name} tab")
+                    if tab_results and isinstance(tab_results[0], dict):
+                        extraction_method = tab_results[0].get('extraction_method', 'unknown')
+                        logger.info(f"{tab_name} tab used extraction method: {extraction_method}")
+                    return tab_results
+                return []
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.warning(f"Failed to parse results from {tab_name} tab (attempt {attempt + 1}): {value[:200]}... Error: {e}")
+                if attempt < max_retries:
+                    await asyncio.sleep(1)  # Wait before retry
+                    continue
+                return []
+                
+        except Exception as e:
+            logger.warning(f"CDP execution failed for {tab_name} (attempt {attempt + 1}): {e}")
+            if attempt < max_retries:
+                await asyncio.sleep(1)  # Wait before retry
+                continue
             return []
-        except (json.JSONDecodeError, ValueError):
-            logger.warning(f"Failed to parse results from {tab_name} tab: {value}")
-            return []
+    
+    return []
+
+async def _perform_tab_search(browser_session, search_url: str, tab_name: str, query: str):
+    """
+    Optimized helper function to perform search on a specific tab with tab-specific extraction logic
+    
+    Args:
+        browser_session: Active browser session
+        search_url: URL to navigate to for search
+        tab_name: Type of search tab ('videos', 'news', 'all')
+        query: Search query for logging purposes
+        
+    Returns:
+        List of extracted search results
+    """
+    try:
+        logger.info(f"Searching {tab_name} tab for query: {query}")
+        
+        # Navigate to search URL
+        await browser_session.navigate_to_url(search_url, new_tab=False)
+        await asyncio.sleep(1.5)  # Wait for page to load
+        
+        # Get tab-specific extraction JavaScript
+        if tab_name == 'videos':
+            extraction_js = _generate_video_extraction_js()
+        elif tab_name == 'news':
+            extraction_js = _generate_news_extraction_js()
+        else:  # 'all' tab - general search
+            extraction_js = _generate_general_extraction_js()
+        
+        # Execute extraction with retry logic
+        return await _execute_extraction_with_retry(browser_session, extraction_js, tab_name)
             
     except Exception as e:
         logger.warning(f"Failed to search {tab_name} tab: {e}")
         return []
 
 
+async def fallback_sequential_search(browser_session, query: str, max_results: int = 10):
     """
     Old fallback method: Sequential search (kept for compatibility)
+    
+    Args:
+        browser_session: Active browser session to use for searching
+        query: Search query string
+        max_results: Maximum number of results to return
+        
+    Returns:
+        List of unique search results from all tabs
     """
     try:
         # Define search URLs for different tabs
@@ -843,8 +1097,9 @@ async def _perform_tab_search(browser_session, search_url: str, tab_name: str, q
         return unique_results[:max_results]
         
     except Exception as e:
-        logger.error(f"Fallback parallel search failed for query '{query}': {e}")
+        logger.error(f"Fallback sequential search failed for query '{query}': {e}")
         return []
+    
 async def _extract_structured_content(browser_session, query: str, llm: BaseChatModel,
                                       target_id: str | None = None, extract_links: bool = False):
     """Helper method to extract structured content from current page"""
@@ -982,3 +1237,4 @@ Format: [index1, index2, index3, ...]
     except Exception as e:
         logger.error(f"LLM ranking failed: {e}")
         return results[:max_ret]
+
