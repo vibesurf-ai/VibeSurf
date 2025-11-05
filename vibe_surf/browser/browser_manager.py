@@ -214,8 +214,7 @@ class BrowserManager:
                                 notHidden: !document.hidden
                             })
                             """
-                cdb_session = await self.main_browser_session.get_or_create_cdp_session(target_id, focus=False,
-                                                                                        new_socket=None)
+                cdb_session = await self.main_browser_session.get_or_create_cdp_session(target_id, focus=False)
                 eval_result = await cdb_session.cdp_client.send.Runtime.evaluate(
                     params={
                         "expression": simple_check,

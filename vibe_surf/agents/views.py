@@ -76,40 +76,33 @@ class VibeSurfAgentSettings(BaseModel):
 
 class CustomAgentOutput(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, extra='forbid')
-
     thinking: str | None = None
-    action: list[ActionModel] = Field(
+    action: ActionModel = Field(
         ...,
-        description='List of actions to execute',
-        json_schema_extra={'min_items': 1},  # Ensure at least one action is provided
+        description='Action to execute',
     )
-
     @classmethod
     def model_json_schema(cls, **kwargs):
         schema = super().model_json_schema(**kwargs)
         schema['required'] = ['action']
         return schema
-
     @staticmethod
     def type_with_custom_actions(custom_actions: type[ActionModel]) -> type['CustomAgentOutput']:
         """Extend actions with custom actions"""
-
         model_ = create_model(
             'AgentOutput',
             __base__=CustomAgentOutput,
             action=(
-                list[custom_actions],  # type: ignore
-                Field(..., description='List of actions to execute', json_schema_extra={'min_items': 1}),
+                custom_actions,  # type: ignore
+                Field(..., description='Action to execute'),
             ),
             __module__=CustomAgentOutput.__module__,
         )
         model_.__doc__ = 'AgentOutput model with custom actions'
         return model_
-
     @staticmethod
     def type_with_custom_actions_no_thinking(custom_actions: type[ActionModel]) -> type['CustomAgentOutput']:
         """Extend actions with custom actions and exclude thinking field"""
-
         class AgentOutputNoThinking(CustomAgentOutput):
             @classmethod
             def model_json_schema(cls, **kwargs):
@@ -117,16 +110,14 @@ class CustomAgentOutput(BaseModel):
                 del schema['properties']['thinking']
                 schema['required'] = ['action']
                 return schema
-
         model = create_model(
             'AgentOutputNoThinking',
             __base__=AgentOutputNoThinking,
             action=(
-                list[custom_actions],  # type: ignore
-                Field(..., description='List of actions to execute', json_schema_extra={'min_items': 1}),
+                custom_actions,  # type: ignore
+                Field(..., description='Action to execute'),
             ),
             __module__=AgentOutputNoThinking.__module__,
         )
-
         model.__doc__ = 'AgentOutput model with custom actions'
         return model

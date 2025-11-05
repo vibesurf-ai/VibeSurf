@@ -135,7 +135,7 @@ class CustomDOMWatchdog(DOMWatchdog):
                     # import base64
                     # import os
                     # image_data = base64.b64decode(screenshot_b64)
-                    # output_path = os.path.join("/Users/warmshao/AIBrowsers/VibeSurf/vibe_surf/tmp/vibesurf_workspace/", "screenshots", f"{time.time()}.png")
+                    # output_path = os.path.join("./tmp/vibesurf_workspace/", "screenshots", f"{time.time()}.png")
                     # os.makedirs(os.path.dirname(output_path), exist_ok=True)
                     # with open(output_path, 'wb') as f:
                     #     f.write(image_data)

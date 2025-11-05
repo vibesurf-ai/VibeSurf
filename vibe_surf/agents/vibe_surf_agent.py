@@ -402,7 +402,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
         # Get LLM response with action output format
         response = await vibesurf_agent.llm.ainvoke(vibesurf_agent.message_history, output_format=AgentOutput)
         parsed = response.completion
-        actions = parsed.action
+        action = parsed.action
         vibesurf_agent.message_history.append(
             AssistantMessage(content=json.dumps(response.completion.model_dump(exclude_none=True, exclude_unset=True),
                                                 ensure_ascii=False)))
@@ -410,15 +410,14 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
         # Capture telemetry for parsed output
         import vibe_surf
         action_types = []
-        for action in actions:
-            action_data = action.model_dump(exclude_unset=True)
-            action_name = next(iter(action_data.keys())) if action_data else 'unknown'
-            action_types.append(action_name)
+        action_data = action.model_dump(exclude_unset=True)
+        action_name = next(iter(action_data.keys())) if action_data else 'unknown'
+        action_types.append(action_name)
         
         parsed_output_event = VibeSurfAgentParsedOutputEvent(
             version=vibe_surf.__version__,
             parsed_output=json.dumps(parsed.model_dump(exclude_none=True, exclude_unset=True), ensure_ascii=False),  # Limit size
-            action_count=len(actions),
+            action_count=1,
             action_types=action_types,
             model=getattr(vibesurf_agent.llm, 'model_name', None),
             session_id=state.session_id,
@@ -429,97 +428,95 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
         # Log thinking if present
         if hasattr(parsed, 'thinking') and parsed.thinking:
             await log_agent_activity(state, agent_name, "thinking", parsed.thinking)
+        action_data = action.model_dump(exclude_unset=True)
+        action_name = next(iter(action_data.keys())) if action_data else 'unknown'
+        logger.info(f"🛠️ Processing VibeSurf action: {action_name}")
 
-        for i, action in enumerate(actions[:1]):
-            action_data = action.model_dump(exclude_unset=True)
-            action_name = next(iter(action_data.keys())) if action_data else 'unknown'
-            logger.info(f"🛠️ Processing VibeSurf action {i + 1}/{len(actions)}: {action_name}")
+        # Check for special routing actions
+        if action_name == 'execute_browser_use_agent':
+            # Route to browser task execution node
+            params = action_data[action_name]
+            state.browser_tasks = params.get('tasks', [])
+            state.current_action = 'execute_browser_use_agent'
+            state.action_params = params
+            state.current_step = "browser_task_execution"
 
-            # Check for special routing actions
-            if action_name == 'execute_browser_use_agent':
-                # Route to browser task execution node
-                params = action_data[action_name]
-                state.browser_tasks = params.get('tasks', [])
-                state.current_action = 'execute_browser_use_agent'
-                state.action_params = params
-                state.current_step = "browser_task_execution"
+            # Log agent activity
+            browser_tasks_md = []
+            for browser_task in state.browser_tasks:
+                bu_task = browser_task.get('task', "")
+                if bu_task:
+                    bu_task_tabid = browser_task.get('tab_id', "")
+                    browser_tasks_md.append(f"- [ ] Tab id: {bu_task_tabid} working {bu_task}")
+            browser_tasks_md = '\n'.join(browser_tasks_md)
+            agent_msg = f"Routing to browser task execution with  {len(state.browser_tasks)} browser tasks:\n\n{browser_tasks_md}"
+            await log_agent_activity(state, agent_name, "working", agent_msg)
+            logger.debug(agent_msg)
+            return state
 
-                # Log agent activity
-                browser_tasks_md = []
-                for browser_task in state.browser_tasks:
-                    bu_task = browser_task.get('task', "")
-                    if bu_task:
-                        bu_task_tabid = browser_task.get('tab_id', "")
-                        browser_tasks_md.append(f"- [ ] Tab id: {bu_task_tabid} working {bu_task}")
-                browser_tasks_md = '\n'.join(browser_tasks_md)
-                agent_msg = f"Routing to browser task execution with  {len(state.browser_tasks)} browser tasks:\n\n{browser_tasks_md}"
-                await log_agent_activity(state, agent_name, "working", agent_msg)
-                logger.debug(agent_msg)
-                return state
+        elif action_name == 'execute_report_writer_agent':
+            # Route to report task execution node
+            params = action_data[action_name]
+            state.current_action = 'execute_report_writer_agent'
+            state.action_params = params
+            state.current_step = "report_task_execution"
+            report_task = params.get('task', "")
+            agent_msg = f"Routing to report generation with task:\n{report_task}"
+            await log_agent_activity(state, agent_name, "working", agent_msg)
+            return state
 
-            elif action_name == 'execute_report_writer_agent':
-                # Route to report task execution node
-                params = action_data[action_name]
-                state.current_action = 'execute_report_writer_agent'
-                state.action_params = params
-                state.current_step = "report_task_execution"
-                report_task = params.get('task', "")
-                agent_msg = f"Routing to report generation with task:\n{report_task}"
-                await log_agent_activity(state, agent_name, "working", agent_msg)
-                return state
+        elif action_name == 'task_done':
+            # Handle response/completion - direct to END
+            params = action_data[action_name]
+            response_content = params.get('response', 'Task completed!')
+            follow_tasks = params.get('suggestion_follow_tasks', [])
+            state.current_step = "END"
 
-            elif action_name == 'task_done':
-                # Handle response/completion - direct to END
-                params = action_data[action_name]
-                response_content = params.get('response', 'Task completed!')
-                follow_tasks = params.get('suggestion_follow_tasks', [])
-                state.current_step = "END"
+            # Format final response
+            final_response = f"{response_content}"
+            await log_agent_activity(state, agent_name, "result", final_response)
 
-                # Format final response
-                final_response = f"{response_content}"
-                await log_agent_activity(state, agent_name, "result", final_response)
+            if follow_tasks:
+                await log_agent_activity(state, agent_name, "suggestion_tasks",
+                                         '\n'.join(follow_tasks))
+                final_response += "\n\n## Suggested Follow-up Tasks:\n"
+                for j, task in enumerate(follow_tasks[:3], 1):
+                    final_response += f"{j}. {task}\n"
 
-                if follow_tasks:
-                    await log_agent_activity(state, agent_name, "suggestion_tasks",
-                                             '\n'.join(follow_tasks))
-                    final_response += "\n\n## Suggested Follow-up Tasks:\n"
-                    for j, task in enumerate(follow_tasks[:3], 1):
-                        final_response += f"{j}. {task}\n"
+            state.final_response = final_response
+            logger.debug(final_response)
+            state.is_complete = True
+            return state
 
-                state.final_response = final_response
-                logger.debug(final_response)
-                state.is_complete = True
-                return state
-
+        else:
+            if "todos" in action_name:
+                todo_content = await vibesurf_agent.file_system.read_file('todo.md')
+                action_msg = f"{action_name}:\n\n{todo_content}"
+                logger.debug(action_msg)
+                await log_agent_activity(state, agent_name, "working", action_msg)
             else:
-                if "todos" in action_name:
-                    todo_content = await vibesurf_agent.file_system.read_file('todo.md')
-                    action_msg = f"{action_name}:\n\n{todo_content}"
-                    logger.debug(action_msg)
-                    await log_agent_activity(state, agent_name, "working", action_msg)
-                else:
-                    action_msg = f"**⚡ Actions:**\n"
-                    action_msg += f"```json\n{json.dumps(action_data, indent=2, ensure_ascii=False)}\n```"
-                    logger.debug(action_msg)
-                    await log_agent_activity(state, agent_name, "working", action_msg)
+                action_msg = f"**⚡ Actions:**\n"
+                action_msg += f"```json\n{json.dumps(action_data, indent=2, ensure_ascii=False)}\n```"
+                logger.debug(action_msg)
+                await log_agent_activity(state, agent_name, "working", action_msg)
 
-                result = await vibesurf_agent.tools.act(
-                    action=action,
-                    browser_manager=vibesurf_agent.browser_manager,
-                    llm=vibesurf_agent.llm,
-                    file_system=vibesurf_agent.file_system,
-                )
+            result = await vibesurf_agent.tools.act(
+                action=action,
+                browser_manager=vibesurf_agent.browser_manager,
+                llm=vibesurf_agent.llm,
+                file_system=vibesurf_agent.file_system,
+            )
 
-                state.current_step = "vibesurf_agent"
+            state.current_step = "vibesurf_agent"
 
-                if result.extracted_content:
-                    vibesurf_agent.message_history.append(
-                        UserMessage(content=f'Action result:\n{result.extracted_content}'))
-                    await log_agent_activity(state, agent_name, "result", result.extracted_content)
+            if result.extracted_content:
+                vibesurf_agent.message_history.append(
+                    UserMessage(content=f'Action result:\n{result.extracted_content}'))
+                await log_agent_activity(state, agent_name, "result", result.extracted_content)
 
-                if result.error:
-                    vibesurf_agent.message_history.append(UserMessage(content=f'Action error:\n{result.error}'))
-                    await log_agent_activity(state, agent_name, "error", result.error)
+            if result.error:
+                vibesurf_agent.message_history.append(UserMessage(content=f'Action error:\n{result.error}'))
+                await log_agent_activity(state, agent_name, "error", result.error)
 
         return state
 
@@ -824,7 +821,7 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
             await main_browser_session.get_or_create_cdp_session(target_id=target_id)
         else:
             new_target = await main_browser_session.cdp_client.send.Target.createTarget(
-                params={'url': 'about:blank'})
+                params={'url': 'chrome://newtab/'})
             target_id = new_target["targetId"]
             await main_browser_session.get_or_create_cdp_session(target_id=target_id)
         agent = BrowserUseAgent(
@@ -1646,25 +1643,7 @@ Please continue with your assigned work, incorporating this guidance only if it'
                 vibesurf_system_prompt = VIBESURF_SYSTEM_PROMPT
                 if self.extend_system_prompt:
                     vibesurf_system_prompt += f"\n Extend System Prompt provided by user:\n {self.extend_system_prompt}"
-                if self.settings.agent_mode == "thinking":
-                    vibesurf_system_prompt += """
-You must ALWAYS respond with a valid JSON in this exact format:
-{{
-  "thinking": "A structured <think>-style reasoning.",
-  "action":[{{"<action_name>": {{<action_params>}}]
-}}
 
-Action list should NEVER be empty and Each step can only output one action. If multiple actions are output, only the first one will be executed.
-                    """
-                else:
-                    vibesurf_system_prompt += """
-You must ALWAYS respond with a valid JSON in this exact format:
-{{
-  "action":[{{"<action_name>": {{<action_params>}}]
-}}
-
-Action list should NEVER be empty and Each step can only output one action. If multiple actions are output, only the first one will be executed.
-                    """
                 self.message_history.append(SystemMessage(content=vibesurf_system_prompt))
 
             # Format processed upload files for prompt
@@ -1689,7 +1668,7 @@ Action list should NEVER be empty and Each step can only output one action. If m
             current_version = get_vibesurf_version()
             if latest_version and latest_version != current_version:
                 update_msg = f'📦 Newer version of vibesurf available: {latest_version} (current: {current_version}). \nUpgrade with: \n`uv pip install vibesurf -U`\nor\nDownload [Windows Installer](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-windows-x64.exe).\n\nYou can find more information at [release page](https://github.com/vibesurf-ai/VibeSurf/releases).'
-                logger.info(update_msg)
+                logger.debug(update_msg)
                 activity_update_tip = {
                     "agent_name": 'System',
                     "agent_status": 'tip',  # working, result, error
