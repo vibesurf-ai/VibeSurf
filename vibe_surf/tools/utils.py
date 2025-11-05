@@ -351,12 +351,14 @@ async def generate_java_script_code(code_requirement, llm, browser_session, MAX_
     return gen_success, execute_result, generated_js_code
 
 
-async def google_ai_model_search(browser_session, query: str, max_results: int = 10):
+async def google_ai_model_search(browser_manager, query: str, max_results: int = 10):
     """
-    使用 Google AI model 搜索方式 (udm=50)
-    等待2秒后点击"显示更多"按钮，然后提取新闻列表
+    Google AI model Search
     """
+    agent_id = "ai_search_agent"
     try:
+        browser_session = await browser_manager.register_agent(agent_id, target_id=None)
+
         # Navigate to Google AI model search with udm=50
         search_url = f'https://www.google.com/search?q={query}&udm=50'
         await browser_session.navigate_to_url(search_url, new_tab=False)
@@ -590,6 +592,12 @@ async def google_ai_model_search(browser_session, query: str, max_results: int =
     except Exception as e:
         logger.error(f"Google AI model search failed for query '{query}': {e}")
         return []
+
+    finally:
+        try:
+            await browser_manager.unregister_agent(agent_id, close_tabs=True)
+        except Exception as cleanup_error:
+            logger.warning(f"Failed to cleanup agent {agent_id}: {cleanup_error}")
 
 
 async def fallback_parallel_search(browser_manager, query: str, max_results: int = 10):
