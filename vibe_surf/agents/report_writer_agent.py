@@ -158,25 +158,6 @@ class ReportWriterAgent:
             # Add system message with unified prompt only if message history is empty
             if not self.message_history:
                 report_system_prompt = REPORT_WRITER_PROMPT
-                if self.use_thinking:
-                    report_system_prompt += """
-                    You must ALWAYS respond with a valid JSON in this exact format:
-                    {{
-                      "thinking": "A structured <think>-style reasoning.",
-                      "action":[{{"<action_name>": {{<action_params>}}]
-                    }}
-        
-                    Action list should NEVER be empty and Each step can only output one action. If multiple actions are output, only the first one will be executed.
-                    """
-                else:
-                    report_system_prompt += """
-                    You must ALWAYS respond with a valid JSON in this exact format:
-                    {{
-                      "action":[{{"<action_name>": {{<action_params>}}]
-                    }}
-    
-                    Action list should NEVER be empty and Each step can only output one action. If multiple actions are output, only the first one will be executed.
-                    """
                 self.message_history.append(SystemMessage(content=report_system_prompt))
 
             # Add initial user message with task details
@@ -219,7 +200,7 @@ Please analyze the task, determine if you need to read any additional files, the
                 # Get LLM response
                 response = await self.llm.ainvoke(self.message_history, output_format=self.AgentOutput)
                 parsed = response.completion
-                actions = parsed.action
+                action = parsed.action
 
                 # Call step callback if provided to log thinking + action
                 if self.step_callback:
@@ -234,28 +215,27 @@ Please analyze the task, determine if you need to read any additional files, the
                 results = []
                 time_start = time.time()
 
-                for i, action in enumerate(actions[:1]):
-                    action_data = action.model_dump(exclude_unset=True)
-                    action_name = next(iter(action_data.keys())) if action_data else 'unknown'
-                    logger.info(f"🛠️ Executing action {i + 1}/{len(actions)}: {action_name}")
+                action_data = action.model_dump(exclude_unset=True)
+                action_name = next(iter(action_data.keys())) if action_data else 'unknown'
+                logger.info(f"🛠️ Executing action: {action_name}")
 
-                    result = await self.tools.act(
-                        action=action,
-                        file_system=self.file_system,
-                        llm=self.llm,
-                    )
+                result = await self.tools.act(
+                    action=action,
+                    file_system=self.file_system,
+                    llm=self.llm,
+                )
 
-                    time_end = time.time()
-                    time_elapsed = time_end - time_start
-                    results.append(result)
+                time_end = time.time()
+                time_elapsed = time_end - time_start
+                results.append(result)
 
-                    logger.info(f"✅ Action completed in {time_elapsed:.2f}s")
+                logger.info(f"✅ Action completed in {time_elapsed:.2f}s")
 
-                    # Check if task is done
-                    if action_name == 'task_done':
-                        logger.info("🎉 Report Writing Task completed")
-                        task_completed = True
-                        break
+                # Check if task is done
+                if action_name == 'task_done':
+                    logger.info("🎉 Report Writing Task completed")
+                    task_completed = True
+                    break
 
                 # Check if task is done - break out of main loop if task completed
                 if task_completed:

@@ -20,6 +20,7 @@ Example usage:
 
 import asyncio
 import logging
+import pdb
 import time
 import json
 from typing import Any, Dict, Optional, List
@@ -162,7 +163,8 @@ class ComposioClient:
                 # Add field with description if available
                 field_kwargs = {}
                 if 'description' in param_schema:
-                    field_kwargs['description'] = param_schema['description']
+                    # reduce tokens
+                    field_kwargs['description'] = param_schema['description'].split('.')[0]
 
                 param_fields[param_name] = (param_type, Field(default, **field_kwargs))
 
