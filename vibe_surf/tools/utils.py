@@ -5,6 +5,7 @@ import json
 from browser_use.dom.service import EnhancedDOMTreeNode
 from vibe_surf.logger import get_logger
 from browser_use.llm.messages import SystemMessage, UserMessage, AssistantMessage
+from browser_use.llm.base import BaseChatModel
 
 logger = get_logger(__name__)
 
@@ -348,3 +349,636 @@ async def generate_java_script_code(code_requirement, llm, browser_session, MAX_
         gen_success = False
 
     return gen_success, execute_result, generated_js_code
+
+
+async def google_ai_model_search(browser_session, query: str, max_results: int = 10):
+    """
+    使用 Google AI model 搜索方式 (udm=50)
+    等待2秒后点击"显示更多"按钮，然后提取新闻列表
+    """
+    try:
+        # Navigate to Google AI model search with udm=50
+        search_url = f'https://www.google.com/search?q={query}&udm=50'
+        await browser_session.navigate_to_url(search_url, new_tab=False)
+        
+        # Wait for page to load
+        await asyncio.sleep(2)
+        
+        # Try to click "显示更多" button
+        try:
+            cdp_session = await browser_session.get_or_create_cdp_session()
+            
+            # JavaScript to click the "显示更多" button with retry logic
+            click_more_js = """
+(async function() {
+    try {
+        // Retry logic: attempt 3 times with delays
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            // Wait before each attempt (longer wait for first attempt)
+            await new Promise(resolve => setTimeout(resolve, attempt === 1 ? 1500 : 800));
+            
+            let clicked = false;
+            
+            // Search for button by text content (more reliable than complex selectors)
+            const textPatterns = [
+                '全部显示',
+                '显示所有相关链接',
+                '显示更多',
+                'Show more',
+                'More',
+                'Show all'
+            ];
+            
+            // Find all potential button elements
+            const potentialButtons = document.querySelectorAll([
+                'div[role="button"]',
+                'button',
+                'div[jsaction*="click"]',
+                '[aria-label*="显示"]',
+                '[aria-label*="Show"]',
+                '.BjvG9b',
+                'div[tabindex="0"]'
+            ].join(', '));
+            
+            // Check each potential button for matching text
+            for (const element of potentialButtons) {
+                if (!element) continue;
+                
+                const elementText = element.textContent || '';
+                const ariaLabel = element.getAttribute('aria-label') || '';
+                
+                // Check if element contains any of our target text patterns (case-insensitive for English)
+                const hasMatchingText = textPatterns.some(pattern => {
+                    const lowerPattern = pattern.toLowerCase();
+                    const lowerElementText = elementText.toLowerCase();
+                    const lowerAriaLabel = ariaLabel.toLowerCase();
+                    
+                    return lowerElementText.includes(lowerPattern) || lowerAriaLabel.includes(lowerPattern);
+                });
+                
+                if (hasMatchingText) {
+                    try {
+                        // Try clicking the element
+                        element.click();
+                        clicked = true;
+                        
+                        // Wait a moment to see if click worked
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        return `Successfully clicked show more button on attempt ${attempt}. Text: "${elementText}", Aria-label: "${ariaLabel}"`;
+                    } catch (clickError) {
+                        console.log(`Click failed on attempt ${attempt}:`, clickError);
+                        continue;
+                    }
+                }
+            }
+            
+            if (!clicked && attempt < 3) {
+                console.log(`Attempt ${attempt}: Show more button not found, retrying...`);
+                continue;
+            }
+            
+            if (clicked) break;
+        }
+        
+        return 'Show more button not found after 3 attempts';
+    } catch (e) {
+        return 'Error: ' + e.message;
+    }
+})()
+"""
+            
+            result = await cdp_session.cdp_client.send.Runtime.evaluate(
+                params={'expression': click_more_js, 'returnByValue': True, 'awaitPromise': True},
+                session_id=cdp_session.session_id,
+            )
+            
+            logger.info(f"Click result: {result.get('result', {}).get('value', 'No result')}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to click show more button: {e}")
+        
+        # Wait a bit more for content to load after clicking
+        await asyncio.sleep(2)
+        
+        # Extract news list using JavaScript
+        extraction_js = """
+(function() {
+    try {
+        const results = [];
+        
+        // Try to find news list container
+        const listSelectors = [
+            'ul.bTFeG[data-processed="true"][data-complete="true"]',
+            'ul.bTFeG',
+            '.bTFeG',
+            'li.CyMdWb'
+        ];
+        
+        let newsItems = [];
+        
+        // Try to find news items directly
+        for (const selector of listSelectors) {
+            const container = document.querySelector(selector);
+            if (container) {
+                newsItems = Array.from(container.querySelectorAll('li.CyMdWb, li[data-processed="true"]'));
+                if (newsItems.length > 0) break;
+            }
+        }
+        
+        // If no news items found in container, try direct search
+        if (newsItems.length === 0) {
+            newsItems = Array.from(document.querySelectorAll('li.CyMdWb, .MFrAxb, [data-src-id]'));
+        }
+        
+        // Extract information from each news item
+        for (let i = 0; i < Math.min(newsItems.length, 20); i++) {
+            const item = newsItems[i];
+            
+            // Extract title
+            let title = '';
+            const titleSelectors = ['.Nn35F', 'h3', '.LC20lb', '[role="heading"]'];
+            for (const sel of titleSelectors) {
+                const titleEl = item.querySelector(sel);
+                if (titleEl && titleEl.textContent.trim()) {
+                    title = titleEl.textContent.trim();
+                    break;
+                }
+            }
+            
+            // Extract URL
+            let url = '';
+            const linkEl = item.querySelector('a[href]');
+            if (linkEl && linkEl.href) {
+                url = linkEl.href;
+                // Clean Google redirect URLs
+                if (url.includes('/url?q=')) {
+                    const urlMatch = url.match(/[?&]q=([^&]*)/);
+                    if (urlMatch) {
+                        url = decodeURIComponent(urlMatch[1]);
+                    }
+                }
+            }
+            
+            // Extract summary/description
+            let summary = '';
+            const summarySelectors = ['.vhJ6Pe', '.VwiC3b', '.yXK7lf', '.s'];
+            for (const sel of summarySelectors) {
+                const summaryEl = item.querySelector(sel);
+                if (summaryEl && summaryEl.textContent.trim() && summaryEl.textContent.length > 10) {
+                    summary = summaryEl.textContent.trim();
+                    break;
+                }
+            }
+            
+            // Extract source
+            let source = '';
+            const sourceSelectors = ['.R0r5R span', '.jEYmO span', 'span.R0r5R'];
+            for (const sel of sourceSelectors) {
+                const sourceEl = item.querySelector(sel);
+                if (sourceEl && sourceEl.textContent.trim()) {
+                    source = sourceEl.textContent.trim();
+                    break;
+                }
+            }
+            
+            // Only add if we have meaningful data
+            if (title || url) {
+                results.push({
+                    title: title || 'No title',
+                    url: url || 'No URL',
+                    summary: summary || 'No description available',
+                    source: source || 'Unknown source'
+                });
+            }
+        }
+        
+        return JSON.stringify(results);
+        
+    } catch (e) {
+        return JSON.stringify([{
+            title: 'Error extracting results',
+            url: window.location.href,
+            summary: 'JavaScript extraction failed: ' + e.message,
+            source: 'Error'
+        }]);
+    }
+})()
+"""
+        
+        # Execute extraction JavaScript
+        cdp_session = await browser_session.get_or_create_cdp_session()
+        result = await cdp_session.cdp_client.send.Runtime.evaluate(
+            params={'expression': extraction_js, 'returnByValue': True, 'awaitPromise': True},
+            session_id=cdp_session.session_id,
+        )
+        
+        if result.get('exceptionDetails'):
+            logger.warning(f"JavaScript extraction failed: {result['exceptionDetails']}")
+            return []
+        
+        result_data = result.get('result', {})
+        value = result_data.get('value', '[]')
+        
+        try:
+            extracted_results = json.loads(value)
+            return extracted_results[:max_results] if isinstance(extracted_results, list) else []
+        except (json.JSONDecodeError, ValueError):
+            logger.warning(f"Failed to parse extraction results: {value}")
+            return []
+            
+    except Exception as e:
+        logger.error(f"Google AI model search failed for query '{query}': {e}")
+        return []
+
+
+async def fallback_parallel_search(browser_manager, query: str, max_results: int = 10):
+    """
+    Fallback method: Parallel search across all, news, and videos tabs using separate browser sessions
+    """
+    agent_ids = []
+    try:
+        # Define search URLs for different tabs
+        search_urls = {
+            'all': f'https://www.google.com/search?q={query}',
+            'news': f'https://www.google.com/search?q={query}&tbm=nws',
+            'videos': f'https://www.google.com/search?q={query}&tbm=vid'
+        }
+        
+        # Step 1: Create browser sessions for parallel searching
+        register_sessions = []
+        
+        for tab_name in search_urls.keys():
+            agent_id = f"fallback_search_{tab_name}"
+            register_sessions.append(
+                browser_manager.register_agent(agent_id, target_id=None)
+            )
+            agent_ids.append(agent_id)
+        
+        # Wait for all browser sessions to be created
+        browser_sessions = await asyncio.gather(*register_sessions)
+        
+        # Step 2: Create parallel search tasks
+        search_tasks = []
+        for (tab_name, search_url), browser_session in zip(search_urls.items(), browser_sessions):
+            search_tasks.append(
+                _perform_tab_search(browser_session, search_url, tab_name, query)
+            )
+        
+        # Step 3: Execute all searches in parallel
+        search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
+        
+        # Step 4: Aggregate results from all tabs
+        all_results = []
+        for i, result in enumerate(search_results):
+            tab_name = list(search_urls.keys())[i]
+            if isinstance(result, Exception):
+                logger.error(f"Search task for {tab_name} tab failed: {result}")
+                continue
+            if result:
+                all_results.extend(result)
+        
+        # Step 5: Remove duplicates based on URL
+        unique_results = []
+        seen_urls = set()
+        
+        for result in all_results:
+            url = result.get('url', '')
+            if url and url not in seen_urls and url != 'No URL':
+                seen_urls.add(url)
+                unique_results.append(result)
+        
+        return unique_results[:max_results]
+        
+    except Exception as e:
+        logger.error(f"Fallback parallel search failed for query '{query}': {e}")
+        return []
+    finally:
+        # Clean up browser sessions
+        for agent_id in agent_ids:
+            try:
+                await browser_manager.unregister_agent(agent_id, close_tabs=True)
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to cleanup agent {agent_id}: {cleanup_error}")
+
+
+async def _perform_tab_search(browser_session, search_url: str, tab_name: str, query: str):
+    """
+    Helper function to perform search on a specific tab
+    """
+    try:
+        logger.info(f"Searching {tab_name} tab for query: {query}")
+        
+        # Navigate to search URL
+        await browser_session.navigate_to_url(search_url, new_tab=False)
+        await asyncio.sleep(1.5)  # Wait for page to load
+        
+        # Extract results using JavaScript
+        extraction_js = """
+(function() {
+    try {
+        const results = [];
+        
+        // Multiple selector strategies for different Google layouts
+        const selectors = [
+            'div[data-sokoban-container] div[data-sokoban-feature]',
+            'div.g:not(.g-blk)',
+            '.tF2Cxc',
+            '.MjjYud',
+            '.SoaBEf'
+        ];
+        
+        let resultElements = [];
+        
+        // Try each selector until we find results
+        for (const selector of selectors) {
+            const elements = document.querySelectorAll(selector);
+            if (elements.length > 0) {
+                resultElements = Array.from(elements).slice(0, 10);
+                break;
+            }
+        }
+        
+        // If no results found with specific selectors, try broader search
+        if (resultElements.length === 0) {
+            const h3Elements = document.querySelectorAll('h3');
+            resultElements = Array.from(h3Elements)
+                .map(h3 => h3.closest('div'))
+                .filter(div => div && div.querySelector('a[href]'))
+                .slice(0, 10);
+        }
+        
+        for (let i = 0; i < Math.min(resultElements.length, 10); i++) {
+            const element = resultElements[i];
+            
+            // Extract title
+            let title = '';
+            const titleSelectors = ['h3', '[role="heading"]', '.LC20lb', '.DKV0Md'];
+            for (const sel of titleSelectors) {
+                const titleEl = element.querySelector(sel);
+                if (titleEl && titleEl.textContent.trim()) {
+                    title = titleEl.textContent.trim();
+                    break;
+                }
+            }
+            
+            // Extract URL
+            let url = '';
+            const linkSelectors = ['a[href^="http"]', 'a[href^="/url?q="]', 'a[href]'];
+            for (const sel of linkSelectors) {
+                const linkEl = element.querySelector(sel);
+                if (linkEl && linkEl.href) {
+                    url = linkEl.href;
+                    // Clean Google redirect URLs
+                    if (url.includes('/url?q=')) {
+                        const urlMatch = url.match(/[?&]q=([^&]*)/);
+                        if (urlMatch) {
+                            url = decodeURIComponent(urlMatch[1]);
+                        }
+                    }
+                    break;
+                }
+            }
+            
+            // Extract summary/description
+            let summary = '';
+            const summarySelectors = [
+                '.VwiC3b',
+                '.yXK7lf',
+                '.s',
+                '.Y3v8qd',
+                'span:not(:has(a))'
+            ];
+            for (const sel of summarySelectors) {
+                const summaryEl = element.querySelector(sel);
+                if (summaryEl && summaryEl.textContent.trim() && summaryEl.textContent.length > 10) {
+                    summary = summaryEl.textContent.trim();
+                    break;
+                }
+            }
+            
+            // Only add if we have at least title or URL
+            if (title || url) {
+                results.push({
+                    title: title || 'No title',
+                    url: url || 'No URL',
+                    summary: summary || 'No description available',
+                    source_tab: window.location.search.includes('tbm=nws') ? 'news' :
+                               window.location.search.includes('tbm=vid') ? 'videos' : 'all'
+                });
+            }
+        }
+        
+        return JSON.stringify(results);
+        
+    } catch (e) {
+        return JSON.stringify([{
+            title: 'Error extracting results',
+            url: window.location.href,
+            summary: 'JavaScript extraction failed: ' + e.message,
+            source_tab: 'error'
+        }]);
+    }
+})()
+"""
+        
+        # Execute extraction JavaScript
+        cdp_session = await browser_session.get_or_create_cdp_session()
+        result = await cdp_session.cdp_client.send.Runtime.evaluate(
+            params={'expression': extraction_js, 'returnByValue': True, 'awaitPromise': True},
+            session_id=cdp_session.session_id,
+        )
+        
+        if result.get('exceptionDetails'):
+            logger.warning(f"JavaScript extraction failed for {tab_name}: {result['exceptionDetails']}")
+            return []
+        
+        result_data = result.get('result', {})
+        value = result_data.get('value', '[]')
+        
+        try:
+            tab_results = json.loads(value)
+            if isinstance(tab_results, list):
+                logger.info(f"Found {len(tab_results)} results in {tab_name} tab")
+                return tab_results
+            return []
+        except (json.JSONDecodeError, ValueError):
+            logger.warning(f"Failed to parse results from {tab_name} tab: {value}")
+            return []
+            
+    except Exception as e:
+        logger.warning(f"Failed to search {tab_name} tab: {e}")
+        return []
+
+
+    """
+    Old fallback method: Sequential search (kept for compatibility)
+    """
+    try:
+        # Define search URLs for different tabs
+        search_urls = {
+            'all': f'https://www.google.com/search?q={query}',
+            'news': f'https://www.google.com/search?q={query}&tbm=nws',
+            'videos': f'https://www.google.com/search?q={query}&tbm=vid'
+        }
+        
+        all_results = []
+        
+        # Search each tab sequentially (since we're using same browser session)
+        for tab_name, search_url in search_urls.items():
+            tab_results = await _perform_tab_search(browser_session, search_url, tab_name, query)
+            if tab_results:
+                all_results.extend(tab_results)
+        
+        # Remove duplicates based on URL
+        unique_results = []
+        seen_urls = set()
+        
+        for result in all_results:
+            url = result.get('url', '')
+            if url and url not in seen_urls and url != 'No URL':
+                seen_urls.add(url)
+                unique_results.append(result)
+        
+        return unique_results[:max_results]
+        
+    except Exception as e:
+        logger.error(f"Fallback parallel search failed for query '{query}': {e}")
+        return []
+async def _extract_structured_content(browser_session, query: str, llm: BaseChatModel,
+                                      target_id: str | None = None, extract_links: bool = False):
+    """Helper method to extract structured content from current page"""
+    MAX_CHAR_LIMIT = 30000
+
+    # Extract clean markdown using the existing method
+    try:
+        from browser_use.dom.markdown_extractor import extract_clean_markdown
+
+        content, content_stats = await extract_clean_markdown(
+            browser_session=browser_session, extract_links=extract_links
+        )
+    except Exception as e:
+        raise RuntimeError(f'Could not extract clean markdown: {e}')
+
+    # Smart truncation with context preservation
+    if len(content) > MAX_CHAR_LIMIT:
+        # Try to truncate at a natural break point
+        truncate_at = MAX_CHAR_LIMIT
+        paragraph_break = content.rfind('\n\n', MAX_CHAR_LIMIT - 500, MAX_CHAR_LIMIT)
+        if paragraph_break > 0:
+            truncate_at = paragraph_break
+        else:
+            sentence_break = content.rfind('.', MAX_CHAR_LIMIT - 200, MAX_CHAR_LIMIT)
+            if sentence_break > 0:
+                truncate_at = sentence_break + 1
+        content = content[:truncate_at]
+
+    system_prompt = """
+You are an expert at extracting data from the markdown of a webpage.
+
+<input>
+You will be given a query and the markdown of a webpage that has been filtered to remove noise and advertising content.
+</input>
+
+<instructions>
+- You are tasked to extract information from the webpage that is relevant to the query.
+- You should ONLY use the information available in the webpage to answer the query. Do not make up information or provide guess from your own knowledge.
+- If the information relevant to the query is not available in the page, your response should mention that.
+- If the query asks for all items, products, etc., make sure to directly list all of them.
+</instructions>
+
+<output>
+- Your output should present ALL the information relevant to the query in a concise way.
+- Do not answer in conversational format - directly output the relevant information or that the information is unavailable.
+</output>
+""".strip()
+
+    prompt = f'<query>\n{query}\n</query>\n\n<webpage_content>\n{content}\n</webpage_content>'
+
+    try:
+        from browser_use.llm.messages import SystemMessage, UserMessage
+        response = await asyncio.wait_for(
+            llm.ainvoke([SystemMessage(content=system_prompt), UserMessage(content=prompt)]),
+            timeout=120.0,
+        )
+        return response.completion
+    except Exception as e:
+        logger.debug(f'Error extracting content: {e}')
+        raise RuntimeError(str(e))
+
+async def _rank_search_results_with_llm(results: list, query: str, llm: BaseChatModel) -> list:
+    """
+    Rank search results using LLM for relevance and value assessment.
+
+    Args:
+        results: List of search results to rank
+        query: Original search query for context
+        llm: Language model for ranking
+
+    Returns:
+        List of ranked results (top 10)
+    """
+    try:
+        max_ret = 15
+        # Create indexed results for LLM prompt
+        indexed_results = []
+        for i, result in enumerate(results):
+            indexed_results.append({
+                "index": i,
+                "title": result.get('title', 'Unknown Title'),
+                "url": result.get('url', 'No URL'),
+                "summary": result.get('summary', 'No summary available')
+            })
+
+        ranking_prompt = f"""
+Rank these search results for the query "{query}" by relevance and value.
+Select the TOP 10 most relevant and valuable results.
+
+Search Results ({len(indexed_results)} total):
+{json.dumps(indexed_results, indent=2, ensure_ascii=False)}
+
+Return ONLY the indices of the top 10 results as a JSON array of numbers.
+For example: [0, 5, 2, 8, 1, 9, 3, 7, 4, 6]
+
+Format: [index1, index2, index3, ...]
+"""
+
+        from browser_use.llm.messages import SystemMessage, UserMessage
+        ranking_response = await llm.ainvoke([
+            SystemMessage(
+                content="You are an expert at ranking search results for relevance and value. Return only the indices of the top results."),
+            UserMessage(content=ranking_prompt)
+        ])
+
+        try:
+            selected_indices = json.loads(ranking_response.completion.strip())
+            if not isinstance(selected_indices, list):
+                raise ValueError("Invalid ranking results format")
+            # Ensure indices are valid and limit to 10
+            valid_indices = [i for i in selected_indices if
+                             isinstance(i, int) and 0 <= i < len(results)][:max_ret]
+            if valid_indices:
+                return [results[i] for i in valid_indices]
+            else:
+                return results[:max_ret]
+        except (json.JSONDecodeError, ValueError):
+            try:
+                from json_repair import repair_json
+                selected_indices_s = repair_json(ranking_response.completion.strip())
+                selected_indices = json.loads(selected_indices_s)
+                if isinstance(selected_indices, list):
+                    valid_indices = [i for i in selected_indices if
+                                     isinstance(i, int) and 0 <= i < len(results)][:max_ret]
+                    if valid_indices:
+                        return [results[i] for i in valid_indices]
+                    else:
+                        return results[:max_ret]
+                else:
+                    return results[:max_ret]
+            except Exception:
+                # Fallback to first 10 results
+                return results[:max_ret]
+
+    except Exception as e:
+        logger.error(f"LLM ranking failed: {e}")
+        return results[:max_ret]

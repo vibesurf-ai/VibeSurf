@@ -42,6 +42,7 @@ from vibe_surf.tools.vibesurf_registry import VibeSurfRegistry
 from bs4 import BeautifulSoup
 from vibe_surf.logger import get_logger
 from vibe_surf.tools.utils import clean_html_basic
+from vibe_surf.tools.utils import _extract_structured_content, _rank_search_results_with_llm
 
 logger = get_logger(__name__)
 
@@ -66,7 +67,7 @@ class VibeSurfTools:
 
     def _register_skills(self):
         @self.registry.action(
-            'parallel search',
+            'Advanced search',
             param_model=SkillSearchAction,
         )
         async def skill_search(
@@ -75,186 +76,125 @@ class VibeSurfTools:
                 page_extraction_llm: BaseChatModel
         ):
             """
-            Skill: Advanced parallel search with LLM-generated search strategies
+            Advanced search skill that uses Google AI model search as primary method,
+            with fallback to parallel search across all/news/videos tabs.
+            
+            Primary Method: Google AI model search (udm=50) with "show more" button click
+            Fallback Method: Parallel search across all, news, and videos tabs
+            
+            Args:
+                params: SkillSearchAction containing query and rank parameters
+                browser_manager: Browser manager for creating browser sessions
+                page_extraction_llm: LLM for ranking results when rank=True
+            
+            Returns:
+                ActionResult with formatted search results
             """
-            llm = page_extraction_llm
+            from vibe_surf.tools.utils import google_ai_model_search, fallback_parallel_search
+
             agent_ids = []
             try:
-                if not llm:
-                    raise RuntimeError("LLM is required for skill_search")
+                # Step 1: Try Google AI model search first (primary method)
+                logger.info(f'🔍 Starting Google AI model search for: {params.query}')
 
-                # Step 1: Use LLM to analyze user intent and generate different search tasks
-                query_num = 6
-                from datetime import datetime
-                analysis_prompt = f"""
-Analyze the user query and generate 5 different Google search strategies to comprehensively find relevant information.
+                # Register a single browser session for AI model search
+                agent_id = "ai_search_agent"
+                agent_ids.append(agent_id)
+                browser_session = await browser_manager.register_agent(agent_id, target_id=None)
 
-Current Time: {datetime.now().isoformat()}
+                # Attempt Google AI model search with udm=50
+                ai_search_results = await google_ai_model_search(browser_session, params.query, max_results=15)
 
-User Query: "{params.query}"
-
-Generate {query_num} different search queries that approach this topic from different angles. Each search should be:
-1. Specific and concrete (good for Google search)
-2. Different from the others (different perspectives/aspects)
-3. Likely to return valuable, unique information
-
-Return your response as a JSON array of {query_num} search query strings.
-Example format: ["query 1", "query 2", "query 3", "query 4", "query 5", "query 6"]
-"""
-
-                from browser_use.llm.messages import SystemMessage, UserMessage
-                response = await llm.ainvoke([
-                    SystemMessage(content="You are an expert at generating comprehensive search strategies."),
-                    UserMessage(content=analysis_prompt)
-                ])
-
-                # Parse the search queries
-                import json
-                try:
-                    search_queries = json.loads(response.completion.strip())
-                    if not isinstance(search_queries, list):
-                        raise ValueError("Invalid search queries format")
-                    search_queries = search_queries[:query_num]
-                except (json.JSONDecodeError, ValueError):
-                    # Fallback to simple queries if parsing fails
-                    try:
-                        from json_repair import repair_json
-                        search_queries_s = repair_json(response.completion.strip())
-                        search_queries = json.loads(search_queries_s)
-                        search_queries = search_queries[:query_num]
-                    except Exception as e:
-                        search_queries = [
-                            params.query,
-                            f"{params.query} guide",
-                            f"{params.query} best practices",
-                            f"{params.query} examples",
-                            f"{params.query} latest news"
-                        ]
-
-                # Step 2: Create browser sessions for parallel searching
-                register_sessions = []
-
-                for i, query in enumerate(search_queries[:query_num]):
-                    agent_id = f"search_agent_{i + 1:03d}"
-                    register_sessions.append(
-                        browser_manager.register_agent(agent_id, target_id=None)
-                    )
-                    agent_ids.append(agent_id)
-
-                agent_browser_sessions = await asyncio.gather(*register_sessions)
-
-                # Step 3: Perform parallel Google searches
-                search_tasks = []
-                for i, (browser_session, query) in enumerate(zip(agent_browser_sessions, search_queries)):
-                    search_tasks.append(self._perform_google_search(browser_session, query, llm))
-
-                search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
-                # Step 4: Aggregate and filter results
-                all_results = []
-                for i, result in enumerate(search_results):
-                    if isinstance(result, Exception):
-                        logger.error(f"Search task {i + 1} failed: {result}")
-                        continue
-                    if result:
-                        all_results.extend(result)
-
-                # Step 4.5: Rule-based deduplication to reduce LLM processing load
-                # if all_results:
-                #     deduplicated_results = self._rule_based_deduplication(all_results)
-                #     logger.info(f"Rule-based deduplication: {len(all_results)} -> {len(deduplicated_results)} results")
-                # else:
-                #     deduplicated_results = []
-
-                # Step 5: Use LLM only for final ranking and selection (much smaller dataset now)
-                if all_results and len(all_results) > 10:
-                    # Only use LLM if we have more than 10 results to rank
-                    # Create indexed results for LLM prompt
-                    indexed_results = []
-                    for i, result in enumerate(all_results):
-                        indexed_results.append({
-                            "index": i,
-                            "title": result.get('title', 'Unknown Title'),
-                            "url": result.get('url', 'No URL'),
-                            "summary": result.get('summary', 'No summary available')
-                        })
-
-                    ranking_prompt = f"""
-Rank these search results for the query "{params.query}" by relevance and value.
-Select the TOP 10 most relevant and valuable results.
-
-Search Results ({len(indexed_results)} total):
-{json.dumps(indexed_results, indent=2, ensure_ascii=False)}
-
-Return ONLY the indices of the top 10 results as a JSON array of numbers.
-For example: [0, 5, 2, 8, 1, 9, 3, 7, 4, 6]
-
-Format: [index1, index2, index3, ...]
-"""
-
-                    ranking_response = await llm.ainvoke([
-                        SystemMessage(
-                            content="You are an expert at ranking search results for relevance and value. Return only the indices of the top results."),
-                        UserMessage(content=ranking_prompt)
-                    ])
-
-                    try:
-                        selected_indices = json.loads(ranking_response.completion.strip())
-                        if not isinstance(selected_indices, list):
-                            raise ValueError("Invalid ranking results format")
-                        # Ensure indices are valid and limit to 10
-                        valid_indices = [i for i in selected_indices if
-                                         isinstance(i, int) and 0 <= i < len(all_results)][:10]
-                        if valid_indices:
-                            top_results = [all_results[i] for i in valid_indices]
-                        else:
-                            top_results = all_results[:10]
-                    except (json.JSONDecodeError, ValueError):
-                        try:
-                            selected_indices_s = repair_json(ranking_response.completion.strip())
-                            selected_indices = json.loads(selected_indices_s)
-                            if isinstance(selected_indices, list):
-                                valid_indices = [i for i in selected_indices if
-                                                 isinstance(i, int) and 0 <= i < len(all_results)][:10]
-                                if valid_indices:
-                                    top_results = [all_results[i] for i in valid_indices]
-                                else:
-                                    top_results = all_results[:10]
-                            else:
-                                top_results = all_results[:10]
-                        except Exception:
-                            # Fallback to first 10 results
-                            top_results = all_results[:10]
-                elif all_results:
-                    # If we have 10 or fewer results, skip LLM ranking
-                    top_results = all_results[:10]
-                    logger.info(f"Skipping LLM ranking for {len(all_results)} results (≤10)")
+                # Step 2: If AI search fails or returns insufficient results, use fallback method
+                if not ai_search_results or len(ai_search_results) == 0:
+                    logger.info(f'🔄 Google AI search returned no results, using fallback parallel search')
+                    
+                    # Use parallel search across all, news, and videos tabs
+                    fallback_results = await fallback_parallel_search(browser_manager, params.query, max_results=15)
+                    all_results = fallback_results
                 else:
-                    top_results = []
+                    logger.info(f'✅ Google AI search found {len(ai_search_results)} results')
+                    all_results = ai_search_results
 
-                # Format results for display
+                # Step 3: Process results based on rank parameter
+                if params.rank and all_results and len(all_results) > 10:
+                    logger.info(f'🔄 Using LLM ranking for {len(all_results)} results')
+
+                    if not page_extraction_llm:
+                        logger.warning("LLM not available for ranking, returning unranked results")
+                        top_results = all_results[:15]
+                    else:
+                        # Use LLM ranking when rank=True and we have many results
+                        top_results = await _rank_search_results_with_llm(
+                            all_results, params.query, page_extraction_llm
+                        )
+                elif params.rank and all_results and len(all_results) <= 10:
+                    logger.info(f'⭐ Skipping LLM ranking for {len(all_results)} results (≤10)')
+                    top_results = all_results
+                else:
+                    # When rank=False, return results from different tabs (5 each from all, news, videos)
+                    if hasattr(all_results, '__iter__') and all_results:
+                        # Group results by source_tab if available, otherwise take first 15
+                        tab_groups = {'all': [], 'news': [], 'videos': [], 'other': []}
+
+                        for result in all_results:
+                            source_tab = result.get('source_tab', 'other')
+                            tab_groups[source_tab].append(result)
+
+                        # Take up to 5 results from each tab
+                        top_results = []
+                        for tab_name in ['all', 'news', 'videos', 'other']:
+                            top_results.extend(tab_groups[tab_name][:5])
+
+                        # If we don't have enough results from tabs, take the first 15 overall
+                        if len(top_results) < 15:
+                            top_results = all_results[:15]
+                    else:
+                        top_results = all_results[:15] if all_results else []
+
+                # Step 4: Format results for display
                 if top_results:
-                    results_text = f"🔍 Advanced Search Results for '{params.query}':\n\n"
-                    for i, result in enumerate(top_results[:10]):
+                    results_text = f"🔍 Search Results for '{params.query}':\n\n"
+                    for i, result in enumerate(top_results):
                         title = result.get('title', 'Unknown Title')
                         url = result.get('url', 'No URL')
-                        summary = result.get('summary', 'No summary available')
-                        results_text += f"{i}. **{title}**\n   URL: {url}\n   Summary: {summary}\n\n"
+                        summary = result.get('summary', 'No description available')
+                        source = result.get('source', '')
+                        source_tab = result.get('source_tab', '')
+
+                        # Add source information if available
+                        source_info = ""
+                        if source and source != 'Unknown source':
+                            source_info += f" | Source: {source}"
+                        if source_tab and source_tab != 'other':
+                            source_info += f" | Tab: {source_tab}"
+
+                        results_text += f"{i + 1}. **{title}**{source_info}\n   URL: {url}\n   Summary: {summary}\n\n"
+
+                    # Add search method information
+                    search_method = "Google AI model search" if ai_search_results else "Parallel fallback search"
+                    ranking_method = "LLM ranked" if params.rank and len(all_results) > 10 else "Unranked"
+                    results_text += f"\n_Search Method: {search_method} ({ranking_method})_"
                 else:
                     results_text = f"No results found for query: {params.query}"
 
-                logger.info(f'🔍 Skill Search completed for: {params.query}')
+                logger.info(f'🔍 Skill Search completed for: {params.query}, found {len(top_results)} results')
                 return ActionResult(
                     extracted_content=results_text,
                     include_extracted_content_only_once=True,
-                    long_term_memory=f'Advanced search completed for: {params.query}, found {len(top_results)} relevant results',
+                    long_term_memory=f'Search completed for: {params.query}, found {len(top_results)} relevant results using {"AI model search" if ai_search_results else "fallback search"}'
                 )
 
             except Exception as e:
                 logger.error(f'❌ Skill Search failed: {e}')
                 return ActionResult(error=f'Skill search failed: {str(e)}')
             finally:
-                for i, agent_id in enumerate(agent_ids):
-                    await browser_manager.unregister_agent(agent_id, close_tabs=True)
+                # Clean up browser sessions
+                for agent_id in agent_ids:
+                    try:
+                        await browser_manager.unregister_agent(agent_id, close_tabs=True)
+                    except Exception as cleanup_error:
+                        logger.warning(f"Failed to cleanup agent {agent_id}: {cleanup_error}")
 
         @self.registry.action(
             '',
@@ -288,7 +228,7 @@ Format: [index1, index2, index3, ...]
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
 
                 # Extract structured content using the existing method
-                extracted_content = await self._extract_structured_content(
+                extracted_content = await _extract_structured_content(
                     browser_session, params.query, llm, target_id=target_id
                 )
 
@@ -347,7 +287,7 @@ Format: [index1, index2, index3, ...]
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
 
                 # Extract and summarize content
-                summary = await self._extract_structured_content(
+                summary = await _extract_structured_content(
                     browser_session, "Provide a comprehensive summary of this webpage", llm, target_id=target_id
                 )
 
@@ -1027,327 +967,6 @@ Format: [index1, index2, index3, ...]
                 error_msg = f'❌ Failed to retrieve YouTube data: {str(e)}'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg, extracted_content=error_msg)
-
-    async def _extract_google_results_rule_based(self, browser_session):
-        """Rule-based extraction of Google search results using JavaScript"""
-        try:
-            cdp_session = await browser_session.get_or_create_cdp_session()
-
-            # JavaScript code to extract Google search results using DOM selectors
-            js_extraction_code = """
-(function() {
-    try {
-        const results = [];
-        
-        // Multiple selector strategies for different Google layouts
-        const selectors = [
-            'div[data-sokoban-container] div[data-sokoban-feature]', // Standard results
-            'div.g:not(.g-blk)', // Classic results container
-            '.tF2Cxc', // Modern result container
-            'div[data-ved] h3', // Result titles
-        ];
-        
-        let resultElements = [];
-        
-        // Try each selector until we find results
-        for (const selector of selectors) {
-            const elements = document.querySelectorAll(selector);
-            if (elements.length > 0) {
-                resultElements = Array.from(elements).slice(0, 10); // Get up to 10 results
-                break;
-            }
-        }
-        
-        // If no results found with specific selectors, try broader search
-        if (resultElements.length === 0) {
-            // Look for any divs containing h3 elements (likely search results)
-            const h3Elements = document.querySelectorAll('h3');
-            resultElements = Array.from(h3Elements)
-                .map(h3 => h3.closest('div'))
-                .filter(div => div && div.querySelector('a[href]'))
-                .slice(0, 10);
-        }
-        
-        for (let i = 0; i < Math.min(resultElements.length, 10); i++) {
-            const element = resultElements[i];
-            
-            // Extract title
-            let title = '';
-            const titleSelectors = ['h3', '[role="heading"]', 'a > span', '.LC20lb'];
-            for (const sel of titleSelectors) {
-                const titleEl = element.querySelector(sel);
-                if (titleEl && titleEl.textContent.trim()) {
-                    title = titleEl.textContent.trim();
-                    break;
-                }
-            }
-            
-            // Extract URL
-            let url = '';
-            const linkSelectors = ['a[href^="http"]', 'a[href^="/url?q="]', 'a[href]'];
-            for (const sel of linkSelectors) {
-                const linkEl = element.querySelector(sel);
-                if (linkEl && linkEl.href) {
-                    url = linkEl.href;
-                    // Clean Google redirect URLs
-                    if (url.includes('/url?q=')) {
-                        const urlMatch = url.match(/[?&]q=([^&]*)/);
-                        if (urlMatch) {
-                            url = decodeURIComponent(urlMatch[1]);
-                        }
-                    }
-                    break;
-                }
-            }
-            
-            // Extract summary/description
-            let summary = '';
-            const summarySelectors = [
-                '.VwiC3b', // Description text
-                '.yXK7lf', // Snippet text
-                '[data-content-feature="1"] span',
-                '.s', // Classic description
-                'span:not(:has(a))'
-            ];
-            for (const sel of summarySelectors) {
-                const summaryEl = element.querySelector(sel);
-                if (summaryEl && summaryEl.textContent.trim() && summaryEl.textContent.length > 10) {
-                    summary = summaryEl.textContent.trim();
-                    break;
-                }
-            }
-            
-            // Only add if we have at least title or URL
-            if (title || url) {
-                results.push({
-                    title: title || 'No title',
-                    url: url || 'No URL',
-                    summary: summary || 'No description available'
-                });
-            }
-        }
-        
-        return JSON.stringify(results);
-        
-    } catch (e) {
-        return JSON.stringify([{
-            title: 'Error extracting results',
-            url: window.location.href,
-            summary: 'JavaScript extraction failed: ' + e.message
-        }]);
-    }
-})()
-"""
-
-            # Execute JavaScript to extract results
-            result = await cdp_session.cdp_client.send.Runtime.evaluate(
-                params={'expression': js_extraction_code, 'returnByValue': True, 'awaitPromise': True},
-                session_id=cdp_session.session_id,
-            )
-
-            if result.get('exceptionDetails'):
-                logger.warning(f"JavaScript extraction failed: {result['exceptionDetails']}")
-                return []
-
-            result_data = result.get('result', {})
-            value = result_data.get('value', '[]')
-
-            try:
-                extracted_results = json.loads(value)
-                return extracted_results if isinstance(extracted_results, list) else []
-            except (json.JSONDecodeError, ValueError):
-                logger.warning(f"Failed to parse extraction results: {value}")
-                return []
-
-        except Exception as e:
-            logger.error(f"Rule-based extraction failed: {e}")
-            return []
-
-    async def _perform_google_search(self, browser_session, query: str, llm: BaseChatModel):
-        """Helper method to perform Google search and extract top 5 results using rule-based extraction"""
-        try:
-            # Navigate to Google search
-            search_url = f'https://www.google.com/search?q={query}&udm=14'
-            await browser_session.navigate_to_url(search_url, new_tab=False)
-
-            # Wait a moment for page to load
-            await asyncio.sleep(2)
-
-            # Use rule-based extraction first (much faster than LLM)
-            search_ret_len = 10
-            results = await self._extract_google_results_rule_based(browser_session)
-            if results and len(results) > 0:
-                # Rule-based extraction succeeded
-                logger.debug(f"Rule-based extraction found {len(results)} results for query: {query}")
-                return results[:search_ret_len]  # Return top 6 results
-
-            # Fallback to LLM extraction if rule-based fails
-            logger.warning(f"Rule-based extraction failed for query '{query}', falling back to LLM")
-
-            extraction_query = f"""
-Extract the top {search_ret_len} search results from this Google search page. For each result, provide:
-- title: The clickable title/headline
-- url: The website URL
-- summary: A brief description of what this result contains
-
-Return results as a JSON array: [{{"title": "...", "url": "...", "summary": "..."}}, ...]
-"""
-
-            results_text = await self._extract_structured_content(browser_session, extraction_query, llm)
-
-            # Try to parse JSON results
-            try:
-                results = json.loads(results_text.strip())
-                if isinstance(results, list):
-                    return results[:search_ret_len]  # Ensure max 5 results
-            except (json.JSONDecodeError, ValueError):
-                try:
-                    results = repair_json(results_text.strip())
-                    if isinstance(results, list):
-                        return results[:search_ret_len]  # Ensure max 5 results
-                except Exception as e:
-                    logger.warning(f"Failed to parse JSON from LLM search results: {results_text}")
-
-            # Fallback: return raw text as single result
-            current_url = await browser_session.get_current_page_url()
-            return [{
-                "title": f"Search results for: {query}",
-                "url": current_url,
-                "summary": results_text[:200] + "..." if len(results_text) > 200 else results_text
-            }]
-
-        except Exception as e:
-            logger.error(f"Google search failed for query '{query}': {e}")
-            return []
-
-    def _rule_based_deduplication(self, results):
-        """Rule-based deduplication to reduce dataset before LLM processing"""
-        if not results:
-            return []
-
-        deduplicated = []
-        seen_urls = set()
-        seen_titles = set()
-
-        for result in results:
-            url = result.get('url', '').strip()
-            title = result.get('title', '').strip().lower()
-
-            # Skip results with missing essential data
-            if not url or not title or url == 'No URL' or title == 'no title':
-                continue
-
-            # Normalize URL for comparison (remove fragments, query params for deduplication)
-            normalized_url = url.split('#')[0].split('?')[0].lower()
-
-            # Check for duplicate URLs
-            if normalized_url in seen_urls:
-                continue
-
-            # Check for very similar titles (basic similarity)
-            title_normalized = ''.join(c for c in title if c.isalnum()).lower()
-            if len(title_normalized) > 10:  # Only check titles with substantial content
-                similar_found = False
-                for seen_title in seen_titles:
-                    # Simple similarity check: if 80% of characters match
-                    if len(title_normalized) > 0 and len(seen_title) > 0:
-                        common_chars = sum(1 for c in title_normalized if c in seen_title)
-                        similarity = common_chars / max(len(title_normalized), len(seen_title))
-                        if similarity > 0.8:
-                            similar_found = True
-                            break
-
-                if similar_found:
-                    continue
-
-            # Add to deduplicated results
-            seen_urls.add(normalized_url)
-            seen_titles.add(title_normalized)
-            deduplicated.append(result)
-
-        # Sort by relevance indicators (prioritize results with longer summaries, non-generic titles)
-        def relevance_score(result):
-            score = 0
-            title = result.get('title', '')
-            summary = result.get('summary', '')
-
-            # Longer summaries are typically more informative
-            score += min(len(summary), 200) / 10
-
-            # Non-generic titles score higher
-            generic_terms = ['search results', 'no title', 'error', 'loading']
-            if not any(term in title.lower() for term in generic_terms):
-                score += 10
-
-            # Prefer results with actual descriptions
-            if summary and summary != 'No description available' and len(summary) > 20:
-                score += 5
-
-            return score
-
-        deduplicated.sort(key=relevance_score, reverse=True)
-        return deduplicated
-
-    async def _extract_structured_content(self, browser_session, query: str, llm: BaseChatModel,
-                                          target_id: str | None = None, extract_links: bool = False):
-        """Helper method to extract structured content from current page"""
-        MAX_CHAR_LIMIT = 30000
-
-        # Extract clean markdown using the existing method
-        try:
-            from browser_use.dom.markdown_extractor import extract_clean_markdown
-
-            content, content_stats = await extract_clean_markdown(
-                browser_session=browser_session, extract_links=extract_links
-            )
-        except Exception as e:
-            raise RuntimeError(f'Could not extract clean markdown: {e}')
-
-        # Smart truncation with context preservation
-        if len(content) > MAX_CHAR_LIMIT:
-            # Try to truncate at a natural break point
-            truncate_at = MAX_CHAR_LIMIT
-            paragraph_break = content.rfind('\n\n', MAX_CHAR_LIMIT - 500, MAX_CHAR_LIMIT)
-            if paragraph_break > 0:
-                truncate_at = paragraph_break
-            else:
-                sentence_break = content.rfind('.', MAX_CHAR_LIMIT - 200, MAX_CHAR_LIMIT)
-                if sentence_break > 0:
-                    truncate_at = sentence_break + 1
-            content = content[:truncate_at]
-
-        system_prompt = """
-You are an expert at extracting data from the markdown of a webpage.
-
-<input>
-You will be given a query and the markdown of a webpage that has been filtered to remove noise and advertising content.
-</input>
-
-<instructions>
-- You are tasked to extract information from the webpage that is relevant to the query.
-- You should ONLY use the information available in the webpage to answer the query. Do not make up information or provide guess from your own knowledge.
-- If the information relevant to the query is not available in the page, your response should mention that.
-- If the query asks for all items, products, etc., make sure to directly list all of them.
-</instructions>
-
-<output>
-- Your output should present ALL the information relevant to the query in a concise way.
-- Do not answer in conversational format - directly output the relevant information or that the information is unavailable.
-</output>
-""".strip()
-
-        prompt = f'<query>\n{query}\n</query>\n\n<webpage_content>\n{content}\n</webpage_content>'
-
-        try:
-            from browser_use.llm.messages import SystemMessage, UserMessage
-            response = await asyncio.wait_for(
-                llm.ainvoke([SystemMessage(content=system_prompt), UserMessage(content=prompt)]),
-                timeout=120.0,
-            )
-            return response.completion
-        except Exception as e:
-            logger.debug(f'Error extracting content: {e}')
-            raise RuntimeError(str(e))
 
     def _register_browser_use_agent(self):
         @self.registry.action(
