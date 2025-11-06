@@ -528,34 +528,19 @@ class AgentBrowserSession(BrowserSession):
         finally:
             return target_id
 
-    async def _wait_for_stable_network(self):
+    async def _wait_for_stable_network(self, target_id=None, max_attempt=3):
         """Wait for page stability - simplified for CDP-only branch."""
-        start_time = time.time()
-        page_url = await self.get_current_page_url()
-        not_a_meaningful_website = page_url.lower().split(':', 1)[0] not in ('http', 'https')
-
-        # Wait for page stability using browser profile settings (main branch pattern)
-        if not not_a_meaningful_website:
-            self.logger.debug('🔍 DOMWatchdog.on_BrowserStateRequestEvent: ⏳ Waiting for page stability...')
+        cdp_session = await self.get_or_create_cdp_session(target_id=target_id)
+        for _ in range(max_attempt):
             try:
-                # Apply minimum wait time first (let page settle)
-                min_wait = self.browser_profile.minimum_wait_page_load_time
-                if min_wait > 0:
-                    self.logger.debug(f'⏳ Minimum wait: {min_wait}s')
-                    await asyncio.sleep(min_wait)
-
-                # Apply network idle wait time (for dynamic content like iframes)
-                network_idle_wait = self.browser_profile.wait_for_network_idle_page_load_time
-                if network_idle_wait > 0:
-                    self.logger.debug(f'⏳ Network idle wait: {network_idle_wait}s')
-                    await asyncio.sleep(network_idle_wait)
-
-                elapsed = time.time() - start_time
-                self.logger.debug(f'✅ Page stability wait completed in {elapsed:.2f}s')
-            except Exception as e:
-                self.logger.warning(
-                    f'🔍 DOMWatchdog.on_BrowserStateRequestEvent: Network waiting failed: {e}, continuing anyway...'
+                ready_state = await cdp_session.cdp_client.send.Runtime.evaluate(
+                    params={'expression': 'document.readyState'}, session_id=cdp_session.session_id
                 )
+                if ready_state and ready_state.get("value", "loading") == "complete":
+                    break
+            except Exception:
+                pass
+            await asyncio.sleep(1.0)
 
     async def take_screenshot(self, target_id: Optional[str] = None,
                               path: str | None = None,
@@ -571,14 +556,7 @@ class AgentBrowserSession(BrowserSession):
         """
 
         cdp_session = await self.get_or_create_cdp_session(target_id, focus=False)
-        await self._wait_for_stable_network()
-
-        try:
-            ready_state = await cdp_session.cdp_client.send.Runtime.evaluate(
-                params={'expression': 'document.readyState'}, session_id=cdp_session.session_id
-            )
-        except Exception:
-            pass
+        await self._wait_for_stable_network(target_id)
 
         try:
             import base64
@@ -634,14 +612,7 @@ class AgentBrowserSession(BrowserSession):
         """
 
         cdp_session = await self.get_or_create_cdp_session(target_id, focus=False)
-        await self._wait_for_stable_network()
-
-        try:
-            ready_state = await cdp_session.cdp_client.send.Runtime.evaluate(
-                params={'expression': 'document.readyState'}, session_id=cdp_session.session_id
-            )
-        except Exception:
-            pass
+        await self._wait_for_stable_network(target_id)
 
         try:
             import base64
@@ -749,14 +720,7 @@ class AgentBrowserSession(BrowserSession):
         """
 
         cdp_session = await self.get_or_create_cdp_session(target_id, focus=False)
-        await self._wait_for_stable_network()
-
-        try:
-            ready_state = await cdp_session.cdp_client.send.Runtime.evaluate(
-                params={'expression': 'document.readyState'}, session_id=cdp_session.session_id
-            )
-        except Exception:
-            await self._wait_for_stable_network()
+        await self._wait_for_stable_network(target_id)
 
         try:
             # Get the HTML content

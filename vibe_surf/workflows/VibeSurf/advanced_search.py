@@ -52,7 +52,7 @@ class AdvancedSearchComponent(Component):
             name="max_results",
             display_name="Max Results",
             info="Maximum number of search results to return",
-            value=10,
+            value=100,
             advanced=True,
             required=False,
         )

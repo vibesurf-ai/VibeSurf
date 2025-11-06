@@ -148,7 +148,7 @@ class ComposioBaseComponent(Component):
 
     def as_data(self) -> Data:
         result = self.execute_action()
-        return Data(results=result)
+        return Data(data=result)
 
     def _build_action_maps(self):
         """Build lookup maps for action names."""
@@ -1250,6 +1250,9 @@ class ComposioBaseComponent(Component):
                 prop_schema = schema_properties.get(field, {})
                 if prop_schema.get("type") == "array" and isinstance(value, str):
                     value = [item.strip() for item in value.split(",")]
+
+                if prop_schema.get("type") == "string" and isinstance(value, Data):
+                    value = value.get_text()
 
                 if field in self._bool_variables:
                     value = bool(value)

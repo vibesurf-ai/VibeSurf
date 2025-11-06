@@ -27,12 +27,26 @@ class BrowserUploadFileComponent(Component):
             name="file",
             display_name="File",
             info="File to upload",
-            required=True
+            required=True,
+            fileTypes=['json', 'md', 'csv', 'pdf', 'png', 'jpg', 'jpeg', 'txt', 'py', 'js'],
+        ),
+        MessageTextInput(
+            name="element_text",
+            display_name="Element Text",
+            info="Element Text you want to find and operate."
+        ),
+        MessageTextInput(
+            name="element_hints",
+            display_name="Element Hints",
+            info="List of context hints like ['form', 'contact', 'personal info'] for finding this element. "
+                 "Useful to distinguish when there are multiple elements with same text. ",
+            list=True
         ),
         MessageTextInput(
             name="css_selector",
             display_name="CSS Selector",
-            info="CSS Selector defined by VibeSurf"
+            info="CSS Selector. You can get css selector via using CDP element selector.",
+            advanced=True
         ),
         IntInput(
             name="backend_node_id",
@@ -66,9 +80,23 @@ class BrowserUploadFileComponent(Component):
 
     async def browser_upload_file(self) -> AgentBrowserSession:
         try:
+            await self.browser_session._wait_for_stable_network()
             page = await self.browser_session.get_current_page()
             element: Optional[Element] = None
-            if self.css_selector:
+            if self.element_text:
+                from vibe_surf.browser.find_page_element import SemanticExtractor
+                semantic_extractor = SemanticExtractor()
+                element_mappings = await semantic_extractor.extract_semantic_mapping(page)
+                element_info = semantic_extractor.find_element_by_hierarchy(element_mappings,
+                                                                            target_text=self.element_text,
+                                                                            context_hints=self.element_hints)
+                if element_info:
+                    elements = await page.get_elements_by_css_selector(
+                        element_info["hierarchical_selector"] or element_info["selectors"])
+                    if elements:
+                        element = elements[0]
+
+            elif self.css_selector:
                 elements = await page.get_elements_by_css_selector(self.css_selector)
                 self.log(f"Found {len(elements)} elements with CSS selector {self.css_selector}")
                 self.log(elements)

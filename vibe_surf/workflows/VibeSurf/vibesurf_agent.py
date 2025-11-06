@@ -53,7 +53,8 @@ class VibeSurfAgentComponent(Component):
             display_name="Upload Files",
             info="Upload Files defined by VibeSurf workspace",
             advanced=True,
-            list=True
+            list=True,
+            fileTypes=['json', 'md', 'csv', 'pdf', 'png', 'jpg', 'jpeg', 'txt', 'py', 'js'],
         ),
         DropdownInput(
             name="agent_mode",
