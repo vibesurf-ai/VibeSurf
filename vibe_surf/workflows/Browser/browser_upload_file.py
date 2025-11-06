@@ -27,7 +27,8 @@ class BrowserUploadFileComponent(Component):
             name="file",
             display_name="File",
             info="File to upload",
-            required=True
+            required=True,
+            fileTypes=['json', 'md', 'csv', 'pdf', 'png', 'jpg', 'jpeg', 'txt', 'py', 'js'],
         ),
         MessageTextInput(
             name="css_selector",

@@ -332,21 +332,35 @@ async def test_website_api(main_browser_session: AgentBrowserSession):
 
 
 async def test_page_element(browser_session: AgentBrowserSession):
-    await browser_session.navigate_to_url("https://github.com/", new_tab=True)
-    await asyncio.sleep(1)
-    page = await browser_session.get_current_page()
-    css_selector = r"#FormControl--\:Rjqhb\: > div > button"
-    element = await page.get_elements_by_css_selector(css_selector)
-    await page.get_element()
-    mouse = await page.mouse
-    await mouse.scroll(x=0, y=100, delta_x=0, delta_y=1000)
-    await page.press("Enter")
+    # await browser_session.navigate_to_url("https://github.com/", new_tab=True)
+    # await asyncio.sleep(1)
+    # page = await browser_session.get_current_page()
+    # css_selector = r"#FormControl--\:Rjqhb\: > div > button"
+    # element = await page.get_elements_by_css_selector(css_selector)
+    # await page.get_element()
+    # mouse = await page.mouse
+    # await mouse.scroll(x=0, y=100, delta_x=0, delta_y=1000)
+    # await page.press("Enter")
+    #
+    # if element:
+    #     await element[0].click()
+    #     await element[0].click(button='left', click_count=1, modifiers=['Control'])
+    #     await element[0].fill("Hello World")
 
-    pdb.set_trace()
+    from vibe_surf.browser.find_page_element import SemanticExtractor
+
+    semantic_extractor = SemanticExtractor()
+    await browser_session.navigate_to_url("https://www.google.com/search?q=langflow/", new_tab=True)
+    await browser_session._wait_for_stable_network()
+
+    page = await browser_session.get_current_page()
+
+    element_mappings = await semantic_extractor.extract_semantic_mapping(page)
+    element_info = semantic_extractor.find_element_by_hierarchy(element_mappings, target_text="新闻")
+    element = await page.get_elements_by_css_selector(element_info["hierarchical_selector"] or element_info["selectors"])
     if element:
         await element[0].click()
-        await element[0].click(button='left', click_count=1, modifiers=['Control'])
-        await element[0].fill("Hello World")
+    pdb.set_trace()
 
 
 
