@@ -88,6 +88,7 @@ class BrowserClickElementComponent(Component):
 
     async def browser_click_element(self) -> AgentBrowserSession:
         try:
+            await self.browser_session._wait_for_stable_network()
             page = await self.browser_session.get_current_page()
             element = None
             if self.element_text:

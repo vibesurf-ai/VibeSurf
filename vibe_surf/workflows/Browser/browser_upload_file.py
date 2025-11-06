@@ -80,6 +80,7 @@ class BrowserUploadFileComponent(Component):
 
     async def browser_upload_file(self) -> AgentBrowserSession:
         try:
+            await self.browser_session._wait_for_stable_network()
             page = await self.browser_session.get_current_page()
             element: Optional[Element] = None
             if self.element_text:

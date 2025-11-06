@@ -608,7 +608,7 @@ async def fallback_parallel_search(browser_manager, query: str, max_results: int
     try:
         # Define search URLs for different tabs
         search_urls = {
-            'all': f'https://www.google.com/search?q={query}',
+            'all': f'https://www.google.com/search?q={query}&udm=14',
             'news': f'https://www.google.com/search?q={query}&tbm=nws',
             'videos': f'https://www.google.com/search?q={query}&tbm=vid'
         }

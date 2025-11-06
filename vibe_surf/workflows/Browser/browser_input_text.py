@@ -85,6 +85,7 @@ class BrowserInputTextComponent(Component):
 
     async def browser_input_text(self) -> AgentBrowserSession:
         try:
+            await self.browser_session._wait_for_stable_network()
             from browser_use.actor.element import Element
             page = await self.browser_session.get_current_page()
             element: Element = None
