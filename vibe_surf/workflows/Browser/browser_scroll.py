@@ -21,6 +21,11 @@ class BrowserScrollComponent(Component):
             input_types=["AgentBrowserSession"],
             required=True
         ),
+        MessageTextInput(
+            name="text_to_scroll",
+            display_name="Text to Scroll",
+            info="Text you want to scroll to. If specified, priority to scroll to text instead of using coordinates.",
+        ),
         SliderInput(
             name="scroll_x",
             display_name="Scroll X",
@@ -61,27 +66,31 @@ class BrowserScrollComponent(Component):
 
     async def browser_scroll(self) -> AgentBrowserSession:
         try:
-            cdp_client = self.browser_session.agent_focus.cdp_client
-            session_id = self.browser_session.agent_focus.session_id
+            if self.text_to_scroll:
+                from vibe_surf.browser.page_operations import scroll_to_text
+                self.status = await scroll_to_text(self.text_to_scroll, self.browser_session)
+            else:
+                cdp_client = self.browser_session.agent_focus.cdp_client
+                session_id = self.browser_session.agent_focus.session_id
 
-            # Get viewport dimensions
-            layout_metrics = await cdp_client.send.Page.getLayoutMetrics(session_id=session_id)
-            viewport_width = layout_metrics['layoutViewport']['clientWidth']
-            viewport_height = layout_metrics['layoutViewport']['clientHeight']
+                # Get viewport dimensions
+                layout_metrics = await cdp_client.send.Page.getLayoutMetrics(session_id=session_id)
+                viewport_width = layout_metrics['layoutViewport']['clientWidth']
+                viewport_height = layout_metrics['layoutViewport']['clientHeight']
 
-            x = int(max(1, viewport_width * self.scroll_x))
-            y = int(max(1, viewport_height * self.scroll_y))
-            await cdp_client.send.Input.dispatchMouseEvent(
-                params={
-                    'type': 'mouseWheel',
-                    'x': x,
-                    'y': y,
-                    'deltaX': self.scroll_delta_x,
-                    'deltaY': self.scroll_delta_y,
-                },
-                session_id=session_id,
-            )
-            self.status = f"Successfully scrolled {x}, {y}, {self.scroll_delta_x}, {self.scroll_delta_y} on page."
+                x = int(max(1, viewport_width * self.scroll_x))
+                y = int(max(1, viewport_height * self.scroll_y))
+                await cdp_client.send.Input.dispatchMouseEvent(
+                    params={
+                        'type': 'mouseWheel',
+                        'x': x,
+                        'y': y,
+                        'deltaX': self.scroll_delta_x,
+                        'deltaY': self.scroll_delta_y,
+                    },
+                    session_id=session_id,
+                )
+                self.status = f"Successfully scrolled {x}, {y}, {self.scroll_delta_x}, {self.scroll_delta_y} on page."
         except Exception as e:
             import traceback
             traceback.print_exc()
