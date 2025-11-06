@@ -351,7 +351,7 @@ async def generate_java_script_code(code_requirement, llm, browser_session, MAX_
     return gen_success, execute_result, generated_js_code
 
 
-async def google_ai_model_search(browser_manager, query: str, max_results: int = 10):
+async def google_ai_model_search(browser_manager, query: str, max_results: int = 100):
     """
     Google AI model Search
     """
@@ -600,7 +600,7 @@ async def google_ai_model_search(browser_manager, query: str, max_results: int =
             logger.warning(f"Failed to cleanup agent {agent_id}: {cleanup_error}")
 
 
-async def fallback_parallel_search(browser_manager, query: str, max_results: int = 10):
+async def fallback_parallel_search(browser_manager, query: str, max_results: int = 100):
     """
     Fallback method: Parallel search across all, news, and videos tabs using separate browser sessions
     """

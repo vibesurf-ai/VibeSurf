@@ -154,7 +154,6 @@ class VibeSurfTools:
                         title = result.get('title', 'Unknown Title')
                         url = result.get('url', 'No URL')
                         summary = result.get('summary', 'No description available')
-                        source = result.get('source', '')
 
                         results_text += f"{i + 1}. **{title}**\n   URL: {url}\n   Summary: {summary}\n\n"
                 else:

@@ -5,6 +5,7 @@ A command-line interface for VibeSurf browser automation tool.
 """
 
 import os
+import pdb
 import sys
 import glob
 import json
