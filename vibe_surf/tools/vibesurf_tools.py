@@ -33,7 +33,7 @@ from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionA
     ReportWriterTask, TodoGenerateAction, TodoModifyAction, VibeSurfDoneAction, SkillSearchAction, SkillCrawlAction, \
     SkillSummaryAction, SkillTakeScreenshotAction, SkillDeepResearchAction, SkillCodeAction, SkillFinanceAction, \
     SkillXhsAction, SkillDouyinAction, SkillYoutubeAction, SkillWeiboAction, GrepContentAction, \
-    GetAllToolkitTypesAction, SearchToolAction, GetToolInfoAction, ExecuteExtraToolAction
+    SearchToolAction, GetToolInfoAction, ExecuteExtraToolAction
 from vibe_surf.tools.finance_tools import FinanceDataRetriever, FinanceMarkdownFormatter, FinanceMethod
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.composio_client import ComposioClient
@@ -971,9 +971,9 @@ class VibeSurfTools:
         
         @self.registry.action(
             'Get all available toolkit types from both Composio and MCP clients',
-            param_model=GetAllToolkitTypesAction,
+            param_model=NoParamsAction,
         )
-        async def get_all_toolkit_types(params: GetAllToolkitTypesAction):
+        async def get_all_toolkit_types():
             """
             Get all toolkit types available in composio_toolkits and mcp_clients
             
@@ -1015,8 +1015,6 @@ class VibeSurfTools:
                 logger.info(f'📋 Retrieved {len(toolkit_types)} toolkit types')
                 return ActionResult(
                     extracted_content=result_text,
-                    include_extracted_content_only_once=True,
-                    long_term_memory=f'Retrieved {len(toolkit_types)} toolkit types: {", ".join(toolkit_types)}'
                 )
                 
             except Exception as e:
@@ -1123,44 +1121,13 @@ class VibeSurfTools:
                 # Convert param_model to dict
                 try:
                     param_dict = action.param_model.model_json_schema()
-                    
-                    # Format as readable information
-                    result_text = f"Tool Information: **{tool_name}**\n\n"
-                    
-                    # Add description if available
-                    if 'description' in param_dict:
-                        result_text += f"**Description:** {param_dict['description']}\n\n"
-                    
-                    # Add properties/parameters
-                    if 'properties' in param_dict and param_dict['properties']:
-                        result_text += "**Parameters:**\n"
-                        for prop_name, prop_info in param_dict['properties'].items():
-                            result_text += f"- **{prop_name}**"
-                            if 'type' in prop_info:
-                                result_text += f" ({prop_info['type']})"
-                            if 'description' in prop_info:
-                                result_text += f": {prop_info['description']}"
-                            if 'default' in prop_info:
-                                result_text += f" [default: {prop_info['default']}]"
-                            result_text += "\n"
-                    else:
-                        result_text += "**Parameters:** No parameters required\n"
-                    
-                    # Add required fields
-                    if 'required' in param_dict and param_dict['required']:
-                        result_text += f"\n**Required Parameters:** {', '.join(param_dict['required'])}\n"
-                    
-                    # Add raw schema for reference
-                    result_text += f"\n**Raw Parameter Schema:**\n```json\n{json.dumps(param_dict, indent=2)}\n```"
-                    
+                    result_text = json.dumps(param_dict, indent=2, ensure_ascii=False)
                 except Exception as e:
                     result_text = f"Tool: {tool_name}\nError getting parameter info: {str(e)}"
                 
                 logger.info(f'ℹ️ Retrieved tool info for: {tool_name}')
                 return ActionResult(
-                    extracted_content=result_text,
-                    include_extracted_content_only_once=True,
-                    long_term_memory=f'Retrieved tool info for: {tool_name}'
+                    extracted_content=f"```json\n{result_text}\n```"
                 )
                 
             except Exception as e:

@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -43,7 +43,7 @@ class BrowserUseAgentTask(BaseModel):
         description='Tab ID to execute the task on. If None, a new blank page will be created',
     )
     task: str = Field(
-        description='Task description focusing on what needs to be done, goals, and expected returns. Browser_use agent has its own planning and execution capabilities',
+        description='Task description focusing on what needs to be done, goals, and expected returns.',
     )
     task_files: list[str] | None = Field(
         default=None,
@@ -126,7 +126,7 @@ class SkillSearchAction(BaseModel):
     )
     rank: bool = Field(
         default=False,
-        description='Whether to use LLM ranking for results. If True, uses LLM to rank all results. If False, returns 5 results from each search tab (all, news, videos).',
+        description='Whether to use LLM ranking for results.',
     )
 
 
@@ -304,33 +304,27 @@ class GrepContentAction(BaseModel):
     )
 
 
-class GetAllToolkitTypesAction(BaseModel):
-    """Parameters for get_all_toolkit_types action - no parameters needed"""
-    pass
-
-
 class SearchToolAction(BaseModel):
     """Parameters for search_tool action"""
     toolkit_type: str = Field(
-        description='Toolkit type to search in (from composio_toolkits or mcp_clients keys)',
+        description='Toolkit type to search.',
     )
-    filters: list[str] = Field(
-        description='List of query terms to filter tools by name and description',
-        min_length=1,
+    filters: Optional[str] = Field(
+        description='Query terms to filter tools by name and description(include or not). If you want to all tools name of this Toolkit, leave it to None.',
     )
 
 
 class GetToolInfoAction(BaseModel):
     """Parameters for get_tool_info action"""
     tool_name: str = Field(
-        description='Tool name with prefix (e.g., "mcp.server_name.tool" or "cpo.toolkit.tool")',
+        description='Full tool name',
     )
 
 
 class ExecuteExtraToolAction(BaseModel):
     """Parameters for execute_extra_tool action"""
     tool_name: str = Field(
-        description='Tool name with prefix (e.g., "mcp.server_name.tool" or "cpo.toolkit.tool")',
+        description='Full tool name',
     )
     tool_params: str = Field(
         description='JSON string containing parameters for the tool execution',

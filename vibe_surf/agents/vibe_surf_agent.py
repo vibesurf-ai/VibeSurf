@@ -362,8 +362,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
     vibesurf_agent = state.vibesurf_agent
 
     vibesurf_action_names = vibesurf_agent.tools.get_all_action_names(exclude_actions=['mcp.', 'cpo.'])
-
-    ActionModel = vibesurf_agent.tools.registry.create_action_model()
+    ActionModel = vibesurf_agent.tools.registry.create_action_model(include_actions=vibesurf_action_names)
     if vibesurf_agent.settings.agent_mode == "thinking":
         AgentOutput = CustomAgentOutput.type_with_custom_actions(ActionModel)
     else:
@@ -635,11 +634,11 @@ async def execute_parallel_browser_tasks(state: VibeSurfState) -> List[BrowserTa
 
     vibesurf_tools = state.vibesurf_agent.tools
     bu_tools = BrowserUseTools()
-    for mcp_server_name, mcp_client in vibesurf_tools.mcp_clients.items():
-        await mcp_client.register_to_tools(
-            tools=bu_tools,
-            prefix=f"mcp.{mcp_server_name}."
-        )
+    # for mcp_server_name, mcp_client in vibesurf_tools.mcp_clients.items():
+    #     await mcp_client.register_to_tools(
+    #         tools=bu_tools,
+    #         prefix=f"mcp.{mcp_server_name}."
+    #     )
     bu_tasks = [None] * len(pending_tasks)
     for i, task_info in enumerate(pending_tasks):
         agent_id = f"bu_agent-{task_id}-{i + 1:03d}"
@@ -793,11 +792,11 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
     try:
         vibesurf_tools = state.vibesurf_agent.tools
         bu_tools = BrowserUseTools()
-        for mcp_server_name, mcp_client in vibesurf_tools.mcp_clients.items():
-            await mcp_client.register_to_tools(
-                tools=bu_tools,
-                prefix=f"mcp.{mcp_server_name}."
-            )
+        # for mcp_server_name, mcp_client in vibesurf_tools.mcp_clients.items():
+        #     await mcp_client.register_to_tools(
+        #         tools=bu_tools,
+        #         prefix=f"mcp.{mcp_server_name}."
+        #     )
         available_file_paths = []
         if task_files:
             for task_file in task_files:
