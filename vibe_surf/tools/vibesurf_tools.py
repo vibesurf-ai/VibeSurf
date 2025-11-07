@@ -43,7 +43,7 @@ from vibe_surf.tools.vibesurf_registry import VibeSurfRegistry
 from bs4 import BeautifulSoup
 from vibe_surf.logger import get_logger
 from vibe_surf.tools.utils import clean_html_basic
-from vibe_surf.tools.utils import _extract_structured_content, _rank_search_results_with_llm
+from vibe_surf.tools.utils import _extract_structured_content, _rank_search_results_with_llm, extract_file_content_with_llm
 
 logger = get_logger(__name__)
 
@@ -1478,71 +1478,13 @@ class VibeSurfTools:
                 if not os.path.exists(full_file_path):
                     full_file_path = os.path.join(str(file_system.get_dir()), file_path)
 
-                # Determine if file is an image based on MIME type
-                mime_type, _ = mimetypes.guess_type(file_path)
-                is_image = mime_type and mime_type.startswith('image/')
-
-                if is_image:
-                    # Handle image files with LLM vision
-                    try:
-                        # Read image file and encode to base64
-                        with open(full_file_path, 'rb') as image_file:
-                            image_data = image_file.read()
-                            image_base64 = base64.b64encode(image_data).decode('utf-8')
-
-                        # Create content parts similar to the user's example
-                        content_parts: list[ContentPartTextParam | ContentPartImageParam] = [
-                            ContentPartTextParam(text=f"Query: {params.query}")
-                        ]
-
-                        # Add the image
-                        content_parts.append(
-                            ContentPartImageParam(
-                                image_url=ImageURL(
-                                    url=f'data:{mime_type};base64,{image_base64}',
-                                    media_type=mime_type,
-                                    detail='high',
-                                ),
-                            )
-                        )
-
-                        # Create user message and invoke LLM
-                        user_message = UserMessage(content=content_parts, cache=True)
-                        response = await asyncio.wait_for(
-                            page_extraction_llm.ainvoke([user_message]),
-                            timeout=120.0,
-                        )
-
-                        extracted_content = f'File: {file_path}\nQuery: {params.query}\nExtracted Content:\n{response.completion}'
-
-                    except Exception as e:
-                        raise Exception(f'Failed to process image file {file_path}: {str(e)}')
-
-                else:
-                    # Handle non-image files by reading content
-                    try:
-                        file_content = await file_system.read_file(full_file_path, external_file=True)
-
-                        # Create a simple prompt for text extraction
-                        prompt = f"""Extract the requested information from this file content.
-
-        Query: {params.query}
-
-        File: {file_path}
-        File Content:
-        {file_content}
-
-        Provide the extracted information in a clear, structured format."""
-
-                        response = await asyncio.wait_for(
-                            page_extraction_llm.ainvoke([UserMessage(content=prompt)]),
-                            timeout=120.0,
-                        )
-
-                        extracted_content = f'File: {file_path}\nQuery: {params.query}\nExtracted Content:\n{response.completion}'
-
-                    except Exception as e:
-                        raise Exception(f'Failed to read file {file_path}: {str(e)}')
+                # Use the utility function to extract content from file
+                extracted_content = await extract_file_content_with_llm(
+                    file_path=file_path,
+                    query=params.query,
+                    llm=page_extraction_llm,
+                    file_system=file_system
+                )
 
                 # Handle memory storage
                 if len(extracted_content) < 1000:

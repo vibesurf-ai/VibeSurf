@@ -1,10 +1,13 @@
 from bs4 import BeautifulSoup
 import asyncio
 import json
+import os
+import base64
+import mimetypes
 
 from browser_use.dom.service import EnhancedDOMTreeNode
 from vibe_surf.logger import get_logger
-from browser_use.llm.messages import SystemMessage, UserMessage, AssistantMessage
+from browser_use.llm.messages import SystemMessage, UserMessage, AssistantMessage, ContentPartTextParam, ContentPartImageParam, ImageURL
 from browser_use.llm.base import BaseChatModel
 
 logger = get_logger(__name__)
@@ -1444,4 +1447,94 @@ Format: [index1, index2, index3, ...]
     except Exception as e:
         logger.error(f"LLM ranking failed: {e}")
         return results[:max_ret]
+
+
+async def extract_file_content_with_llm(file_path: str, query: str, llm: BaseChatModel, file_system):
+    """
+    Extract content from a file using LLM, with support for both image and text files.
+    
+    Args:
+        file_path: Relative path to the file
+        query: Query for content extraction
+        llm: Language model for processing
+        file_system: File system instance for reading files
+        
+    Returns:
+        str: Extracted content formatted as "File: {file_path}\nQuery: {query}\nExtracted Content:\n{content}"
+        
+    Raises:
+        Exception: If file processing fails
+    """
+    # Get full file path
+    full_file_path = file_path
+    if not os.path.exists(full_file_path):
+        full_file_path = os.path.join(str(file_system.get_dir()), file_path)
+    
+    # Determine if file is an image based on MIME type
+    mime_type, _ = mimetypes.guess_type(file_path)
+    is_image = mime_type and mime_type.startswith('image/')
+
+    if is_image:
+        # Handle image files with LLM vision
+        try:
+            # Read image file and encode to base64
+            with open(full_file_path, 'rb') as image_file:
+                image_data = image_file.read()
+                image_base64 = base64.b64encode(image_data).decode('utf-8')
+
+            # Create content parts similar to the user's example
+            content_parts: list[ContentPartTextParam | ContentPartImageParam] = [
+                ContentPartTextParam(text=f"Query: {query}")
+            ]
+
+            # Add the image
+            content_parts.append(
+                ContentPartImageParam(
+                    image_url=ImageURL(
+                        url=f'data:{mime_type};base64,{image_base64}',
+                        media_type=mime_type,
+                        detail='auto',
+                    ),
+                )
+            )
+
+            # Create user message and invoke LLM
+            user_message = UserMessage(content=content_parts, cache=True)
+            response = await asyncio.wait_for(
+                llm.ainvoke([user_message]),
+                timeout=120.0,
+            )
+
+            extracted_content = f'File: {file_path}\nQuery: {query}\nExtracted Content:\n{response.completion}'
+
+        except Exception as e:
+            raise Exception(f'Failed to process image file {file_path}: {str(e)}')
+
+    else:
+        # Handle non-image files by reading content
+        try:
+            file_content = await file_system.read_file(full_file_path, external_file=True)
+
+            # Create a simple prompt for text extraction
+            prompt = f"""Extract the requested information from this file content.
+
+Query: {query}
+
+File: {file_path}
+File Content:
+{file_content}
+
+Provide the extracted information in a clear, structured format."""
+
+            response = await asyncio.wait_for(
+                llm.ainvoke([UserMessage(content=prompt)]),
+                timeout=120.0,
+            )
+
+            extracted_content = f'File: {file_path}\nQuery: {query}\nExtracted Content:\n{response.completion}'
+
+        except Exception as e:
+            raise Exception(f'Failed to read file {file_path}: {str(e)}')
+
+    return extracted_content
 
