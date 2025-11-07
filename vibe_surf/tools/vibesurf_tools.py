@@ -65,6 +65,18 @@ class VibeSurfTools:
         self.mcp_clients: Dict[str, MCPClient] = {}
         self.composio_client: ComposioClient = composio_client
 
+    def get_all_action_names(self, exclude_actions: Optional[list] = None) -> list[str]:
+        action_names = []
+        for action_name in self.registry.registry.actions:
+            add_flag = True
+            for ex_action_name in exclude_actions:
+                if action_name.startswith(ex_action_name) or ex_action_name in action_name:
+                    add_flag = False
+                    break
+            if add_flag:
+                action_names.append(action_name)
+        return action_names
+
     def _register_skills(self):
         @self.registry.action(
             'Advanced search',
@@ -103,7 +115,7 @@ class VibeSurfTools:
                 # Step 2: If AI search fails or returns insufficient results, use fallback method
                 if not ai_search_results or len(ai_search_results) == 0:
                     logger.info(f'🔄 Google AI search returned no results, using fallback parallel search')
-                    
+
                     # Use parallel search across all, news, and videos tabs
                     fallback_results = await fallback_parallel_search(browser_manager, params.query, max_results=15)
                     all_results = fallback_results
@@ -381,8 +393,8 @@ class VibeSurfTools:
                 from vibe_surf.tools.utils import generate_java_script_code
 
                 success, execute_result, js_code = await generate_java_script_code(params.code_requirement,
-                                                                             page_extraction_llm, browser_session,
-                                                                             MAX_ITERATIONS=5)
+                                                                                   page_extraction_llm, browser_session,
+                                                                                   MAX_ITERATIONS=5)
                 msg = f'```javascript\n{js_code}\n```\nResult:\n```json\n {execute_result}\n```\n'
                 if success:
                     return ActionResult(extracted_content=msg)
