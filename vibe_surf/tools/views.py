@@ -302,3 +302,36 @@ class GrepContentAction(BaseModel):
         ge=10,
         le=1000,
     )
+
+
+class GetAllToolkitTypesAction(BaseModel):
+    """Parameters for get_all_toolkit_types action - no parameters needed"""
+    pass
+
+
+class SearchToolAction(BaseModel):
+    """Parameters for search_tool action"""
+    toolkit_type: str = Field(
+        description='Toolkit type to search in (from composio_toolkits or mcp_clients keys)',
+    )
+    filters: list[str] = Field(
+        description='List of query terms to filter tools by name and description',
+        min_length=1,
+    )
+
+
+class GetToolInfoAction(BaseModel):
+    """Parameters for get_tool_info action"""
+    tool_name: str = Field(
+        description='Tool name with prefix (e.g., "mcp.server_name.tool" or "cpo.toolkit.tool")',
+    )
+
+
+class ExecuteExtraToolAction(BaseModel):
+    """Parameters for execute_extra_tool action"""
+    tool_name: str = Field(
+        description='Tool name with prefix (e.g., "mcp.server_name.tool" or "cpo.toolkit.tool")',
+    )
+    tool_params: str = Field(
+        description='JSON string containing parameters for the tool execution',
+    )
