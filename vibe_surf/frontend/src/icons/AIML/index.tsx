@@ -1,9 +1,14 @@
 import type React from "react";
 import { forwardRef } from "react";
-import { AIMLComponent } from "./AI-ML";
+import { AIMLComponent } from "./AI-ML.jsx";
 
-export const AIMLIcon = forwardRef<SVGSVGElement, React.PropsWithChildren<{}>>(
+interface AIMLIconProps extends React.SVGProps<SVGSVGElement> {
+  className?: string;
+}
+
+export const AIMLIcon = forwardRef<SVGSVGElement, AIMLIconProps>(
   (props, ref) => {
-    return <AIMLComponent ref={ref} {...props} />;
+    const { className = "", ...restProps } = props;
+    return <AIMLComponent ref={ref} className={className} {...restProps} />;
   },
 );
