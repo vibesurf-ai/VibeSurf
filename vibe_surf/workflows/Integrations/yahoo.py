@@ -56,7 +56,7 @@ to access financial data and market information from Yahoo! Finance."""
             name="period",
             display_name="Period",
             info="Time period for historical data (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max). (only applicable for GET_HISTORY)",
-            value='1y',
+            value='1mo',
             advanced=True
         ),
         MessageTextInput(
@@ -94,7 +94,7 @@ to access financial data and market information from Yahoo! Finance."""
                 result = retriever._get_history(period=self.period, interval=self.interval, start_date=self.start_date,
                                                 end_date=self.end_date)
             else:
-                result = getattr(retriever, f"_{self.method.value}")()
+                result = getattr(retriever, f"_{self.method}")()
             return Message(text=pprint.pformat(result))
         except Exception as e:
             error_message = f"Error retrieving data: {e}"

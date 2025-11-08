@@ -244,6 +244,7 @@ dependencies = [
     "pytest-codspeed==4.0.0", # Pinned to avoid python3.13 + intel mac compatibility issues
     "celery>=5.5.3",
     "croniter>=6.0.0",
+    "xhshow>=0.1.3"
 ]
 
 [project.urls]

@@ -123,11 +123,11 @@ async def main():
         main_browser_session = AgentBrowserSession(browser_profile=browser_profile)
         await main_browser_session.start()
         async with BrowserManager(main_browser_session=main_browser_session) as manager:
-            # await test_xhs_api(browser_session=main_browser_session)
+            await test_xhs_api(browser_session=main_browser_session)
             # await test_weibo_api(browser_session=main_browser_session)
             # await test_douyin_api(browser_session=main_browser_session)
             # await test_youtube_api(browser_session=main_browser_session)
-            await test_yh_finance_api()
+            # await test_yh_finance_api()
     except Exception as e:
         logging.error(f"An error occurred during tests: {e}", exc_info=True)
 

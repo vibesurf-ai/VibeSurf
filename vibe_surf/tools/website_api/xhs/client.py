@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 import random
 import copy
 from tenacity import retry, stop_after_attempt, wait_fixed
-
+from xhshow import Xhshow
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.logger import get_logger
 
@@ -63,6 +63,8 @@ class XiaoHongShuApiClient:
         self.CONTENT_ERROR_MSG = "Content status abnormal, please check later"
         self.CONTENT_ERROR_CODE = -510001
 
+        self.xhshow_client = Xhshow()
+
         # Default headers
         self.default_headers = {
             'content-type': 'application/json;charset=UTF-8',
@@ -70,32 +72,28 @@ class XiaoHongShuApiClient:
         }
         self.cookies = {}
 
-    async def _prepare_request_headers(self, endpoint, payload: Optional[Dict] = None):
+    async def _prepare_request_headers(self, x_s):
         headers = copy.deepcopy(self.default_headers)
-        from browser_use.actor.page import Page
-        page: Page = await self.browser_session.get_current_page()
-        x_s = await seccore_signv2(page, endpoint, payload)
-        if x_s:
-            cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
-            # Get browser storage value
-            b1_result = await cdp_session.cdp_client.send.Runtime.evaluate(
-                params={
-                    'expression': "window.localStorage.getItem('b1')",
-                    'returnByValue': True,
-                    'awaitPromise': True
-                },
-                session_id=cdp_session.session_id,
-            )
+        cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
+        # Get browser storage value
+        b1_result = await cdp_session.cdp_client.send.Runtime.evaluate(
+            params={
+                'expression': "window.localStorage.getItem('b1')",
+                'returnByValue': True,
+                'awaitPromise': True
+            },
+            session_id=cdp_session.session_id,
+        )
 
-            b1_storage = b1_result.get('result', {}).get('value') if b1_result else None
-            # Create signature headers
-            signature_headers = create_signature_headers(
-                a1=self.cookies.get('a1', ''),
-                b1=b1_storage or '',
-                x_s=x_s,
-                x_t=str(int(time.time()))
-            )
-            headers.update(signature_headers)
+        b1_storage = b1_result.get('result', {}).get('value') if b1_result else None
+        # Create signature headers
+        signature_headers = create_signature_headers(
+            a1=self.cookies.get('a1', ''),
+            b1=b1_storage or '',
+            x_s=x_s,
+            x_t=str(int(time.time()))
+        )
+        headers.update(signature_headers)
 
         return headers
 
@@ -232,8 +230,12 @@ class XiaoHongShuApiClient:
         final_endpoint = endpoint
         if params:
             final_endpoint = f"{endpoint}?{urlencode(params)}"
-
-        headers = await self._prepare_request_headers(final_endpoint)
+        x_s = self.xhshow_client.sign_xs_get(
+            uri=endpoint,
+            a1_value=self.cookies.get('a1', ''),
+            params=params
+        )
+        headers = await self._prepare_request_headers(x_s)
         return await self._make_request(
             "GET", f"{self._api_base}{final_endpoint}", headers=headers
         )
@@ -250,7 +252,12 @@ class XiaoHongShuApiClient:
         Returns:
             Response data
         """
-        headers = await self._prepare_request_headers(endpoint, data)
+        x_s = self.xhshow_client.sign_xs_post(
+            uri=endpoint,
+            a1_value=self.cookies.get('a1', ''),
+            payload=data
+        )
+        headers = await self._prepare_request_headers(x_s)
         json_payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
         return await self._make_request(
             "POST", f"{self._api_base}{endpoint}",
@@ -731,9 +738,12 @@ class XiaoHongShuApiClient:
             "unread_note_count": 0
         }
         endpoint = "/api/sns/web/v1/homefeed"
-
-        # Prepare headers with signature specifically for home feed
-        headers = await self._prepare_request_headers(endpoint, payload)
+        x_s = self.xhshow_client.sign_xs_post(
+            uri=endpoint,
+            a1_value=self.cookies.get('a1', ''),
+            payload=payload
+        )
+        headers = await self._prepare_request_headers(x_s)
 
         # Make the request with proper headers
         json_payload = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
