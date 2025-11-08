@@ -63,6 +63,15 @@ class DouyinApiClient:
         }
         self.cookies = {}
 
+    async def check_login(self) -> bool:
+        """Check if login state is valid using multiple methods"""
+        try:
+            ret = await self.search_content_by_keyword("IT trends")
+            return ret and len(ret) > 0
+        except Exception as e:
+            logger.error(f"Failed to check Weibo login status: {e}")
+            return False
+
     async def setup(self, target_id: Optional[str] = None):
         """
         Setup Douyin client by navigating to the site and extracting cookies
@@ -107,6 +116,11 @@ class DouyinApiClient:
             if cookie_str:
                 self.default_headers["Cookie"] = cookie_str
             self.cookies = cookie_dict
+            is_logged_in = await self.check_login_status()
+            if not is_logged_in:
+                self.cookies = {}
+                del self.default_headers["Cookie"]
+                raise AuthenticationError(f"Please login in [抖音]({self._host}) first!")
 
             logger.info(f"Douyin client setup completed with {len(cookie_dict)} cookies")
 
@@ -218,8 +232,8 @@ class DouyinApiClient:
 
         # Get a-bogus signature
         post_data = post_data or {}
-        a_bogus = await self._get_a_bogus_signature(uri, query_string, post_data)
-        if a_bogus:
+        if "/v1/web/general/search" not in uri:
+            a_bogus = await self._get_a_bogus_signature(uri, query_string, post_data)
             params["a_bogus"] = a_bogus
 
         return params, headers

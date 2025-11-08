@@ -48,6 +48,19 @@ async def test_weibo_api(browser_session):
         print(e)
         pdb.set_trace()
 
+async def test_douyin_api(browser_session):
+    from vibe_surf.tools.website_api.douyin.client import DouyinApiClient
+
+    client = DouyinApiClient(browser_session)
+
+    try:
+        await client.setup()
+        pdb.set_trace()
+        ret1 = await client.search_content_by_keyword("browser-use")
+        pdb.set_trace()
+    except Exception as e:
+        print(e)
+        pdb.set_trace()
 
 async def main():
     """
@@ -78,7 +91,8 @@ async def main():
         await main_browser_session.start()
         async with BrowserManager(main_browser_session=main_browser_session) as manager:
             # await test_xhs_api(browser_session=main_browser_session)
-            await test_weibo_api(browser_session=main_browser_session)
+            # await test_weibo_api(browser_session=main_browser_session)
+            await test_douyin_api(browser_session=main_browser_session)
 
     except Exception as e:
         logging.error(f"An error occurred during tests: {e}", exc_info=True)

@@ -190,16 +190,17 @@ def create_signature_headers(a1: str = "", b1: str = "", x_s: str = "", x_t: str
         "s0": 3,
         "s1": "",
         "x0": "1",
-        "x1": "3.7.8-2",
+        "x1": "4.2.2",
         "x2": "Mac OS",
         "x3": "xhs-pc-web",
-        "x4": "4.27.2",
+        "x4": "4.74.0",
         "x5": a1,
         "x6": x_t,
         "x7": x_s,
         "x8": b1,
         "x9": compute_hash(x_t + x_s + b1),
         "x10": 154,
+        "x11": "normal"
     }
 
     json_data = json.dumps(common_data, separators=(',', ':'))

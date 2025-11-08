@@ -115,16 +115,7 @@ class WeiboApiClient:
                 self.cookies = {}
                 del self.default_headers["Cookie"]
                 raise AuthenticationError(f"Please login in [微博]({self._web_base}) first!")
-            else:
-                if new_tab:
-                    try:
-                        logger.info(f"Close target id: {self.target_id}")
-                        await self.browser_session.cdp_client.send.Target.closeTarget(
-                            params={'targetId': self.target_id})
-                    except Exception as e:
-                        # Log error if closing tab fails, but continue cleanup
-                        logger.warning(f"Error closing target {self.target_id}: {e}")
-                    pass
+
             logger.info("Weibo client setup completed successfully")
 
         except Exception as e:

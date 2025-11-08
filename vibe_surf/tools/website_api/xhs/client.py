@@ -17,6 +17,7 @@ from .helpers import (
     extract_cookies_from_browser, XHSError, NetworkError,
     DataExtractionError, AuthenticationError, extract_user_info_from_html
 )
+from .secsign import seccore_signv2
 
 logger = get_logger(__name__)
 
@@ -71,19 +72,11 @@ class XiaoHongShuApiClient:
 
     async def _prepare_request_headers(self, endpoint, payload: Optional[Dict] = None):
         headers = copy.deepcopy(self.default_headers)
-
-        js_expression = f"window._webmsxyw && window._webmsxyw('{endpoint}', {json.dumps(payload) if payload else 'null'})"
-        cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
-        result = await cdp_session.cdp_client.send.Runtime.evaluate(
-            params={
-                'expression': js_expression,
-                'returnByValue': True,
-                'awaitPromise': True
-            },
-            session_id=cdp_session.session_id,
-        )
-        encrypt_result = result.get('result', {}).get('value') if result else None
-        if encrypt_result:
+        from browser_use.actor.page import Page
+        page: Page = await self.browser_session.get_current_page()
+        x_s = await seccore_signv2(page, endpoint, payload)
+        if x_s:
+            cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
             # Get browser storage value
             b1_result = await cdp_session.cdp_client.send.Runtime.evaluate(
                 params={
@@ -99,8 +92,8 @@ class XiaoHongShuApiClient:
             signature_headers = create_signature_headers(
                 a1=self.cookies.get('a1', ''),
                 b1=b1_storage or '',
-                x_s=encrypt_result.get('X-s', ''),
-                x_t=str(encrypt_result.get('X-t', ''))
+                x_s=x_s,
+                x_t=str(int(time.time()))
             )
             headers.update(signature_headers)
 
@@ -152,7 +145,6 @@ class XiaoHongShuApiClient:
             web_cookies = result.get('cookies', [])
 
             cookie_str, cookie_dict = extract_cookies_from_browser(web_cookies)
-            print(cookie_str)
             self.default_headers["Cookie"] = cookie_str
             self.cookies = cookie_dict
 
@@ -176,16 +168,6 @@ class XiaoHongShuApiClient:
                 self.cookies = {}
                 del self.default_headers["Cookie"]
                 raise AuthenticationError(f"Please login in [小红书]({self._web_base}) first!")
-            else:
-                if new_tab:
-                    try:
-                        logger.info(f"Close target id: {self.target_id}")
-                        await self.browser_session.cdp_client.send.Target.closeTarget(
-                            params={'targetId': self.target_id})
-                    except Exception as e:
-                        # Log error if closing tab fails, but continue cleanup
-                        logger.warning(f"Error closing target {self.target_id}: {e}")
-                    pass
 
         except Exception as e:
             logger.error(f"Failed to get XiaoHongShu cookies: {e}")
