@@ -82,6 +82,7 @@ class YouTubeApiClient:
                 logger.info("YouTube client already setup. Return!")
                 return
 
+            new_tab = False
             if target_id:
                 self.target_id = target_id
             else:
@@ -89,7 +90,8 @@ class YouTubeApiClient:
                 self.target_id = await self.browser_session.navigate_to_url(
                     "https://www.youtube.com/", new_tab=True
                 )
-                await asyncio.sleep(3)  # Wait for page load
+                await asyncio.sleep(2)  # Wait for page load
+                new_tab = True
 
             # Extract cookies from browser
             cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
@@ -118,6 +120,12 @@ class YouTubeApiClient:
 
             # Extract API key and configuration from page
             await self._extract_api_config()
+
+            # is_logged_in = await self.check_login()
+            # if not is_logged_in:
+            #     self.cookies = {}
+            #     del self.default_headers["Cookie"]
+            #     raise AuthenticationError(f"Please login in [Youtube]({self._base_url}) first!")
 
             logger.info("YouTube client setup completed successfully")
 
@@ -162,13 +170,13 @@ class YouTubeApiClient:
             logger.warning(f"Failed to extract YouTube API config: {e}")
             # Use default values if extraction fails
 
-    async def pong(self) -> bool:
+    async def check_login(self) -> bool:
         """Check if the client is working by making a simple request"""
         try:
             logger.info("Testing YouTube client status...")
 
             # Try to make a simple search request
-            test_response = await self.search_videos("test", max_results=1)
+            test_response = await self.search_videos("kimi-k2-thinking")
 
             if test_response and len(test_response) >= 0:
                 logger.info("YouTube client status: Valid")

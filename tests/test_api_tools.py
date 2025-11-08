@@ -18,6 +18,7 @@ from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.browser.agen_browser_profile import AgentBrowserProfile
 
+
 async def test_xhs_api(browser_session):
     from vibe_surf.tools.website_api.xhs.client import XiaoHongShuApiClient
 
@@ -32,6 +33,7 @@ async def test_xhs_api(browser_session):
     except Exception as e:
         print(e)
         pdb.set_trace()
+
 
 async def test_weibo_api(browser_session):
     from vibe_surf.tools.website_api.weibo.client import WeiboApiClient
@@ -48,6 +50,7 @@ async def test_weibo_api(browser_session):
         print(e)
         pdb.set_trace()
 
+
 async def test_douyin_api(browser_session):
     from vibe_surf.tools.website_api.douyin.client import DouyinApiClient
 
@@ -61,6 +64,36 @@ async def test_douyin_api(browser_session):
     except Exception as e:
         print(e)
         pdb.set_trace()
+
+
+async def test_youtube_api(browser_session):
+    from vibe_surf.tools.website_api.youtube.client import YouTubeApiClient
+
+    client = YouTubeApiClient(browser_session)
+
+    try:
+        await client.setup()
+        ret1 = await client.search_videos("browser-use")
+        ret2 = await client.get_trending_videos()
+        ret3 = await client.get_video_transcript(video_id="LCEmiRjPEtQ")
+        pdb.set_trace()
+    except Exception as e:
+        print(e)
+
+
+async def test_yh_finance_api():
+    from vibe_surf.tools.finance_tools import FinanceDataRetriever
+
+    client = FinanceDataRetriever(symbol="TSLA")
+
+    try:
+        ret1 = client._get_balance_sheet()
+        ret2 = client._get_calendar()
+        ret3 = client._get_info()
+        pdb.set_trace()
+    except Exception as e:
+        print(e)
+
 
 async def main():
     """
@@ -92,8 +125,9 @@ async def main():
         async with BrowserManager(main_browser_session=main_browser_session) as manager:
             # await test_xhs_api(browser_session=main_browser_session)
             # await test_weibo_api(browser_session=main_browser_session)
-            await test_douyin_api(browser_session=main_browser_session)
-
+            # await test_douyin_api(browser_session=main_browser_session)
+            # await test_youtube_api(browser_session=main_browser_session)
+            await test_yh_finance_api()
     except Exception as e:
         logging.error(f"An error occurred during tests: {e}", exc_info=True)
 
