@@ -1,9 +1,10 @@
-import React, { forwardRef } from "react";
-import DouyinSVG from "./Douyin.jsx";
+import type React from "react";
+import { forwardRef } from "react";
+import SvgDouyin from "./Douyin";
 
 export const DouyinIcon = forwardRef<
   SVGSVGElement,
   React.PropsWithChildren<{}>
 >((props, ref) => {
-  return <DouyinSVG ref={ref} {...props} />;
+  return <SvgDouyin ref={ref} {...props} />;
 });

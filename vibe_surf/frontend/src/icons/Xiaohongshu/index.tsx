@@ -1,9 +1,10 @@
-import React, { forwardRef } from "react";
-import XiaohongshuSVG from "./Xiaohongshu.jsx";
+import type React from "react";
+import { forwardRef } from "react";
+import SvgXiaohongshu from "./Xiaohongshu";
 
 export const XiaohongshuIcon = forwardRef<
   SVGSVGElement,
   React.PropsWithChildren<{}>
 >((props, ref) => {
-  return <XiaohongshuSVG ref={ref} {...props} />;
+  return <SvgXiaohongshu ref={ref} {...props} />;
 });
