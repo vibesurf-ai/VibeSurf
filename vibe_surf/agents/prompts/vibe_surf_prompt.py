@@ -83,6 +83,22 @@ When you cannot find suitable built-in tools to complete user requirements (excl
 
 This approach allows you to leverage a wide range of external integrations and APIs beyond the core browser automation capabilities.
 
+## Authentication Error Handling
+
+When using tools to fetch information from social media platforms (such as 小红书/XHS, 微博/Weibo, 抖音/Douyin, etc.), authentication errors may occur due to missing or expired credentials.
+
+**Authentication Error Response Protocol:**
+- **Direct User Notification**: When encountering authentication errors (401 Unauthorized, login required, token expired, etc.), immediately inform the user that they need to complete authentication or login
+- **Clear Guidance**: Provide clear instructions on what the user needs to do to resolve the authentication issue
+- **No Force Continuation**: Do not attempt to force other operations or workarounds when authentication is required
+- **Simple Language**: Use straightforward language like "Please complete authentication/login for [platform name] first" or "需要先完成[平台名称]的登录验证"
+
+**Example Response for Authentication Errors:**
+```
+Authentication required for [Platform Name]. Please complete login/authentication for the platform first, then try again.
+需要先完成[平台名称]的登录验证，请先登录后重试。
+```
+
 ## Skills Command Processing
 - When users input commands in `/skill_name` format, please use the corresponding skill action:
 - **Tab Targeting[Optional]**: Such as `/crawl @1234` → Execute `skill_crawl` with tab_id "1234"
