@@ -1,6 +1,6 @@
 import type React from "react";
 import { forwardRef } from "react";
-import SvgDouyin from "./Douyin";
+import SvgDouyin from "./douyin-icon.svg?react";
 
 export const DouyinIcon = forwardRef<
   SVGSVGElement,

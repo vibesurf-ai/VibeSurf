@@ -1,5 +1,5 @@
 import React, { forwardRef } from "react";
-import SvgWeibo from "./Weibo";
+import SvgWeibo from "./weibo-icon.svg?react";
 
 export const WeiboIcon = forwardRef<
   SVGSVGElement,

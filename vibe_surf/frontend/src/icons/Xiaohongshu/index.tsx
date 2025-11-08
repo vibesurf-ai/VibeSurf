@@ -1,6 +1,6 @@
 import type React from "react";
 import { forwardRef } from "react";
-import SvgXiaohongshu from "./Xiaohongshu";
+import SvgXiaohongshu from "./xiaohongshu-icon.svg?react";
 
 export const XiaohongshuIcon = forwardRef<
   SVGSVGElement,
