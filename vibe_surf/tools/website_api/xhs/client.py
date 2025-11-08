@@ -82,7 +82,6 @@ class XiaoHongShuApiClient:
             },
             session_id=cdp_session.session_id,
         )
-
         encrypt_result = result.get('result', {}).get('value') if result else None
         if encrypt_result:
             # Get browser storage value
@@ -137,11 +136,13 @@ class XiaoHongShuApiClient:
                 logger.info("Already setup. Return!")
                 return
 
+            new_tab = False
             if target_id:
                 self.target_id = target_id
             else:
-                self.target_id = await self.browser_session.navigate_to_url("https://www.xiaohongshu.com/",
+                self.target_id = await self.browser_session.navigate_to_url(self._web_base,
                                                                             new_tab=True)
+                new_tab = True
                 await asyncio.sleep(2)
 
             cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=target_id)
@@ -151,6 +152,7 @@ class XiaoHongShuApiClient:
             web_cookies = result.get('cookies', [])
 
             cookie_str, cookie_dict = extract_cookies_from_browser(web_cookies)
+            print(cookie_str)
             self.default_headers["Cookie"] = cookie_str
             self.cookies = cookie_dict
 
@@ -169,15 +171,30 @@ class XiaoHongShuApiClient:
             if user_agent:
                 self.default_headers["User-Agent"] = user_agent
 
-            user_info = await self.get_me()
-            if not user_info or 'user_id' not in user_info:
+            is_logged_in = await self.check_login()
+            if not is_logged_in:
                 self.cookies = {}
                 del self.default_headers["Cookie"]
-                raise AuthenticationError("No user login in xiaohongshu!")
+                raise AuthenticationError(f"Please login in [小红书]({self._web_base}) first!")
+            else:
+                if new_tab:
+                    try:
+                        logger.info(f"Close target id: {self.target_id}")
+                        await self.browser_session.cdp_client.send.Target.closeTarget(
+                            params={'targetId': self.target_id})
+                    except Exception as e:
+                        # Log error if closing tab fails, but continue cleanup
+                        logger.warning(f"Error closing target {self.target_id}: {e}")
+                    pass
 
         except Exception as e:
             logger.error(f"Failed to get XiaoHongShu cookies: {e}")
             raise e
+
+    async def check_login(self):
+        user_info = await self.get_me()
+        not_login = not user_info or 'user_id' not in user_info or user_info.get("guest", False)
+        return not not_login
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(1))
     async def _make_request(self, method: str, url: str, **kwargs) -> Union[str, Dict]:
@@ -722,9 +739,9 @@ class XiaoHongShuApiClient:
             "cursor_score": "",
             "image_formats": json.dumps(["jpg", "webp", "avif"], separators=(",", ":")),
             "need_filter_image": False,
-            "need_num": 8,
-            "num": 18,
-            "note_index": 33,
+            "need_num": 13,
+            "num": 33,
+            "note_index": 34,
             "refresh_type": 1,
             "search_key": "",
             "unread_begin_note_id": "",
@@ -804,4 +821,3 @@ class XiaoHongShuApiClient:
                 await self.browser_session.cdp_client.send.Target.closeTarget(params={'targetId': self.target_id})
             except Exception as e:
                 logger.warning(f"Error closing target {self.target_id}: {e}")
-

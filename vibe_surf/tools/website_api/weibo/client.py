@@ -74,6 +74,7 @@ class WeiboApiClient:
             if self.target_id and self.cookies:
                 logger.info("Already setup. Return!")
                 return
+            new_tab = False
             if target_id:
                 self.target_id = target_id
             else:
@@ -81,7 +82,8 @@ class WeiboApiClient:
                 self.target_id = await self.browser_session.navigate_to_url(
                     "https://weibo.com/", new_tab=True
                 )
-                await asyncio.sleep(3)  # Wait for page load
+                new_tab = True
+                await asyncio.sleep(2)  # Wait for page load
 
             # Extract cookies from browser
             cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
@@ -107,95 +109,33 @@ class WeiboApiClient:
             if user_agent:
                 self.default_headers["User-Agent"] = user_agent
 
-            # Check if user is logged in
-            # is_logged_in = await self.pong()
-            #
-            # if not is_logged_in:
-            #     logger.warning("User is not logged in to Weibo, redirecting to login page")
-            #
-            #     # Navigate to Weibo SSO login page
-            #     weibo_sso_login_url = "https://passport.weibo.com/sso/signin?entry=miniblog&source=miniblog"
-            #     await self.browser_session.navigate_to_url(weibo_sso_login_url, new_tab=True)
-            #
-            #     # Raise authentication error to inform user they need to login
-            #     raise AuthenticationError(
-            #         "User is not logged in to Weibo. Please complete login process and try again.")
+            is_logged_in = await self.check_login()
 
+            if not is_logged_in:
+                self.cookies = {}
+                del self.default_headers["Cookie"]
+                raise AuthenticationError(f"Please login in [微博]({self._web_base}) first!")
+            else:
+                if new_tab:
+                    try:
+                        logger.info(f"Close target id: {self.target_id}")
+                        await self.browser_session.cdp_client.send.Target.closeTarget(
+                            params={'targetId': self.target_id})
+                    except Exception as e:
+                        # Log error if closing tab fails, but continue cleanup
+                        logger.warning(f"Error closing target {self.target_id}: {e}")
+                    pass
             logger.info("Weibo client setup completed successfully")
 
         except Exception as e:
             logger.error(f"Failed to setup Weibo client: {e}")
             raise AuthenticationError(f"Setup failed: {e}")
 
-    async def pong(self) -> bool:
+    async def check_login(self) -> bool:
         """Check if login state is valid using multiple methods"""
         try:
-            logger.info("Testing Weibo login status...")
-
-            # Method 1: Check essential login cookies
-            login_cookies = ['SUB', 'SUBP', 'ALF', 'SSOLoginState']
-            has_essential_cookies = any(
-                cookie_name in self.cookies and self.cookies[cookie_name]
-                for cookie_name in login_cookies
-            )
-            if has_essential_cookies:
-                logger.info("Weibo login status: Valid (found essential cookies)")
-                return True
-
-            # Method 2: Try to access user info API
-            try:
-                uri = "/api/config"
-                response_data = await self._make_request("GET", f"{self._api_base}{uri}")
-
-                if isinstance(response_data, dict) and response_data.get("login"):
-                    logger.info("Weibo login status: Valid (API check passed)")
-                    return True
-            except Exception as api_error:
-                logger.debug(f"API config check failed: {api_error}")
-
-            # Method 3: Check browser localStorage for login indicators
-            try:
-                cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
-                js_check = """
-                (function() {
-                    try {
-                        // Check various login indicators
-                        var hasLoginCookie = document.cookie.includes('SUB=') || document.cookie.includes('SUBP=');
-                        var hasLoginStorage = localStorage.getItem('login_status') === '1' ||
-                                            localStorage.getItem('isLogin') === 'true' ||
-                                            localStorage.getItem('weiboLoginStatus') === '1';
-                        
-                        // Check if there's user info in the page
-                        var hasUserInfo = window.__INITIAL_STATE__ &&
-                                         window.__INITIAL_STATE__.user &&
-                                         window.__INITIAL_STATE__.user.id;
-                        
-                        return hasLoginCookie || hasLoginStorage || hasUserInfo;
-                    } catch(e) {
-                        return false;
-                    }
-                })()
-                """
-
-                result = await cdp_session.cdp_client.send.Runtime.evaluate(
-                    params={
-                        'expression': js_check,
-                        'returnByValue': True,
-                    },
-                    session_id=cdp_session.session_id,
-                )
-
-                browser_login_check = result.get('result', {}).get('value', False)
-                if browser_login_check:
-                    logger.info("Weibo login status: Valid (browser check passed)")
-                    return True
-
-            except Exception as browser_error:
-                logger.debug(f"Browser login check failed: {browser_error}")
-
-            logger.warning("Weibo login status: No valid login indicators found")
-            return False
-
+            ret = await self.search_posts_by_keyword("小红书")
+            return ret and len(ret) > 0
         except Exception as e:
             logger.error(f"Failed to check Weibo login status: {e}")
             return False
