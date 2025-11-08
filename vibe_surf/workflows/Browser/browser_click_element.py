@@ -40,8 +40,7 @@ class BrowserClickElementComponent(Component):
         MessageTextInput(
             name="css_selector",
             display_name="CSS Selector",
-            info="CSS Selector. You can get css selector via using CDP element selector.",
-            advanced=True
+            info="CSS Selector. Prioritize to use CSS Selector is you know it.",
         ),
         IntInput(
             name="backend_node_id",
@@ -93,6 +92,11 @@ class BrowserClickElementComponent(Component):
             from browser_use.actor.element import Element
 
             element: Optional[Element] = None
+            if self.browser_session.main_browser_session:
+                prev_tabs = await self.browser_session.main_browser_session.get_tabs()
+            else:
+                prev_tabs = await self.browser_session.get_tabs()
+            prev_tab_ids = set([tab.target_id for tab in prev_tabs])
             if self.element_text:
                 from vibe_surf.browser.find_page_element import SemanticExtractor
                 from vibe_surf.browser.page_operations import _try_direct_selector, _wait_for_element
@@ -166,6 +170,16 @@ class BrowserClickElementComponent(Component):
                 raise ValueError("No element found!")
 
             await element.click(button=self.click_button, click_count=self.click_count, modifiers=['Control'])
+            if self.browser_session.main_browser_session:
+                after_tabs = await self.browser_session.main_browser_session.get_tabs()
+            else:
+                after_tabs = await self.browser_session.get_tabs()
+            after_tab_ids = set([tab.target_id for tab in after_tabs])
+            new_tabs = after_tab_ids - prev_tab_ids
+            if new_tabs:
+                new_tab_id = list(new_tabs)[0]
+                await self.browser_session.get_or_create_cdp_session(new_tab_id, focus=True)
+                await self.browser_session.cdp_client.send.Target.activateTarget(params={'targetId': new_tab_id})
             self.status = f"Clicked on element {element}"
         except Exception as e:
             import traceback

@@ -45,8 +45,7 @@ class BrowserUploadFileComponent(Component):
         MessageTextInput(
             name="css_selector",
             display_name="CSS Selector",
-            info="CSS Selector. You can get css selector via using CDP element selector.",
-            advanced=True
+            info="CSS Selector. Prioritize to use CSS Selector is you know it.",
         ),
         IntInput(
             name="backend_node_id",

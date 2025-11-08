@@ -24,6 +24,18 @@ class BrowserHoverElementComponent(Component):
             required=True
         ),
         MessageTextInput(
+            name="element_text",
+            display_name="Element Text",
+            info="Element Text you want to find and operate."
+        ),
+        MessageTextInput(
+            name="element_hints",
+            display_name="Element Hints",
+            info="List of context hints like ['form', 'contact', 'personal info'] for finding this element. "
+                 "Useful to distinguish when there are multiple elements with same text. ",
+            list=True
+        ),
+        MessageTextInput(
             name="css_selector",
             display_name="CSS Selector",
             info="CSS Selector defined by VibeSurf"
@@ -61,8 +73,63 @@ class BrowserHoverElementComponent(Component):
     async def browser_hover_element(self) -> AgentBrowserSession:
         try:
             page = await self.browser_session.get_current_page()
-            element = None
-            if self.css_selector:
+            from browser_use.actor.element import Element
+            element: Optional[Element] = None
+            if self.element_text:
+                from vibe_surf.browser.find_page_element import SemanticExtractor
+                from vibe_surf.browser.page_operations import _try_direct_selector, _wait_for_element
+
+                semantic_extractor = SemanticExtractor()
+                element_mappings = await semantic_extractor.extract_semantic_mapping(self.browser_session)
+                element_info = semantic_extractor.find_element_by_hierarchy(element_mappings,
+                                                                            target_text=self.element_text,
+                                                                            context_hints=self.element_hints)
+                direct_selector = await _try_direct_selector(self.browser_session, self.element_text)
+                selector_to_use = None
+                if direct_selector:
+                    selector_to_use = direct_selector
+                elif element_info:
+                    # Use hierarchical selector if it's more specific than the basic selector
+                    hierarchical = element_info.get('hierarchical_selector', '')
+                    basic = element_info.get('selectors', '')
+
+                    # Prefer hierarchical if it has positional info (nth-of-type) or IDs
+                    if hierarchical and ('#' in hierarchical or ':nth-of-type' in hierarchical):
+                        selector_to_use = hierarchical
+                    else:
+                        selector_to_use = basic
+
+                if selector_to_use:
+                    page = await self.browser_session.get_current_page()
+
+                    fallback_selectors = []
+                    if element_info:
+                        # Add hierarchical selector as first fallback
+                        hierarchical_selector = element_info.get('hierarchical_selector')
+                        if hierarchical_selector and hierarchical_selector != selector_to_use:
+                            fallback_selectors.append(hierarchical_selector)
+
+                        # Add original fallback selector
+                        fallback_selector = element_info.get('fallback_selector')
+                        if fallback_selector and fallback_selector not in fallback_selectors:
+                            fallback_selectors.append(fallback_selector)
+
+                        # Add XPath selector as final fallback
+                        xpath_selector = element_info.get('text_xpath')
+                        if xpath_selector:
+                            fallback_selectors.append(f'xpath={xpath_selector}')
+
+                    success, actual_selector = await _wait_for_element(self.browser_session, selector_to_use,
+                                                                       fallback_selectors=fallback_selectors)
+                    if not success:
+                        raise ValueError("Failed to find selector")
+                    else:
+                        self.status = f"Get actual selector: {actual_selector}"
+                        elements = await page.get_elements_by_css_selector(actual_selector)
+                        if elements:
+                            element = elements[0]
+
+            elif self.css_selector:
                 elements = await page.get_elements_by_css_selector(self.css_selector)
                 self.log(f"Found {len(elements)} elements with CSS selector {self.css_selector}")
                 self.log(elements)

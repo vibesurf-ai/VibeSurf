@@ -1,0 +1,55 @@
+const DouyinSVG = (props) => {
+  return props.isDark ? (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fillRule="nonzero"
+      {...props}
+    >
+      <g
+        fill="#ffffff"
+        fillRule="nonzero"
+        stroke="none"
+        strokeWidth="1"
+        strokeLinecap="butt"
+        strokeLinejoin="miter"
+        strokeMiterlimit="10"
+        strokeDasharray=""
+        strokeDashoffset="0"
+        fontFamily="none"
+        fontWeight="none"
+        fontSize="none"
+        textAnchor="none"
+        style={{ mixBlendMode: "normal" }}
+      >
+        <path d="M9.19 2.89C9.7 2.68 10.28 2.5 10.9 2.5c2.76 0 5 2.24 5 5v7.01h2c.55 0 1 .45 1 1s-.45 1-1 1h-2v4.99c0 .55-.45 1-1 1s-1-.45-1-1V16.5h-2.5v1.25c0 1.38-1.12 2.5-2.5 2.5s-2.5-1.12-2.5-2.5V15.5c0-1.38 1.12-2.5 2.5-2.5h2.5V7.5c0-1.65-1.35-3-3-3-.55 0-1-.45-1-1s.45-1 1-1z"/>
+        <circle cx="6.5" cy="6.5" r="1.5"/>
+        <path d="M19.5 10.5c-.28 0-.5-.22-.5-.5V8c0-.55-.45-1-1-1s-1 .45-1 1v2c0 .28-.22.5-.5.5s-.5-.22-.5-.5V8c0-1.1.9-2 2-2s2 .9 2 2v2c0 .28-.22.5-.5.5z"/>
+      </g>
+    </svg>
+  ) : (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      width="24px"
+      height="24px"
+      fill="#000000"
+      {...props}
+    >
+      <defs>
+        <linearGradient id="douyinGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FF0050"/>
+          <stop offset="50%" stopColor="#FF0050"/>
+          <stop offset="100%" stopColor="#FF4458"/>
+        </linearGradient>
+      </defs>
+      <g fill="url(#douyinGradient)">
+        <path d="M9.19 2.89C9.7 2.68 10.28 2.5 10.9 2.5c2.76 0 5 2.24 5 5v7.01h2c.55 0 1 .45 1 1s-.45 1-1 1h-2v4.99c0 .55-.45 1-1 1s-1-.45-1-1V16.5h-2.5v1.25c0 1.38-1.12 2.5-2.5 2.5s-2.5-1.12-2.5-2.5V15.5c0-1.38 1.12-2.5 2.5-2.5h2.5V7.5c0-1.65-1.35-3-3-3-.55 0-1-.45-1-1s.45-1 1-1z"/>
+        <circle cx="6.5" cy="6.5" r="1.5"/>
+        <path d="M19.5 10.5c-.28 0-.5-.22-.5-.5V8c0-.55-.45-1-1-1s-1 .45-1 1v2c0 .28-.22.5-.5.5s-.5-.22-.5-.5V8c0-1.1.9-2 2-2s2 .9 2 2v2c0 .28-.22.5-.5.5z"/>
+      </g>
+    </svg>
+  );
+};
+
+export default DouyinSVG;
