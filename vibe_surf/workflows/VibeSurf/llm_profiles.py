@@ -38,10 +38,15 @@ class LLMProfilesComponent(Component):
 
     async def update_build_config(self, build_config: dotdict, field_value: Any, field_name: str | None = None):
         """Update build config with dynamic LLM profile options."""
-        if field_name == "llm_profile_name" or field_name is None:
+        if field_name == "llm_profile_name":
             # Get LLM profiles dynamically
             llm_profile_options = await self.get_llm_profile_names()
-            build_config["llm_profile_name"]["options"] = llm_profile_options
+            build_config[field_name]["options"] = llm_profile_options
+
+            if "value" in build_config[field_name] and not build_config[field_name]["value"]:
+                default_llm_profile = await self.get_default_llm_profiles()
+                if default_llm_profile:
+                    build_config[field_name]["value"] = default_llm_profile[0]
         return build_config
 
     async def get_llm_profile_names(self) -> list[str]:
