@@ -11,6 +11,7 @@ from vibe_surf.langflow.io import Output
 from vibe_surf.tools.website_api.youtube.client import YouTubeApiClient
 from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
+from vibe_surf.langflow.schema.data import Data
 
 youtube_methods = [
     {
@@ -102,8 +103,6 @@ class YouTubeComponent(Component):
     _api_result: Optional[str] = None
 
     async def pass_browser_session(self) -> AgentBrowserSession:
-        if not self._api_result:
-            await self.execute_youtube_method()
         return self.browser_session
 
     def update_build_config(self, build_config: dict, field_value: Any, field_name: str | None = None) -> dict:
@@ -167,7 +166,7 @@ class YouTubeComponent(Component):
                         "value": param['default'] if param['default'] is not None else False,
                         "required": param['required'],
                         "info": f"{param['name']} (Parameter of {method_func_name})",
-                        "show": True
+                        "show": True,
                     }
                 elif 'List' in str(param['type']):  # Handle List types like List[str]
                     build_config[input_name] = {
@@ -178,7 +177,8 @@ class YouTubeComponent(Component):
                         "required": param['required'],
                         "info": f"{param['name']} (Parameter of {method_func_name}) - Enter as comma-separated values",
                         "placeholder": "Enter as comma-separated values",
-                        "show": True
+                        "show": True,
+                        "_input_type": "MessageTextInput"
                     }
                 else:  # str or other types
                     build_config[input_name] = {
@@ -189,7 +189,9 @@ class YouTubeComponent(Component):
                         "required": param['required'],
                         "info": f"{param['name']} (Parameter of {method_func_name})",
                         "placeholder": "",
-                        "show": True
+                        "show": True,
+                        "_input_type": "MessageTextInput",
+                        'input_types': ['Message']
                     }
 
         return build_config
@@ -225,7 +227,8 @@ class YouTubeComponent(Component):
                         if 'List' in str(param.annotation) and isinstance(value, str):
                             params[param_name] = [item.strip() for item in value.split(',') if item.strip()]
                         else:
-                            params[param_name] = value
+                            params[param_name] = value.get_text() if isinstance(value, Data) else value
+
             method = getattr(client, method_info["name"])
             if inspect.iscoroutinefunction(method):
                 if params:

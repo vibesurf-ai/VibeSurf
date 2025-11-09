@@ -37,7 +37,8 @@ class LoadJSONComponent(Component):
             name="is_list",
             display_name="Is List",
             info="If true, return DataFrame instead of Data",
-            value=False
+            value=False,
+            real_time_refresh=True
         )
 
     ]
