@@ -86,6 +86,7 @@ else:
 datas = [
     (str(vibe_surf_path / 'chrome_extension'), 'vibe_surf/chrome_extension'),
     (str(vibe_surf_path / 'backend'), 'vibe_surf/backend'),
+    (str(vibe_surf_path / 'langflow'), 'vibe_surf/langflow'),
 ]
 
 # Add browser_use prompt template files if available

@@ -295,14 +295,12 @@ async def import_workflow(
                     folder_id = projects[0].get("id")
                 else:
                     folder_id = ""
-                
-                # Generate new ID for imported workflow
-                new_id = str(uuid.uuid4())
-                
-                # Prepare workflow data for creation
+
                 import_data = copy.deepcopy(workflow_data)
-                import_data["id"] = new_id
                 import_data["folder_id"] = folder_id
+
+                if "user_id" in import_data:
+                    del import_data["user_id"]
                 
                 # Create workflow
                 create_response = await client.post(
@@ -319,7 +317,7 @@ async def import_workflow(
                     )
                 
                 created_workflow = create_response.json()
-                workflow_id = created_workflow.get("id", new_id)
+                workflow_id = created_workflow.get("id")
                 edit_url = f"{backend_base_url}/flow/{workflow_id}"
                 
                 logger.info(f"Successfully imported workflow: {workflow_id}")
@@ -385,7 +383,10 @@ async def export_workflow(
                     )
                 
                 workflow_data = workflow_response.json()
-                
+                if "user_id" in workflow_data:
+                    del workflow_data["user_id"]
+                if "folder_id" in workflow_data:
+                    del workflow_data["folder_id"]
                 # Get workflow name from the response
                 flow_name = workflow_data.get("name", "workflow")
                 # Sanitize filename by removing invalid characters

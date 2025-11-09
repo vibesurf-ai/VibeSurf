@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VibeSurf: Your browser assistant for vibe surfing",
-  "version": "0.1.44.75",
+  "version": "0.1.44.115",
   "description": "Let's vibe surfing the world",
   "icons": {
     "16": "icons/logo.png",
