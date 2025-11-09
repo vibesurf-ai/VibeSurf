@@ -486,7 +486,7 @@ class AgentBrowserSession(BrowserSession):
                 self.agent_focus = session
 
                 # Activate target without events
-                # await session.cdp_client.send.Target.activateTarget(params={'targetId': target_id})
+                await session.cdp_client.send.Target.activateTarget(params={'targetId': target_id})
                 await session.cdp_client.send.Runtime.runIfWaitingForDebugger(session_id=session.session_id)
             else:
                 # Use current tab - no tab switching events

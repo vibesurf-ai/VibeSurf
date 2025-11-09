@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 import random
 import copy
 from tenacity import retry, stop_after_attempt, wait_fixed
-
+from xhshow import Xhshow
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.logger import get_logger
 
@@ -51,6 +51,7 @@ class XiaoHongShuApiClient:
         """
         self.browser_session = browser_session
         self.target_id = None
+        self.new_tab = False
         self.proxy = proxy
         self.timeout = timeout
         self._api_base = "https://edith.xiaohongshu.com"
@@ -62,6 +63,8 @@ class XiaoHongShuApiClient:
         self.CONTENT_ERROR_MSG = "Content status abnormal, please check later"
         self.CONTENT_ERROR_CODE = -510001
 
+        self.xhshow_client = Xhshow()
+
         # Default headers
         self.default_headers = {
             'content-type': 'application/json;charset=UTF-8',
@@ -69,41 +72,28 @@ class XiaoHongShuApiClient:
         }
         self.cookies = {}
 
-    async def _prepare_request_headers(self, endpoint, payload: Optional[Dict] = None):
+    async def _prepare_request_headers(self, x_s):
         headers = copy.deepcopy(self.default_headers)
-
-        js_expression = f"window._webmsxyw && window._webmsxyw('{endpoint}', {json.dumps(payload) if payload else 'null'})"
         cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
-        result = await cdp_session.cdp_client.send.Runtime.evaluate(
+        # Get browser storage value
+        b1_result = await cdp_session.cdp_client.send.Runtime.evaluate(
             params={
-                'expression': js_expression,
+                'expression': "window.localStorage.getItem('b1')",
                 'returnByValue': True,
                 'awaitPromise': True
             },
             session_id=cdp_session.session_id,
         )
 
-        encrypt_result = result.get('result', {}).get('value') if result else None
-        if encrypt_result:
-            # Get browser storage value
-            b1_result = await cdp_session.cdp_client.send.Runtime.evaluate(
-                params={
-                    'expression': "window.localStorage.getItem('b1')",
-                    'returnByValue': True,
-                    'awaitPromise': True
-                },
-                session_id=cdp_session.session_id,
-            )
-
-            b1_storage = b1_result.get('result', {}).get('value') if b1_result else None
-            # Create signature headers
-            signature_headers = create_signature_headers(
-                a1=self.cookies.get('a1', ''),
-                b1=b1_storage or '',
-                x_s=encrypt_result.get('X-s', ''),
-                x_t=str(encrypt_result.get('X-t', ''))
-            )
-            headers.update(signature_headers)
+        b1_storage = b1_result.get('result', {}).get('value') if b1_result else None
+        # Create signature headers
+        signature_headers = create_signature_headers(
+            a1=self.cookies.get('a1', ''),
+            b1=b1_storage or '',
+            x_s=x_s,
+            x_t=str(int(time.time()))
+        )
+        headers.update(signature_headers)
 
         return headers
 
@@ -140,8 +130,9 @@ class XiaoHongShuApiClient:
             if target_id:
                 self.target_id = target_id
             else:
-                self.target_id = await self.browser_session.navigate_to_url("https://www.xiaohongshu.com/",
+                self.target_id = await self.browser_session.navigate_to_url(self._web_base,
                                                                             new_tab=True)
+                self.new_tab = True
                 await asyncio.sleep(2)
 
             cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=target_id)
@@ -169,15 +160,20 @@ class XiaoHongShuApiClient:
             if user_agent:
                 self.default_headers["User-Agent"] = user_agent
 
-            user_info = await self.get_me()
-            if not user_info or 'user_id' not in user_info:
+            is_logged_in = await self.check_login()
+            if not is_logged_in:
                 self.cookies = {}
                 del self.default_headers["Cookie"]
-                raise AuthenticationError("No user login in xiaohongshu!")
+                raise AuthenticationError(f"Please login in [小红书]({self._web_base}) first!")
 
         except Exception as e:
             logger.error(f"Failed to get XiaoHongShu cookies: {e}")
             raise e
+
+    async def check_login(self):
+        user_info = await self.get_me()
+        not_login = not user_info or 'user_id' not in user_info or user_info.get("guest", False)
+        return not not_login
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(1))
     async def _make_request(self, method: str, url: str, **kwargs) -> Union[str, Dict]:
@@ -233,8 +229,12 @@ class XiaoHongShuApiClient:
         final_endpoint = endpoint
         if params:
             final_endpoint = f"{endpoint}?{urlencode(params)}"
-
-        headers = await self._prepare_request_headers(final_endpoint)
+        x_s = self.xhshow_client.sign_xs_get(
+            uri=endpoint,
+            a1_value=self.cookies.get('a1', ''),
+            params=params
+        )
+        headers = await self._prepare_request_headers(x_s)
         return await self._make_request(
             "GET", f"{self._api_base}{final_endpoint}", headers=headers
         )
@@ -251,7 +251,12 @@ class XiaoHongShuApiClient:
         Returns:
             Response data
         """
-        headers = await self._prepare_request_headers(endpoint, data)
+        x_s = self.xhshow_client.sign_xs_post(
+            uri=endpoint,
+            a1_value=self.cookies.get('a1', ''),
+            payload=data
+        )
+        headers = await self._prepare_request_headers(x_s)
         json_payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
         return await self._make_request(
             "POST", f"{self._api_base}{endpoint}",
@@ -722,9 +727,9 @@ class XiaoHongShuApiClient:
             "cursor_score": "",
             "image_formats": json.dumps(["jpg", "webp", "avif"], separators=(",", ":")),
             "need_filter_image": False,
-            "need_num": 8,
-            "num": 18,
-            "note_index": 33,
+            "need_num": 13,
+            "num": 33,
+            "note_index": 34,
             "refresh_type": 1,
             "search_key": "",
             "unread_begin_note_id": "",
@@ -732,9 +737,12 @@ class XiaoHongShuApiClient:
             "unread_note_count": 0
         }
         endpoint = "/api/sns/web/v1/homefeed"
-
-        # Prepare headers with signature specifically for home feed
-        headers = await self._prepare_request_headers(endpoint, payload)
+        x_s = self.xhshow_client.sign_xs_post(
+            uri=endpoint,
+            a1_value=self.cookies.get('a1', ''),
+            payload=payload
+        )
+        headers = await self._prepare_request_headers(x_s)
 
         # Make the request with proper headers
         json_payload = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
@@ -798,10 +806,9 @@ class XiaoHongShuApiClient:
         return await self._post_request(endpoint, payload)
 
     async def close(self):
-        if self.browser_session and self.target_id:
+        if self.browser_session and self.target_id and self.new_tab:
             try:
                 logger.info(f"Close target id: {self.target_id}")
                 await self.browser_session.cdp_client.send.Target.closeTarget(params={'targetId': self.target_id})
             except Exception as e:
                 logger.warning(f"Error closing target {self.target_id}: {e}")
-

@@ -49,6 +49,7 @@ class DouyinApiClient:
         """
         self.browser_session = browser_session
         self.target_id = None
+        self.new_tab = False
         self.proxy = proxy
         self.timeout = timeout
         self._host = "https://www.douyin.com"
@@ -62,6 +63,15 @@ class DouyinApiClient:
             "Content-Type": "application/json;charset=UTF-8",
         }
         self.cookies = {}
+
+    async def check_login(self) -> bool:
+        """Check if login state is valid using multiple methods"""
+        try:
+            ret = await self.search_content_by_keyword("IT trends")
+            return ret and len(ret) > 0
+        except Exception as e:
+            logger.error(f"Failed to check Weibo login status: {e}")
+            return False
 
     async def setup(self, target_id: Optional[str] = None):
         """
@@ -84,7 +94,8 @@ class DouyinApiClient:
                 self.target_id = await self.browser_session.navigate_to_url(
                     "https://www.douyin.com/", new_tab=True
                 )
-                await asyncio.sleep(3)  # Wait for page to load
+                await asyncio.sleep(2)  # Wait for page to load
+                self.new_tab = True
 
             cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
             result = await asyncio.wait_for(
@@ -107,6 +118,11 @@ class DouyinApiClient:
             if cookie_str:
                 self.default_headers["Cookie"] = cookie_str
             self.cookies = cookie_dict
+            is_logged_in = await self.check_login_status()
+            if not is_logged_in:
+                self.cookies = {}
+                del self.default_headers["Cookie"]
+                raise AuthenticationError(f"Please login in [抖音]({self._host}) first!")
 
             logger.info(f"Douyin client setup completed with {len(cookie_dict)} cookies")
 
@@ -218,8 +234,8 @@ class DouyinApiClient:
 
         # Get a-bogus signature
         post_data = post_data or {}
-        a_bogus = await self._get_a_bogus_signature(uri, query_string, post_data)
-        if a_bogus:
+        if "/v1/web/general/search" not in uri:
+            a_bogus = await self._get_a_bogus_signature(uri, query_string, post_data)
             params["a_bogus"] = a_bogus
 
         return params, headers
@@ -836,7 +852,7 @@ class DouyinApiClient:
             return False
 
     async def close(self):
-        if self.browser_session and self.target_id:
+        if self.browser_session and self.target_id and self.new_tab:
             try:
                 logger.info(f"Close target id: {self.target_id}")
                 await self.browser_session.cdp_client.send.Target.closeTarget(params={'targetId': self.target_id})

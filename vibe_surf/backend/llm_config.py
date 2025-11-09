@@ -27,7 +27,9 @@ LLM_PROVIDERS = {
     "kimi": [
         "kimi-k2-0905-preview",
         "kimi-k2-0711-preview",
-        "kimi-k2-turbo-preview"
+        "kimi-k2-turbo-preview",
+        "kimi-k2-thinking",
+        "kimi-k2-thinking-turbo"
     ],
     "qwen": [
         "qwen-flash",

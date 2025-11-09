@@ -71,6 +71,8 @@ export const lazyIconsMapping = {
     import("@/icons/DeepSeek").then((mod) => ({ default: mod.DeepSeekIcon })),
   Docling: () =>
     import("@/icons/Docling").then((mod) => ({ default: mod.DoclingIcon })),
+  Douyin: () =>
+    import("@/icons/Douyin").then((mod) => ({ default: mod.DouyinIcon })),
   Dropbox: () =>
     import("@/icons/Dropbox").then((mod) => ({ default: mod.DropboxIcon })),
   DuckDuckGo: () =>
@@ -327,6 +329,8 @@ export const lazyIconsMapping = {
     })),
   Weaviate: () =>
     import("@/icons/Weaviate").then((mod) => ({ default: mod.WeaviateIcon })),
+  Weibo: () =>
+    import("@/icons/Weibo").then((mod) => ({ default: mod.WeiboIcon })),
   Wikipedia: () =>
     import("@/icons/Wikipedia/Wikipedia").then((mod) => ({
       default: mod.default,
@@ -336,6 +340,8 @@ export const lazyIconsMapping = {
   Wolfram: () =>
     import("@/icons/Wolfram/Wolfram").then((mod) => ({ default: mod.default })),
   xAI: () => import("@/icons/xAI").then((mod) => ({ default: mod.XAIIcon })),
+  Xiaohongshu: () =>
+    import("@/icons/Xiaohongshu").then((mod) => ({ default: mod.XiaohongshuIcon })),
   YouTube: () =>
     import("@/icons/Youtube").then((mod) => ({ default: mod.YouTubeSvgIcon })),
   ZepMemory: () =>

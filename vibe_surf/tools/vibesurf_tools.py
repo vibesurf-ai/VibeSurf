@@ -32,7 +32,8 @@ from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, BrowserUseAgentExecution, \
     ReportWriterTask, TodoGenerateAction, TodoModifyAction, VibeSurfDoneAction, SkillSearchAction, SkillCrawlAction, \
     SkillSummaryAction, SkillTakeScreenshotAction, SkillDeepResearchAction, SkillCodeAction, SkillFinanceAction, \
-    SkillXhsAction, SkillDouyinAction, SkillYoutubeAction, SkillWeiboAction, GrepContentAction
+    SkillXhsAction, SkillDouyinAction, SkillYoutubeAction, SkillWeiboAction, GrepContentAction, \
+    SearchToolAction, GetToolInfoAction, ExecuteExtraToolAction
 from vibe_surf.tools.finance_tools import FinanceDataRetriever, FinanceMarkdownFormatter, FinanceMethod
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.composio_client import ComposioClient
@@ -42,7 +43,7 @@ from vibe_surf.tools.vibesurf_registry import VibeSurfRegistry
 from bs4 import BeautifulSoup
 from vibe_surf.logger import get_logger
 from vibe_surf.tools.utils import clean_html_basic
-from vibe_surf.tools.utils import _extract_structured_content, _rank_search_results_with_llm
+from vibe_surf.tools.utils import _extract_structured_content, _rank_search_results_with_llm, extract_file_content_with_llm
 
 logger = get_logger(__name__)
 
@@ -61,9 +62,23 @@ class VibeSurfTools:
         self._register_todo_actions()
         self._register_done_action()
         self._register_skills()
+        self._register_extra_tools()
         self.mcp_server_config = mcp_server_config
         self.mcp_clients: Dict[str, MCPClient] = {}
+        self.composio_toolkits: Dict[str, Any] = {}
         self.composio_client: ComposioClient = composio_client
+
+    def get_all_action_names(self, exclude_actions: Optional[list] = None) -> list[str]:
+        action_names = []
+        for action_name in self.registry.registry.actions:
+            add_flag = True
+            for ex_action_name in exclude_actions:
+                if action_name.startswith(ex_action_name) or ex_action_name in action_name:
+                    add_flag = False
+                    break
+            if add_flag:
+                action_names.append(action_name)
+        return action_names
 
     def _register_skills(self):
         @self.registry.action(
@@ -103,7 +118,7 @@ class VibeSurfTools:
                 # Step 2: If AI search fails or returns insufficient results, use fallback method
                 if not ai_search_results or len(ai_search_results) == 0:
                     logger.info(f'🔄 Google AI search returned no results, using fallback parallel search')
-                    
+
                     # Use parallel search across all, news, and videos tabs
                     fallback_results = await fallback_parallel_search(browser_manager, params.query, max_results=15)
                     all_results = fallback_results
@@ -381,8 +396,8 @@ class VibeSurfTools:
                 from vibe_surf.tools.utils import generate_java_script_code
 
                 success, execute_result, js_code = await generate_java_script_code(params.code_requirement,
-                                                                             page_extraction_llm, browser_session,
-                                                                             MAX_ITERATIONS=5)
+                                                                                   page_extraction_llm, browser_session,
+                                                                                   MAX_ITERATIONS=5)
                 msg = f'```javascript\n{js_code}\n```\nResult:\n```json\n {execute_result}\n```\n'
                 if success:
                     return ActionResult(extracted_content=msg)
@@ -949,6 +964,239 @@ class VibeSurfTools:
                 logger.error(error_msg)
                 return ActionResult(error=error_msg, extracted_content=error_msg)
 
+    def _register_extra_tools(self):
+        """
+        Register extra tools for dynamic toolkit and MCP tool access
+        """
+        
+        @self.registry.action(
+            'Get all available toolkit types from both Composio and MCP clients',
+            param_model=NoParamsAction,
+        )
+        async def get_all_toolkit_types():
+            """
+            Get all toolkit types available in composio_toolkits and mcp_clients
+            
+            Returns:
+                ActionResult with list of all toolkit type names
+            """
+            try:
+                toolkit_types = []
+                
+                # Add Composio toolkit types
+                if self.composio_toolkits:
+                    toolkit_types.extend(list(self.composio_toolkits.keys()))
+                
+                # Add MCP client types
+                if self.mcp_clients:
+                    toolkit_types.extend(list(self.mcp_clients.keys()))
+                
+                result_text = f"Available toolkit types ({len(toolkit_types)} total):\n\n"
+                
+                # Group by type
+                composio_types = list(self.composio_toolkits.keys()) if self.composio_toolkits else []
+                mcp_types = list(self.mcp_clients.keys()) if self.mcp_clients else []
+                
+                if composio_types:
+                    result_text += f"**Composio Toolkits ({len(composio_types)}):**\n"
+                    for toolkit in composio_types:
+                        result_text += f"- {toolkit}\n"
+                    result_text += "\n"
+                
+                if mcp_types:
+                    result_text += f"**MCP Clients ({len(mcp_types)}):**\n"
+                    for client in mcp_types:
+                        result_text += f"- {client}\n"
+                    result_text += "\n"
+                
+                if not toolkit_types:
+                    result_text = "No toolkit types available. Please register Composio toolkits or MCP clients first."
+                
+                logger.info(f'📋 Retrieved {len(toolkit_types)} toolkit types')
+                return ActionResult(
+                    extracted_content=result_text,
+                )
+                
+            except Exception as e:
+                logger.error(f'❌ Failed to get toolkit types: {e}')
+                return ActionResult(error=f'Failed to get toolkit types: {str(e)}')
+
+        @self.registry.action(
+            'Search tools within a specific toolkit type by name and description filters',
+            param_model=SearchToolAction,
+        )
+        async def search_tool(params: SearchToolAction):
+            """
+            Search tools by toolkit type and filters
+            
+            Args:
+                params: SearchToolAction containing toolkit_type and filters
+                
+            Returns:
+                ActionResult with matching tools and their descriptions
+            """
+            try:
+                toolkit_type = params.toolkit_type
+                filters = [f.lower() for f in params.filters]
+                
+                matching_tools = []
+                
+                # Search in registry actions with prefixes
+                for action_name, action in self.registry.registry.actions.items():
+                    # Check if this action belongs to the specified toolkit type
+                    if toolkit_type in self.composio_toolkits and action_name.startswith(f"cpo.{toolkit_type}."):
+                        # Get tool description from param_model
+                        try:
+                            param_dict = action.param_model.model_json_schema()
+                            description = param_dict.get('description', action_name)
+                        except:
+                            description = action_name
+                        
+                        # Check if any filter matches tool name or description
+                        search_text = f"{action_name} {description}".lower()
+                        if any(filter_term in search_text for filter_term in filters):
+                            matching_tools.append({
+                                'tool_name': action_name,
+                                'description': description
+                            })
+                    
+                    elif toolkit_type in self.mcp_clients and action_name.startswith(f"mcp.{toolkit_type}."):
+                        # Get tool description from param_model
+                        try:
+                            param_dict = action.param_model.model_json_schema()
+                            description = param_dict.get('description', action_name)
+                        except:
+                            description = action_name
+                        
+                        # Check if any filter matches tool name or description
+                        search_text = f"{action_name} {description}".lower()
+                        if any(filter_term in search_text for filter_term in filters):
+                            matching_tools.append({
+                                'tool_name': action_name,
+                                'description': description
+                            })
+                
+                # Format results
+                if matching_tools:
+                    result_text = f"Found {len(matching_tools)} tools in '{toolkit_type}' matching filters {params.filters}:\n\n"
+                    for i, tool in enumerate(matching_tools, 1):
+                        result_text += f"{i}. **{tool['tool_name']}**\n"
+                        result_text += f"   Description: {tool['description']}\n\n"
+                else:
+                    result_text = f"No tools found in '{toolkit_type}' matching filters {params.filters}"
+                
+                logger.info(f'🔍 Found {len(matching_tools)} tools in {toolkit_type} matching filters')
+                return ActionResult(
+                    extracted_content=result_text,
+                    include_extracted_content_only_once=True,
+                    long_term_memory=f'Found {len(matching_tools)} tools in {toolkit_type} matching filters: {", ".join(params.filters)}'
+                )
+                
+            except Exception as e:
+                logger.error(f'❌ Failed to search tools: {e}')
+                return ActionResult(error=f'Failed to search tools: {str(e)}')
+
+        @self.registry.action(
+            'Get detailed information about a specific tool including its parameters',
+            param_model=GetToolInfoAction,
+        )
+        async def get_tool_info(params: GetToolInfoAction):
+            """
+            Get tool information including parameter model
+            
+            Args:
+                params: GetToolInfoAction containing tool_name
+                
+            Returns:
+                ActionResult with tool parameter information
+            """
+            try:
+                tool_name = params.tool_name
+                
+                if tool_name not in self.registry.registry.actions:
+                    return ActionResult(error=f'Tool "{tool_name}" not found in registry')
+                
+                action = self.registry.registry.actions[tool_name]
+                
+                # Convert param_model to dict
+                try:
+                    param_dict = action.param_model.model_json_schema()
+                    result_text = json.dumps(param_dict, indent=2, ensure_ascii=False)
+                except Exception as e:
+                    result_text = f"Tool: {tool_name}\nError getting parameter info: {str(e)}"
+                
+                logger.info(f'ℹ️ Retrieved tool info for: {tool_name}')
+                return ActionResult(
+                    extracted_content=f"```json\n{result_text}\n```"
+                )
+                
+            except Exception as e:
+                logger.error(f'❌ Failed to get tool info: {e}')
+                return ActionResult(error=f'Failed to get tool info: {str(e)}')
+
+        @self.registry.action(
+            'Execute a specific extra tool with provided parameters',
+            param_model=ExecuteExtraToolAction,
+        )
+        async def execute_extra_tool(
+                params: ExecuteExtraToolAction,
+                browser_manager: BrowserManager,
+                page_extraction_llm: BaseChatModel,
+                file_system: CustomFileSystem
+        ):
+            """
+            Execute an extra tool with given parameters
+            
+            Args:
+                params: ExecuteExtraToolAction containing tool_name and tool_params
+                browser_manager: Browser manager instance
+                page_extraction_llm: LLM instance
+                file_system: File system instance
+                
+            Returns:
+                ActionResult from the executed tool
+            """
+            try:
+                tool_name = params.tool_name
+                
+                if tool_name not in self.registry.registry.actions:
+                    return ActionResult(error=f'Tool "{tool_name}" not found in registry')
+                
+                # Parse tool parameters
+                try:
+                    tool_params_dict = json.loads(params.tool_params)
+                except json.JSONDecodeError:
+                    try:
+                        tool_params_dict = json.loads(repair_json(params.tool_params))
+                    except Exception as e:
+                        return ActionResult(error=f'Failed to parse tool parameters: {str(e)}')
+                
+                # Get the action
+                action = self.registry.registry.actions[tool_name]
+                
+                # Create special context (same as in act method)
+                special_context = {
+                    'browser_manager': browser_manager,
+                    'page_extraction_llm': page_extraction_llm,
+                    'file_system': file_system,
+                }
+                
+                # Validate parameters
+                try:
+                    validated_params = action.param_model(**tool_params_dict)
+                except Exception as e:
+                    return ActionResult(error=f'Invalid parameters {tool_params_dict} for action {tool_name}: {type(e)}: {e}')
+                
+                # Execute the tool
+                result = await action.function(params=validated_params, **special_context)
+                
+                logger.info(f'🔧 Successfully executed extra tool: {tool_name}')
+                return result
+                
+            except Exception as e:
+                logger.error(f'❌ Failed to execute extra tool: {e}')
+                return ActionResult(error=f'Failed to execute extra tool: {str(e)}')
+
     def _register_browser_use_agent(self):
         @self.registry.action(
             'Execute browser_use agent tasks. Please specify a tab id to an agent, if you want to let agent work on this tab.',
@@ -1230,71 +1478,13 @@ class VibeSurfTools:
                 if not os.path.exists(full_file_path):
                     full_file_path = os.path.join(str(file_system.get_dir()), file_path)
 
-                # Determine if file is an image based on MIME type
-                mime_type, _ = mimetypes.guess_type(file_path)
-                is_image = mime_type and mime_type.startswith('image/')
-
-                if is_image:
-                    # Handle image files with LLM vision
-                    try:
-                        # Read image file and encode to base64
-                        with open(full_file_path, 'rb') as image_file:
-                            image_data = image_file.read()
-                            image_base64 = base64.b64encode(image_data).decode('utf-8')
-
-                        # Create content parts similar to the user's example
-                        content_parts: list[ContentPartTextParam | ContentPartImageParam] = [
-                            ContentPartTextParam(text=f"Query: {params.query}")
-                        ]
-
-                        # Add the image
-                        content_parts.append(
-                            ContentPartImageParam(
-                                image_url=ImageURL(
-                                    url=f'data:{mime_type};base64,{image_base64}',
-                                    media_type=mime_type,
-                                    detail='high',
-                                ),
-                            )
-                        )
-
-                        # Create user message and invoke LLM
-                        user_message = UserMessage(content=content_parts, cache=True)
-                        response = await asyncio.wait_for(
-                            page_extraction_llm.ainvoke([user_message]),
-                            timeout=120.0,
-                        )
-
-                        extracted_content = f'File: {file_path}\nQuery: {params.query}\nExtracted Content:\n{response.completion}'
-
-                    except Exception as e:
-                        raise Exception(f'Failed to process image file {file_path}: {str(e)}')
-
-                else:
-                    # Handle non-image files by reading content
-                    try:
-                        file_content = await file_system.read_file(full_file_path, external_file=True)
-
-                        # Create a simple prompt for text extraction
-                        prompt = f"""Extract the requested information from this file content.
-
-        Query: {params.query}
-
-        File: {file_path}
-        File Content:
-        {file_content}
-
-        Provide the extracted information in a clear, structured format."""
-
-                        response = await asyncio.wait_for(
-                            page_extraction_llm.ainvoke([UserMessage(content=prompt)]),
-                            timeout=120.0,
-                        )
-
-                        extracted_content = f'File: {file_path}\nQuery: {params.query}\nExtracted Content:\n{response.completion}'
-
-                    except Exception as e:
-                        raise Exception(f'Failed to read file {file_path}: {str(e)}')
+                # Use the utility function to extract content from file
+                extracted_content = await extract_file_content_with_llm(
+                    file_path=file_path,
+                    query=params.query,
+                    llm=page_extraction_llm,
+                    file_system=file_system
+                )
 
                 # Handle memory storage
                 if len(extracted_content) < 1000:
@@ -1657,7 +1847,7 @@ class VibeSurfTools:
             else:
                 # Update the composio instance
                 self.composio_client.update_composio_instance(composio_instance)
-
+            self.composio_toolkits = toolkit_tools_dict
             # Register tools if we have both instance and toolkit tools
             if composio_instance and toolkit_tools_dict:
                 await self.composio_client.register_to_tools(
@@ -1682,7 +1872,7 @@ class VibeSurfTools:
             if self.composio_client:
                 self.composio_client.unregister_all_tools(self)
                 logger.info('All Composio tools unregistered')
-
+            self.composio_toolkits.clear()
         except Exception as e:
             logger.error(f'Failed to unregister Composio clients: {str(e)}')
 
@@ -1701,7 +1891,7 @@ class VibeSurfTools:
 
             # Register new tools
             await self.register_composio_clients(composio_instance, toolkit_tools_dict)
-
+            self.composio_toolkits = toolkit_tools_dict
             logger.info('Composio tools updated successfully')
 
         except Exception as e:

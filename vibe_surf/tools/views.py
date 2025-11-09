@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -43,7 +43,7 @@ class BrowserUseAgentTask(BaseModel):
         description='Tab ID to execute the task on. If None, a new blank page will be created',
     )
     task: str = Field(
-        description='Task description focusing on what needs to be done, goals, and expected returns. Browser_use agent has its own planning and execution capabilities',
+        description='Task description focusing on what needs to be done, goals, and expected returns.',
     )
     task_files: list[str] | None = Field(
         default=None,
@@ -126,7 +126,7 @@ class SkillSearchAction(BaseModel):
     )
     rank: bool = Field(
         default=False,
-        description='Whether to use LLM ranking for results. If True, uses LLM to rank all results. If False, returns 5 results from each search tab (all, news, videos).',
+        description='Whether to use LLM ranking for results.',
     )
 
 
@@ -301,4 +301,31 @@ class GrepContentAction(BaseModel):
         description='Number of characters to include before and after each match (default: 100)',
         ge=10,
         le=1000,
+    )
+
+
+class SearchToolAction(BaseModel):
+    """Parameters for search_tool action"""
+    toolkit_type: str = Field(
+        description='Toolkit type to search.',
+    )
+    filters: Optional[str] = Field(
+        description='Query terms to filter tools by name and description(include or not). If you want to all tools name of this Toolkit, leave it to None.',
+    )
+
+
+class GetToolInfoAction(BaseModel):
+    """Parameters for get_tool_info action"""
+    tool_name: str = Field(
+        description='Full tool name',
+    )
+
+
+class ExecuteExtraToolAction(BaseModel):
+    """Parameters for execute_extra_tool action"""
+    tool_name: str = Field(
+        description='Full tool name',
+    )
+    tool_params: str = Field(
+        description='JSON string containing parameters for the tool execution',
     )

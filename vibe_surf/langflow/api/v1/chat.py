@@ -180,6 +180,24 @@ async def build_flow(
     Returns:
         Dict with job_id that can be used to poll for build status
     """
+    from vibe_surf.backend import shared_state
+    from vibe_surf.backend.api.vibesurf import validate_vibesurf_api_key
+    from vibe_surf.backend.database.queries import CredentialQueries
+
+    async for db_session in shared_state.db_manager.get_session():
+        stored_key = await CredentialQueries.get_credential(db_session, 'VIBESURF_API_KEY')
+
+        has_key = stored_key is not None
+        key_valid = False
+
+        if has_key:
+            key_valid = validate_vibesurf_api_key(stored_key)
+
+        connected = has_key and key_valid
+
+        if not connected:
+            raise HTTPException(status_code=404, detail=f"Please configure correct VIBESURF_API_KEY first!")
+
     # First verify the flow exists
     async with session_scope() as session:
         flow = await session.get(Flow, flow_id)

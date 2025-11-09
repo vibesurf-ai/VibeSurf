@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from browser_use.actor.page import Page
 
 from vibe_surf.logger import get_logger
+from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 
 logger = get_logger(__name__)
 
@@ -207,14 +208,14 @@ class SemanticExtractor:
 
         return f'{text} ({counter})'
 
-    async def extract_interactive_elements(self, page: 'Page') -> List[Dict]:
+    async def extract_interactive_elements(self, browser_session: 'AgentBrowserSession') -> List[Dict]:
         """Extract interactive elements with enhanced context for complex UI widgets."""
 
         # Add debugging flag
         debug_mode = False  # Set to True for debugging
 
         js_code = r"""
-        (debugMode = false) => {
+        ((debugMode = false) => {
             const debugLog = [];
 
             function debugMessage(msg, data = null) {
@@ -775,15 +776,20 @@ class SemanticExtractor:
                     total: allElements.length
                 }
             };
-        }
+        })(false)
         """
 
         try:
-            result_str = await page.evaluate(js_code)
+            cdp_session = await browser_session.get_or_create_cdp_session()
+            result_str = await cdp_session.cdp_client.send.Runtime.evaluate(
+                params={'expression': js_code, 'returnByValue': True, 'awaitPromise': True},
+                session_id=cdp_session.session_id,
+            )
             # Parse the JSON result
             import json
 
             result = json.loads(result_str) if isinstance(result_str, str) else result_str
+            result = result["result"]['value']
 
             if debug_mode and 'debugLog' in result:
                 # Save debug information to file
@@ -806,17 +812,9 @@ class SemanticExtractor:
         except Exception as e:
             logger.error(f'Failed to extract interactive elements: {e}')
             # Save error information for debugging
-            if debug_mode:
-                error_file = f'semantic_extraction_error_{int(asyncio.get_event_loop().time())}.txt'
-                async with aiofiles.open(error_file, 'w') as f:
-                    await f.write(f'Error: {str(e)}\n')
-                    await f.write(f'URL: {await page.get_url()}\n')
-                    await f.write(f'Timestamp: {asyncio.get_event_loop().time()}\n')
-                logger.info(f'Error information saved to: {error_file}')
-
             return []
 
-    async def extract_semantic_mapping(self, page: 'Page') -> Dict[str, Dict]:
+    async def extract_semantic_mapping(self, browser_session: 'AgentBrowserSession') -> Dict[str, Dict]:
         """Extract semantic mapping from the current page.
 
         Returns mapping: visible_text -> {"class": "", "id": "", "selectors": ""}
@@ -824,7 +822,7 @@ class SemanticExtractor:
         self._reset_counters()
 
         # Get all interactive elements with enhanced context
-        elements = await self.extract_interactive_elements(page)
+        elements = await self.extract_interactive_elements(browser_session)
 
         mapping = {}
         existing_keys = set()

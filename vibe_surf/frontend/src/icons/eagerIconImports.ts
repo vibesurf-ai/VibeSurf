@@ -25,6 +25,7 @@ import { CouchbaseIcon } from "@/icons/Couchbase";
 import { CrewAiIcon } from "@/icons/CrewAI";
 import { DeepSeekIcon } from "@/icons/DeepSeek";
 import { DoclingIcon } from "@/icons/Docling";
+import { DouyinIcon } from "@/icons/Douyin";
 import { DropboxIcon } from "@/icons/Dropbox";
 import { DuckDuckGoIcon } from "@/icons/DuckDuckGo";
 import { ElasticsearchIcon } from "@/icons/ElasticsearchStore";
@@ -107,9 +108,11 @@ import { UpstashSvgIcon } from "@/icons/Upstash";
 import { VectaraIcon } from "@/icons/VectaraIcon";
 import { VertexAIIcon } from "@/icons/VertexAI";
 import { WeaviateIcon } from "@/icons/Weaviate";
+import { WeiboIcon } from "@/icons/Weibo";
 import { WikipediaIcon } from "@/icons/Wikipedia";
 import { WolframIcon } from "@/icons/Wolfram";
 import { XAIIcon } from "@/icons/xAI";
+import { XiaohongshuIcon } from "@/icons/Xiaohongshu";
 import { YouTubeSvgIcon as YouTubeIcon } from "@/icons/Youtube";
 import { ZepMemoryIcon } from "@/icons/ZepMemory";
 import { JigsawStackIcon } from "./JigsawStack";
@@ -145,6 +148,7 @@ export const eagerIconsMapping = {
   CrewAI: CrewAiIcon,
   DeepSeek: DeepSeekIcon,
   Docling: DoclingIcon,
+  Douyin: DouyinIcon,
   Dropbox: DropboxIcon,
   DuckDuckGo: DuckDuckGoIcon,
   ElasticsearchStore: ElasticsearchIcon,
@@ -227,10 +231,12 @@ export const eagerIconsMapping = {
   VertexAI: VertexAIIcon,
   WatsonxAI: WatsonxAiIcon,
   Weaviate: WeaviateIcon,
+  Weibo: WeiboIcon,
   Wikipedia: WikipediaIcon,
   Windsurf: WindsurfIcon,
   Wolfram: WolframIcon,
   xAI: XAIIcon,
+  Xiaohongshu: XiaohongshuIcon,
   YouTube: YouTubeIcon,
   ZepMemory: ZepMemoryIcon,
 };

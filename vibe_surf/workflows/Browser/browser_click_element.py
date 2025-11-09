@@ -2,6 +2,7 @@ import asyncio
 from typing import Any, List
 from uuid import uuid4
 from browser_use.llm.base import BaseChatModel
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from vibe_surf.langflow.custom import Component
 from vibe_surf.langflow.inputs import MessageTextInput, HandleInput, DropdownInput
@@ -39,8 +40,7 @@ class BrowserClickElementComponent(Component):
         MessageTextInput(
             name="css_selector",
             display_name="CSS Selector",
-            info="CSS Selector. You can get css selector via using CDP element selector.",
-            advanced=True
+            info="CSS Selector. Prioritize to use CSS Selector is you know it.",
         ),
         IntInput(
             name="backend_node_id",
@@ -89,29 +89,80 @@ class BrowserClickElementComponent(Component):
     async def browser_click_element(self) -> AgentBrowserSession:
         try:
             await self.browser_session._wait_for_stable_network()
-            page = await self.browser_session.get_current_page()
-            element = None
+            from browser_use.actor.element import Element
+
+            element: Optional[Element] = None
+            if self.browser_session.main_browser_session:
+                prev_tabs = await self.browser_session.main_browser_session.get_tabs()
+            else:
+                prev_tabs = await self.browser_session.get_tabs()
+            prev_tab_ids = set([tab.target_id for tab in prev_tabs])
             if self.element_text:
+                from vibe_surf.browser.find_page_element import SemanticExtractor
+                from vibe_surf.browser.page_operations import _try_direct_selector, _wait_for_element
+
                 semantic_extractor = SemanticExtractor()
-                element_mappings = await semantic_extractor.extract_semantic_mapping(page)
+                element_mappings = await semantic_extractor.extract_semantic_mapping(self.browser_session)
                 element_info = semantic_extractor.find_element_by_hierarchy(element_mappings,
                                                                             target_text=self.element_text,
                                                                             context_hints=self.element_hints)
-                if element_info:
-                    elements = await page.get_elements_by_css_selector(
-                        element_info["hierarchical_selector"] or element_info["selectors"])
-                    if elements:
-                        element = elements[0]
+                direct_selector = await _try_direct_selector(self.browser_session, self.element_text)
+                selector_to_use = None
+                if direct_selector:
+                    selector_to_use = direct_selector
+                elif element_info:
+                    # Use hierarchical selector if it's more specific than the basic selector
+                    hierarchical = element_info.get('hierarchical_selector', '')
+                    basic = element_info.get('selectors', '')
+
+                    # Prefer hierarchical if it has positional info (nth-of-type) or IDs
+                    if hierarchical and ('#' in hierarchical or ':nth-of-type' in hierarchical):
+                        selector_to_use = hierarchical
+                    else:
+                        selector_to_use = basic
+
+                if selector_to_use:
+                    page = await self.browser_session.get_current_page()
+
+                    fallback_selectors = []
+                    if element_info:
+                        # Add hierarchical selector as first fallback
+                        hierarchical_selector = element_info.get('hierarchical_selector')
+                        if hierarchical_selector and hierarchical_selector != selector_to_use:
+                            fallback_selectors.append(hierarchical_selector)
+
+                        # Add original fallback selector
+                        fallback_selector = element_info.get('fallback_selector')
+                        if fallback_selector and fallback_selector not in fallback_selectors:
+                            fallback_selectors.append(fallback_selector)
+
+                        # Add XPath selector as final fallback
+                        xpath_selector = element_info.get('text_xpath')
+                        if xpath_selector:
+                            fallback_selectors.append(f'xpath={xpath_selector}')
+
+                    success, actual_selector = await _wait_for_element(self.browser_session, selector_to_use,
+                                                                       fallback_selectors=fallback_selectors)
+                    if not success:
+                        raise ValueError("Failed to find selector")
+                    else:
+                        self.status = f"Get actual selector: {actual_selector}"
+                        elements = await page.get_elements_by_css_selector(actual_selector)
+                        if elements:
+                            element = elements[0]
 
             elif self.css_selector:
+                page = await self.browser_session.get_current_page()
                 elements = await page.get_elements_by_css_selector(self.css_selector)
                 self.log(f"Found {len(elements)} elements with CSS selector {self.css_selector}")
                 self.log(elements)
                 if elements:
                     element = elements[0]
             elif self.backend_node_id:
+                page = await self.browser_session.get_current_page()
                 element = await page.get_element(self.backend_node_id)
             elif self.element_prompt and self.llm:
+                page = await self.browser_session.get_current_page()
                 element = await page.get_element_by_prompt(self.element_prompt, self.llm)
 
             if not element:
@@ -119,6 +170,16 @@ class BrowserClickElementComponent(Component):
                 raise ValueError("No element found!")
 
             await element.click(button=self.click_button, click_count=self.click_count, modifiers=['Control'])
+            if self.browser_session.main_browser_session:
+                after_tabs = await self.browser_session.main_browser_session.get_tabs()
+            else:
+                after_tabs = await self.browser_session.get_tabs()
+            after_tab_ids = set([tab.target_id for tab in after_tabs])
+            new_tabs = after_tab_ids - prev_tab_ids
+            if new_tabs:
+                new_tab_id = list(new_tabs)[0]
+                await self.browser_session.get_or_create_cdp_session(new_tab_id, focus=True)
+                await self.browser_session.cdp_client.send.Target.activateTarget(params={'targetId': new_tab_id})
             self.status = f"Clicked on element {element}"
         except Exception as e:
             import traceback

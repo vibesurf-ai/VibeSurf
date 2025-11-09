@@ -461,24 +461,6 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 return ActionResult(error=f'Failed to go back: {str(e)}')
 
         @self.registry.action(
-            '',
-            param_model=SwitchTabAction
-        )
-        async def switch(params: SwitchTabAction, browser_session: AgentBrowserSession):
-            try:
-                target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
-
-                # Switch to target using CDP
-                await browser_session.get_or_create_cdp_session(target_id, focus=True)
-
-                memory = f'Switched to Tab with ID {target_id[-4:]}'
-                logger.info(f'🔄 {memory}')
-                return ActionResult(extracted_content=memory, include_in_memory=True, long_term_memory=memory)
-            except Exception as e:
-                logger.error(f'Failed to switch tab: {str(e)}')
-                return ActionResult(error=f'Failed to switch to tab {params.tab_id or params.url}: {str(e)}')
-
-        @self.registry.action(
             'Take a screenshot of the current page and save it to the file system',
             param_model=NoParamsAction
         )

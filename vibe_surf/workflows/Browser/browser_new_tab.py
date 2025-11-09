@@ -8,10 +8,10 @@ from vibe_surf.langflow.io import BoolInput, IntInput, Output
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 
 
-class BrowserNavigateComponent(Component):
-    display_name = "Navigation"
-    description = "Navigates to a specific url"
-    icon = "circle-arrow-out-up-right"
+class BrowserNewTabComponent(Component):
+    display_name = "New Tab"
+    description = "Create a new tab"
+    icon = "circle-plus"
 
     inputs = [
         HandleInput(
@@ -22,10 +22,9 @@ class BrowserNavigateComponent(Component):
             required=True
         ),
         MessageTextInput(
-            name="url",
-            display_name="URL",
-            info="URL to navigate",
-            required=True,
+            name="new_tab_url",
+            display_name="New Tab URL",
+            info="New Tab URL",
         )
     ]
 
@@ -33,15 +32,16 @@ class BrowserNavigateComponent(Component):
         Output(
             display_name="Browser Session",
             name="output_browser_session",
-            method="browser_navigation",
+            method="browser_new_tab",
             types=["AgentBrowserSession"]
         )
     ]
 
-    async def browser_navigation(self) -> AgentBrowserSession:
+    async def browser_new_tab(self) -> AgentBrowserSession:
         try:
-            await self.browser_session.navigate_to_url(self.url)
-            await asyncio.sleep(2)
+            new_url = self.new_tab_url or "chrome://newtab/"
+            await self.browser_session.navigate_to_url(new_url, new_tab=True)
+            self.status = f"Successfully created new tab ot {new_url}"
         except Exception as e:
             import traceback
             traceback.print_exc()
