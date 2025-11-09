@@ -48,6 +48,7 @@ class YouTubeApiClient:
         """
         self.browser_session = browser_session
         self.target_id = None
+        self.new_tab = False
         self.proxy = proxy
         self.timeout = timeout
         self._base_url = "https://www.youtube.com"
@@ -91,7 +92,7 @@ class YouTubeApiClient:
                     "https://www.youtube.com/", new_tab=True
                 )
                 await asyncio.sleep(2)  # Wait for page load
-                new_tab = True
+                self.new_tab = True
 
             # Extract cookies from browser
             cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
@@ -1258,7 +1259,7 @@ class YouTubeApiClient:
             return None
 
     async def close(self):
-        if self.browser_session and self.target_id:
+        if self.browser_session and self.target_id and self.new_tab:
             try:
                 logger.info(f"Close target id: {self.target_id}")
                 await self.browser_session.cdp_client.send.Target.closeTarget(params={'targetId': self.target_id})

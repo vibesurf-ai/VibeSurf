@@ -49,6 +49,7 @@ class DouyinApiClient:
         """
         self.browser_session = browser_session
         self.target_id = None
+        self.new_tab = False
         self.proxy = proxy
         self.timeout = timeout
         self._host = "https://www.douyin.com"
@@ -93,7 +94,8 @@ class DouyinApiClient:
                 self.target_id = await self.browser_session.navigate_to_url(
                     "https://www.douyin.com/", new_tab=True
                 )
-                await asyncio.sleep(3)  # Wait for page to load
+                await asyncio.sleep(2)  # Wait for page to load
+                self.new_tab = True
 
             cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
             result = await asyncio.wait_for(
@@ -850,7 +852,7 @@ class DouyinApiClient:
             return False
 
     async def close(self):
-        if self.browser_session and self.target_id:
+        if self.browser_session and self.target_id and self.new_tab:
             try:
                 logger.info(f"Close target id: {self.target_id}")
                 await self.browser_session.cdp_client.send.Target.closeTarget(params={'targetId': self.target_id})
