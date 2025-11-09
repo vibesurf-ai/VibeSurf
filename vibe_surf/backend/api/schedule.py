@@ -62,8 +62,13 @@ def calculate_next_execution(cron_expr: str) -> Optional[datetime]:
     if not cron_expr:
         return None
     try:
-        cron = croniter(cron_expr, datetime.now(timezone.utc))
-        return cron.get_next(datetime)
+        # Use system local timezone for cron calculation, then convert to UTC for storage
+        from datetime import datetime as dt
+        local_now = dt.now()
+        cron = croniter(cron_expr, local_now)
+        local_next = cron.get_next(dt)
+        # Convert to UTC for consistent storage
+        return local_next.replace(tzinfo=timezone.utc)
     except (ValueError, TypeError):
         return None
 
