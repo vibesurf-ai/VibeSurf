@@ -96,8 +96,6 @@ class XiaohongshuComponent(Component):
     _api_result: Optional[str] = None
 
     async def pass_browser_session(self) -> AgentBrowserSession:
-        if not self._api_result:
-            await self.execute_xiaohongshu_method()
         return self.browser_session
 
     def update_build_config(self, build_config: dict, field_value: Any, field_name: str | None = None) -> dict:
@@ -172,7 +170,9 @@ class XiaohongshuComponent(Component):
                         "required": param['required'],
                         "info": f"{param['name']} (Parameter of {method_func_name})",
                         "placeholder": "",
-                        "show": True
+                        "show": True,
+                        "_input_type": "MessageTextInput",
+                        'input_types': ['Message']
                     }
 
         return build_config
