@@ -9,6 +9,7 @@ from vibe_surf.langflow.inputs import MessageTextInput, HandleInput, MultilineIn
 from vibe_surf.langflow.io import BoolInput, IntInput, Output
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.langflow.schema.message import Message
+import json
 
 class BrowserEvaluateJavaScriptComponent(Component):
     display_name = "Evaluate JavaScript Code"
@@ -98,8 +99,7 @@ class BrowserEvaluateJavaScriptComponent(Component):
 
     async def browser_evaluate_result(self) :
         try:
-            page = await self.browser_session.get_current_page()
-            
+            import json
             # Parse func_params if provided
             args = []
             if self.func_params:
@@ -130,10 +130,39 @@ class BrowserEvaluateJavaScriptComponent(Component):
                     raise ValueError(f"Error processing func_params: {e}")
             
             # Execute JavaScript with or without arguments
-            if args:
-                result = await page.evaluate(self.js_code, *args)
+            if not (self.js_code.endswith('()') or self.js_code.endswith('();')):
+                if args:
+                    # Convert args to JSON representation for safe passing
+                    import json
+
+                    arg_strs = [json.dumps(arg) for arg in args]
+                    expression = f'({self.js_code})({", ".join(arg_strs)})'
+                else:
+                    expression = f'({self.js_code})()'
             else:
-                result = await page.evaluate(self.js_code)
+                expression = self.js_code
+
+            cdp_session = await self.browser_session.get_or_create_cdp_session()
+            result = await cdp_session.cdp_client.send.Runtime.evaluate(
+                params={'expression': expression, 'returnByValue': True, 'awaitPromise': True},
+                session_id=cdp_session.session_id,
+            )
+
+            if 'exceptionDetails' in result:
+                raise RuntimeError(f'JavaScript evaluation failed: {result["exceptionDetails"]}')
+
+            value = result.get('result', {}).get('value')
+
+            # Always return string representation
+            if value is None:
+                return ''
+            elif isinstance(value, str):
+                return value
+            else:
+                try:
+                    return json.dumps(value) if isinstance(value, (dict, list)) else str(value)
+                except (TypeError, ValueError):
+                    return str(value)
                 
             self.status = self._operation_message = str(result)
             return Message(text=str(result))

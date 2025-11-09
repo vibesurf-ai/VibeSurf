@@ -254,7 +254,7 @@ async def generate_java_script_code(code_requirement, llm, browser_session, MAX_
 
             # Execute the generated JavaScript code
             try:
-                logger.info(generated_js_code)
+                logger.debug(generated_js_code)
                 # Always use awaitPromise=True - it's ignored for non-promises
                 result = await cdp_session.cdp_client.send.Runtime.evaluate(
                     params={'expression': generated_js_code, 'returnByValue': True, 'awaitPromise': True},
