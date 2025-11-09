@@ -863,6 +863,19 @@ class ScheduleManager:
             if next_execution.tzinfo is None:
                 next_execution = next_execution.replace(tzinfo=timezone.utc)
             
+            # Check for minimum execution interval (prevent rapid re-execution)
+            last_execution = schedule.get('last_execution_at')
+            if last_execution:
+                if isinstance(last_execution, str):
+                    last_execution = datetime.fromisoformat(last_execution.replace('Z', '+00:00'))
+                if last_execution.tzinfo is None:
+                    last_execution = last_execution.replace(tzinfo=timezone.utc)
+                
+                # Prevent execution if less than 30 seconds have passed
+                min_interval = 30  # seconds
+                if (now - last_execution).total_seconds() < min_interval:
+                    return False
+            
             # Check if it's time to execute (with a small buffer for timing precision)
             return now >= next_execution
             
@@ -909,13 +922,18 @@ class ScheduleManager:
                 
             now = datetime.now(timezone.utc)
             
-            # Calculate next execution time
+            # Calculate next execution time using local timezone
             cron_expr = schedule.get('cron_expression')
             next_execution = None
             if cron_expr:
                 try:
-                    cron = croniter(cron_expr, now)
-                    next_execution = cron.get_next(datetime)
+                    # Use system local timezone for cron calculation
+                    from datetime import datetime as dt
+                    local_now = dt.now()
+                    cron = croniter(cron_expr, local_now)
+                    local_next = cron.get_next(dt)
+                    # Convert back to UTC for storage
+                    next_execution = local_next.replace(tzinfo=timezone.utc)
                 except (ValueError, TypeError):
                     logger.error(f"Invalid cron expression for flow {flow_id}: {cron_expr}")
             
@@ -936,15 +954,17 @@ class ScheduleManager:
                 )
                 
                 await session.commit()
-                break  # Exit after processing to avoid multiple iterations
                 
-                # Update local schedule cache
+                # Update local schedule cache AFTER successful database update
                 if flow_id in self.schedules:
                     self.schedules[flow_id].update({
                         'last_execution_at': now,
                         'next_execution_at': next_execution,
-                        'execution_count': schedule.get('execution_count', 0) + 1
+                        'execution_count': schedule.get('execution_count', 0) + 1,
+                        'updated_at': now
                     })
+                
+                break  # Exit after processing to avoid multiple iterations
                 
         except Exception as e:
             logger.error(f"Error updating execution tracking for flow {flow_id}: {e}")
@@ -959,8 +979,13 @@ class ScheduleManager:
             now = datetime.now(timezone.utc)
             
             try:
-                cron = croniter(cron_expr, now)
-                next_execution = cron.get_next(datetime)
+                # Use system local timezone for cron calculation
+                from datetime import datetime as dt
+                local_now = dt.now()
+                cron = croniter(cron_expr, local_now)
+                local_next = cron.get_next(dt)
+                # Convert back to UTC for storage
+                next_execution = local_next.replace(tzinfo=timezone.utc)
             except (ValueError, TypeError):
                 logger.error(f"Invalid cron expression for flow {flow_id}: {cron_expr}")
                 return
@@ -980,13 +1005,15 @@ class ScheduleManager:
                 )
                 
                 await session.commit()
-                break  # Exit after processing to avoid multiple iterations
                 
-                # Update local schedule cache
+                # Update local schedule cache AFTER successful database update
                 if flow_id in self.schedules:
                     self.schedules[flow_id].update({
-                        'next_execution_at': next_execution
+                        'next_execution_at': next_execution,
+                        'updated_at': now
                     })
+                
+                break  # Exit after processing to avoid multiple iterations
                 
         except Exception as e:
             logger.error(f"Error updating next execution time for flow {flow_id}: {e}")
