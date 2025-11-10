@@ -297,13 +297,10 @@ jobs:
         echo "Python version check:"
         uv run python --version
         
-        # Detect CPU cores for parallel compilation
-        if [[ "$RUNNER_OS" == "Windows" ]]; then
-          CPU_CORES=$(wmic cpu get NumberOfLogicalProcessors /value | grep -o '[0-9]*' | head -1)
-        else
-          CPU_CORES=$(nproc)
-        fi
-        echo "Detected $CPU_CORES CPU cores for parallel compilation"
+        # Use optimal parallel compilation for GitHub Actions runners
+        # GitHub Actions typically provides 2-core runners
+        CPU_CORES=2
+        echo "Using $CPU_CORES CPU cores for parallel compilation (GitHub Actions optimized)"
         
         echo "Running Nuitka with parallel compilation..."
         uv run python -m nuitka \
@@ -326,7 +323,7 @@ jobs:
           --include-module=langchain \
           --include-module=composio \
           --windows-console-mode=force \
-          --windows-icon=vibe_surf/chrome_extension/icons/logo.png \
+          --windows-icon-from-ico=vibe_surf/chrome_extension/icons/logo.png \
           vibe_surf/cli.py
 
     - name: Prepare executable
