@@ -326,7 +326,7 @@ jobs:
           --include-module=langchain \
           --include-module=composio \
           --windows-console-mode=force \
-          --windows-icon-from-png=vibe_surf/chrome_extension/icons/logo.png \
+          --windows-icon=vibe_surf/chrome_extension/icons/logo.png \
           vibe_surf/cli.py
 
     - name: Prepare executable

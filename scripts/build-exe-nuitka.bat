@@ -45,7 +45,7 @@ python -m nuitka ^
     --include-module=uvicorn ^
     --include-module=fastapi ^
     --windows-console-mode=force ^
-    --windows-icon-from-png=vibe_surf/chrome_extension/icons/logo.png ^
+    --windows-icon-from-ico=vibe_surf/chrome_extension/icons/logo.png ^
     vibe_surf/cli.py
 
 if %ERRORLEVEL% neq 0 (
