@@ -216,10 +216,13 @@ class VibeSurfTools:
                 target_id = None
                 if params.tab_id:
                     target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
+                    url = await browser_session.get_current_page_url()
                     current_target_id = None
+                    current_url = None
                     if browser_session._dom_watchdog and browser_session._dom_watchdog.enhanced_dom_tree:
                         current_target_id = browser_session._dom_watchdog.enhanced_dom_tree.target_id
-                    if current_target_id != target_id:
+                        current_url = browser_session._dom_watchdog.enhanced_dom_tree.current_url
+                    if current_target_id != target_id or url != current_url:
                         browser_session._dom_watchdog.clear_cache()
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
 
@@ -275,10 +278,13 @@ class VibeSurfTools:
                 target_id = None
                 if params.tab_id:
                     target_id = await browser_session.get_target_id_from_tab_id(params.tab_id)
+                    url = await browser_session.get_current_page_url()
                     current_target_id = None
+                    current_url = None
                     if browser_session._dom_watchdog and browser_session._dom_watchdog.enhanced_dom_tree:
                         current_target_id = browser_session._dom_watchdog.enhanced_dom_tree.target_id
-                    if current_target_id != target_id:
+                        current_url = browser_session._dom_watchdog.enhanced_dom_tree.current_url
+                    if current_target_id != target_id or url != current_url:
                         browser_session._dom_watchdog.clear_cache()
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
 

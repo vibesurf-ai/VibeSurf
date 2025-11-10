@@ -22,10 +22,12 @@ from langchain_text_splitters import TextSplitter
 from vibe_surf.langflow.schema.data import Data
 from vibe_surf.langflow.schema.dataframe import DataFrame
 from vibe_surf.langflow.schema.message import Message
+from browser_use.llm.base import BaseChatModel as BrowserUseBaseChatModel
 
 NestedDict: TypeAlias = dict[str, str | dict]
-LanguageModel = TypeVar("LanguageModel", BaseLanguageModel, BaseLLM, BaseChatModel)
-ToolEnabledLanguageModel = TypeVar("ToolEnabledLanguageModel", BaseLanguageModel, BaseLLM, BaseChatModel)
+LanguageModel = TypeVar("LanguageModel", BaseLanguageModel, BaseLLM, BaseChatModel, BrowserUseBaseChatModel)
+ToolEnabledLanguageModel = TypeVar("ToolEnabledLanguageModel", BaseLanguageModel, BaseLLM, BaseChatModel,
+                                   BrowserUseBaseChatModel)
 Memory = TypeVar("Memory", bound=BaseChatMessageHistory)
 
 Retriever = TypeVar(

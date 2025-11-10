@@ -17,7 +17,7 @@ from vibe_surf.langflow.schema.dataframe import DataFrame
 from vibe_surf.langflow.schema.table import EditMode
 from vibe_surf.langflow.helpers.base_model import build_model_from_schema
 from vibe_surf.tools.utils import generate_java_script_code
-
+from vibe_surf.langflow.field_typing import LanguageModel
 
 class BrowserGenerateJavaScriptComponent(Component):
     display_name = "Generate JavaScript Code"
@@ -42,7 +42,7 @@ class BrowserGenerateJavaScriptComponent(Component):
             name="llm",
             display_name="LLM Model",
             info="LLM Model defined by VibeSurf",
-            input_types=["BaseChatModel"],
+            input_types=["LanguageModel"],
             required=True
         ),
     ]

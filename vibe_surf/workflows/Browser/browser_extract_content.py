@@ -16,7 +16,7 @@ from vibe_surf.langflow.schema.data import Data
 from vibe_surf.langflow.schema.dataframe import DataFrame
 from vibe_surf.langflow.schema.table import EditMode
 from vibe_surf.langflow.helpers.base_model import build_model_from_schema
-
+from vibe_surf.langflow.field_typing import LanguageModel
 
 class BrowserExtractContentComponent(Component):
     display_name = "Extract Content"
@@ -41,7 +41,7 @@ class BrowserExtractContentComponent(Component):
             name="llm",
             display_name="LLM Model",
             info="LLM Model defined by VibeSurf",
-            input_types=["BaseChatModel"],
+            input_types=["LanguageModel"],
             required=True
         ),
         BoolInput(
@@ -90,6 +90,14 @@ class BrowserExtractContentComponent(Component):
                     "default": "False",
                     "edit_mode": EditMode.INLINE,
                 },
+            ],
+            value=[
+                {
+                    "name": "field",
+                    "description": "description of field",
+                    "type": "str",
+                    "multiple": "False",
+                }
             ],
         ),
     ]

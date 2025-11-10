@@ -10,6 +10,7 @@ from vibe_surf.langflow.io import BoolInput, IntInput, Output
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.langflow.schema.message import Message
 from vibe_surf.langflow.schema.dotdict import dotdict
+from vibe_surf.langflow.field_typing import LanguageModel
 
 class LLMProfilesComponent(Component):
     display_name = "LLM profiles"
@@ -32,7 +33,7 @@ class LLMProfilesComponent(Component):
             display_name="LLM Model",
             name="llm_model",
             method="get_llm_profile_model",
-            types=["BaseChatModel"]
+            types=["LanguageModel"]
         )
     ]
 
@@ -85,7 +86,7 @@ class LLMProfilesComponent(Component):
         except Exception:
             return []
 
-    async def get_llm_profile_model(self) -> BaseChatModel | None:
+    async def get_llm_profile_model(self) -> LanguageModel:
         """Get the LLM model from the selected profile."""
         from vibe_surf.backend.database.queries import LLMProfileQueries
         from vibe_surf.backend import shared_state
@@ -98,4 +99,5 @@ class LLMProfilesComponent(Component):
                 raise ValueError(self.status)
 
             llm = create_llm_from_profile(llm_profile)
+
             return llm

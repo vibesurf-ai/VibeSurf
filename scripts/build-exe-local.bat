@@ -155,16 +155,50 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-:: Step 3: Build executable
-echo [INFO] Building executable with PyInstaller...
-if not exist "vibesurf.spec" (
-    echo [ERROR] vibesurf.spec file not found!
-    exit /b 1
+:: Step 3: Build executable with Nuitka (much faster and better)
+echo [INFO] Building executable with Nuitka (fast native compilation)...
+
+:: Check if nuitka is installed, install if needed
+python -c "import nuitka" 2>nul
+if %ERRORLEVEL% neq 0 (
+    echo [INFO] Installing Nuitka...
+    uv pip install nuitka
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] Failed to install Nuitka
+        exit /b 1
+    )
+    echo [SUCCESS] Nuitka installed
 )
 
-pyinstaller vibesurf.spec --clean --noconfirm
+:: Set environment variables for faster builds
+set PYTHONDONTWRITEBYTECODE=1
+set PYTHONUNBUFFERED=1
+
+:: Build with Nuitka - much faster and better than PyInstaller
+echo [INFO] Compiling to native executable with Nuitka...
+python -m nuitka ^
+    --onefile ^
+    --output-dir=dist ^
+    --output-filename=vibesurf.exe ^
+    --enable-plugin=anti-bloat ^
+    --assume-yes-for-downloads ^
+    --follow-imports ^
+    --include-data-dir=vibe_surf/chrome_extension=vibe_surf/chrome_extension ^
+    --include-data-dir=vibe_surf/backend=vibe_surf/backend ^
+    --include-data-dir=vibe_surf/langflow=vibe_surf/langflow ^
+    --include-module=passlib.handlers.bcrypt ^
+    --include-module=bcrypt._bcrypt ^
+    --include-module=aiosqlite ^
+    --include-module=uvicorn ^
+    --include-module=fastapi ^
+    --include-module=langchain ^
+    --include-module=composio ^
+    --windows-console-mode=force ^
+    --windows-icon-from-png=vibe_surf/chrome_extension/icons/logo.png ^
+    vibe_surf/cli.py
+
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] PyInstaller build failed
+    echo [ERROR] Nuitka build failed
     exit /b 1
 )
 
