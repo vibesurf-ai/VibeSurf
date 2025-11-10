@@ -19,7 +19,7 @@ from vibe_surf.langflow.schema.table import EditMode
 from vibe_surf.langflow.helpers.base_model import build_model_from_schema
 from vibe_surf.agents.browser_use_agent import BrowserUseAgent
 from vibe_surf.tools.browser_use_tools import BrowserUseTools
-
+from vibe_surf.langflow.field_typing import LanguageModel
 
 class VibeSurfAgentComponent(Component):
     display_name = "VibeSurf Agent"
@@ -38,7 +38,7 @@ class VibeSurfAgentComponent(Component):
             name="llm",
             display_name="LLM Model",
             info="LLM Model defined by VibeSurf",
-            input_types=["BaseChatModel"],
+            input_types=["LanguageModel"],
             required=True
         ),
         MultilineInput(

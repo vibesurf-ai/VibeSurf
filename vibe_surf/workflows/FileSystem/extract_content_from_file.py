@@ -9,7 +9,7 @@ from vibe_surf.langflow.schema import Data
 from vibe_surf.langflow.schema.message import Message
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.tools.utils import extract_file_content_with_llm
-
+from vibe_surf.langflow.field_typing import LanguageModel
 
 class ExtractContentFromFileComponent(Component):
     display_name = "Extract Content From File"
@@ -22,7 +22,7 @@ class ExtractContentFromFileComponent(Component):
             name="llm",
             display_name="LLM Model",
             info="Language model for content extraction",
-            input_types=["BaseChatModel"],
+            input_types=["LanguageModel"],
             required=True
         ),
         MultilineInput(
