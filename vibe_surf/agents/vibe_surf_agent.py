@@ -1648,6 +1648,13 @@ Please continue with your assigned work, incorporating this guidance only if it'
 
                 self.message_history.append(SystemMessage(content=vibesurf_system_prompt))
 
+                action = self.tools.registry.registry.actions["get_all_toolkit_types"]
+                # Execute the tool
+                result = await action.function()
+                self.message_history.append(UserMessage(content=result.extracted_content))
+                logger.debug(result.extracted_content)
+                self.message_history.append(UserMessage(content="Before you use these toolkits. Please use `search_tool` to filter tools that match the user's requirements and Use `get_tool_info` to retrieve detailed parameter information if you are not confidence."))
+
             # Format processed upload files for prompt
             user_request = f"* User's New Request:\n{task}\n"
             if upload_files:

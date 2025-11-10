@@ -20,18 +20,17 @@ echo [SUCCESS] uv is installed
 :: Use dedicated build environment directory
 set BUILD_ENV=.build-env
 
-:: Clean up existing build environment if it exists
+:: Check if build environment already exists
 if exist "%BUILD_ENV%" (
-    echo [WARNING] Removing existing build environment directory
-    rmdir /s /q "%BUILD_ENV%"
-)
-
-:: Step 1: Create dedicated build environment
-echo [INFO] Creating dedicated build environment with Python 3.12...
-uv venv %BUILD_ENV% --python 3.12
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Failed to create build environment
-    exit /b 1
+    echo [INFO] Found existing build environment, reusing it...
+) else (
+    :: Step 1: Create dedicated build environment
+    echo [INFO] Creating dedicated build environment with Python 3.12...
+    uv venv %BUILD_ENV% --python 3.12
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] Failed to create build environment
+        exit /b 1
+    )
 )
 
 :: Step 2: Activate build environment and install dependencies
@@ -87,38 +86,44 @@ type scripts\version.js
 cd ..\..
 
 :: Step 2.2: Build frontend
-echo [INFO] Building frontend...
 cd vibe_surf\frontend
 
-:: Check if package.json exists
-if not exist "package.json" (
-    echo [ERROR] Frontend package.json not found!
-    exit /b 1
-)
+:: Check if frontend is already built
+if exist "..\backend\frontend\index.html" (
+    echo [INFO] Frontend already built, skipping build step...
+) else (
+    echo [INFO] Building frontend...
+    
+    :: Check if package.json exists
+    if not exist "package.json" (
+        echo [ERROR] Frontend package.json not found!
+        exit /b 1
+    )
 
-:: Install frontend dependencies and build
-call npm ci
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Failed to install frontend dependencies
-    exit /b 1
-)
+    :: Install frontend dependencies and build
+    call npm ci
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] Failed to install frontend dependencies
+        exit /b 1
+    )
 
-call npm run build
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Failed to build frontend
-    exit /b 1
-)
+    call npm run build
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] Failed to build frontend
+        exit /b 1
+    )
 
-:: Copy build folder to backend directory as frontend
-if not exist "..\backend\frontend" mkdir "..\backend\frontend"
-xcopy /E /I /Y build\* ..\backend\frontend\
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Failed to copy frontend build
-    exit /b 1
-)
+    :: Copy build folder to backend directory as frontend
+    if not exist "..\backend\frontend" mkdir "..\backend\frontend"
+    xcopy /E /I /Y build\* ..\backend\frontend\
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] Failed to copy frontend build
+        exit /b 1
+    )
 
-echo [SUCCESS] Frontend build completed
-dir ..\backend\frontend\
+    echo [SUCCESS] Frontend build completed
+    dir ..\backend\frontend\
+)
 
 cd ..\..
 
