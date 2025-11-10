@@ -27,3 +27,16 @@ vibe_surf/backend/frontend
 vibe_surf/frontend/node_modules
 vibe_surf/frontend/build
 *.log
+
+# Nuitka build files (replaces PyInstaller)
+*.build/
+*.dist/
+*.onefile-build/
+*.pyi
+*.pyd
+*.manifest
+*.spec.backup
+
+# Build artifacts
+vibesurf.exe
+vibesurf-nuitka.exe

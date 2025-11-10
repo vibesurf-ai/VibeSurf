@@ -271,7 +271,7 @@ jobs:
         
         echo "=== Installing dependencies (all platforms use uv) ==="
         uv pip install -e .
-        uv pip install pyinstaller
+        uv pip install nuitka
         echo "=== Installed packages ==="
         uv pip list
 
@@ -289,15 +289,34 @@ jobs:
         echo "Testing CLI import:"
         uv run python -c "from vibe_surf.cli import main; print('CLI available')"
 
-    # Build executable using uv run (cross-platform)
-    - name: Build executable with uv run
+    # Build executable using Nuitka (cross-platform)
+    - name: Build executable with Nuitka
       shell: bash
       run: |
-        echo "=== Building executable with uv run ==="
+        echo "=== Building executable with Nuitka ==="
         echo "Python version check:"
         uv run python --version
-        echo "Running PyInstaller..."
-        uv run pyinstaller vibesurf.spec --clean --noconfirm
+        echo "Running Nuitka..."
+        uv run python -m nuitka \
+          --onefile \
+          --output-dir=dist \
+          --output-filename=vibesurf.exe \
+          --enable-plugin=anti-bloat \
+          --assume-yes-for-downloads \
+          --follow-imports \
+          --include-data-dir=vibe_surf/chrome_extension=vibe_surf/chrome_extension \
+          --include-data-dir=vibe_surf/backend=vibe_surf/backend \
+          --include-data-dir=vibe_surf/langflow=vibe_surf/langflow \
+          --include-module=passlib.handlers.bcrypt \
+          --include-module=bcrypt._bcrypt \
+          --include-module=aiosqlite \
+          --include-module=uvicorn \
+          --include-module=fastapi \
+          --include-module=langchain \
+          --include-module=composio \
+          --windows-console-mode=force \
+          --windows-icon-from-png=vibe_surf/chrome_extension/icons/logo.png \
+          vibe_surf/cli.py
 
     - name: Prepare executable
       shell: bash
