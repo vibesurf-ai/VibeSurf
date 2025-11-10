@@ -175,11 +175,18 @@ set PYTHONDONTWRITEBYTECODE=1
 set PYTHONUNBUFFERED=1
 
 :: Build with Nuitka - much faster and better than PyInstaller
-echo [INFO] Compiling to native executable with Nuitka...
+echo [INFO] Compiling to native executable with Nuitka (with parallel compilation)...
+
+:: Detect CPU cores for parallel compilation
+for /f "tokens=2 delims==" %%i in ('wmic cpu get NumberOfLogicalProcessors /value ^| find "="') do set CPU_CORES=%%i
+echo [INFO] Detected %CPU_CORES% CPU cores, using parallel compilation...
+
 python -m nuitka ^
     --onefile ^
     --output-dir=dist ^
     --output-filename=vibesurf.exe ^
+    --jobs=%CPU_CORES% ^
+    --lto=yes ^
     --enable-plugin=anti-bloat ^
     --assume-yes-for-downloads ^
     --follow-imports ^

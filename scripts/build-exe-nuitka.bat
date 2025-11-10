@@ -20,13 +20,19 @@ if %ERRORLEVEL% neq 0 (
 
 echo [SUCCESS] Nuitka is available
 
-:: Build with Nuitka (much faster)
-echo [INFO] Building with Nuitka (faster compilation)...
+:: Build with Nuitka (much faster with parallel compilation)
+echo [INFO] Building with Nuitka (faster compilation with parallel processing)...
+
+:: Detect CPU cores for parallel compilation
+for /f "tokens=2 delims==" %%i in ('wmic cpu get NumberOfLogicalProcessors /value ^| find "="') do set CPU_CORES=%%i
+echo [INFO] Using %CPU_CORES% CPU cores for parallel compilation...
 
 python -m nuitka ^
     --onefile ^
     --output-dir=dist ^
     --output-filename=vibesurf-nuitka.exe ^
+    --jobs=%CPU_CORES% ^
+    --lto=yes ^
     --enable-plugin=anti-bloat ^
     --assume-yes-for-downloads ^
     --follow-imports ^

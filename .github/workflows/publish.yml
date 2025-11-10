@@ -289,18 +289,29 @@ jobs:
         echo "Testing CLI import:"
         uv run python -c "from vibe_surf.cli import main; print('CLI available')"
 
-    # Build executable using Nuitka (cross-platform)
+    # Build executable using Nuitka with parallel compilation
     - name: Build executable with Nuitka
       shell: bash
       run: |
-        echo "=== Building executable with Nuitka ==="
+        echo "=== Building executable with Nuitka (Parallel Compilation) ==="
         echo "Python version check:"
         uv run python --version
-        echo "Running Nuitka..."
+        
+        # Detect CPU cores for parallel compilation
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          CPU_CORES=$(wmic cpu get NumberOfLogicalProcessors /value | grep -o '[0-9]*' | head -1)
+        else
+          CPU_CORES=$(nproc)
+        fi
+        echo "Detected $CPU_CORES CPU cores for parallel compilation"
+        
+        echo "Running Nuitka with parallel compilation..."
         uv run python -m nuitka \
           --onefile \
           --output-dir=dist \
           --output-filename=vibesurf.exe \
+          --jobs=$CPU_CORES \
+          --lto=yes \
           --enable-plugin=anti-bloat \
           --assume-yes-for-downloads \
           --follow-imports \
