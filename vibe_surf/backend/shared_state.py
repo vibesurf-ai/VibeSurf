@@ -927,13 +927,15 @@ class ScheduleManager:
             next_execution = None
             if cron_expr:
                 try:
-                    # Use system local timezone for cron calculation
-                    from datetime import datetime as dt
-                    local_now = dt.now()
+                    local_now = datetime.now().astimezone()
                     cron = croniter(cron_expr, local_now)
-                    local_next = cron.get_next(dt)
-                    # Convert back to UTC for storage
-                    next_execution = local_next.replace(tzinfo=timezone.utc)
+                    local_next = cron.get_next(datetime)
+                    # Make sure the result has timezone info
+                    if local_next.tzinfo is None:
+                        local_next = local_next.replace(tzinfo=local_now.tzinfo)
+                    # Convert to UTC for storage
+                    next_execution = local_next.astimezone(timezone.utc)
+                    logger.info(f"Updated next execution for flow {flow_id}: {next_execution} UTC (local: {local_next})")
                 except (ValueError, TypeError):
                     logger.error(f"Invalid cron expression for flow {flow_id}: {cron_expr}")
             
@@ -957,12 +959,16 @@ class ScheduleManager:
                 
                 # Update local schedule cache AFTER successful database update
                 if flow_id in self.schedules:
+                    old_next = self.schedules[flow_id].get('next_execution_at')
                     self.schedules[flow_id].update({
                         'last_execution_at': now,
                         'next_execution_at': next_execution,
                         'execution_count': schedule.get('execution_count', 0) + 1,
                         'updated_at': now
                     })
+                    logger.info(f"Local cache updated for flow {flow_id}: next_execution changed from {old_next} to {next_execution}")
+                else:
+                    logger.warning(f"Flow {flow_id} not found in local cache during execution tracking update")
                 
                 break  # Exit after processing to avoid multiple iterations
                 
@@ -979,13 +985,15 @@ class ScheduleManager:
             now = datetime.now(timezone.utc)
             
             try:
-                # Use system local timezone for cron calculation
-                from datetime import datetime as dt
-                local_now = dt.now()
+                local_now = datetime.now().astimezone()
                 cron = croniter(cron_expr, local_now)
-                local_next = cron.get_next(dt)
-                # Convert back to UTC for storage
-                next_execution = local_next.replace(tzinfo=timezone.utc)
+                local_next = cron.get_next(datetime)
+                # Make sure the result has timezone info
+                if local_next.tzinfo is None:
+                    local_next = local_next.replace(tzinfo=local_now.tzinfo)
+                # Convert to UTC for storage
+                next_execution = local_next.astimezone(timezone.utc)
+                logger.info(f"Calculated next execution for flow {flow_id}: {next_execution} UTC (local: {local_next})")
             except (ValueError, TypeError):
                 logger.error(f"Invalid cron expression for flow {flow_id}: {cron_expr}")
                 return
@@ -1008,10 +1016,14 @@ class ScheduleManager:
                 
                 # Update local schedule cache AFTER successful database update
                 if flow_id in self.schedules:
+                    old_next = self.schedules[flow_id].get('next_execution_at')
                     self.schedules[flow_id].update({
                         'next_execution_at': next_execution,
                         'updated_at': now
                     })
+                    logger.info(f"Local cache updated for flow {flow_id}: next_execution changed from {old_next} to {next_execution}")
+                else:
+                    logger.warning(f"Flow {flow_id} not found in local cache during next execution time update")
                 
                 break  # Exit after processing to avoid multiple iterations
                 
