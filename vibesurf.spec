@@ -151,25 +151,41 @@ for package in packages_to_collect:
         # collect_all returns (hiddenimports, datas, binaries)
         pkg_hidden, pkg_datas, pkg_binaries = collect_all(package)
         
-        # Ensure all hiddenimports are strings (fix the tuple error)
+        # Enhanced filtering to ensure only valid module names are added
+        valid_imports = []
         for item in pkg_hidden:
             if isinstance(item, str):
-                hiddenimports.append(item)
+                # Skip file paths (contains path separators and .py extension)
+                if ('\\' in item or '/' in item) and item.endswith('.py'):
+                    continue
+                # Skip items with invalid characters for module names
+                if not all(c.isalnum() or c in '._-' for c in item):
+                    continue
+                # Only add valid Python module names
+                if item and not item.startswith('/') and not item.startswith('\\'):
+                    valid_imports.append(item)
+                    hiddenimports.append(item)
             elif isinstance(item, (tuple, list)) and len(item) > 0 and isinstance(item[0], str):
-                # Handle cases where collect_all returns tuples - use first element
-                hiddenimports.append(item[0])
-            # Skip invalid items silently
+                # Handle tuples - use first element as module name
+                module_name = item[0]
+                if ('\\' in module_name or '/' in module_name) and module_name.endswith('.py'):
+                    continue
+                if not all(c.isalnum() or c in '._-' for c in module_name):
+                    continue
+                if module_name and not module_name.startswith('/') and not module_name.startswith('\\'):
+                    valid_imports.append(module_name)
+                    hiddenimports.append(module_name)
         
-        # Add data files
-        datas.extend(pkg_datas)
+        # Add data files safely
+        if pkg_datas:
+            datas.extend(pkg_datas)
         
-        print(f"  ✓ {package} ({len([x for x in pkg_hidden if isinstance(x, str) or (isinstance(x, (tuple,list)) and len(x)>0 and isinstance(x[0], str))])} modules)")
+        print(f"  {package} ({len(valid_imports)} modules)")
         
     except ImportError:
-        # Package not available in current environment, skip silently
         continue
     except Exception as e:
-        print(f"  ! Skipping {package}: {e}")
+        print(f"  ! Skipping {package}: {str(e)[:50]}")
         continue
 
 print(f"Total dependencies collected: {len(hiddenimports)} modules")

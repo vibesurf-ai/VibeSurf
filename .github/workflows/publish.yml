@@ -351,7 +351,7 @@ jobs:
         # trusted-publishing: true
 
   publish-executables:
-    needs: [test, build-executables, build-extension]
+    needs: [test, build-executables]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
     permissions:
@@ -359,12 +359,33 @@ jobs:
       actions: read    # Required for downloading artifacts
     
     steps:
-    - name: Download all artifacts
+    - name: Download executable artifacts
       uses: actions/download-artifact@v4
+      with:
+        name: vibesurf-windows-x64.exe
+        path: ./
 
-    - name: Upload executables and extension to release
+    - name: Upload executables to release
       uses: softprops/action-gh-release@v1
       with:
-        files: |
-          vibesurf-windows-x64.exe/vibesurf-windows-x64.exe
-          vibesurf-extension/vibesurf-extension.zip
+        files: vibesurf-windows-x64.exe
+
+  publish-extension:
+    needs: [test, build-extension]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    permissions:
+      contents: write  # Required for uploading to GitHub releases
+      actions: read    # Required for downloading artifacts
+    
+    steps:
+    - name: Download extension artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: vibesurf-extension
+        path: ./
+
+    - name: Upload extension to release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: vibesurf-extension.zip
