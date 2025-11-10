@@ -276,16 +276,13 @@ def create_report_writer_step_callback(state: VibeSurfState, agent_name: str):
                 step_msg += f"**💡 Thinking:**\n{parsed_output.thinking}\n\n"
 
             # Add action summary
-            if hasattr(parsed_output, 'action') and parsed_output.action and len(parsed_output.action) > 0:
-                action_count = len(parsed_output.action)
+            if hasattr(parsed_output, 'action') and parsed_output.action:
                 step_msg += f"**⚡ Actions:**\n"
 
                 # Add brief action details
-                all_action_data = []
-                for i, action in enumerate(parsed_output.action):
-                    action_data = action.model_dump(exclude_unset=True, exclude_none=True)
-                    all_action_data.append(action_data)
-                step_msg += f"```json\n{json.dumps(all_action_data, indent=2, ensure_ascii=False)}\n```"
+                action = parsed_output.action
+                action_data = action.model_dump(exclude_unset=True, exclude_none=True)
+                step_msg += f"```json\n{json.dumps(action_data, indent=2, ensure_ascii=False)}\n```"
             else:
                 step_msg += f"**⚡ Actions:** No actions\n"
 

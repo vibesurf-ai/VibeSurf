@@ -625,7 +625,7 @@ class VibeSurfAPIClient {
     return this.get(`/vibesurf/export-workflow/${encodeURIComponent(flowId)}`);
   }
 
-  // Schedule Management APIs
+  // Schedule Management APIs - using flow_id for simplicity
   async getSchedules() {
     return this.get('/schedule');
   }
@@ -634,16 +634,16 @@ class VibeSurfAPIClient {
     return this.post('/schedule', scheduleData);
   }
 
-  async updateSchedule(scheduleId, scheduleData) {
-    return this.put(`/schedule/${encodeURIComponent(scheduleId)}`, scheduleData);
+  async updateSchedule(flowId, scheduleData) {
+    return this.put(`/schedule/${encodeURIComponent(flowId)}`, scheduleData);
   }
 
-  async deleteSchedule(scheduleId) {
-    return this.delete(`/schedule/${encodeURIComponent(scheduleId)}`);
+  async deleteSchedule(flowId) {
+    return this.delete(`/schedule/${encodeURIComponent(flowId)}`);
   }
 
-  async getSchedule(scheduleId) {
-    return this.get(`/schedule/${encodeURIComponent(scheduleId)}`);
+  async getSchedule(flowId) {
+    return this.get(`/schedule/${encodeURIComponent(flowId)}`);
   }
 
   // Get projects list to obtain folder_id

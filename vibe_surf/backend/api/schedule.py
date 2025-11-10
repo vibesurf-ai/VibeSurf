@@ -133,6 +133,9 @@ async def create_schedule(schedule_data: ScheduleCreate, db: AsyncSession = Depe
             description=schedule_data.description
         )
 
+        # Commit the transaction
+        await db.commit()
+
         # Update the schedule manager if available
         if schedule_manager:
             await schedule_manager.reload_schedules()
@@ -189,7 +192,7 @@ async def get_schedule(flow_id: str, db: AsyncSession = Depends(get_db_session))
 
 @router.put("/{flow_id}", response_model=ScheduleResponse)
 async def update_schedule(flow_id: str, schedule_data: ScheduleUpdate, db: AsyncSession = Depends(get_db_session)):
-    """Update an existing schedule"""
+    """Update an existing schedule by flow ID"""
     try:
         from vibe_surf.backend.shared_state import schedule_manager
 
@@ -232,7 +235,7 @@ async def update_schedule(flow_id: str, schedule_data: ScheduleUpdate, db: Async
             }
             return ScheduleResponse(**schedule_dict)
 
-        # Update schedule
+        # Update schedule by flow_id
         success = await ScheduleQueries.update_schedule_by_flow_id(db, flow_id, updates)
         
         if not success:
@@ -240,6 +243,9 @@ async def update_schedule(flow_id: str, schedule_data: ScheduleUpdate, db: Async
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Schedule not found for flow {flow_id}"
             )
+
+        # Commit the transaction
+        await db.commit()
 
         # Fetch updated schedule
         updated_schedule = await ScheduleQueries.get_schedule_by_flow_id(db, flow_id)
@@ -281,7 +287,7 @@ async def update_schedule(flow_id: str, schedule_data: ScheduleUpdate, db: Async
 
 @router.delete("/{flow_id}")
 async def delete_schedule(flow_id: str, db: AsyncSession = Depends(get_db_session)):
-    """Delete a schedule"""
+    """Delete a schedule by flow ID"""
     try:
         from vibe_surf.backend.shared_state import schedule_manager
 
@@ -302,6 +308,9 @@ async def delete_schedule(flow_id: str, db: AsyncSession = Depends(get_db_sessio
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to delete schedule"
             )
+
+        # Commit the transaction
+        await db.commit()
 
         # Update the schedule manager if available
         if schedule_manager:

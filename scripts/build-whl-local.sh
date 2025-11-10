@@ -27,24 +27,22 @@ echo "[SUCCESS] npm is installed"
 # Use dedicated build environment directory
 BUILD_ENV=".build-env"
 
-# Clean up existing build environment if it exists
-if [ -d "$BUILD_ENV" ]; then
-    echo "[WARNING] Removing existing build environment directory"
-    rm -rf "$BUILD_ENV"
-fi
-
 # Clean up dist directory
 if [ -d "dist" ]; then
     echo "[WARNING] Removing existing dist directory"
     rm -rf "dist"
 fi
 
-# Step 1: Create dedicated build environment
-echo "[INFO] Creating dedicated build environment with Python 3.12..."
-uv venv "$BUILD_ENV" --python 3.12
-if [ $? -ne 0 ]; then
-    echo "[ERROR] Failed to create build environment"
-    exit 1
+# Step 1: Create or reuse dedicated build environment
+if [ -d "$BUILD_ENV" ]; then
+    echo "[INFO] Reusing existing build environment..."
+else
+    echo "[INFO] Creating dedicated build environment with Python 3.12..."
+    uv venv "$BUILD_ENV" --python 3.12
+    if [ $? -ne 0 ]; then
+        echo "[ERROR] Failed to create build environment"
+        exit 1
+    fi
 fi
 
 # Step 2: Activate build environment
@@ -59,7 +57,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Step 3: Build frontend
-echo "[INFO] Building frontend..."
+echo "[INFO] Checking frontend build..."
 cd vibe_surf/frontend
 
 # Check if package.json exists
@@ -68,17 +66,23 @@ if [ ! -f "package.json" ]; then
     exit 1
 fi
 
-# Install frontend dependencies and build
-npm ci
-if [ $? -ne 0 ]; then
-    echo "[ERROR] Failed to install frontend dependencies"
-    exit 1
-fi
+# Check if build directory exists
+if [ -d "build" ]; then
+    echo "[INFO] Frontend build already exists, skipping build process..."
+else
+    echo "[INFO] Building frontend..."
+    # Install frontend dependencies and build
+    npm ci
+    if [ $? -ne 0 ]; then
+        echo "[ERROR] Failed to install frontend dependencies"
+        exit 1
+    fi
 
-npm run build
-if [ $? -ne 0 ]; then
-    echo "[ERROR] Failed to build frontend"
-    exit 1
+    npm run build
+    if [ $? -ne 0 ]; then
+        echo "[ERROR] Failed to build frontend"
+        exit 1
+    fi
 fi
 
 # Copy build folder to backend directory as frontend

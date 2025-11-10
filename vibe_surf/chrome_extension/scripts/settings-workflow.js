@@ -499,7 +499,7 @@ class VibeSurfSettingsWorkflow {
         this.state.workflows.forEach(workflow => {
           const schedule = schedules.find(s => s && s.flow_id === workflow.flow_id);
           workflow.scheduled = !!schedule;
-          workflow.schedule = schedule;
+          workflow.schedule = schedule; // This contains schedule.id which we'll need for API calls
         });
       } else {
         // Set all workflows as unscheduled
@@ -2549,7 +2549,7 @@ class VibeSurfSettingsWorkflow {
         };
         
         if (this.state.currentScheduleWorkflow.schedule) {
-          // Update existing schedule
+          // Update existing schedule using flow_id
           await this.apiClient.updateSchedule(workflowId, scheduleData);
         } else {
           // Create new schedule
