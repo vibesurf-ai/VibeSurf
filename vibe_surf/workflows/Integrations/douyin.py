@@ -11,6 +11,7 @@ from vibe_surf.langflow.io import Output
 from vibe_surf.tools.website_api.douyin.client import DouyinApiClient
 from vibe_surf.browser.browser_manager import BrowserManager
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
+from vibe_surf.langflow.schema.data import Data
 
 douyin_methods = [
     {
@@ -208,7 +209,7 @@ class DouyinComponent(Component):
                 if hasattr(self, param_name):
                     value = getattr(self, param_name)
                     if value is not None and value != "":
-                        params[param_name] = value
+                        params[param_name] = value.get_text() if isinstance(value, Data) else value
             method = getattr(client, method_info["name"])
             if inspect.iscoroutinefunction(method):
                 if params:

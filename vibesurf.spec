@@ -188,7 +188,28 @@ for package in packages_to_collect:
         print(f"  ! Skipping {package}: {str(e)[:50]}")
         continue
 
+# Add explicit hidden imports for modules that are dynamically imported
+# These are often missed by automatic collection
+explicit_hidden_imports = [
+    # passlib bcrypt handlers - dynamically imported by CryptContext
+    'passlib.handlers.bcrypt',
+    'passlib.handlers.argon2',
+    'passlib.handlers.pbkdf2',
+    'passlib.handlers.scrypt',
+    'passlib.handlers.sha2_crypt',
+    # bcrypt C extensions
+    'bcrypt._bcrypt',
+    # Other commonly missed dynamic imports
+    'multiprocessing.pool',
+    'multiprocessing.dummy',
+]
+
+# Add explicit imports and remove duplicates
+hiddenimports.extend(explicit_hidden_imports)
+hiddenimports = list(set(hiddenimports))  # Remove duplicates
+
 print(f"Total dependencies collected: {len(hiddenimports)} modules")
+print(f"Added {len(explicit_hidden_imports)} explicit hidden imports for dynamic modules")
 print("Automatic dependency collection complete!")
 
 # Analysis configuration

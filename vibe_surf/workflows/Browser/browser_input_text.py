@@ -8,7 +8,7 @@ from vibe_surf.langflow.inputs import MessageTextInput, HandleInput, DropdownInp
 from vibe_surf.langflow.io import BoolInput, IntInput, Output
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.langflow.schema.message import Message
-
+from vibe_surf.langflow.field_typing import LanguageModel
 
 class BrowserInputTextComponent(Component):
     display_name = "Input Text"
@@ -68,7 +68,7 @@ class BrowserInputTextComponent(Component):
             name="llm",
             display_name="LLM Model",
             info="LLM Model defined by VibeSurf",
-            input_types=["BaseChatModel"],
+            input_types=["LanguageModel"],
             advanced=True
         )
     ]
