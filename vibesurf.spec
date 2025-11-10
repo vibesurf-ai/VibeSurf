@@ -4,6 +4,7 @@ import os
 import sys
 import platform
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 # Ensure using current environment's Python
 python_path = sys.executable
@@ -112,63 +113,67 @@ if browser_use_path:
         datas.append((str(browser_use_dom_path), 'browser_use/dom'))
         print(f"Added browser_use DOM directory: {browser_use_dom_path}")
 
-# Hidden imports - all dynamic imports that PyInstaller might miss
-hiddenimports = [
-    # Core web framework
-    'uvicorn.main',
-    'uvicorn.config', 
-    'uvicorn.server',
-    'uvicorn.protocols.http.auto',
-    'uvicorn.protocols.websockets.auto',
-    'uvicorn.lifespan.on',
-    'fastapi.applications',
-    'fastapi.routing',
-    'fastapi.middleware',
-    'fastapi.middleware.cors',
+# Hidden imports - automatically collect ALL dependencies to avoid manual maintenance
+hiddenimports = []
+
+def get_all_installed_packages():
+    """Get all packages installed in current environment"""
+    import pkg_resources
+    installed_packages = []
     
-    # Browser automation
-    'browser_use',
-    'cdp_use',
+    # Skip known problematic packages that cause issues
+    skip_packages = {
+        'pip', 'setuptools', 'wheel', 'pyinstaller',
+        'matplotlib', 'tkinter', 'jupyter', 'ipython',
+        'pytest', 'coverage', 'flake8', 'black', 'mypy',
+        'PIL'  # Use Pillow instead
+    }
     
-    # HTTP and networking
-    'aiohttp.web',
-    'aiohttp.client',
-    'websockets.server',
-    'websockets.client',
+    try:
+        for distribution in pkg_resources.working_set:
+            pkg_name = distribution.project_name.lower()
+            if pkg_name not in skip_packages:
+                installed_packages.append(distribution.project_name)
+    except Exception as e:
+        print(f"Warning: Could not enumerate all packages: {e}")
     
-    # Database
-    'sqlalchemy.dialects.sqlite',
-    'sqlalchemy.pool',
-    'aiosqlite',
-    
-    # Core dependencies
-    'rich.console',
-    'rich.panel',
-    'rich.prompt',
-    'rich.text',
-    'pydantic',
-    'pydantic.main',
-    'pydantic.fields',
-    'langgraph',
-    'langgraph.graph',
-    
-    # Image processing
-    'scikit-image',
-    'skimage.io',
-    'skimage.transform',
-    
-    # JSON and data processing
-    'json_repair',
-    'uuid7',
-    'psutil',
-    'aiofiles',
-    'anyio',
-    'python_socks',
-    'python_multipart',
-    'python_dotenv',
-    'greenlet',
-    'getmac',
-]
+    return sorted(list(set(installed_packages)))
+
+# Automatically discover all installed packages
+print("Auto-discovering all environment dependencies...")
+packages_to_collect = get_all_installed_packages()
+print(f"Found {len(packages_to_collect)} installed packages to collect")
+
+# Collect all dependencies automatically with robust error handling
+print("Collecting dependencies with full automation...")
+for package in packages_to_collect:
+    try:
+        # collect_all returns (hiddenimports, datas, binaries)
+        pkg_hidden, pkg_datas, pkg_binaries = collect_all(package)
+        
+        # Ensure all hiddenimports are strings (fix the tuple error)
+        for item in pkg_hidden:
+            if isinstance(item, str):
+                hiddenimports.append(item)
+            elif isinstance(item, (tuple, list)) and len(item) > 0 and isinstance(item[0], str):
+                # Handle cases where collect_all returns tuples - use first element
+                hiddenimports.append(item[0])
+            # Skip invalid items silently
+        
+        # Add data files
+        datas.extend(pkg_datas)
+        
+        print(f"  ✓ {package} ({len([x for x in pkg_hidden if isinstance(x, str) or (isinstance(x, (tuple,list)) and len(x)>0 and isinstance(x[0], str))])} modules)")
+        
+    except ImportError:
+        # Package not available in current environment, skip silently
+        continue
+    except Exception as e:
+        print(f"  ! Skipping {package}: {e}")
+        continue
+
+print(f"Total dependencies collected: {len(hiddenimports)} modules")
+print("Automatic dependency collection complete!")
 
 # Analysis configuration
 a = Analysis(
