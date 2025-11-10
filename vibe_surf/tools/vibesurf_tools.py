@@ -1043,7 +1043,10 @@ class VibeSurfTools:
             """
             try:
                 toolkit_type = params.toolkit_type
-                filters = [f.lower() for f in params.filters]
+                if params.filters:
+                    filters = [f.lower() for f in params.filters]
+                else:
+                    filters = []
                 
                 matching_tools = []
                 
