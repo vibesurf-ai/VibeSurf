@@ -29,24 +29,22 @@ echo [SUCCESS] npm is installed
 :: Use dedicated build environment directory
 set BUILD_ENV=.build-env
 
-:: Clean up existing build environment if it exists
-if exist "%BUILD_ENV%" (
-    echo [WARNING] Removing existing build environment directory
-    rmdir /s /q "%BUILD_ENV%"
-)
-
 :: Clean up dist directory
 if exist "dist" (
     echo [WARNING] Removing existing dist directory
     rmdir /s /q "dist"
 )
 
-:: Step 1: Create dedicated build environment
-echo [INFO] Creating dedicated build environment with Python 3.12...
-uv venv %BUILD_ENV% --python 3.12
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Failed to create build environment
-    exit /b 1
+:: Step 1: Create or reuse dedicated build environment
+if exist "%BUILD_ENV%" (
+    echo [INFO] Reusing existing build environment...
+) else (
+    echo [INFO] Creating dedicated build environment with Python 3.12...
+    uv venv %BUILD_ENV% --python 3.12
+    if !ERRORLEVEL! neq 0 (
+        echo [ERROR] Failed to create build environment
+        exit /b 1
+    )
 )
 
 :: Step 2: Activate build environment
@@ -61,7 +59,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 :: Step 3: Build frontend
-echo [INFO] Building frontend...
+echo [INFO] Checking frontend build...
 cd vibe_surf\frontend
 
 :: Check if package.json exists
@@ -70,17 +68,23 @@ if not exist "package.json" (
     exit /b 1
 )
 
-:: Install frontend dependencies and build
-call npm ci
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Failed to install frontend dependencies
-    exit /b 1
-)
+:: Check if build directory exists
+if exist "build" (
+    echo [INFO] Frontend build already exists, skipping build process...
+) else (
+    echo [INFO] Building frontend...
+    :: Install frontend dependencies and build
+    call npm ci
+    if !ERRORLEVEL! neq 0 (
+        echo [ERROR] Failed to install frontend dependencies
+        exit /b 1
+    )
 
-call npm run build
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Failed to build frontend
-    exit /b 1
+    call npm run build
+    if !ERRORLEVEL! neq 0 (
+        echo [ERROR] Failed to build frontend
+        exit /b 1
+    )
 )
 
 :: Copy build folder to backend directory as frontend
