@@ -10,20 +10,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 import logging
 logger_diag = logging.getLogger(__name__)
 
-# Test bcrypt availability at import time
-try:
-    import passlib.handlers.bcrypt
-    logger_diag.info("✓ passlib.handlers.bcrypt import successful")
-except ImportError as e:
-    logger_diag.error(f"✗ passlib.handlers.bcrypt import failed: {e}")
-    logger_diag.error("This will cause CryptContext to fail when using bcrypt scheme")
-
-try:
-    import bcrypt
-    logger_diag.info(f"✓ bcrypt module import successful, version: {getattr(bcrypt, '__version__', 'unknown')}")
-except ImportError as e:
-    logger_diag.error(f"✗ bcrypt module import failed: {e}")
-
 from vibe_surf.langflow.logging.logger import logger
 from vibe_surf.langflow.services.settings.constants import DEFAULT_SUPERUSER, DEFAULT_SUPERUSER_PASSWORD
 from vibe_surf.langflow.services.settings.utils import read_secret_from_file, write_secret_to_file

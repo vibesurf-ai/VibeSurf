@@ -33,65 +33,16 @@ echo [INFO] Found NSIS at: %NSIS_PATH%
 echo.
 
 :: Create and setup dist directory
-echo [STEP 1/5] Setting up build environment...
+echo [STEP 1/3] Setting up build environment...
 
 if not exist "..\dist" mkdir "..\dist"
 echo [SUCCESS] Build directory ready
 echo.
-
-:: Download uv.exe for bundling to dist
-echo [STEP 2/5] Downloading uv.exe for bundling...
-
-if exist "..\dist\uv.exe" (
-    echo [INFO] uv.exe already exists in dist/, skipping download
-    goto :uv_ready
-)
-
-echo [INFO] Downloading latest uv release for Windows...
-
-:: Use PowerShell to download uv to dist directory
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "try { " ^
-    "  $ProgressPreference = 'SilentlyContinue'; " ^
-    "  Write-Host '[INFO] Getting latest uv release info...'; " ^
-    "  $response = Invoke-WebRequest -Uri 'https://api.github.com/repos/astral-sh/uv/releases/latest' -UseBasicParsing; " ^
-    "  $json = $response.Content | ConvertFrom-Json; " ^
-    "  $asset = $json.assets | Where-Object { $_.name -like '*x86_64-pc-windows-msvc.zip' } | Select-Object -First 1; " ^
-    "  if ($asset) { " ^
-    "    $downloadUrl = $asset.browser_download_url; " ^
-    "    Write-Host '[INFO] Downloading:' $downloadUrl; " ^
-    "    Invoke-WebRequest -Uri $downloadUrl -OutFile '..\dist\uv.zip' -UseBasicParsing; " ^
-    "    Write-Host '[INFO] Extracting uv.exe...'; " ^
-    "    Add-Type -AssemblyName System.IO.Compression.FileSystem; " ^
-    "    [System.IO.Compression.ZipFile]::ExtractToDirectory('..\dist\uv.zip', '..\dist'); " ^
-    "    $extractedDir = Get-ChildItem -Path '..\dist' -Directory | Where-Object { $_.Name -like '*uv*' } | Select-Object -First 1; " ^
-    "    if ($extractedDir) { " ^
-    "      Move-Item -Path (Join-Path $extractedDir.FullName 'uv.exe') -Destination '..\dist\uv.exe' -Force; " ^
-    "      Remove-Item -Path $extractedDir.FullName -Recurse -Force; " ^
-    "    } " ^
-    "    Remove-Item -Path '..\dist\uv.zip' -Force; " ^
-    "    Write-Host '[SUCCESS] uv.exe downloaded to dist/'; " ^
-    "  } else { " ^
-    "    Write-Error 'Could not find uv Windows release'; " ^
-    "    exit 1; " ^
-    "  } " ^
-    "} catch { " ^
-    "  Write-Error ('Download failed: ' + $_.Exception.Message); " ^
-    "  exit 1; " ^
-    "}"
-
-if %errorlevel% neq 0 (
-    echo [ERROR] Failed to download uv.exe
-    pause
-    exit /b 1
-)
-
-:uv_ready
-echo [SUCCESS] uv.exe is ready in dist/
+echo [INFO] Using online UV download approach (no bundling needed)
 echo.
 
 :: Copy LICENSE file for NSIS to dist
-echo [STEP 3/5] Preparing build files...
+echo [STEP 2/3] Preparing build files...
 
 if exist "..\LICENSE" (
     copy "..\LICENSE" "..\dist\LICENSE" >nul 2>&1
@@ -103,7 +54,7 @@ if exist "..\LICENSE" (
 echo.
 
 :: Build installer with NSIS (output to dist)
-echo [STEP 4/5] Building installer with NSIS...
+echo [STEP 3/3] Building installer with NSIS...
 echo [INFO] Using NSIS to compile installer...
 
 "%NSIS_PATH%" vibesurf-installer.nsi
@@ -127,7 +78,7 @@ if exist "VibeSurf-Installer.exe" (
 )
 
 :: Verify installer was created
-echo [STEP 5/5] Verifying installer...
+echo [VERIFICATION] Verifying installer...
 
 if exist "..\dist\VibeSurf-Installer.exe" (
     echo [SUCCESS] Installer created successfully!
@@ -158,10 +109,14 @@ if exist "..\dist\VibeSurf-Installer.exe" (
     echo  3. Test VibeSurf functionality
     echo  4. Uninstall via Control Panel if needed
     echo.
-    echo All build artifacts are in dist/ directory:
-    echo  • uv.exe - bundled package manager
+    echo Build artifacts in dist/ directory:
     echo  • LICENSE - license file for installer
-    echo  • VibeSurf-Installer.exe - final installer
+    echo  • VibeSurf-Installer.exe - installer with online UV download
+    echo.
+    echo ⚠️  NOTE: This installer downloads UV online during installation
+    echo     - Requires internet connection during installation
+    echo     - UV will be downloaded from GitHub releases automatically
+    echo     - More reliable than bundling approach
     echo.
 ) else (
     echo [ERROR] Installer was not created!

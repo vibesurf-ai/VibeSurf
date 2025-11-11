@@ -4,7 +4,7 @@
 !define APP_NAME "VibeSurf"
 !define APP_VERSION "1.0.0"
 !define APP_PUBLISHER "VibeSurf Team"
-!define APP_URL "https://github.com/yourusername/VibeSurf"
+!define APP_URL "https://github.com/vibesurf-ai/VibeSurf"
 !define APP_DESCRIPTION "AI Browser Assistant"
 
 ; Include required libraries
@@ -55,94 +55,47 @@ Section "Main Application" SecMain
     File /oname=$INSTDIR\logo.png "..\vibe_surf\chrome_extension\icons\logo.png"
     
     DetailPrint "Installing VibeSurf AI Browser Assistant..."
+    DetailPrint "Downloading UV package manager from GitHub..."
     
-    ; Copy bundled uv.exe if it exists (check in dist directory)
-    IfFileExists "..\dist\uv.exe" 0 +3
-        DetailPrint "Installing bundled uv package manager..."
-        File /oname=$INSTDIR\uv\uv.exe "..\dist\uv.exe"
-        Goto UVReady
-    
-    ; Download uv if not bundled
-    DetailPrint "Downloading uv package manager from GitHub..."
-    
-    nsExec::ExecToLog 'powershell -NoProfile -ExecutionPolicy Bypass -Command "& { \
-        try { \
-            $$ProgressPreference = \"SilentlyContinue\"; \
-            $$ErrorActionPreference = \"Stop\"; \
-            Write-Host \"[INFO] Starting UV download process...\"; \
-            \
-            Write-Host \"[INFO] Fetching latest UV release info...\"; \
-            $$response = Invoke-WebRequest -Uri \"https://api.github.com/repos/astral-sh/uv/releases/latest\" -UseBasicParsing -TimeoutSec 30; \
-            Write-Host \"[INFO] API response received, size: \" + $$response.Content.Length + \" bytes\"; \
-            \
-            $$json = $$response.Content | ConvertFrom-Json; \
-            $$asset = $$json.assets | Where-Object { $$_.name -like \"*x86_64-pc-windows-msvc.zip\" } | Select-Object -First 1; \
-            \
-            if ($$asset) { \
-                $$downloadUrl = $$asset.browser_download_url; \
-                $$zipPath = \"$INSTDIR\\uv\\uv.zip\"; \
-                Write-Host \"[INFO] Downloading from: $$downloadUrl\"; \
-                Write-Host \"[INFO] Download target: $$zipPath\"; \
-                \
-                Invoke-WebRequest -Uri $$downloadUrl -OutFile $$zipPath -UseBasicParsing -TimeoutSec 120; \
-                \
-                if (Test-Path $$zipPath) { \
-                    Write-Host \"[INFO] Download completed, file size: \" + (Get-Item $$zipPath).Length + \" bytes\"; \
-                } else { \
-                    throw \"Downloaded file not found\"; \
-                } \
-                \
-                Write-Host \"[INFO] Extracting UV archive...\"; \
-                Add-Type -AssemblyName System.IO.Compression.FileSystem; \
-                [System.IO.Compression.ZipFile]::ExtractToDirectory($$zipPath, \"$INSTDIR\\uv\\temp\"); \
-                \
-                Write-Host \"[INFO] Looking for uv.exe in extracted files...\"; \
-                $$uvExe = Get-ChildItem -Path \"$INSTDIR\\uv\\temp\" -Recurse -Name \"uv.exe\" | Select-Object -First 1; \
-                if ($$uvExe) { \
-                    $$sourcePath = Join-Path \"$INSTDIR\\uv\\temp\" $$uvExe; \
-                    $$destPath = \"$INSTDIR\\uv\\uv.exe\"; \
-                    Write-Host \"[INFO] Moving uv.exe from $$sourcePath to $$destPath\"; \
-                    Move-Item -Path $$sourcePath -Destination $$destPath -Force; \
-                } else { \
-                    throw \"uv.exe not found in extracted archive\"; \
-                } \
-                \
-                Write-Host \"[INFO] Cleaning up temporary files...\"; \
-                Remove-Item -Path \"$INSTDIR\\uv\\temp\" -Recurse -Force -ErrorAction SilentlyContinue; \
-                Remove-Item -Path $$zipPath -Force -ErrorAction SilentlyContinue; \
-                \
-                if (Test-Path \"$INSTDIR\\uv\\uv.exe\") { \
-                    Write-Host \"[SUCCESS] UV installation completed successfully\"; \
-                    exit 0; \
-                } else { \
-                    throw \"Final verification failed: uv.exe not found at expected location\"; \
-                } \
-            } else { \
-                throw \"Could not find Windows x64 UV release in API response\"; \
-            } \
-        } catch { \
-            Write-Error \"[ERROR] UV download failed: $$($_.Exception.Message)\"; \
-            Write-Error \"[ERROR] Stack trace: $$($_.ScriptStackTrace)\"; \
-            exit 1; \
-        } \
-    }"'
+    ; Always download UV online using direct GitHub link - simplified approach
+    nsExec::ExecToLog 'powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $$ProgressPreference=\"SilentlyContinue\"; $$url=\"https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip\"; $$zip=\"$INSTDIR\\uv\\uv.zip\"; $$temp=\"$INSTDIR\\uv\\temp\"; Write-Host \"[INFO] Downloading UV...\"; (New-Object System.Net.WebClient).DownloadFile($$url, $$zip); Write-Host \"[INFO] Extracting...\"; Add-Type -A System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory($$zip, $$temp); $$exe = Get-ChildItem -Path $$temp -Recurse -Name \"uv.exe\" | Select -First 1; Copy-Item (Join-Path $$temp $$exe) \"$INSTDIR\\uv\\uv.exe\" -Force; Remove-Item $$temp -Recurse -Force; Remove-Item $$zip -Force; Write-Host \"[SUCCESS] UV installed\"; exit 0; } catch { Write-Error \"[ERROR] $$($_.Exception.Message)\"; exit 1; }"'
     
     Pop $0 ; Get return value
     ${If} $0 != 0
-        MessageBox MB_OK|MB_ICONSTOP "Failed to download UV package manager.$\r$\n$\r$\nPossible causes:$\r$\n- No internet connection$\r$\n- GitHub API unreachable$\r$\n- Firewall blocking downloads$\r$\n- PowerShell execution restricted$\r$\n$\r$\nPlease check your network settings and try again."
-        Abort
+        DetailPrint "UV download failed, showing troubleshooting options..."
+        MessageBox MB_YESNO|MB_ICONQUESTION "Failed to download UV package manager from GitHub.$\r$\n$\r$\nThis could be due to:$\r$\n- Network connectivity issues$\r$\n- Corporate firewall blocking GitHub$\r$\n- PowerShell execution policy restrictions$\r$\n$\r$\nDo you want to try alternative download method?" IDNO AbortInstall
+        
+        ; Try alternative download using curl with direct link
+        DetailPrint "Trying alternative download method with curl..."
+        nsExec::ExecToLog 'cmd /c "curl --version >nul 2>&1 && ( \
+            echo [INFO] Using curl for UV download... && \
+            echo [INFO] Downloading from: https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip && \
+            curl -L -A "VibeSurf-Installer/1.0" -o "$INSTDIR\uv\uv.zip" "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip" && \
+            powershell -NoProfile -Command "Add-Type -A System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::ExtractToDirectory('$INSTDIR\uv\uv.zip', '$INSTDIR\uv\temp')" && \
+            for /r "$INSTDIR\uv\temp" %%f in (uv.exe) do copy "%%f" "$INSTDIR\uv\uv.exe" && \
+            rmdir /s /q "$INSTDIR\uv\temp" && \
+            del "$INSTDIR\uv\uv.zip" && \
+            echo [SUCCESS] UV installed via curl \
+        ) || ( \
+            echo [ERROR] curl download also failed \
+        )"'
+        
+        Pop $1
+        ${If} $1 != 0
+            AbortInstall:
+            MessageBox MB_OK|MB_ICONSTOP "Both PowerShell and curl download methods failed.$\r$\n$\r$\nPlease install UV manually from: https://docs.astral.sh/uv/getting-started/installation/$\r$\n$\r$\nThen run: uv pip install vibesurf"
+            Abort
+        ${EndIf}
     ${EndIf}
     
-    UVReady:
-    DetailPrint "Verifying uv installation..."
-    IfFileExists "$INSTDIR\uv\uv.exe" UVExists UVMissing
-    
-    UVMissing:
-        MessageBox MB_OK|MB_ICONSTOP "UV package manager not found at $INSTDIR\uv\uv.exe.$\r$\n$\r$\nThis could be due to:$\r$\n- Network connection issues during download$\r$\n- Firewall blocking the download$\r$\n- PowerShell execution policy restrictions$\r$\n$\r$\nPlease check your internet connection and try again."
+    ; Verify UV installation
+    DetailPrint "Verifying UV installation..."
+    ${If} ${FileExists} "$INSTDIR\uv\uv.exe"
+        DetailPrint "UV found successfully. Installing VibeSurf application..."
+    ${Else}
+        MessageBox MB_OK|MB_ICONSTOP "UV package manager installation failed.$\r$\n$\r$\nPlease check your internet connection and try again.$\r$\nAlternatively, install UV manually from: https://docs.astral.sh/uv/"
         Abort
-    
-    UVExists:
-    DetailPrint "UV found successfully. Installing VibeSurf application..."
+    ${EndIf}
     
     nsExec::ExecToLog '"$INSTDIR\uv\uv.exe" pip install vibesurf --upgrade'
     Pop $0
