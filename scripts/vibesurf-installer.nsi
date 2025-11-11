@@ -57,9 +57,9 @@ Section "Main Application" SecMain
     DetailPrint "Installing VibeSurf AI Browser Assistant..."
     
     ; Copy bundled uv.exe if it exists (check in dist directory)
-    IfFileExists "$EXEDIR\..\dist\uv.exe" 0 +3
+    IfFileExists "..\dist\uv.exe" 0 +3
         DetailPrint "Installing bundled uv package manager..."
-        File /oname=$INSTDIR\uv\uv.exe "$EXEDIR\..\dist\uv.exe"
+        File /oname=$INSTDIR\uv\uv.exe "..\dist\uv.exe"
         Goto UVReady
     
     ; Download uv if not bundled
