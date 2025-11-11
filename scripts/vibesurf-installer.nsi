@@ -21,6 +21,7 @@ RequestExecutionLevel user
 
 ; Installer UI Configuration
 !define MUI_ABORTWARNING
+; Use default NSIS icons for installer UI
 !define MUI_ICON "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
 !define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
 
@@ -49,6 +50,9 @@ Section "Main Application" SecMain
     ; Create installation directory
     CreateDirectory "$INSTDIR"
     CreateDirectory "$INSTDIR\uv"
+    
+    ; Copy application icon
+    File /oname=$INSTDIR\logo.png "..\vibe_surf\chrome_extension\icons\logo.png"
     
     DetailPrint "Installing VibeSurf AI Browser Assistant..."
     
@@ -129,20 +133,20 @@ Section "Main Application" SecMain
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "Publisher" "${APP_PUBLISHER}"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "DisplayVersion" "${APP_VERSION}"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "URLInfoAbout" "${APP_URL}"
-    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "DisplayIcon" "$INSTDIR\launch-vibesurf.bat"
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "DisplayIcon" "$INSTDIR\logo.png"
     WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "NoModify" 1
     WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "NoRepair" 1
     
 SectionEnd
 
 Section "Desktop Shortcut" SecDesktop
-    CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\launch-vibesurf.bat" "" "" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
+    CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\launch-vibesurf.bat" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
 SectionEnd
 
 Section "Start Menu Shortcut" SecStartMenu
     SectionIn RO
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"
-    CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\launch-vibesurf.bat" "" "" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
+    CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\launch-vibesurf.bat" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     CreateShortcut "$SMPROGRAMS\${APP_NAME}\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
 SectionEnd
 
@@ -182,6 +186,5 @@ Function .onInit
 FunctionEnd
 
 Function .onInstSuccess
-    MessageBox MB_YESNO "${APP_NAME} has been installed successfully!$\n$\nWould you like to launch ${APP_NAME} now?" IDNO +2
     ExecShell "open" "$INSTDIR\launch-vibesurf.bat"
 FunctionEnd

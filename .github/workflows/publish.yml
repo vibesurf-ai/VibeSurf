@@ -213,26 +213,29 @@ jobs:
       run: |
         echo "=== Downloading uv.exe for bundling ==="
         
-        # Create dist directory if it doesn't exist
+        # Create dist directory
         mkdir -p dist
         
-        # Download latest uv release for Windows
+        # Download and extract uv
         curl -s https://api.github.com/repos/astral-sh/uv/releases/latest \
           | grep -o "https://github.com/astral-sh/uv/releases/download/.*/uv-x86_64-pc-windows-msvc.zip" \
           | head -1 \
           | xargs curl -L -o dist/uv.zip
         
-        # Extract uv.exe
         cd dist
         unzip uv.zip
         
-        # Find and move uv.exe to dist directory
-        find . -name "uv.exe" -exec mv {} . \;
+        # Move uv.exe to dist root (handle nested directory structure)
+        if [ -f "uv.exe" ]; then
+          echo "uv.exe already in root"
+        else
+          mv */uv.exe ./uv.exe
+        fi
         
         # Clean up
-        rm -rf uv.zip uv-*
+        rm -rf uv.zip uv-*/
         
-        echo "=== uv.exe ready for bundling in dist/ ==="
+        echo "=== uv.exe ready ==="
         ls -la uv.exe
 
     # Install NSIS for creating Windows installer
@@ -281,21 +284,17 @@ jobs:
         echo "=== Preparing installer for upload ==="
         
         # Rename installer for release
-        mv dist/VibeSurf-Installer.exe dist/vibesurf-windows-x64
+        mv dist/VibeSurf-Installer.exe dist/vibesurf-windows-x64.exe
         
-        # Show final result and all dist contents
         echo "=== Final installer ==="
-        ls -lh dist/vibesurf-windows-x64
-        
-        echo "=== All dist/ contents ==="
-        ls -la dist/
+        ls -lh dist/vibesurf-windows-x64.exe
 
     # Upload installer
     - name: Upload installer
       uses: actions/upload-artifact@v4
       with:
-        name: VibeSurf-Windows-Installer
-        path: dist/vibesurf-windows-x64
+        name: vibesurf-windows-x64
+        path: dist/vibesurf-windows-x64.exe
         retention-days: 90
 
   publish-pypi:
@@ -332,13 +331,13 @@ jobs:
     - name: Download installer artifacts
       uses: actions/download-artifact@v4
       with:
-        name: VibeSurf-Windows-Installer
+        name: vibesurf-windows-x64
         path: ./
 
     - name: Upload installer to release
       uses: softprops/action-gh-release@v1
       with:
-        files: vibesurf-windows-x64
+        files: vibesurf-windows-x64.exe
 
   publish-extension:
     needs: [test, build-extension]
