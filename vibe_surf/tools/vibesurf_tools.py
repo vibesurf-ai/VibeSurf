@@ -221,9 +221,11 @@ class VibeSurfTools:
                     current_url = None
                     if browser_session._dom_watchdog and browser_session._dom_watchdog.enhanced_dom_tree:
                         current_target_id = browser_session._dom_watchdog.enhanced_dom_tree.target_id
-                        current_url = browser_session._dom_watchdog.enhanced_dom_tree.current_url
+                    if browser_session._cached_browser_state_summary:
+                        current_url = browser_session._cached_browser_state_summary.url
                     if current_target_id != target_id or url != current_url:
                         browser_session._dom_watchdog.clear_cache()
+                        browser_session._cached_browser_state_summary = None
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
 
                 # Extract structured content using the existing method
@@ -283,9 +285,11 @@ class VibeSurfTools:
                     current_url = None
                     if browser_session._dom_watchdog and browser_session._dom_watchdog.enhanced_dom_tree:
                         current_target_id = browser_session._dom_watchdog.enhanced_dom_tree.target_id
-                        current_url = browser_session._dom_watchdog.enhanced_dom_tree.current_url
+                    if browser_session._cached_browser_state_summary:
+                        current_url = browser_session._cached_browser_state_summary.url
                     if current_target_id != target_id or url != current_url:
                         browser_session._dom_watchdog.clear_cache()
+                        browser_session._cached_browser_state_summary = None
                     await browser_session.get_or_create_cdp_session(target_id, focus=True)
 
                 # Extract and summarize content
