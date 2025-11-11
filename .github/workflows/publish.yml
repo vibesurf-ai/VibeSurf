@@ -216,24 +216,64 @@ jobs:
         # Create dist directory
         mkdir -p dist
         
-        # Download and extract uv
-        curl -s https://api.github.com/repos/astral-sh/uv/releases/latest \
-          | grep -o "https://github.com/astral-sh/uv/releases/download/.*/uv-x86_64-pc-windows-msvc.zip" \
-          | head -1 \
-          | xargs curl -L -o dist/uv.zip
+        # Step 1: Get GitHub API response
+        echo "Step 1: Fetching latest release info..."
+        curl -s https://api.github.com/repos/astral-sh/uv/releases/latest > dist/uv_release.json
         
+        if [ ! -s "dist/uv_release.json" ]; then
+          echo "ERROR: Failed to fetch release info from GitHub API"
+          exit 1
+        fi
+        
+        echo "API response received, size: $(stat -c%s dist/uv_release.json 2>/dev/null || stat -f%z dist/uv_release.json) bytes"
+        
+        # Step 2: Extract download URL
+        echo "Step 2: Extracting download URL..."
+        UV_URL=$(grep -o "https://github.com/astral-sh/uv/releases/download/.*/uv-x86_64-pc-windows-msvc.zip" dist/uv_release.json | head -1)
+        
+        if [ -z "$UV_URL" ]; then
+          echo "ERROR: Could not find Windows x64 download URL in release"
+          echo "Available asset URLs:"
+          grep -o "https://github.com/astral-sh/uv/releases/download/.*\.zip" dist/uv_release.json || echo "No zip URLs found"
+          exit 1
+        fi
+        
+        echo "Found download URL: $UV_URL"
+        
+        # Step 3: Download uv.zip
+        echo "Step 3: Downloading uv.zip..."
+        curl -L -o dist/uv.zip "$UV_URL"
+        
+        if [ ! -f "dist/uv.zip" ]; then
+          echo "ERROR: Failed to download uv.zip"
+          exit 1
+        fi
+        
+        echo "Downloaded uv.zip, size: $(stat -c%s dist/uv.zip 2>/dev/null || stat -f%z dist/uv.zip) bytes"
+        
+        # Step 4: Extract and organize
         cd dist
+        echo "Step 4: Extracting uv.zip..."
         unzip uv.zip
         
         # Move uv.exe to dist root (handle nested directory structure)
         if [ -f "uv.exe" ]; then
           echo "uv.exe already in root"
         else
-          mv */uv.exe ./uv.exe
+          echo "Moving uv.exe from subdirectory..."
+          find . -name "uv.exe" -exec mv {} ./uv.exe \;
+        fi
+        
+        # Verify uv.exe exists
+        if [ ! -f "uv.exe" ]; then
+          echo "ERROR: uv.exe not found after extraction"
+          echo "Contents of dist directory:"
+          ls -la
+          exit 1
         fi
         
         # Clean up
-        rm -rf uv.zip uv-*/
+        rm -rf uv.zip uv_release.json uv-*/
         
         echo "=== uv.exe ready ==="
         ls -la uv.exe
