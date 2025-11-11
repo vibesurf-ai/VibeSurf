@@ -277,6 +277,11 @@ jobs:
         
         echo "=== uv.exe ready ==="
         ls -la uv.exe
+        
+        # Verify final location for NSIS script
+        cd ..
+        echo "=== Verifying uv.exe location for NSIS ==="
+        ls -la dist/uv.exe
 
     # Install NSIS for creating Windows installer
     - name: Install NSIS

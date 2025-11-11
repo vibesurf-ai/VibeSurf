@@ -541,7 +541,6 @@ class DouyinApiClient:
             aweme_id: str,
             fetch_interval: float = 1.0,
             include_replies: bool = False,
-            progress_callback: Optional[Callable] = None,
             max_comments: int = 1000,
     ) -> List[Dict]:
         """
@@ -551,7 +550,6 @@ class DouyinApiClient:
             aweme_id: Video ID
             fetch_interval: Delay between requests
             include_replies: Whether to fetch comment replies
-            progress_callback: Callback for progress updates
             max_comments: Maximum comments to fetch
             
         Returns:
@@ -620,9 +618,6 @@ class DouyinApiClient:
 
             all_comments.extend(batch_comments)
 
-            if progress_callback:
-                await progress_callback(aweme_id, batch_comments)
-
             await asyncio.sleep(fetch_interval)
 
             # Fetch replies if requested
@@ -634,9 +629,6 @@ class DouyinApiClient:
                         comment_id = comment.get("comment_id")
                         replies = await self.fetch_comment_replies(aweme_id, comment_id, 0)
                         all_comments.extend(replies)
-
-                        if progress_callback:
-                            await progress_callback(aweme_id, replies)
 
                         await asyncio.sleep(fetch_interval)
 
@@ -737,7 +729,6 @@ class DouyinApiClient:
     async def fetch_all_user_videos(
             self,
             sec_user_id: str,
-            progress_callback: Optional[Callable] = None,
             max_videos: int = 1000
     ) -> List[Dict]:
         """
@@ -745,7 +736,6 @@ class DouyinApiClient:
         
         Args:
             sec_user_id: User's security ID
-            progress_callback: Callback for progress updates
             max_videos: Maximum videos to fetch
             
         Returns:
@@ -810,9 +800,6 @@ class DouyinApiClient:
 
             all_videos.extend(batch_videos)
             logger.info(f"Fetched {len(batch_videos)} videos for user {sec_user_id}, total: {len(all_videos)}")
-
-            if progress_callback:
-                await progress_callback(batch_videos)
 
             await asyncio.sleep(1.0)  # Rate limiting
 

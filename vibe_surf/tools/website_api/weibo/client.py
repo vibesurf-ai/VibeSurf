@@ -377,7 +377,6 @@ class WeiboApiClient:
             mid: str,
             fetch_interval: float = 1.0,
             include_sub_comments: bool = False,
-            progress_callback: Optional[Callable] = None,
             max_comments: int = 1000,
     ) -> List[Dict]:
         """
@@ -387,7 +386,6 @@ class WeiboApiClient:
             mid: Weibo post ID
             fetch_interval: Interval between requests in seconds
             include_sub_comments: Whether to include sub-comments
-            progress_callback: Callback function for progress updates
             max_comments: Maximum comments to fetch
             
         Returns:
@@ -451,9 +449,6 @@ class WeiboApiClient:
             remaining_slots = max_comments - len(all_comments)
             if len(batch_comments) > remaining_slots:
                 batch_comments = batch_comments[:remaining_slots]
-
-            if progress_callback:
-                await progress_callback(mid, batch_comments)
 
             await asyncio.sleep(fetch_interval)
             all_comments.extend(batch_comments)
@@ -584,7 +579,6 @@ class WeiboApiClient:
             self,
             user_id: str,
             fetch_interval: float = 1.0,
-            progress_callback: Optional[Callable] = None,
             max_posts: int = 1000,
     ) -> List[Dict]:
         """
@@ -593,7 +587,6 @@ class WeiboApiClient:
         Args:
             user_id: User ID
             fetch_interval: Interval between requests in seconds
-            progress_callback: Callback function for progress updates
             max_posts: Maximum posts to fetch
             
         Returns:
@@ -664,9 +657,6 @@ class WeiboApiClient:
                 break
 
             posts_to_add = posts[:remaining_slots]
-
-            if progress_callback:
-                await progress_callback(posts_to_add)
 
             all_posts.extend(posts_to_add)
             await asyncio.sleep(fetch_interval)

@@ -454,7 +454,6 @@ class XiaoHongShuApiClient:
             content_id: str,
             xsec_token: str,
             fetch_interval: float = 1.0,
-            progress_callback: Optional[Callable] = None,
             max_comments: int = 1000,
     ) -> List[Dict]:
         """
@@ -464,7 +463,6 @@ class XiaoHongShuApiClient:
             content_id: Content ID
             security_token: Security token
             fetch_interval: Interval between requests in seconds
-            progress_callback: Callback function for progress updates
             max_comments: Maximum comments to fetch
 
         Returns:
@@ -524,9 +522,6 @@ class XiaoHongShuApiClient:
             if len(batch_comments) > remaining_slots:
                 batch_comments = batch_comments[:remaining_slots]
 
-            if progress_callback:
-                await progress_callback(content_id, batch_comments)
-
             await asyncio.sleep(fetch_interval)
             all_comments.extend(batch_comments)
 
@@ -549,7 +544,6 @@ class XiaoHongShuApiClient:
                 "GET", self._web_base + endpoint,
                 raw_response=True, headers=self.default_headers
             )
-
             # Extract user info from HTML response
             if "window.__INITIAL_STATE__" in html_response:
                 # For now, return basic info since full extraction would need HTML parsing
@@ -627,7 +621,6 @@ class XiaoHongShuApiClient:
             self,
             user_id: str,
             fetch_interval: float = 1.0,
-            progress_callback: Optional[Callable] = None,
             max_content: int = 1000,
     ) -> List[Dict]:
         """
@@ -636,7 +629,6 @@ class XiaoHongShuApiClient:
         Args:
             user_id: User ID
             fetch_interval: Interval between requests in seconds
-            progress_callback: Callback function for progress updates
             max_content: Maximum content items to fetch
 
         Returns:
@@ -706,8 +698,6 @@ class XiaoHongShuApiClient:
                 break
 
             content_to_add = batch_content[:remaining_slots]
-            if progress_callback:
-                await progress_callback(content_to_add)
 
             all_content.extend(content_to_add)
             await asyncio.sleep(fetch_interval)
