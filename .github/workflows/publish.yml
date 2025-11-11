@@ -167,48 +167,24 @@ jobs:
         path: vibesurf-extension.zip
         retention-days: 90
 
-  build-executables:
+  build-installer:
     needs: test
-    strategy:
-      matrix:
-        include:
-          # Windows x64
-          - os: windows-latest
-            asset_name: vibesurf-windows-x64.exe
-            activate_cmd: .venv\Scripts\activate.bat
-
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: 'main'  # Always checkout main branch for latest code
+        ref: 'main'
         fetch-depth: 0
-        
-    # Add diagnostic logging
-    - name: Debug checkout and dependencies
-      shell: bash
-      run: |
-        echo "=== Git info ==="
-        git branch
-        git log --oneline -5
-        echo "=== pyproject.toml dependencies ==="
-        grep -A 20 "dependencies = \[" pyproject.toml || echo "No dependencies section found"
-        echo "=== vibe_surf/__init__.py ==="
-        head -5 vibe_surf/__init__.py || echo "No __init__.py found"
 
-    # Install dependencies for version extraction
-    - name: Install dependencies for version extraction
-      shell: bash
-      run: |
-        python -m pip install --upgrade pip
-        pip install setuptools-scm[toml]
-
-    # Update Extension Version
+    # Update Extension Version for consistency
     - name: Update Extension Version
       shell: bash
       run: |
         echo "=== Updating Extension Version ==="
+        
+        # Install setuptools-scm for version extraction
+        python -m pip install --upgrade pip setuptools-scm[toml]
         
         # Get version from setuptools-scm
         VERSION=$(python -m setuptools_scm)
@@ -230,129 +206,96 @@ jobs:
         echo "=== Version files updated ==="
         echo "manifest.json version:"
         grep -A1 -B1 '"version"' manifest.json
-        echo "version.js content:"
-        cat scripts/version.js
 
-    # Set up Node.js for frontend build
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22'
-        cache: 'npm'
-        cache-dependency-path: 'vibe_surf/frontend/package-lock.json'
-    
-    # Build frontend before creating executable
-    - name: Build frontend
+    # Download uv.exe to bundle with installer
+    - name: Download uv for bundling
       shell: bash
       run: |
-        cd vibe_surf/frontend
-        npm ci
-        npm run build
+        echo "=== Downloading uv.exe for bundling ==="
         
-        # Copy build folder to backend directory as frontend
-        mkdir -p ../backend/frontend
-        cp -r build/* ../backend/frontend/
+        # Create dist directory if it doesn't exist
+        mkdir -p dist
         
-        echo "=== Frontend build completed ==="
-        ls -la ../backend/frontend/
+        # Download latest uv release for Windows
+        curl -s https://api.github.com/repos/astral-sh/uv/releases/latest \
+          | grep -o "https://github.com/astral-sh/uv/releases/download/.*/uv-x86_64-pc-windows-msvc.zip" \
+          | head -1 \
+          | xargs curl -L -o dist/uv.zip
+        
+        # Extract uv.exe
+        cd dist
+        unzip uv.zip
+        
+        # Find and move uv.exe to dist directory
+        find . -name "uv.exe" -exec mv {} . \;
+        
+        # Clean up
+        rm -rf uv.zip uv-*
+        
+        echo "=== uv.exe ready for bundling in dist/ ==="
+        ls -la uv.exe
 
-    # Install uv (key step for consistent environment)
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        version: "latest"
+    # Install NSIS for creating Windows installer
+    - name: Install NSIS
+      run: |
+        echo "=== Installing NSIS ==="
+        choco install nsis -y
+        
+        # Verify NSIS installation
+        & "C:\Program Files (x86)\NSIS\makensis.exe" /VERSION
 
-    # Create uv environment and install current repository code
-    - name: Create uv environment
+    # Build installer using NSIS
+    - name: Build Windows Installer
+      shell: cmd
+      run: |
+        echo === Building VibeSurf Installer ===
+        
+        REM Copy LICENSE file to dist directory for NSIS
+        copy LICENSE dist\LICENSE
+        
+        REM Build installer using NSIS
+        "C:\Program Files (x86)\NSIS\makensis.exe" scripts\vibesurf-installer.nsi
+        
+        echo === Installer build completed ===
+        dir dist\VibeSurf-Installer.exe
+
+    # Test installer (quick validation)
+    - name: Test installer
+      shell: cmd
+      run: |
+        echo === Testing installer ===
+        
+        REM Check if installer was created
+        if exist "dist\VibeSurf-Installer.exe" (
+            echo [SUCCESS] Installer created successfully
+            dir dist\VibeSurf-Installer.exe
+        ) else (
+            echo [ERROR] Installer not found
+            exit /b 1
+        )
+
+    # Prepare installer for upload
+    - name: Prepare installer artifact
       shell: bash
       run: |
-        echo "=== Creating uv environment ==="
-        uv venv --python 3.12
+        echo "=== Preparing installer for upload ==="
         
-        echo "=== Installing dependencies (all platforms use uv) ==="
-        uv pip install -e .
-        uv pip install nuitka
-        echo "=== Installed packages ==="
-        uv pip list
-
-    # Verify environment using uv run (cross-platform)
-    - name: Verify environment with uv run
-      shell: bash
-      run: |
-        echo "=== Environment verification using uv run ==="
-        echo "Python version:"
-        uv run python --version
-        echo "Testing dotenv import:"
-        uv run python -c "from dotenv import load_dotenv; print('dotenv available')"
-        echo "Testing vibe_surf import:"
-        uv run python -c "import vibe_surf; print('vibe_surf available')"
-        echo "Testing CLI import:"
-        uv run python -c "from vibe_surf.cli import main; print('CLI available')"
-
-    # Build executable using Nuitka with parallel compilation
-    - name: Build executable with Nuitka
-      shell: bash
-      run: |
-        echo "=== Building executable with Nuitka (Parallel Compilation) ==="
-        echo "Python version check:"
-        uv run python --version
+        # Rename installer for release
+        mv dist/VibeSurf-Installer.exe dist/vibesurf-windows-x64
         
-        # Use optimal parallel compilation for GitHub Actions runners
-        # GitHub Actions typically provides 2-core runners
-        CPU_CORES=2
-        echo "Using $CPU_CORES CPU cores for parallel compilation (GitHub Actions optimized)"
+        # Show final result and all dist contents
+        echo "=== Final installer ==="
+        ls -lh dist/vibesurf-windows-x64
         
-        echo "Running Nuitka with parallel compilation..."
-        uv run python -m nuitka \
-          --onefile \
-          --output-dir=dist \
-          --output-filename=vibesurf.exe \
-          --jobs=$CPU_CORES \
-          --lto=yes \
-          --enable-plugin=anti-bloat \
-          --assume-yes-for-downloads \
-          --follow-imports \
-          --include-data-dir=vibe_surf/chrome_extension=vibe_surf/chrome_extension \
-          --include-data-dir=vibe_surf/backend=vibe_surf/backend \
-          --include-data-dir=vibe_surf/langflow=vibe_surf/langflow \
-          --include-module=passlib.handlers.bcrypt \
-          --include-module=bcrypt._bcrypt \
-          --include-module=aiosqlite \
-          --include-module=uvicorn \
-          --include-module=fastapi \
-          --include-module=langchain \
-          --include-module=composio \
-          --windows-console-mode=force \
-          --windows-icon-from-ico=vibe_surf/chrome_extension/icons/logo.png \
-          vibe_surf/cli.py
+        echo "=== All dist/ contents ==="
+        ls -la dist/
 
-    - name: Prepare executable
-      shell: bash
-      run: |
-        if [[ "$RUNNER_OS" == "Windows" ]]; then
-          # Windows: rename .exe file
-          mv dist/vibesurf.exe dist/${{ matrix.asset_name }}
-        fi
-        
-        # Show final result
-        echo "=== Final executable ==="
-        ls -lh dist/${{ matrix.asset_name }}
-
-    - name: Test executable
-      shell: bash
-      run: |
-        # Basic test to ensure executable runs
-        if [[ "$RUNNER_OS" == "Windows" ]]; then
-          echo "Testing Windows executable..."
-          ls -la dist/${{ matrix.asset_name }}
-        fi
-
-    - name: Upload executable
+    # Upload installer
+    - name: Upload installer
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.asset_name }}
-        # Upload the executable file
-        path: dist/${{ matrix.asset_name }}
+        name: VibeSurf-Windows-Installer
+        path: dist/vibesurf-windows-x64
         retention-days: 90
 
   publish-pypi:
@@ -377,8 +320,8 @@ jobs:
         # Use the following line if you want to use trusted publishing instead
         # trusted-publishing: true
 
-  publish-executables:
-    needs: [test, build-executables]
+  publish-installer:
+    needs: [test, build-installer]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
     permissions:
@@ -386,16 +329,16 @@ jobs:
       actions: read    # Required for downloading artifacts
     
     steps:
-    - name: Download executable artifacts
+    - name: Download installer artifacts
       uses: actions/download-artifact@v4
       with:
-        name: vibesurf-windows-x64.exe
+        name: VibeSurf-Windows-Installer
         path: ./
 
-    - name: Upload executables to release
+    - name: Upload installer to release
       uses: softprops/action-gh-release@v1
       with:
-        files: vibesurf-windows-x64.exe
+        files: vibesurf-windows-x64
 
   publish-extension:
     needs: [test, build-extension]

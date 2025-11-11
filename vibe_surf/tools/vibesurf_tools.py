@@ -415,57 +415,6 @@ class VibeSurfTools:
                 return ActionResult(error=f'Skill code failed: {str(e)}')
 
         @self.registry.action(
-            'Return the guideline for deep research. Please follow the guideline to do real deep research actions.',
-            param_model=NoParamsAction,
-        )
-        async def skill_deep_research(
-                _: NoParamsAction,
-        ):
-            """
-            Skill: Deep research mode activation
-            """
-            research_prompt = f"""
-        🔬 **DEEP RESEARCH GUIDELINE**
-
-        To proceed with comprehensive research, please:
-
-        1. **Set up a detailed TODO list** for this research project that includes:
-           - Background research and context gathering
-           - Key questions to investigate
-           - Multiple source verification
-           - Data collection and analysis steps
-           - Report generation with proper citations
-
-        2. **Conduct systematic research** following these principles:
-           - Use multiple search strategies and sources
-           - Verify information across different platforms
-           - Document all sources with URLs for citation
-           - Take notes and screenshots of key findings
-           - Organize findings by themes or categories
-
-        3. **Generate a comprehensive report** that includes:
-           - Executive summary
-           - Detailed findings with analysis
-           - Proper citations and source references
-           - Supporting evidence (screenshots, quotes)
-           - Conclusions and recommendations
-           - Areas for further investigation
-
-        4. **Maintain research traceability** by:
-           - Recording all search queries used
-           - Saving important URLs and sources
-           - Including direct quotes with attribution
-           - Documenting methodology and approach
-
-        This deep research mode ensures thorough, traceable, and well-documented investigation of your topic with proper academic rigor and source citation.
-        """
-
-            return ActionResult(
-                extracted_content=research_prompt,
-                include_extracted_content_only_once=True,
-            )
-
-        @self.registry.action(
             'Get comprehensive financial data for stocks - retrieve company information, historical prices, news, earnings, dividends, analyst recommendations and other financial data using Yahoo Finance.',
             param_model=SkillFinanceAction,
         )
