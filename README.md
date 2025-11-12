@@ -22,6 +22,8 @@ If you're as excited about open-source AI browsing as I am, give it a star! ⭐
 
 ## 🛠️ Installation
 
+**For Windows users**: You can also download and run our one-click installer: [VibeSurf-Installer.exe](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/VibeSurf-Installer.exe)
+
 Get VibeSurf up and running in just three simple steps. No complex configuration required.
 
 ### 1. Install uv

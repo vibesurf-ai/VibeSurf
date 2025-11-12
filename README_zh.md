@@ -23,6 +23,8 @@ VibeSurf 是一个开源的 AI 代理浏览器，它革新了浏览器自动化�
 
 ## 🛠️ 安装
 
+**Windows 用户**: 您也可以下载并运行我们的一键安装包：[VibeSurf-Installer.exe](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/VibeSurf-Installer.exe)
+
 仅需三个简单步骤即可启动并运行 VibeSurf。无需复杂配置。
 
 ### 1. 安装 uv
