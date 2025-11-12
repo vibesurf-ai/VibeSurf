@@ -277,7 +277,7 @@ SectionEnd
 
 Section "Desktop Shortcut (Optional)" SecDesktop
     ${If} ${FileExists} "$INSTDIR\VibeSurf-launch.exe"
-        CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf-launch.exe" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
+        CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf-launch.exe" "" "$INSTDIR\VibeSurf-launch.exe" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${Else}
         CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.bat" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${EndIf}
@@ -287,7 +287,7 @@ Section "Start Menu Shortcut" SecStartMenu
     SectionIn RO
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"
     ${If} ${FileExists} "$INSTDIR\VibeSurf-launch.exe"
-        CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\VibeSurf-launch.exe" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
+        CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\VibeSurf-launch.exe" "" "$INSTDIR\VibeSurf-launch.exe" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${Else}
         CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.bat" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${EndIf}
@@ -341,7 +341,7 @@ FunctionEnd
 ; Function to create desktop shortcut
 Function CreateDesktopShortcut
     ${If} ${FileExists} "$INSTDIR\VibeSurf-launch.exe"
-        CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf-launch.exe" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
+        CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf-launch.exe" "" "$INSTDIR\VibeSurf-launch.exe" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${Else}
         CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.bat" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${EndIf}
