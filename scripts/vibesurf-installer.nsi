@@ -115,46 +115,28 @@ Section "Main Application" SecMain
     FileWrite $0 "        print(f'Virtual env exists: {os.path.exists(venv_dir)}')$\r$\n"
     FileWrite $0 "        print(f'Python exe exists: {os.path.exists(venv_python)}')$\r$\n"
     FileWrite $0 "        $\r$\n"
-    FileWrite $0 "        # Method 1: Try direct python execution with virtual environment$\r$\n"
-    FileWrite $0 "        if os.path.exists(venv_python):$\r$\n"
-    FileWrite $0 "            print('Using virtual environment python...')$\r$\n"
-    FileWrite $0 "            try:$\r$\n"
-    FileWrite $0 "                result = subprocess.run([venv_python, '-m', 'vibesurf'], cwd=install_dir)$\r$\n"
-    FileWrite $0 "                if result.returncode == 0:$\r$\n"
-    FileWrite $0 "                    return$\r$\n"
-    FileWrite $0 "                else:$\r$\n"
-    FileWrite $0 "                    print(f'Virtual env python returned: {result.returncode}')$\r$\n"
-    FileWrite $0 "            except Exception as e:$\r$\n"
-    FileWrite $0 "                print(f'Virtual env python failed: {e}')$\r$\n"
-    FileWrite $0 "        else:$\r$\n"
-    FileWrite $0 "            print('Virtual environment python not found, checking installation...')$\r$\n"
-    FileWrite $0 "            # List contents of .venv directory for debugging$\r$\n"
-    FileWrite $0 "            if os.path.exists(venv_dir):$\r$\n"
-    FileWrite $0 "                try:$\r$\n"
-    FileWrite $0 "                    contents = os.listdir(venv_dir)$\r$\n"
-    FileWrite $0 "                    print(f'Contents of .venv: {contents}')$\r$\n"
-    FileWrite $0 "                    scripts_dir = os.path.join(venv_dir, 'Scripts')$\r$\n"
-    FileWrite $0 "                    if os.path.exists(scripts_dir):$\r$\n"
-    FileWrite $0 "                        scripts_contents = os.listdir(scripts_dir)$\r$\n"
-    FileWrite $0 "                        print(f'Contents of Scripts: {scripts_contents}')$\r$\n"
-    FileWrite $0 "                except Exception as e:$\r$\n"
-    FileWrite $0 "                    print(f'Error listing venv contents: {e}')$\r$\n"
-    FileWrite $0 "        $\r$\n"
-    FileWrite $0 "        # Method 2: Try direct activation + vibesurf command$\r$\n"
-    FileWrite $0 "        print('Trying direct vibesurf command in venv...')$\r$\n"
-    FileWrite $0 "        if os.path.exists(venv_dir):$\r$\n"
-    FileWrite $0 "            try:$\r$\n"
-    FileWrite $0 "                # Add venv to path and try direct vibesurf command$\r$\n"
-    FileWrite $0 "                venv_scripts = os.path.join(venv_dir, 'Scripts')$\r$\n"
-    FileWrite $0 "                env = os.environ.copy()$\r$\n"
-    FileWrite $0 "                env['PATH'] = venv_scripts + os.pathsep + env['PATH']$\r$\n"
-    FileWrite $0 "                result = subprocess.run(['vibesurf'], env=env, cwd=install_dir)$\r$\n"
-    FileWrite $0 "                if result.returncode == 0:$\r$\n"
-    FileWrite $0 "                    return$\r$\n"
-    FileWrite $0 "                else:$\r$\n"
-    FileWrite $0 "                    print(f'Direct vibesurf command returned: {result.returncode}')$\r$\n"
-    FileWrite $0 "            except Exception as e:$\r$\n"
-    FileWrite $0 "                print(f'Direct vibesurf failed: {e}')$\r$\n"
+    FileWrite $0 "        # Method: Direct command with environment variables$\r$\n"
+    FileWrite $0 "        print('Starting VibeSurf with virtual environment...')$\r$\n"
+    FileWrite $0 "        try:$\r$\n"
+    FileWrite $0 "            # Set up environment to use virtual environment$\r$\n"
+    FileWrite $0 "            venv_scripts = os.path.join(venv_dir, 'Scripts')$\r$\n"
+    FileWrite $0 "            env = os.environ.copy()$\r$\n"
+    FileWrite $0 "            env['PATH'] = venv_scripts + os.pathsep + env.get('PATH', '')$\r$\n"
+    FileWrite $0 "            env['VIRTUAL_ENV'] = venv_dir$\r$\n"
+    FileWrite $0 "            # Use vibesurf command directly (not python -m vibesurf)$\r$\n"
+    FileWrite $0 "            vibesurf_cmd = os.path.join(venv_scripts, 'vibesurf.exe')$\r$\n"
+    FileWrite $0 "            if os.path.exists(vibesurf_cmd):$\r$\n"
+    FileWrite $0 "                cmd = [vibesurf_cmd]$\r$\n"
+    FileWrite $0 "            else:$\r$\n"
+    FileWrite $0 "                # Fallback to vibesurf command in PATH$\r$\n"
+    FileWrite $0 "                cmd = ['vibesurf']$\r$\n"
+    FileWrite $0 "            print(f'Running command: {cmd}')$\r$\n"
+    FileWrite $0 "            result = subprocess.run(cmd, env=env, cwd=install_dir)$\r$\n"
+    FileWrite $0 "            print(f'Command completed with exit code: {result.returncode}')$\r$\n"
+    FileWrite $0 "            if result.returncode == 0:$\r$\n"
+    FileWrite $0 "                return$\r$\n"
+    FileWrite $0 "        except Exception as e:$\r$\n"
+    FileWrite $0 "            print(f'Direct vibesurf command failed: {e}')$\r$\n"
     FileWrite $0 "        $\r$\n"
     FileWrite $0 "        print('All startup methods failed.')$\r$\n"
     FileWrite $0 "        print('Please check if VibeSurf is properly installed in the virtual environment.')$\r$\n"
@@ -206,22 +188,9 @@ Section "Main Application" SecMain
         ; Check if icon was created successfully and use it
         DetailPrint "Building EXE with custom icon..."
         ; Use uv run to ensure proper virtual environment activation and PATH with icon
-        nsExec::ExecToLog 'cmd /c "cd /d "$INSTDIR" && uv run pyinstaller --onefile --console --name "VibeSurf" --icon "$INSTDIR\\logo.png" --distpath "$INSTDIR" --workpath "$INSTDIR\build" --specpath "$INSTDIR" "$INSTDIR\vibesurf_launcher.py""'
+        nsExec::ExecToLog 'cmd /c "cd /d "$INSTDIR" && uv run pyinstaller --onefile --console --name "VibeSurf-launch" --icon "$INSTDIR\\logo.png" --distpath "$INSTDIR" --workpath "$INSTDIR\build" --specpath "$INSTDIR" "$INSTDIR\vibesurf_launcher.py""'
         Pop $1
         FileWrite $3 "PyInstaller compilation with icon exit code: $1$\r$\n"
-        
-        ; If uv run fails, try direct python call as fallback
-        ${If} $1 != 0
-            DetailPrint "uv run failed, trying direct python call..."
-            FileWrite $3 "uv run PyInstaller failed, trying direct python call$\r$\n"
-            ${If} ${FileExists} "$INSTDIR\logo.png"
-                nsExec::ExecToLog 'cmd /c "cd /d "$INSTDIR" && "$INSTDIR\.venv\Scripts\python.exe" -m PyInstaller --onefile --console --name "VibeSurf" --icon "$INSTDIR\\logo.png" --distpath "$INSTDIR" --workpath "$INSTDIR\build" --specpath "$INSTDIR" "$INSTDIR\vibesurf_launcher.py""'
-            ${Else}
-                nsExec::ExecToLog 'cmd /c "cd /d "$INSTDIR" && "$INSTDIR\.venv\Scripts\python.exe" -m PyInstaller --onefile --console --name "VibeSurf" --distpath "$INSTDIR" --workpath "$INSTDIR\build" --specpath "$INSTDIR" "$INSTDIR\vibesurf_launcher.py""'
-            ${EndIf}
-            Pop $1
-            FileWrite $3 "Direct python PyInstaller exit code: $1$\r$\n"
-        ${EndIf}
     ${Else}
         DetailPrint "PyInstaller installation failed, skipping EXE creation"
         FileWrite $3 "PyInstaller installation failed$\r$\n"
@@ -230,16 +199,16 @@ Section "Main Application" SecMain
     
     ${If} $1 == 0
         DetailPrint "Checking if VibeSurf.exe was created..."
-        ${If} ${FileExists} "$INSTDIR\VibeSurf.exe"
-            DetailPrint "SUCCESS! VibeSurf.exe created successfully!"
+        ${If} ${FileExists} "$INSTDIR\VibeSurf-launch.exe"
+            DetailPrint "SUCCESS! VibeSurf-launch.exe created successfully!"
             FileWrite $3 "EXE Creation: SUCCESS$\r$\n"
             ; Clean up build artifacts but keep logo files for shortcuts
             RMDir /r "$INSTDIR\build"
-            Delete "$INSTDIR\VibeSurf.spec"
+            Delete "$INSTDIR\VibeSurf-launch.spec"
             Delete "$INSTDIR\vibesurf_launcher.py"
             StrCpy $R9 "exe"
         ${Else}
-            DetailPrint "FAILED: VibeSurf.exe not found after compilation!"
+            DetailPrint "FAILED: VibeSurf-launch.exe not found after compilation!"
             FileWrite $3 "EXE Creation: FAILED - File not found$\r$\n"
             StrCpy $R9 "bat"
         ${EndIf}
@@ -307,8 +276,8 @@ Section "Main Application" SecMain
 SectionEnd
 
 Section "Desktop Shortcut (Optional)" SecDesktop
-    ${If} ${FileExists} "$INSTDIR\VibeSurf.exe"
-        CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.exe" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
+    ${If} ${FileExists} "$INSTDIR\VibeSurf-launch.exe"
+        CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf-launch.exe" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${Else}
         CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.bat" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${EndIf}
@@ -317,8 +286,8 @@ SectionEnd
 Section "Start Menu Shortcut" SecStartMenu
     SectionIn RO
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"
-    ${If} ${FileExists} "$INSTDIR\VibeSurf.exe"
-        CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.exe" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
+    ${If} ${FileExists} "$INSTDIR\VibeSurf-launch.exe"
+        CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\VibeSurf-launch.exe" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${Else}
         CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.bat" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${EndIf}
@@ -362,8 +331,8 @@ FunctionEnd
 
 ; Function to launch VibeSurf after installation
 Function LaunchVibeSurf
-    ${If} ${FileExists} "$INSTDIR\VibeSurf.exe"
-        ExecShell "open" "$INSTDIR\VibeSurf.exe"
+    ${If} ${FileExists} "$INSTDIR\VibeSurf-launch.exe"
+        ExecShell "open" "$INSTDIR\VibeSurf-launch.exe"
     ${ElseIf} ${FileExists} "$INSTDIR\VibeSurf.bat"
         ExecShell "open" "$INSTDIR\VibeSurf.bat"
     ${EndIf}
@@ -371,8 +340,8 @@ FunctionEnd
 
 ; Function to create desktop shortcut
 Function CreateDesktopShortcut
-    ${If} ${FileExists} "$INSTDIR\VibeSurf.exe"
-        CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.exe" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
+    ${If} ${FileExists} "$INSTDIR\VibeSurf-launch.exe"
+        CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf-launch.exe" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${Else}
         CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.bat" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${EndIf}
