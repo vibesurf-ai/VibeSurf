@@ -64,69 +64,41 @@ Section "Main Application" SecMain
     DetailPrint "Installing VibeSurf AI Browser Assistant..."
     DetailPrint "Installing UV package manager..."
     
-    ; Install UV using the official PowerShell one-liner
-    nsExec::ExecToLog 'powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"'
+    ; Install UV using the official PowerShell one-liner with better error handling
+    nsExec::ExecToLog 'powershell -ExecutionPolicy ByPass -NoProfile -c "irm https://astral.sh/uv/install.ps1 | iex"'
+    Pop $0
     
-    Pop $0 ; Get return value
     ${If} $0 != 0
-        DetailPrint "UV installation failed, trying alternative method..."
-        MessageBox MB_YESNO|MB_ICONQUESTION "Failed to install UV package manager using the official installer.$\r$\n$\r$\nThis could be due to:$\r$\n- Network connectivity issues$\r$\n- Corporate firewall restrictions$\r$\n- PowerShell execution policy restrictions$\r$\n$\r$\nDo you want to continue with manual installation guide?" IDNO AbortInstall
-        
-        AbortInstall:
-        MessageBox MB_OK|MB_ICONSTOP "UV installation failed.$\r$\n$\r$\nPlease install UV manually from: https://docs.astral.sh/uv/getting-started/installation/$\r$\n$\r$\nThen run: uv venv && uv pip install vibesurf"
+        MessageBox MB_OK|MB_ICONSTOP "UV installation failed.$\r$\nPlease ensure internet connection and try again."
         Abort
     ${EndIf}
     
-    ; Verify UV installation (UV should now be in PATH)
-    DetailPrint "Verifying UV installation and PATH..."
+    ; Add UV to PATH for current session (UV installs to %USERPROFILE%\.cargo\bin)
+    ReadEnvStr $1 "PATH"
+    System::Call 'kernel32::SetEnvironmentVariable(t "PATH", t "%USERPROFILE%\.cargo\bin;$1")'
+    
+    ; Verify UV installation
+    DetailPrint "Verifying UV installation..."
     nsExec::ExecToLog 'uv --version'
-    Pop $1
-    ${If} $1 != 0
-        DetailPrint "UV not found in PATH, checking if it was installed to user profile..."
-        ; Try with explicit user profile path
-        nsExec::ExecToLog '%USERPROFILE%\.cargo\bin\uv.exe --version'
-        Pop $7
-        ${If} $7 != 0
-            MessageBox MB_OK|MB_ICONSTOP "UV package manager installation failed or not found in PATH.$\r$\n$\r$\nTried both system PATH and %USERPROFILE%\.cargo\bin\$\r$\n$\r$\nPlease restart the installer or install UV manually."
-            Abort
-        ${Else}
-            DetailPrint "Found UV in user profile, updating PATH for this session..."
-            ; Add to PATH for this session
-            nsExec::ExecToLog 'set PATH=%USERPROFILE%\.cargo\bin;%PATH%'
-        ${EndIf}
-    ${EndIf}
-    
-    DetailPrint "UV found successfully. Setting up virtual environment..."
-    
-    ; Additional diagnostics before creating virtual environment
-    DetailPrint "Current directory: $INSTDIR"
-    DetailPrint "Checking UV Python availability..."
-    nsExec::ExecToLog 'cd /d "$INSTDIR" && uv python list'
-    Pop $8
-    DetailPrint "UV Python list exit code: $8"
-    
-    ; Try to install a Python version if none available
-    ${If} $8 != 0
-        DetailPrint "No Python found, installing Python via UV..."
-        nsExec::ExecToLog 'cd /d "$INSTDIR" && uv python install 3.12'
-        Pop $9
-        ${If} $9 != 0
-            DetailPrint "Warning: Python installation via UV failed, continuing with system Python"
-        ${Else}
-            DetailPrint "Python installed successfully via UV"
-        ${EndIf}
-    ${EndIf}
-    
-    ; Create virtual environment in the installation directory with detailed error handling
-    DetailPrint "Creating virtual environment in $INSTDIR..."
-    DetailPrint "Command: cd /d $INSTDIR && uv venv --python 3.12"
-    
-    ; First try standard venv creation
-    nsExec::ExecToLog 'cd /d "$INSTDIR" && uv venv --python 3.12'
     Pop $2
-    DetailPrint "Virtual environment creation result: $2"
+    ${If} $2 != 0
+        MessageBox MB_OK|MB_ICONSTOP "UV installation verification failed. Please restart the installer."
+        Abort
+    ${EndIf}
     
-    SkipInitialInstall:
+    ; Create and setup virtual environment
+    DetailPrint "Creating Python virtual environment..."
+    nsExec::ExecToLog 'cd /d "$INSTDIR" && uv venv .venv --python 3.11'
+    Pop $3
+    ${If} $3 != 0
+        DetailPrint "Trying with system Python..."
+        nsExec::ExecToLog 'cd /d "$INSTDIR" && uv venv .venv'
+        Pop $3
+        ${If} $3 != 0
+            MessageBox MB_OK|MB_ICONSTOP "Failed to create virtual environment. Please check your Python installation."
+            Abort
+        ${EndIf}
+    ${EndIf}
     
     ; Create Python launcher script with auto-upgrade
     DetailPrint "Creating VibeSurf launcher with auto-upgrade..."
@@ -160,9 +132,9 @@ Section "Main Application" SecMain
     FileWrite $0 "            # Ensure virtual environment exists$\r$\n"
     FileWrite $0 "            if not os.path.exists('.venv'):$\r$\n"
     FileWrite $0 "                print('Creating virtual environment...')$\r$\n"
-    FileWrite $0 "                subprocess.run(['uv', 'venv'], check=True)$\r$\n"
-    FileWrite $0 "            result = subprocess.run(['uv', 'pip', 'install', 'vibesurf', '--upgrade', '--quiet', '--timeout', '60'], $\r$\n"
-    FileWrite $0 "                                   capture_output=True, text=True, timeout=45)$\r$\n"
+    FileWrite $0 "                subprocess.run(['uv', 'venv', '.venv'], check=True)$\r$\n"
+    FileWrite $0 "            result = subprocess.run(['uv', 'pip', 'install', 'vibesurf', '--upgrade'], $\r$\n"
+    FileWrite $0 "                                   capture_output=True, text=True, timeout=60)$\r$\n"
     FileWrite $0 "            if result.returncode == 0:$\r$\n"
     FileWrite $0 "                print('VibeSurf is up to date!')$\r$\n"
     FileWrite $0 "            else:$\r$\n"
@@ -238,28 +210,25 @@ Section "Main Application" SecMain
     FileWrite $3 "Installation Directory: $INSTDIR$\r$\n"
     FileWrite $3 "UV Installation: System-wide via PowerShell installer$\r$\n"
     
-    DetailPrint "Installing PyInstaller via UV..."
-    FileWrite $3 "Step 1: Installing PyInstaller$\r$\n"
+    ; Install PyInstaller in virtual environment
+    DetailPrint "Installing PyInstaller..."
+    FileWrite $3 "Installing PyInstaller in virtual environment$\r$\n"
     
-    ; First check UV environment
-    DetailPrint "Checking UV environment..."
-    nsExec::ExecToLog 'cd /d "$INSTDIR" && uv --version'
-    Pop $5
-    FileWrite $3 "UV version check exit code: $5$\r$\n"
+    nsExec::ExecToLog 'cd /d "$INSTDIR" && uv pip install pyinstaller'
+    Pop $4
+    FileWrite $3 "PyInstaller installation exit code: $4$\r$\n"
     
-    ; Ensure UV Python environment is set up and install build dependencies first
-    DetailPrint "Setting up UV Python environment and build dependencies..."
-    nsExec::ExecToLog 'cd /d "$INSTDIR" && uv python --version'
-    Pop $6
-    FileWrite $3 "UV Python check exit code: $6$\r$\n"
-    
-    DetailPrint "PyInstaller version check passed!"
-    DetailPrint "Creating VibeSurf.exe (this may take 30-60 seconds)..."
-    DetailPrint "Please wait while PyInstaller compiles the executable..."
-    nsExec::ExecToLog 'cd /d "$INSTDIR" && uv run --with pyinstaller -- --onefile --console --name "VibeSurf" --distpath "$INSTDIR" --workpath "$INSTDIR\build" --specpath "$INSTDIR" --log-level DEBUG "$INSTDIR\vibesurf_launcher.py"'
-    Pop $1
-    FileWrite $3 "PyInstaller compilation exit code: $1$\r$\n"
-    DetailPrint "PyInstaller compilation finished with exit code: $1"
+    ${If} $4 == 0
+        DetailPrint "Creating VibeSurf.exe (this may take 60 seconds)..."
+        ; Use direct PyInstaller call with virtual environment activation
+        nsExec::ExecToLog 'cd /d "$INSTDIR" && .venv\Scripts\python.exe -m PyInstaller --onefile --console --name "VibeSurf" --distpath "$INSTDIR" --workpath "$INSTDIR\build" --specpath "$INSTDIR" "$INSTDIR\vibesurf_launcher.py"'
+        Pop $1
+        FileWrite $3 "PyInstaller compilation exit code: $1$\r$\n"
+    ${Else}
+        DetailPrint "PyInstaller installation failed, skipping EXE creation"
+        FileWrite $3 "PyInstaller installation failed$\r$\n"
+        StrCpy $1 1
+    ${EndIf}
     
     ${If} $1 == 0
         DetailPrint "Checking if VibeSurf.exe was created..."
@@ -307,12 +276,12 @@ Section "Main Application" SecMain
         FileWrite $2 "    echo Creating virtual environment...$\r$\n"
         FileWrite $2 "    uv venv .venv$\r$\n"
         FileWrite $2 "    if errorlevel 1 ($\r$\n"
-        FileWrite $2 "        echo Warning: Virtual environment creation failed, using system install$\r$\n"
-        FileWrite $2 "        uv pip install vibesurf --upgrade --quiet --system$\r$\n"
-        FileWrite $2 "        goto launch$\r$\n"
+        FileWrite $2 "        echo Error: Virtual environment creation failed$\r$\n"
+        FileWrite $2 "        pause$\r$\n"
+        FileWrite $2 "        exit /b 1$\r$\n"
         FileWrite $2 "    )$\r$\n"
         FileWrite $2 ")$\r$\n"
-        FileWrite $2 "uv pip install vibesurf --upgrade --quiet$\r$\n"
+        FileWrite $2 "uv pip install vibesurf --upgrade$\r$\n"
         FileWrite $2 ":launch$\r$\n"
         FileWrite $2 "if %errorlevel% equ 0 ($\r$\n"
         FileWrite $2 "    echo VibeSurf is up to date!$\r$\n"
