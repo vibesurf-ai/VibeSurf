@@ -62,15 +62,25 @@ Section "Main Application" SecMain
     File /oname=$INSTDIR\logo.png "..\vibe_surf\chrome_extension\icons\logo.png"
     
     DetailPrint "Installing VibeSurf AI Browser Assistant..."
-    DetailPrint "Installing UV package manager..."
+    DetailPrint "Checking UV package manager..."
     
-    ; Install UV using the official PowerShell one-liner with better error handling
-    nsExec::ExecToLog 'powershell -ExecutionPolicy ByPass -NoProfile -c "irm https://astral.sh/uv/install.ps1 | iex"'
+    ; Check if UV is already installed
+    nsExec::ExecToLog 'uv --version'
     Pop $0
     
-    ${If} $0 != 0
-        MessageBox MB_OK|MB_ICONSTOP "UV installation failed.$\r$\nPlease ensure internet connection and try again."
-        Abort
+    ${If} $0 == 0
+        DetailPrint "UV is already installed, skipping installation."
+    ${Else}
+        DetailPrint "UV not found, installing UV package manager..."
+        ; Install UV using the official PowerShell one-liner with better error handling
+        nsExec::ExecToLog 'powershell -ExecutionPolicy ByPass -NoProfile -c "irm https://astral.sh/uv/install.ps1 | iex"'
+        Pop $0
+        
+        ${If} $0 != 0
+            MessageBox MB_OK|MB_ICONSTOP "UV installation failed.$\r$\nPlease ensure internet connection and try again."
+            Abort
+        ${EndIf}
+        DetailPrint "UV installation completed successfully."
     ${EndIf}
     
     ; Create and setup virtual environment using detected UV path
@@ -203,12 +213,7 @@ Section "Main Application" SecMain
     FileWrite $0 "            $\r$\n"
     FileWrite $0 "            # Upgrade VibeSurf package$\r$\n"
     FileWrite $0 "            print('Upgrading VibeSurf package...')$\r$\n"
-    FileWrite $0 "            pip_cmd = os.path.join(venv_scripts, 'pip.exe')$\r$\n"
-    FileWrite $0 "            if os.path.exists(pip_cmd):$\r$\n"
-    FileWrite $0 "                upgrade_cmd = [pip_cmd, 'install', 'vibesurf', '-U']$\r$\n"
-    FileWrite $0 "            else:$\r$\n"
-    FileWrite $0 "                # Fallback to venv python with pip module$\r$\n"
-    FileWrite $0 "                upgrade_cmd = [venv_python, '-m', 'pip', 'install', 'vibesurf', '-U']$\r$\n"
+    FileWrite $0 "            upgrade_cmd = ['uv', 'pip', 'install', 'vibesurf', '-U']$\r$\n"
     FileWrite $0 "            try:$\r$\n"
     FileWrite $0 "                print(f'Running upgrade command: {upgrade_cmd}')$\r$\n"
     FileWrite $0 "                upgrade_result = subprocess.run(upgrade_cmd, cwd=install_dir, capture_output=True, text=True)$\r$\n"
@@ -217,7 +222,15 @@ Section "Main Application" SecMain
     FileWrite $0 "                else:$\r$\n"
     FileWrite $0 "                    print(f'Upgrade warning (exit code {upgrade_result.returncode}): {upgrade_result.stderr}')$\r$\n"
     FileWrite $0 "            except Exception as e:$\r$\n"
-    FileWrite $0 "                print(f'Upgrade failed: {e} (continuing anyway)')$\r$\n"
+    FileWrite $0 "                pip_cmd = os.path.join(venv_scripts, 'pip.exe')$\r$\n"
+    FileWrite $0 "                if os.path.exists(pip_cmd):$\r$\n"
+    FileWrite $0 "                    upgrade_cmd = [pip_cmd, 'install', 'vibesurf', '-U']$\r$\n"
+    FileWrite $0 "                    print(f'Running upgrade command: {upgrade_cmd}')$\r$\n"
+    FileWrite $0 "                    upgrade_result = subprocess.run(upgrade_cmd, cwd=install_dir, capture_output=True, text=True)$\r$\n"
+    FileWrite $0 "                    if upgrade_result.returncode == 0:$\r$\n"
+    FileWrite $0 "                        print('VibeSurf upgraded successfully!')$\r$\n"
+    FileWrite $0 "                    else:$\r$\n"
+    FileWrite $0 "                        print(f'Upgrade warning (exit code {upgrade_result.returncode}): {upgrade_result.stderr}')$\r$\n"
     FileWrite $0 "        else:$\r$\n"
     FileWrite $0 "            # No update needed, check if extension exists locally$\r$\n"
     FileWrite $0 "            extension_zip = os.path.join(install_dir, 'vibesurf-extension.zip')$\r$\n"
