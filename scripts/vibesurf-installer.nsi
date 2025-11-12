@@ -58,7 +58,7 @@ Section "Main Application" SecMain
     CreateDirectory "$INSTDIR"
     CreateDirectory "$INSTDIR\uv"
     
-    ; Copy application icon
+    ; Copy application icon (PNG for general use)
     File /oname=$INSTDIR\logo.png "..\vibe_surf\chrome_extension\icons\logo.png"
     
     DetailPrint "Installing VibeSurf AI Browser Assistant..."
@@ -73,26 +73,14 @@ Section "Main Application" SecMain
         Abort
     ${EndIf}
     
-    ; Add UV to PATH for current session (UV installs to %USERPROFILE%\.cargo\bin)
-    ReadEnvStr $1 "PATH"
-    System::Call 'kernel32::SetEnvironmentVariable(t "PATH", t "%USERPROFILE%\.cargo\bin;$1")'
-    
-    ; Verify UV installation
-    DetailPrint "Verifying UV installation..."
-    nsExec::ExecToLog 'uv --version'
-    Pop $2
-    ${If} $2 != 0
-        MessageBox MB_OK|MB_ICONSTOP "UV installation verification failed. Please restart the installer."
-        Abort
-    ${EndIf}
-    
-    ; Create and setup virtual environment
+    ; Create and setup virtual environment using detected UV path
     DetailPrint "Creating Python virtual environment..."
-    nsExec::ExecToLog 'cd /d "$INSTDIR" && uv venv .venv --python 3.11'
+    ; Use cmd /c to ensure proper command execution
+    nsExec::ExecToLog 'cmd /c "cd /d "$INSTDIR" && uv venv .venv --python 3.12"'
     Pop $3
     ${If} $3 != 0
         DetailPrint "Trying with system Python..."
-        nsExec::ExecToLog 'cd /d "$INSTDIR" && uv venv .venv'
+        nsExec::ExecToLog 'cmd /c "cd /d "$INSTDIR" && uv venv .venv"'
         Pop $3
         ${If} $3 != 0
             MessageBox MB_OK|MB_ICONSTOP "Failed to create virtual environment. Please check your Python installation."
@@ -100,98 +88,104 @@ Section "Main Application" SecMain
         ${EndIf}
     ${EndIf}
     
-    ; Create Python launcher script with auto-upgrade
-    DetailPrint "Creating VibeSurf launcher with auto-upgrade..."
+    ; Create Python launcher script (robust startup methods)
+    DetailPrint "Creating VibeSurf launcher..."
     FileOpen $0 "$INSTDIR\vibesurf_launcher.py" w
     FileWrite $0 "# -*- coding: utf-8 -*-$\r$\n"
     FileWrite $0 "import os$\r$\n"
     FileWrite $0 "import sys$\r$\n"
     FileWrite $0 "import subprocess$\r$\n"
-    FileWrite $0 "import time$\r$\n"
+    FileWrite $0 "import zipfile$\r$\n"
+    FileWrite $0 "import shutil$\r$\n"
     FileWrite $0 "$\r$\n"
     FileWrite $0 "def main():$\r$\n"
     FileWrite $0 "    print('VibeSurf - AI Browser Assistant')$\r$\n"
     FileWrite $0 "    print('=' * 40)$\r$\n"
     FileWrite $0 "    $\r$\n"
-    FileWrite $0 "    install_dir = os.path.dirname(os.path.abspath(__file__))$\r$\n"
+    FileWrite $0 "    # Use hardcoded installation directory (PyInstaller runs from temp dir)$\r$\n"
+    FileWrite $0 "    install_dir = r'$INSTDIR'  # Real installation path$\r$\n"
     FileWrite $0 "    os.chdir(install_dir)$\r$\n"
     FileWrite $0 "    $\r$\n"
-    FileWrite $0 "    # Check if UV is available in system PATH$\r$\n"
-    FileWrite $0 "    try:$\r$\n"
-    FileWrite $0 "        subprocess.run(['uv', '--version'], capture_output=True, check=True)$\r$\n"
-    FileWrite $0 "    except (subprocess.CalledProcessError, FileNotFoundError):$\r$\n"
-    FileWrite $0 "        print('Error: UV package manager not found in system PATH')$\r$\n"
-    FileWrite $0 "        print('Please ensure UV is properly installed')$\r$\n"
-    FileWrite $0 "        input('Press Enter to exit...')$\r$\n"
-    FileWrite $0 "        return$\r$\n"
+    FileWrite $0 "    # Define paths$\r$\n"
+    FileWrite $0 "    venv_python = os.path.join(install_dir, '.venv', 'Scripts', 'python.exe')$\r$\n"
+    FileWrite $0 "    venv_dir = os.path.join(install_dir, '.venv')$\r$\n"
     FileWrite $0 "    $\r$\n"
     FileWrite $0 "    try:$\r$\n"
-    FileWrite $0 "        print('Checking for VibeSurf updates...')$\r$\n"
-    FileWrite $0 "        # Try update with extended timeout and better error handling$\r$\n"
-    FileWrite $0 "        try:$\r$\n"
-    FileWrite $0 "            # Ensure virtual environment exists$\r$\n"
-    FileWrite $0 "            if not os.path.exists('.venv'):$\r$\n"
-    FileWrite $0 "                print('Creating virtual environment...')$\r$\n"
-    FileWrite $0 "                subprocess.run(['uv', 'venv', '.venv'], check=True)$\r$\n"
-    FileWrite $0 "            result = subprocess.run(['uv', 'pip', 'install', 'vibesurf', '--upgrade'], $\r$\n"
-    FileWrite $0 "                                   capture_output=True, text=True, timeout=60)$\r$\n"
-    FileWrite $0 "            if result.returncode == 0:$\r$\n"
-    FileWrite $0 "                print('VibeSurf is up to date!')$\r$\n"
-    FileWrite $0 "            else:$\r$\n"
-    FileWrite $0 "                print('Update available but download had issues, using existing version')$\r$\n"
-    FileWrite $0 "        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):$\r$\n"
-    FileWrite $0 "            print('Update check failed or timed out, using existing version')$\r$\n"
-    FileWrite $0 "        $\r$\n"
-    FileWrite $0 "        # Download vibesurf-extension.zip$\r$\n"
-    FileWrite $0 "        print('Updating VibeSurf Chrome Extension...')$\r$\n"
-    FileWrite $0 "        try:$\r$\n"
-    FileWrite $0 "            import urllib.request$\r$\n"
-    FileWrite $0 "            import zipfile$\r$\n"
-    FileWrite $0 "            import shutil$\r$\n"
-    FileWrite $0 "            $\r$\n"
-    FileWrite $0 "            extension_url = 'https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip'$\r$\n"
-    FileWrite $0 "            extension_zip = os.path.join(install_dir, 'vibesurf-extension.zip')$\r$\n"
-    FileWrite $0 "            extension_dir = os.path.join(install_dir, 'vibesurf-extension')$\r$\n"
-    FileWrite $0 "            $\r$\n"
-    FileWrite $0 "            # Remove existing extension folder if it exists$\r$\n"
-    FileWrite $0 "            if os.path.exists(extension_dir):$\r$\n"
-    FileWrite $0 "                print('Removing old extension folder...')$\r$\n"
-    FileWrite $0 "                shutil.rmtree(extension_dir)$\r$\n"
-    FileWrite $0 "            $\r$\n"
-    FileWrite $0 "            # Download latest extension$\r$\n"
-    FileWrite $0 "            print('Downloading latest extension...')$\r$\n"
-    FileWrite $0 "            urllib.request.urlretrieve(extension_url, extension_zip)$\r$\n"
-    FileWrite $0 "            $\r$\n"
-    FileWrite $0 "            # Create extension directory$\r$\n"
-    FileWrite $0 "            os.makedirs(extension_dir, exist_ok=True)$\r$\n"
-    FileWrite $0 "            $\r$\n"
-    FileWrite $0 "            # Extract extension to proper directory$\r$\n"
-    FileWrite $0 "            print('Extracting extension...')$\r$\n"
-    FileWrite $0 "            with zipfile.ZipFile(extension_zip, 'r') as zip_ref:$\r$\n"
-    FileWrite $0 "                zip_ref.extractall(extension_dir)$\r$\n"
-    FileWrite $0 "            $\r$\n"
-    FileWrite $0 "            # Clean up zip file$\r$\n"
-    FileWrite $0 "            os.remove(extension_zip)$\r$\n"
-    FileWrite $0 "            print('Extension updated successfully!')$\r$\n"
-    FileWrite $0 "            $\r$\n"
-    FileWrite $0 "        except Exception as ext_error:$\r$\n"
-    FileWrite $0 "            print(f'Extension update failed: {ext_error}')$\r$\n"
-    FileWrite $0 "            print('Continuing with VibeSurf startup...')$\r$\n"
-    FileWrite $0 "        $\r$\n"
     FileWrite $0 "        print('Starting VibeSurf...')$\r$\n"
-    FileWrite $0 "        time.sleep(1)$\r$\n"
+    FileWrite $0 "        print(f'Install directory: {install_dir}')$\r$\n"
+    FileWrite $0 "        print(f'Virtual env path: {venv_python}')$\r$\n"
+    FileWrite $0 "        print(f'Virtual env exists: {os.path.exists(venv_dir)}')$\r$\n"
+    FileWrite $0 "        print(f'Python exe exists: {os.path.exists(venv_python)}')$\r$\n"
     FileWrite $0 "        $\r$\n"
-    FileWrite $0 "        # Launch VibeSurf$\r$\n"
-    FileWrite $0 "        subprocess.run(['uv', 'run', 'vibesurf'], check=True)$\r$\n"
+    FileWrite $0 "        # Extract Chrome Extension$\r$\n"
+    FileWrite $0 "        extension_zip = os.path.join(install_dir, 'vibesurf-extension.zip')$\r$\n"
+    FileWrite $0 "        extension_dir = os.path.join(install_dir, 'chrome_extension')$\r$\n"
+    FileWrite $0 "        if os.path.exists(extension_zip):$\r$\n"
+    FileWrite $0 "            print('Extracting Chrome Extension...')$\r$\n"
+    FileWrite $0 "            try:$\r$\n"
+    FileWrite $0 "                # Remove existing extension directory if it exists$\r$\n"
+    FileWrite $0 "                if os.path.exists(extension_dir):$\r$\n"
+    FileWrite $0 "                    shutil.rmtree(extension_dir)$\r$\n"
+    FileWrite $0 "                    print(f'Removed existing extension directory: {extension_dir}')$\r$\n"
+    FileWrite $0 "                # Extract extension$\r$\n"
+    FileWrite $0 "                with zipfile.ZipFile(extension_zip, 'r') as zip_ref:$\r$\n"
+    FileWrite $0 "                    zip_ref.extractall(extension_dir)$\r$\n"
+    FileWrite $0 "                print(f'Extension extracted to: {extension_dir}')$\r$\n"
+    FileWrite $0 "            except Exception as e:$\r$\n"
+    FileWrite $0 "                print(f'Failed to extract extension: {e}')$\r$\n"
+    FileWrite $0 "        else:$\r$\n"
+    FileWrite $0 "            print(f'Extension zip not found at: {extension_zip}')$\r$\n"
     FileWrite $0 "        $\r$\n"
-    FileWrite $0 "    except subprocess.TimeoutExpired:$\r$\n"
-    FileWrite $0 "        print('VibeSurf startup timed out, please try again...')$\r$\n"
-    FileWrite $0 "        input('Press Enter to exit...')$\r$\n"
+    FileWrite $0 "        # Method: Direct command with environment variables$\r$\n"
+    FileWrite $0 "        print('Starting VibeSurf with virtual environment...')$\r$\n"
+    FileWrite $0 "        try:$\r$\n"
+    FileWrite $0 "            # Set up environment to use virtual environment$\r$\n"
+    FileWrite $0 "            venv_scripts = os.path.join(venv_dir, 'Scripts')$\r$\n"
+    FileWrite $0 "            env = os.environ.copy()$\r$\n"
+    FileWrite $0 "            env['PATH'] = venv_scripts + os.pathsep + env.get('PATH', '')$\r$\n"
+    FileWrite $0 "            env['VIRTUAL_ENV'] = venv_dir$\r$\n"
+    FileWrite $0 "            $\r$\n"
+    FileWrite $0 "            # Upgrade VibeSurf to latest version$\r$\n"
+    FileWrite $0 "            print('Upgrading VibeSurf to latest version...')$\r$\n"
+    FileWrite $0 "            uv_cmd = os.path.join(venv_scripts, 'uv.exe')$\r$\n"
+    FileWrite $0 "            if os.path.exists(uv_cmd):$\r$\n"
+    FileWrite $0 "                upgrade_cmd = [uv_cmd, 'pip', 'install', 'vibesurf', '-U']$\r$\n"
+    FileWrite $0 "            else:$\r$\n"
+    FileWrite $0 "                # Fallback to uv in PATH$\r$\n"
+    FileWrite $0 "                upgrade_cmd = ['uv', 'pip', 'install', 'vibesurf', '-U']$\r$\n"
+    FileWrite $0 "            try:$\r$\n"
+    FileWrite $0 "                print(f'Running upgrade command: {upgrade_cmd}')$\r$\n"
+    FileWrite $0 "                upgrade_result = subprocess.run(upgrade_cmd, env=env, cwd=install_dir, capture_output=True, text=True)$\r$\n"
+    FileWrite $0 "                if upgrade_result.returncode == 0:$\r$\n"
+    FileWrite $0 "                    print('VibeSurf upgraded successfully!')$\r$\n"
+    FileWrite $0 "                else:$\r$\n"
+    FileWrite $0 "                    print(f'Upgrade warning (exit code {upgrade_result.returncode}): {upgrade_result.stderr}')$\r$\n"
+    FileWrite $0 "            except Exception as e:$\r$\n"
+    FileWrite $0 "                print(f'Upgrade failed: {e} (continuing anyway)')$\r$\n"
+    FileWrite $0 "            $\r$\n"
+    FileWrite $0 "            # Use vibesurf command directly (not python -m vibesurf)$\r$\n"
+    FileWrite $0 "            vibesurf_cmd = os.path.join(venv_scripts, 'vibesurf.exe')$\r$\n"
+    FileWrite $0 "            if os.path.exists(vibesurf_cmd):$\r$\n"
+    FileWrite $0 "                cmd = [vibesurf_cmd]$\r$\n"
+    FileWrite $0 "            else:$\r$\n"
+    FileWrite $0 "                # Fallback to vibesurf command in PATH$\r$\n"
+    FileWrite $0 "                cmd = ['vibesurf']$\r$\n"
+    FileWrite $0 "            print(f'Running command: {cmd}')$\r$\n"
+    FileWrite $0 "            result = subprocess.run(cmd, env=env, cwd=install_dir)$\r$\n"
+    FileWrite $0 "            print(f'Command completed with exit code: {result.returncode}')$\r$\n"
+    FileWrite $0 "            if result.returncode == 0:$\r$\n"
+    FileWrite $0 "                return$\r$\n"
+    FileWrite $0 "        except Exception as e:$\r$\n"
+    FileWrite $0 "            print(f'Direct vibesurf command failed: {e}')$\r$\n"
+    FileWrite $0 "        $\r$\n"
+    FileWrite $0 "        print('All startup methods failed.')$\r$\n"
+    FileWrite $0 "        print('Please check if VibeSurf is properly installed in the virtual environment.')$\r$\n"
+    FileWrite $0 "        $\r$\n"
     FileWrite $0 "    except KeyboardInterrupt:$\r$\n"
     FileWrite $0 "        print('VibeSurf startup cancelled by user')$\r$\n"
     FileWrite $0 "    except Exception as e:$\r$\n"
-    FileWrite $0 "        print(f'Error: {e}')$\r$\n"
-    FileWrite $0 "        print('Please check your internet connection and try again.')$\r$\n"
+    FileWrite $0 "        print(f'Unexpected error: {e}')$\r$\n"
+    FileWrite $0 "    finally:$\r$\n"
     FileWrite $0 "        input('Press Enter to exit...')$\r$\n"
     FileWrite $0 "$\r$\n"
     FileWrite $0 "if __name__ == '__main__':$\r$\n"
@@ -210,20 +204,33 @@ Section "Main Application" SecMain
     FileWrite $3 "Installation Directory: $INSTDIR$\r$\n"
     FileWrite $3 "UV Installation: System-wide via PowerShell installer$\r$\n"
     
-    ; Install PyInstaller in virtual environment
-    DetailPrint "Installing PyInstaller..."
-    FileWrite $3 "Installing PyInstaller in virtual environment$\r$\n"
+    ; Install PyInstaller and required dependencies in virtual environment
+    DetailPrint "Installing PyInstaller and dependencies..."
+    FileWrite $3 "Installing PyInstaller and dependencies in virtual environment$\r$\n"
     
-    nsExec::ExecToLog 'cd /d "$INSTDIR" && uv pip install pyinstaller'
-    Pop $4
-    FileWrite $3 "PyInstaller installation exit code: $4$\r$\n"
+    ; Install PyInstaller, VibeSurf and common dependencies
+    DetailPrint "Installing VibeSurf package..."
+    nsExec::ExecToLog 'cmd /c "cd /d "$INSTDIR" && uv pip install vibesurf pyinstaller setuptools wheel"'
+    Pop $6
+    FileWrite $3 "VibeSurf and PyInstaller installation exit code: $6$\r$\n"
     
-    ${If} $4 == 0
+    ; Download VibeSurf Chrome Extension
+    DetailPrint "Downloading VibeSurf Chrome Extension..."
+    FileWrite $3 "Downloading Chrome Extension$\r$\n"
+    nsExec::ExecToLog 'powershell -NoProfile -ExecutionPolicy Bypass -Command "& { try { Write-Host \"Downloading extension...\"; Invoke-WebRequest -Uri \"https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip\" -OutFile \"$INSTDIR\\vibesurf-extension.zip\" -UseBasicParsing; Write-Host \"Extension downloaded!\" } catch { Write-Host \"Extension download failed: $_\" } }"'
+    Pop $7
+    FileWrite $3 "Extension download exit code: $7$\r$\n"
+    
+    ${If} $6 == 0
         DetailPrint "Creating VibeSurf.exe (this may take 60 seconds)..."
-        ; Use direct PyInstaller call with virtual environment activation
-        nsExec::ExecToLog 'cd /d "$INSTDIR" && .venv\Scripts\python.exe -m PyInstaller --onefile --console --name "VibeSurf" --distpath "$INSTDIR" --workpath "$INSTDIR\build" --specpath "$INSTDIR" "$INSTDIR\vibesurf_launcher.py"'
+        DetailPrint "Using uv run to ensure proper virtual environment..."
+        
+        ; Check if icon was created successfully and use it
+        DetailPrint "Building EXE with custom icon..."
+        ; Use uv run to ensure proper virtual environment activation and PATH with icon
+        nsExec::ExecToLog 'cmd /c "cd /d "$INSTDIR" && uv run pyinstaller --onefile --console --name "VibeSurf-launch" --icon "$INSTDIR\\logo.png" --distpath "$INSTDIR" --workpath "$INSTDIR\build" --specpath "$INSTDIR" "$INSTDIR\vibesurf_launcher.py""'
         Pop $1
-        FileWrite $3 "PyInstaller compilation exit code: $1$\r$\n"
+        FileWrite $3 "PyInstaller compilation with icon exit code: $1$\r$\n"
     ${Else}
         DetailPrint "PyInstaller installation failed, skipping EXE creation"
         FileWrite $3 "PyInstaller installation failed$\r$\n"
@@ -232,70 +239,65 @@ Section "Main Application" SecMain
     
     ${If} $1 == 0
         DetailPrint "Checking if VibeSurf.exe was created..."
-        ${If} ${FileExists} "$INSTDIR\VibeSurf.exe"
-            DetailPrint "SUCCESS! VibeSurf.exe created successfully!"
+        ${If} ${FileExists} "$INSTDIR\VibeSurf-launch.exe"
+            DetailPrint "SUCCESS! VibeSurf-launch.exe created successfully!"
             FileWrite $3 "EXE Creation: SUCCESS$\r$\n"
-            MessageBox MB_OK|MB_ICONINFORMATION "VibeSurf.exe created successfully!$\r$\n$\r$\nThe executable launcher has been created and is ready to use."
-            ; Clean up build artifacts
+            ; Clean up build artifacts but keep logo files for shortcuts
             RMDir /r "$INSTDIR\build"
-            Delete "$INSTDIR\VibeSurf.spec"
+            Delete "$INSTDIR\VibeSurf-launch.spec"
             Delete "$INSTDIR\vibesurf_launcher.py"
             StrCpy $R9 "exe"
         ${Else}
-            DetailPrint "FAILED: VibeSurf.exe not found after compilation!"
+            DetailPrint "FAILED: VibeSurf-launch.exe not found after compilation!"
             FileWrite $3 "EXE Creation: FAILED - File not found$\r$\n"
-            MessageBox MB_OK|MB_ICONEXCLAMATION "EXE Creation Failed!$\r$\n$\r$\nPyInstaller completed but VibeSurf.exe was not created.$\r$\nUsing batch file launcher instead.$\r$\n$\r$\nCheck installer_log.txt for details."
             StrCpy $R9 "bat"
         ${EndIf}
     ${Else}
-        DetailPrint "FAILED: PyInstaller compilation failed with exit code $1"
+        DetailPrint "PyInstaller compilation failed, using batch launcher"
         FileWrite $3 "PyInstaller compilation: FAILED (exit code $1)$\r$\n"
-        FileWrite $3 "Possible causes:$\r$\n"
-        FileWrite $3 "- Missing Python dependencies$\r$\n"
-        FileWrite $3 "- UV environment isolation issues$\r$\n"
-        FileWrite $3 "- Antivirus software blocking compilation$\r$\n"
-        FileWrite $3 "- Insufficient system resources$\r$\n"
-        MessageBox MB_OK|MB_ICONEXCLAMATION "EXE Creation Failed!$\r$\n$\r$\nPyInstaller failed with exit code: $1$\r$\n$\r$\nPossible causes:$\r$\n- Missing Python dependencies$\r$\n- UV environment isolation$\r$\n- Antivirus blocking compilation$\r$\n$\r$\nUsing batch launcher instead.$\r$\nCheck installer_log.txt for details."
+        FileWrite $3 "Using batch launcher as fallback$\r$\n"
         StrCpy $R9 "bat"
     ${EndIf}
     
     FileClose $3
     DetailPrint "Diagnostics saved to: $INSTDIR\installer_log.txt"
     
-    ; Create bat launcher as fallback (with auto-upgrade)
+    ; Always create bat launcher (either as primary or fallback)
     ${If} $R9 == "bat"
-        DetailPrint "Creating batch launcher as fallback..."
-        FileOpen $2 "$INSTDIR\VibeSurf.bat" w
-        FileWrite $2 "@echo off$\r$\n"
-        FileWrite $2 "title VibeSurf - AI Browser Assistant$\r$\n"
-        FileWrite $2 "cd /d $\"$INSTDIR$\"$\r$\n"
-        FileWrite $2 "echo VibeSurf - AI Browser Assistant$\r$\n"
-        FileWrite $2 "echo ========================================$\r$\n"
-        FileWrite $2 "echo Checking for updates...$\r$\n"
-        FileWrite $2 "if not exist $\".venv$\" ($\r$\n"
-        FileWrite $2 "    echo Creating virtual environment...$\r$\n"
-        FileWrite $2 "    uv venv .venv$\r$\n"
-        FileWrite $2 "    if errorlevel 1 ($\r$\n"
-        FileWrite $2 "        echo Error: Virtual environment creation failed$\r$\n"
-        FileWrite $2 "        pause$\r$\n"
-        FileWrite $2 "        exit /b 1$\r$\n"
-        FileWrite $2 "    )$\r$\n"
-        FileWrite $2 ")$\r$\n"
-        FileWrite $2 "uv pip install vibesurf --upgrade$\r$\n"
-        FileWrite $2 ":launch$\r$\n"
-        FileWrite $2 "if %errorlevel% equ 0 ($\r$\n"
-        FileWrite $2 "    echo VibeSurf is up to date!$\r$\n"
-        FileWrite $2 ") else ($\r$\n"
-        FileWrite $2 "    echo Note: Update check failed, using existing version$\r$\n"
-        FileWrite $2 ")$\r$\n"
-        FileWrite $2 "echo Updating VibeSurf Chrome Extension...$\r$\n"
-        FileWrite $2 "powershell -NoProfile -ExecutionPolicy Bypass -Command $\"& { try { Write-Host 'Downloading extension...'; if (Test-Path '$INSTDIR\\vibesurf-extension') { Remove-Item '$INSTDIR\\vibesurf-extension' -Recurse -Force }; New-Item -Path '$INSTDIR\\vibesurf-extension' -ItemType Directory -Force; Invoke-WebRequest -Uri 'https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip' -OutFile '$INSTDIR\\vibesurf-extension.zip' -UseBasicParsing; Expand-Archive '$INSTDIR\\vibesurf-extension.zip' '$INSTDIR\\vibesurf-extension' -Force; Remove-Item '$INSTDIR\\vibesurf-extension.zip' -Force; Write-Host 'Extension updated!' } catch { Write-Host 'Extension update failed, continuing...' } }$\"$\r$\n"
-        FileWrite $2 "echo Starting VibeSurf...$\r$\n"
-        FileWrite $2 "timeout /t 1 /nobreak >nul$\r$\n"
-        FileWrite $2 "uv run vibesurf$\r$\n"
-        FileWrite $2 "pause$\r$\n"
-        FileClose $2
+        DetailPrint "EXE creation failed or skipped, creating batch launcher..."
+    ${Else}
+        DetailPrint "Creating additional batch launcher..."
     ${EndIf}
+    
+    DetailPrint "Creating batch launcher as fallback..."
+    FileOpen $2 "$INSTDIR\VibeSurf.bat" w
+    FileWrite $2 "@echo off$\r$\n"
+    FileWrite $2 "title VibeSurf - AI Browser Assistant$\r$\n"
+    FileWrite $2 "cd /d $\"$INSTDIR$\"$\r$\n"
+    FileWrite $2 "echo VibeSurf - AI Browser Assistant$\r$\n"
+    FileWrite $2 "echo ========================================$\r$\n"
+    FileWrite $2 "echo Starting VibeSurf...$\r$\n"
+    FileWrite $2 "echo Trying virtual environment python...$\r$\n"
+    FileWrite $2 "if exist $\".venv\\Scripts\\python.exe$\" ($\r$\n"
+    FileWrite $2 "    .venv\\Scripts\\python.exe -m vibesurf$\r$\n"
+    FileWrite $2 "    if errorlevel 1 ($\r$\n"
+    FileWrite $2 "        echo Virtual env failed, trying uv run...$\r$\n"
+    FileWrite $2 "        uv run vibesurf$\r$\n"
+    FileWrite $2 "        if errorlevel 1 ($\r$\n"
+    FileWrite $2 "            echo uv run failed, trying system python...$\r$\n"
+    FileWrite $2 "            python -m vibesurf$\r$\n"
+    FileWrite $2 "        )$\r$\n"
+    FileWrite $2 "    )$\r$\n"
+    FileWrite $2 ") else ($\r$\n"
+    FileWrite $2 "    echo Virtual environment not found, trying uv run...$\r$\n"
+    FileWrite $2 "    uv run vibesurf$\r$\n"
+    FileWrite $2 "    if errorlevel 1 ($\r$\n"
+    FileWrite $2 "        echo uv run failed, trying system python...$\r$\n"
+    FileWrite $2 "        python -m vibesurf$\r$\n"
+    FileWrite $2 "    )$\r$\n"
+    FileWrite $2 ")$\r$\n"
+    FileWrite $2 "pause$\r$\n"
+    FileClose $2
     
     ; Create uninstaller
     WriteUninstaller "$INSTDIR\Uninstall.exe"
@@ -314,8 +316,8 @@ Section "Main Application" SecMain
 SectionEnd
 
 Section "Desktop Shortcut (Optional)" SecDesktop
-    ${If} ${FileExists} "$INSTDIR\VibeSurf.exe"
-        CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.exe" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
+    ${If} ${FileExists} "$INSTDIR\VibeSurf-launch.exe"
+        CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf-launch.exe" "" "$INSTDIR\VibeSurf-launch.exe" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${Else}
         CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.bat" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${EndIf}
@@ -324,8 +326,8 @@ SectionEnd
 Section "Start Menu Shortcut" SecStartMenu
     SectionIn RO
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"
-    ${If} ${FileExists} "$INSTDIR\VibeSurf.exe"
-        CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.exe" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
+    ${If} ${FileExists} "$INSTDIR\VibeSurf-launch.exe"
+        CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\VibeSurf-launch.exe" "" "$INSTDIR\VibeSurf-launch.exe" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${Else}
         CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.bat" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${EndIf}
@@ -369,8 +371,8 @@ FunctionEnd
 
 ; Function to launch VibeSurf after installation
 Function LaunchVibeSurf
-    ${If} ${FileExists} "$INSTDIR\VibeSurf.exe"
-        ExecShell "open" "$INSTDIR\VibeSurf.exe"
+    ${If} ${FileExists} "$INSTDIR\VibeSurf-launch.exe"
+        ExecShell "open" "$INSTDIR\VibeSurf-launch.exe"
     ${ElseIf} ${FileExists} "$INSTDIR\VibeSurf.bat"
         ExecShell "open" "$INSTDIR\VibeSurf.bat"
     ${EndIf}
@@ -378,8 +380,8 @@ FunctionEnd
 
 ; Function to create desktop shortcut
 Function CreateDesktopShortcut
-    ${If} ${FileExists} "$INSTDIR\VibeSurf.exe"
-        CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.exe" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
+    ${If} ${FileExists} "$INSTDIR\VibeSurf-launch.exe"
+        CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf-launch.exe" "" "$INSTDIR\VibeSurf-launch.exe" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${Else}
         CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\VibeSurf.bat" "" "$INSTDIR\logo.png" 0 SW_SHOWNORMAL "" "${APP_DESCRIPTION}"
     ${EndIf}
