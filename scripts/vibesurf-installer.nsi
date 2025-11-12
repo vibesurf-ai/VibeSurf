@@ -73,26 +73,50 @@ Section "Main Application" SecMain
         Abort
     ${EndIf}
     
-    ; Add UV to PATH for current session (UV installs to %USERPROFILE%\.cargo\bin)
-    ReadEnvStr $1 "PATH"
-    System::Call 'kernel32::SetEnvironmentVariable(t "PATH", t "%USERPROFILE%\.cargo\bin;$1")'
+    ; Detect UV installation path dynamically
+    DetailPrint "Detecting UV installation path..."
+    StrCpy $4 ""
     
-    ; Verify UV installation
+    ; Check common UV installation paths
+    ${If} ${FileExists} "%USERPROFILE%\.cargo\bin\uv.exe"
+        StrCpy $4 "%USERPROFILE%\.cargo\bin\uv.exe"
+        DetailPrint "Found UV at: %USERPROFILE%\.cargo\bin\uv.exe"
+    ${ElseIf} ${FileExists} "%USERPROFILE%\.local\bin\uv.exe"
+        StrCpy $4 "%USERPROFILE%\.local\bin\uv.exe"
+        DetailPrint "Found UV at: %USERPROFILE%\.local\bin\uv.exe"
+    ${ElseIf} ${FileExists} "%LOCALAPPDATA%\com.LangflowDesktop\uv\uv.exe"
+        StrCpy $4 "%LOCALAPPDATA%\com.LangflowDesktop\uv\uv.exe"
+        DetailPrint "Found UV at: %LOCALAPPDATA%\com.LangflowDesktop\uv\uv.exe"
+    ${Else}
+        ; Try to find UV using PowerShell where command
+        nsExec::ExecToLog 'powershell -NoProfile -Command "(Get-Command uv -ErrorAction SilentlyContinue).Source"'
+        Pop $5
+        ${If} $5 == 0
+            DetailPrint "UV found via PowerShell detection"
+            StrCpy $4 "uv" ; Use system PATH
+        ${Else}
+            MessageBox MB_OK|MB_ICONSTOP "UV installation not found in expected locations.$\r$\nPlease check UV installation and try again."
+            Abort
+        ${EndIf}
+    ${EndIf}
+    
+    ; Verify UV installation with detected path
     DetailPrint "Verifying UV installation..."
-    nsExec::ExecToLog 'uv --version'
+    nsExec::ExecToLog '"$4" --version'
     Pop $2
     ${If} $2 != 0
         MessageBox MB_OK|MB_ICONSTOP "UV installation verification failed. Please restart the installer."
         Abort
     ${EndIf}
     
-    ; Create and setup virtual environment
+    ; Create and setup virtual environment using detected UV path
     DetailPrint "Creating Python virtual environment..."
-    nsExec::ExecToLog 'cd /d "$INSTDIR" && uv venv .venv --python 3.11'
+    ; Use cmd /c to ensure proper command execution
+    nsExec::ExecToLog 'cmd /c "cd /d "$INSTDIR" && uv venv .venv --python 3.12"'
     Pop $3
     ${If} $3 != 0
         DetailPrint "Trying with system Python..."
-        nsExec::ExecToLog 'cd /d "$INSTDIR" && uv venv .venv'
+        nsExec::ExecToLog 'cmd /c "cd /d "$INSTDIR" && uv venv .venv"'
         Pop $3
         ${If} $3 != 0
             MessageBox MB_OK|MB_ICONSTOP "Failed to create virtual environment. Please check your Python installation."
@@ -210,20 +234,31 @@ Section "Main Application" SecMain
     FileWrite $3 "Installation Directory: $INSTDIR$\r$\n"
     FileWrite $3 "UV Installation: System-wide via PowerShell installer$\r$\n"
     
-    ; Install PyInstaller in virtual environment
-    DetailPrint "Installing PyInstaller..."
-    FileWrite $3 "Installing PyInstaller in virtual environment$\r$\n"
+    ; Install PyInstaller and required dependencies in virtual environment
+    DetailPrint "Installing PyInstaller and dependencies..."
+    FileWrite $3 "Installing PyInstaller and dependencies in virtual environment$\r$\n"
     
-    nsExec::ExecToLog 'cd /d "$INSTDIR" && uv pip install pyinstaller'
-    Pop $4
-    FileWrite $3 "PyInstaller installation exit code: $4$\r$\n"
+    ; Install PyInstaller and common dependencies that might be needed
+    nsExec::ExecToLog 'cmd /c "cd /d "$INSTDIR" && uv pip install pyinstaller setuptools wheel"'
+    Pop $6
+    FileWrite $3 "PyInstaller installation exit code: $6$\r$\n"
     
-    ${If} $4 == 0
+    ${If} $6 == 0
         DetailPrint "Creating VibeSurf.exe (this may take 60 seconds)..."
-        ; Use direct PyInstaller call with virtual environment activation
-        nsExec::ExecToLog 'cd /d "$INSTDIR" && .venv\Scripts\python.exe -m PyInstaller --onefile --console --name "VibeSurf" --distpath "$INSTDIR" --workpath "$INSTDIR\build" --specpath "$INSTDIR" "$INSTDIR\vibesurf_launcher.py"'
+        DetailPrint "Using uv run to ensure proper virtual environment..."
+        ; Use uv run to ensure proper virtual environment activation and PATH
+        nsExec::ExecToLog 'cmd /c "cd /d "$INSTDIR" && uv run pyinstaller --onefile --console --name "VibeSurf" --distpath "$INSTDIR" --workpath "$INSTDIR\build" --specpath "$INSTDIR" "$INSTDIR\vibesurf_launcher.py""'
         Pop $1
         FileWrite $3 "PyInstaller compilation exit code: $1$\r$\n"
+        
+        ; If uv run fails, try direct python call as fallback
+        ${If} $1 != 0
+            DetailPrint "uv run failed, trying direct python call..."
+            FileWrite $3 "uv run PyInstaller failed, trying direct python call$\r$\n"
+            nsExec::ExecToLog 'cmd /c "cd /d "$INSTDIR" && "$INSTDIR\.venv\Scripts\python.exe" -m PyInstaller --onefile --console --name "VibeSurf" --distpath "$INSTDIR" --workpath "$INSTDIR\build" --specpath "$INSTDIR" "$INSTDIR\vibesurf_launcher.py""'
+            Pop $1
+            FileWrite $3 "Direct python PyInstaller exit code: $1$\r$\n"
+        ${EndIf}
     ${Else}
         DetailPrint "PyInstaller installation failed, skipping EXE creation"
         FileWrite $3 "PyInstaller installation failed$\r$\n"
@@ -235,7 +270,6 @@ Section "Main Application" SecMain
         ${If} ${FileExists} "$INSTDIR\VibeSurf.exe"
             DetailPrint "SUCCESS! VibeSurf.exe created successfully!"
             FileWrite $3 "EXE Creation: SUCCESS$\r$\n"
-            MessageBox MB_OK|MB_ICONINFORMATION "VibeSurf.exe created successfully!$\r$\n$\r$\nThe executable launcher has been created and is ready to use."
             ; Clean up build artifacts
             RMDir /r "$INSTDIR\build"
             Delete "$INSTDIR\VibeSurf.spec"
@@ -244,58 +278,56 @@ Section "Main Application" SecMain
         ${Else}
             DetailPrint "FAILED: VibeSurf.exe not found after compilation!"
             FileWrite $3 "EXE Creation: FAILED - File not found$\r$\n"
-            MessageBox MB_OK|MB_ICONEXCLAMATION "EXE Creation Failed!$\r$\n$\r$\nPyInstaller completed but VibeSurf.exe was not created.$\r$\nUsing batch file launcher instead.$\r$\n$\r$\nCheck installer_log.txt for details."
             StrCpy $R9 "bat"
         ${EndIf}
     ${Else}
-        DetailPrint "FAILED: PyInstaller compilation failed with exit code $1"
+        DetailPrint "PyInstaller compilation failed, using batch launcher"
         FileWrite $3 "PyInstaller compilation: FAILED (exit code $1)$\r$\n"
-        FileWrite $3 "Possible causes:$\r$\n"
-        FileWrite $3 "- Missing Python dependencies$\r$\n"
-        FileWrite $3 "- UV environment isolation issues$\r$\n"
-        FileWrite $3 "- Antivirus software blocking compilation$\r$\n"
-        FileWrite $3 "- Insufficient system resources$\r$\n"
-        MessageBox MB_OK|MB_ICONEXCLAMATION "EXE Creation Failed!$\r$\n$\r$\nPyInstaller failed with exit code: $1$\r$\n$\r$\nPossible causes:$\r$\n- Missing Python dependencies$\r$\n- UV environment isolation$\r$\n- Antivirus blocking compilation$\r$\n$\r$\nUsing batch launcher instead.$\r$\nCheck installer_log.txt for details."
+        FileWrite $3 "Using batch launcher as fallback$\r$\n"
         StrCpy $R9 "bat"
     ${EndIf}
     
     FileClose $3
     DetailPrint "Diagnostics saved to: $INSTDIR\installer_log.txt"
     
-    ; Create bat launcher as fallback (with auto-upgrade)
+    ; Always create bat launcher (either as primary or fallback)
     ${If} $R9 == "bat"
-        DetailPrint "Creating batch launcher as fallback..."
-        FileOpen $2 "$INSTDIR\VibeSurf.bat" w
-        FileWrite $2 "@echo off$\r$\n"
-        FileWrite $2 "title VibeSurf - AI Browser Assistant$\r$\n"
-        FileWrite $2 "cd /d $\"$INSTDIR$\"$\r$\n"
-        FileWrite $2 "echo VibeSurf - AI Browser Assistant$\r$\n"
-        FileWrite $2 "echo ========================================$\r$\n"
-        FileWrite $2 "echo Checking for updates...$\r$\n"
-        FileWrite $2 "if not exist $\".venv$\" ($\r$\n"
-        FileWrite $2 "    echo Creating virtual environment...$\r$\n"
-        FileWrite $2 "    uv venv .venv$\r$\n"
-        FileWrite $2 "    if errorlevel 1 ($\r$\n"
-        FileWrite $2 "        echo Error: Virtual environment creation failed$\r$\n"
-        FileWrite $2 "        pause$\r$\n"
-        FileWrite $2 "        exit /b 1$\r$\n"
-        FileWrite $2 "    )$\r$\n"
-        FileWrite $2 ")$\r$\n"
-        FileWrite $2 "uv pip install vibesurf --upgrade$\r$\n"
-        FileWrite $2 ":launch$\r$\n"
-        FileWrite $2 "if %errorlevel% equ 0 ($\r$\n"
-        FileWrite $2 "    echo VibeSurf is up to date!$\r$\n"
-        FileWrite $2 ") else ($\r$\n"
-        FileWrite $2 "    echo Note: Update check failed, using existing version$\r$\n"
-        FileWrite $2 ")$\r$\n"
-        FileWrite $2 "echo Updating VibeSurf Chrome Extension...$\r$\n"
-        FileWrite $2 "powershell -NoProfile -ExecutionPolicy Bypass -Command $\"& { try { Write-Host 'Downloading extension...'; if (Test-Path '$INSTDIR\\vibesurf-extension') { Remove-Item '$INSTDIR\\vibesurf-extension' -Recurse -Force }; New-Item -Path '$INSTDIR\\vibesurf-extension' -ItemType Directory -Force; Invoke-WebRequest -Uri 'https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip' -OutFile '$INSTDIR\\vibesurf-extension.zip' -UseBasicParsing; Expand-Archive '$INSTDIR\\vibesurf-extension.zip' '$INSTDIR\\vibesurf-extension' -Force; Remove-Item '$INSTDIR\\vibesurf-extension.zip' -Force; Write-Host 'Extension updated!' } catch { Write-Host 'Extension update failed, continuing...' } }$\"$\r$\n"
-        FileWrite $2 "echo Starting VibeSurf...$\r$\n"
-        FileWrite $2 "timeout /t 1 /nobreak >nul$\r$\n"
-        FileWrite $2 "uv run vibesurf$\r$\n"
-        FileWrite $2 "pause$\r$\n"
-        FileClose $2
+        DetailPrint "EXE creation failed or skipped, creating batch launcher..."
+    ${Else}
+        DetailPrint "Creating additional batch launcher..."
     ${EndIf}
+    
+    DetailPrint "Creating batch launcher as fallback..."
+    FileOpen $2 "$INSTDIR\VibeSurf.bat" w
+    FileWrite $2 "@echo off$\r$\n"
+    FileWrite $2 "title VibeSurf - AI Browser Assistant$\r$\n"
+    FileWrite $2 "cd /d $\"$INSTDIR$\"$\r$\n"
+    FileWrite $2 "echo VibeSurf - AI Browser Assistant$\r$\n"
+    FileWrite $2 "echo ========================================$\r$\n"
+    FileWrite $2 "echo Checking for updates...$\r$\n"
+    FileWrite $2 "if not exist $\".venv$\" ($\r$\n"
+    FileWrite $2 "    echo Creating virtual environment...$\r$\n"
+    FileWrite $2 "    uv venv .venv$\r$\n"
+    FileWrite $2 "    if errorlevel 1 ($\r$\n"
+    FileWrite $2 "        echo Error: Virtual environment creation failed$\r$\n"
+    FileWrite $2 "        pause$\r$\n"
+    FileWrite $2 "        exit /b 1$\r$\n"
+    FileWrite $2 "    )$\r$\n"
+    FileWrite $2 ")$\r$\n"
+    FileWrite $2 "uv pip install vibesurf --upgrade$\r$\n"
+    FileWrite $2 ":launch$\r$\n"
+    FileWrite $2 "if %errorlevel% equ 0 ($\r$\n"
+    FileWrite $2 "    echo VibeSurf is up to date!$\r$\n"
+    FileWrite $2 ") else ($\r$\n"
+    FileWrite $2 "    echo Note: Update check failed, using existing version$\r$\n"
+    FileWrite $2 ")$\r$\n"
+    FileWrite $2 "echo Updating VibeSurf Chrome Extension...$\r$\n"
+    FileWrite $2 "powershell -NoProfile -ExecutionPolicy Bypass -Command $\"& { try { Write-Host 'Downloading extension...'; if (Test-Path '$INSTDIR\\vibesurf-extension') { Remove-Item '$INSTDIR\\vibesurf-extension' -Recurse -Force }; New-Item -Path '$INSTDIR\\vibesurf-extension' -ItemType Directory -Force; Invoke-WebRequest -Uri 'https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip' -OutFile '$INSTDIR\\vibesurf-extension.zip' -UseBasicParsing; Expand-Archive '$INSTDIR\\vibesurf-extension.zip' '$INSTDIR\\vibesurf-extension' -Force; Remove-Item '$INSTDIR\\vibesurf-extension.zip' -Force; Write-Host 'Extension updated!' } catch { Write-Host 'Extension update failed, continuing...' } }$\"$\r$\n"
+    FileWrite $2 "echo Starting VibeSurf...$\r$\n"
+    FileWrite $2 "timeout /t 1 /nobreak >nul$\r$\n"
+    FileWrite $2 "uv run vibesurf$\r$\n"
+    FileWrite $2 "pause$\r$\n"
+    FileClose $2
     
     ; Create uninstaller
     WriteUninstaller "$INSTDIR\Uninstall.exe"
