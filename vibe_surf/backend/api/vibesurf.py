@@ -249,18 +249,18 @@ async def import_workflow(
                 message="'data' must contain 'nodes' and 'edges' fields"
             )
 
-        for edge in data["edges"]:
-            if "sourceHandle" in edge:
-                edge_before = edge["sourceHandle"]
-                edge["sourceHandle"] = re.sub(r'\s+', '', edge_before).strip()
-                # edge_after = edge["sourceHandle"]
-                # print(f"{edge_before} -> {edge_after}")
-
-            if "targetHandle" in edge:
-                edge_before = edge["targetHandle"]
-                edge["targetHandle"] = re.sub(r'\s+', '', edge_before).strip()
-                # edge_after = edge["targetHandle"]
-                # print(f"{edge_before} -> {edge_after}")
+        # for edge in data["edges"]:
+        #     if "sourceHandle" in edge:
+        #         edge_before = edge["sourceHandle"]
+        #         edge["sourceHandle"] = re.sub(r'\s+', '', edge_before).strip()
+        #         edge_after = edge["sourceHandle"]
+        #         print(f"{edge_before} -> {edge_after}")
+        #
+        #     if "targetHandle" in edge:
+        #         edge_before = edge["targetHandle"]
+        #         edge["targetHandle"] = re.sub(r'\s+', '', edge_before).strip()
+        #         edge_after = edge["targetHandle"]
+        #         print(f"{edge_before} -> {edge_after}")
         
         # Get VibeSurf API key
         api_key = await CredentialQueries.get_credential(db, VIBESURF_API_KEY_NAME)

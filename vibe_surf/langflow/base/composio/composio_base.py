@@ -678,8 +678,11 @@ class ComposioBaseComponent(Component):
     def _remove_inputs_from_build_config(self, build_config: dict, keep_for_action: str) -> None:
         """Remove parameter UI fields that belong to other actions."""
         protected_keys = {"code", "entity_id", "api_key", "auth_link", "action_button", "tool_mode"}
-
-        for action_key, lf_inputs in self._get_inputs_for_all_actions().items():
+        all_inputs = self._get_inputs_for_all_actions()
+        keep_action_inputs = all_inputs.get(keep_for_action, [])
+        for keep_action_input in keep_action_inputs:
+            protected_keys.add(keep_action_input.name)
+        for action_key, lf_inputs in all_inputs.items():
             if action_key == keep_for_action:
                 continue
             for inp in lf_inputs:
@@ -722,7 +725,7 @@ class ComposioBaseComponent(Component):
                 # Preserve previously entered value if user already filled something
                 if inp.name in build_config:
                     existing_val = build_config[inp.name].get("value")
-                    inp_dict.setdefault("value", existing_val)
+                    inp_dict["value"] = existing_val
                 build_config[inp.name] = inp_dict
 
         # Ensure _all_fields includes new ones
