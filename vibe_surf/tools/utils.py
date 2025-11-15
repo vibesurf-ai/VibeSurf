@@ -1,3 +1,5 @@
+import pdb
+
 from bs4 import BeautifulSoup
 import asyncio
 import json
@@ -365,14 +367,14 @@ async def google_ai_model_search(browser_manager, query: str, max_results: int =
         # Navigate to Google AI model search with udm=50
         search_url = f'https://www.google.com/search?q={query}&udm=50'
         await browser_session.navigate_to_url(search_url, new_tab=False)
-        
+
         # Wait for page to load
         await asyncio.sleep(2)
-        
+
         # Try to click "显示更多" button
         try:
             cdp_session = await browser_session.get_or_create_cdp_session()
-            
+
             # JavaScript to click the "显示更多" button with retry logic
             click_more_js = """
 (async function() {
@@ -452,20 +454,20 @@ async def google_ai_model_search(browser_manager, query: str, max_results: int =
     }
 })()
 """
-            
+
             result = await cdp_session.cdp_client.send.Runtime.evaluate(
                 params={'expression': click_more_js, 'returnByValue': True, 'awaitPromise': True},
                 session_id=cdp_session.session_id,
             )
-            
+
             logger.info(f"Click result: {result.get('result', {}).get('value', 'No result')}")
-            
+
         except Exception as e:
             logger.warning(f"Failed to click show more button: {e}")
-        
+
         # Wait a bit more for content to load after clicking
         await asyncio.sleep(1)
-        
+
         # Extract news list using JavaScript
         extraction_js = """
 (function() {
@@ -570,28 +572,28 @@ async def google_ai_model_search(browser_manager, query: str, max_results: int =
     }
 })()
 """
-        
+
         # Execute extraction JavaScript
         cdp_session = await browser_session.get_or_create_cdp_session()
         result = await cdp_session.cdp_client.send.Runtime.evaluate(
             params={'expression': extraction_js, 'returnByValue': True, 'awaitPromise': True},
             session_id=cdp_session.session_id,
         )
-        
+
         if result.get('exceptionDetails'):
             logger.warning(f"JavaScript extraction failed: {result['exceptionDetails']}")
             return []
-        
+
         result_data = result.get('result', {})
         value = result_data.get('value', '[]')
-        
+
         try:
             extracted_results = json.loads(value)
             return extracted_results[:max_results] if isinstance(extracted_results, list) else []
         except (json.JSONDecodeError, ValueError):
             logger.warning(f"Failed to parse extraction results: {value}")
             return []
-            
+
     except Exception as e:
         logger.error(f"Google AI model search failed for query '{query}': {e}")
         return []
@@ -615,30 +617,30 @@ async def fallback_parallel_search(browser_manager, query: str, max_results: int
             'news': f'https://www.google.com/search?q={query}&tbm=nws',
             'videos': f'https://www.google.com/search?q={query}&tbm=vid'
         }
-        
+
         # Step 1: Create browser sessions for parallel searching
         register_sessions = []
-        
+
         for tab_name in search_urls.keys():
             agent_id = f"fallback_search_{tab_name}"
             register_sessions.append(
                 browser_manager.register_agent(agent_id, target_id=None)
             )
             agent_ids.append(agent_id)
-        
+
         # Wait for all browser sessions to be created
         browser_sessions = await asyncio.gather(*register_sessions)
-        
+
         # Step 2: Create parallel search tasks
         search_tasks = []
         for (tab_name, search_url), browser_session in zip(search_urls.items(), browser_sessions):
             search_tasks.append(
                 _perform_tab_search(browser_session, search_url, tab_name, query)
             )
-        
+
         # Step 3: Execute all searches in parallel
         search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
-        
+
         # Step 4: Aggregate results from all tabs
         all_results = []
         for i, result in enumerate(search_results):
@@ -648,19 +650,19 @@ async def fallback_parallel_search(browser_manager, query: str, max_results: int
                 continue
             if result:
                 all_results.extend(result)
-        
+
         # Step 5: Remove duplicates based on URL
         unique_results = []
         seen_urls = set()
-        
+
         for result in all_results:
             url = result.get('url', '')
             if url and url not in seen_urls and url != 'No URL':
                 seen_urls.add(url)
                 unique_results.append(result)
-        
+
         return unique_results[:max_results]
-        
+
     except Exception as e:
         logger.error(f"Fallback parallel search failed for query '{query}': {e}")
         return []
@@ -1219,24 +1221,24 @@ def _generate_general_extraction_js() -> str:
 async def _execute_extraction_with_retry(browser_session, extraction_js: str, tab_name: str, max_retries: int = 2):
     """Execute JavaScript extraction with retry logic and detailed logging"""
     cdp_session = await browser_session.get_or_create_cdp_session()
-    
+
     for attempt in range(max_retries + 1):
         try:
             result = await cdp_session.cdp_client.send.Runtime.evaluate(
                 params={'expression': extraction_js, 'returnByValue': True, 'awaitPromise': True},
                 session_id=cdp_session.session_id,
             )
-            
+
             if result.get('exceptionDetails'):
                 logger.warning(f"JavaScript extraction failed for {tab_name} (attempt {attempt + 1}): {result['exceptionDetails']}")
                 if attempt < max_retries:
                     await asyncio.sleep(1)  # Wait before retry
                     continue
                 return []
-            
+
             result_data = result.get('result', {})
             value = result_data.get('value', '[]')
-            
+
             try:
                 tab_results = json.loads(value)
                 if isinstance(tab_results, list):
@@ -1253,14 +1255,14 @@ async def _execute_extraction_with_retry(browser_session, extraction_js: str, ta
                     await asyncio.sleep(1)  # Wait before retry
                     continue
                 return []
-                
+
         except Exception as e:
             logger.warning(f"CDP execution failed for {tab_name} (attempt {attempt + 1}): {e}")
             if attempt < max_retries:
                 await asyncio.sleep(1)  # Wait before retry
                 continue
             return []
-    
+
     return []
 
 async def _perform_tab_search(browser_session, search_url: str, tab_name: str, query: str):
@@ -1278,7 +1280,7 @@ async def _perform_tab_search(browser_session, search_url: str, tab_name: str, q
     """
     try:
         logger.info(f"Searching {tab_name} tab for query: {query}")
-        
+
         # Navigate to search URL
         await browser_session.navigate_to_url(search_url, new_tab=False)
 
@@ -1301,15 +1303,15 @@ async def _perform_tab_search(browser_session, search_url: str, tab_name: str, q
             extraction_js = _generate_news_extraction_js()
         else:  # 'all' tab - general search
             extraction_js = _generate_general_extraction_js()
-        
+
         # Execute extraction with retry logic
         return await _execute_extraction_with_retry(browser_session, extraction_js, tab_name)
-            
+
     except Exception as e:
         logger.warning(f"Failed to search {tab_name} tab: {e}")
         return []
 
-    
+
 async def _extract_structured_content(browser_session, query: str, llm: BaseChatModel,
                                       target_id: str | None = None, extract_links: bool = False):
     """Helper method to extract structured content from current page"""
@@ -1469,7 +1471,7 @@ async def extract_file_content_with_llm(file_path: str, query: str, llm: BaseCha
     full_file_path = file_path
     if not os.path.exists(full_file_path):
         full_file_path = os.path.join(str(file_system.get_dir()), file_path)
-    
+
     # Determine if file is an image based on MIME type
     mime_type, _ = mimetypes.guess_type(file_path)
     is_image = mime_type and mime_type.startswith('image/')
