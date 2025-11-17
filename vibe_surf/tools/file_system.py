@@ -10,6 +10,7 @@ from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
 
+
 class PythonFile(BaseFile):
     """Plain text file implementation"""
 
@@ -73,6 +74,18 @@ class CustomFileSystem(FileSystem):
 
         return file_content
 
+    def get_todo_contents(self) -> str:
+        """Get todo file contents"""
+        full_filepath = str(self.data_dir / "todo.md")
+        if not os.path.exists(full_filepath):
+            return f"TODO '{full_filepath}' not found."
+        try:
+            with open(str(full_filepath), 'r', encoding="utf-8") as f:
+                todo_content = f.read()
+            return todo_content
+        except Exception as e:
+            return ""
+
     async def read_file(self, full_filename: str, external_file: bool = False) -> str:
         """Read file content using file-specific read method and return appropriate message to LLM"""
         try:
@@ -88,7 +101,7 @@ class CustomFileSystem(FileSystem):
                 with open(str(full_filepath), 'r', encoding="utf-8") as f:
                     content = f.read()
                     return f'Read from file {full_filename}.\n<content>\n{content}\n</content>'
-                
+
             elif extension == 'pdf':
                 import pypdf
 

@@ -49,6 +49,7 @@ from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.logger import get_logger
 from vibe_surf.tools.vibesurf_tools import VibeSurfTools
+from vibe_surf.tools.views import SkillCodeAction
 
 logger = get_logger(__name__)
 
@@ -143,127 +144,6 @@ class BrowserUseTools(Tools, VibeSurfTools):
 
     def _register_browser_actions(self):
         """Register custom browser actions"""
-
-        @self.registry.action('', param_model=UploadFileAction)
-        async def upload_file(
-                params: UploadFileAction, browser_session: BrowserSession, file_system: FileSystem
-        ):
-
-            # For local browsers, ensure the file exists on the local filesystem
-            full_file_path = params.path
-            if not os.path.exists(full_file_path):
-                full_file_path = str(file_system.get_dir() / params.path)
-            if not os.path.exists(full_file_path):
-                msg = f'File {params.path} does not exist'
-                return ActionResult(error=msg)
-
-            # Get the selector map to find the node
-            selector_map = await browser_session.get_selector_map()
-            if params.index not in selector_map:
-                msg = f'Element with index {params.index} does not exist.'
-                return ActionResult(error=msg)
-
-            node = selector_map[params.index]
-
-            # Helper function to find file input near the selected element
-            def find_file_input_near_element(
-                    node: EnhancedDOMTreeNode, max_height: int = 3, max_descendant_depth: int = 3
-            ) -> EnhancedDOMTreeNode | None:
-                """Find the closest file input to the selected element."""
-
-                def find_file_input_in_descendants(n: EnhancedDOMTreeNode, depth: int) -> EnhancedDOMTreeNode | None:
-                    if depth < 0:
-                        return None
-                    if browser_session.is_file_input(n):
-                        return n
-                    for child in n.children_nodes or []:
-                        result = find_file_input_in_descendants(child, depth - 1)
-                        if result:
-                            return result
-                    return None
-
-                current = node
-                for _ in range(max_height + 1):
-                    # Check the current node itself
-                    if browser_session.is_file_input(current):
-                        return current
-                    # Check all descendants of the current node
-                    result = find_file_input_in_descendants(current, max_descendant_depth)
-                    if result:
-                        return result
-                    # Check all siblings and their descendants
-                    if current.parent_node:
-                        for sibling in current.parent_node.children_nodes or []:
-                            if sibling is current:
-                                continue
-                            if browser_session.is_file_input(sibling):
-                                return sibling
-                            result = find_file_input_in_descendants(sibling, max_descendant_depth)
-                            if result:
-                                return result
-                    current = current.parent_node
-                    if not current:
-                        break
-                return None
-
-            # Try to find a file input element near the selected element
-            file_input_node = find_file_input_near_element(node)
-
-            # If not found near the selected element, fallback to finding the closest file input to current scroll position
-            if file_input_node is None:
-                logger.info(
-                    f'No file upload element found near index {params.index}, searching for closest file input to scroll position'
-                )
-
-                # Get current scroll position
-                cdp_session = await browser_session.get_or_create_cdp_session()
-                try:
-                    scroll_info = await cdp_session.cdp_client.send.Runtime.evaluate(
-                        params={'expression': 'window.scrollY || window.pageYOffset || 0'},
-                        session_id=cdp_session.session_id
-                    )
-                    current_scroll_y = scroll_info.get('result', {}).get('value', 0)
-                except Exception:
-                    current_scroll_y = 0
-
-                # Find all file inputs in the selector map and pick the closest one to scroll position
-                closest_file_input = None
-                min_distance = float('inf')
-
-                for idx, element in selector_map.items():
-                    if browser_session.is_file_input(element):
-                        # Get element's Y position
-                        if element.absolute_position:
-                            element_y = element.absolute_position.y
-                            distance = abs(element_y - current_scroll_y)
-                            if distance < min_distance:
-                                min_distance = distance
-                                closest_file_input = element
-
-                if closest_file_input:
-                    file_input_node = closest_file_input
-                    logger.info(f'Found file input closest to scroll position (distance: {min_distance}px)')
-                else:
-                    msg = 'No file upload element found on the page'
-                    logger.error(msg)
-                    raise BrowserError(msg)
-                # TODO: figure out why this fails sometimes + add fallback hail mary, just look for any file input on page
-
-            # Dispatch upload file event with the file input node
-            try:
-                event = browser_session.event_bus.dispatch(
-                    UploadFileEvent(node=file_input_node, file_path=full_file_path))
-                await event
-                await event.event_result(raise_if_any=True, raise_if_none=False)
-                msg = f'Successfully uploaded file to index {params.index}'
-                logger.info(f'📁 {msg}')
-                return ActionResult(
-                    extracted_content=msg,
-                    long_term_memory=f'Uploaded file {params.path} to element {params.index}',
-                )
-            except Exception as e:
-                logger.error(f'Failed to upload file: {e}')
-                raise BrowserError(f'Failed to upload file: {e}')
 
         @self.registry.action(
             '',
@@ -426,6 +306,34 @@ class BrowserUseTools(Tools, VibeSurfTools):
             except Exception as e:
                 logger.error(f'❌ Navigation failed: {str(e)}')
                 return ActionResult(error=f'Navigation failed: {str(e)}')
+
+        @self.registry.action(
+            'Generate JavaScript code via LLM and Execute on webpage.',
+            param_model=SkillCodeAction,
+        )
+        async def skill_code(
+                params: SkillCodeAction,
+                browser_session: AgentBrowserSession,
+                page_extraction_llm: BaseChatModel,
+        ):
+            try:
+                if not page_extraction_llm:
+                    raise RuntimeError("LLM is required for skill_code")
+
+                from vibe_surf.tools.utils import generate_java_script_code
+
+                success, execute_result, js_code = await generate_java_script_code(params.code_requirement,
+                                                                                   page_extraction_llm, browser_session,
+                                                                                   MAX_ITERATIONS=5)
+                msg = f'```javascript\n{js_code}\n```\nResult:\n```json\n {execute_result}\n```\n'
+                if success:
+                    return ActionResult(extracted_content=msg)
+                else:
+                    return ActionResult(error=msg)
+
+            except Exception as e:
+                logger.error(f'❌ Skill Code failed: {e}')
+                return ActionResult(error=f'Skill code failed: {str(e)}')
 
         @self.registry.action(
             '',
