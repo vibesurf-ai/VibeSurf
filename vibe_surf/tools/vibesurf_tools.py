@@ -1161,7 +1161,7 @@ class VibeSurfTools:
 
     def _register_browser_use_agent(self):
         @self.registry.action(
-            'Execute browser_use agent tasks. Please specify a tab id to an agent, if you want to let agent work on this tab.',
+            'Execute browser_use agent tasks. Please specify a tab id to an agent, if you want to let agent work on this tab. When using Parallel Task Processing, each `tab_id` in parameter must be unique - one tab_id can only be assigned to one agent during parallel execution. Otherwise, please use single bu agent to complete the task.',
             param_model=BrowserUseAgentExecution,
         )
         async def execute_browser_use_agent(
