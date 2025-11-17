@@ -40,7 +40,7 @@ class BrowserUseAgentTask(BaseModel):
     """Parameters for a single browser_use agent task"""
     tab_id: str | None = Field(
         default=None,
-        description='Tab ID to execute the task on. If None, a new blank page will be created',
+        description='Tab ID to execute the task on. If None, a new blank page will be created. Must be unique in parallel tasks.',
     )
     task: str = Field(
         description='Task description focusing on what needs to be done, goals, and expected returns.',
@@ -55,8 +55,7 @@ class BrowserUseAgentExecution(BaseModel):
     """Parameters for executing browser_use agent tasks in parallel"""
     tasks: list[BrowserUseAgentTask] = Field(
         description='List of tasks to execute concurrently using browser_use agents for improved efficiency. '
-                    'If only one task and no tab_id is provided, the agent can take over the entire browser and can also see and operate all tabs. '
-                    'When using Parallel Task Processing, each tab_id parameter must be unique - one tab_id can only be assigned to one agent during parallel execution.',
+                    'If only one task and no tab_id is provided, the agent can take over the entire browser and can also see and operate all tabs. ',
         min_length=1,
     )
 
