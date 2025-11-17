@@ -578,33 +578,9 @@ class BrowserUseAgent(Agent):
 
                 self.logger.debug(f'🚶 Starting step {step + 1}/{max_steps}...')
                 step_info = AgentStepInfo(step_number=step, max_steps=max_steps)
+                is_done = await self._execute_step(step, max_steps, step_info, on_step_start, on_step_end)
 
-                try:
-                    await asyncio.wait_for(
-                        self.step(step_info),
-                        timeout=self.settings.step_timeout,
-                    )
-                    self.logger.debug(f'✅ Completed step {step + 1}/{max_steps}')
-                except TimeoutError:
-                    # Handle step timeout gracefully
-                    error_msg = f'Step {step + 1} timed out after {self.settings.step_timeout} seconds'
-                    self.logger.error(f'⏰ {error_msg}')
-                    self.state.consecutive_failures += 1
-                    self.state.last_result = [ActionResult(error=error_msg)]
-
-                if on_step_end is not None:
-                    await on_step_end(self)
-
-                if self.history.is_done():
-                    self.logger.debug(f'🎯 Task completed after {step + 1} steps!')
-                    await self.log_completion()
-
-                    if self.register_done_callback:
-                        if inspect.iscoroutinefunction(self.register_done_callback):
-                            await self.register_done_callback(self.history)
-                        else:
-                            self.register_done_callback(self.history)
-
+                if is_done:
                     # Task completed
                     break
             else:

@@ -147,11 +147,11 @@ async def test_browser_state_capture(manager: BrowserManager):
     )
     os.makedirs("./tmp/screenshots", exist_ok=True)
     with open("./tmp/screenshots/agent1_python.png", "wb") as f:
-        f.write(base64.b64decode(screenshot1))
+        f.write(screenshot1)
     with open("./tmp/screenshots/agent2_rust.png", "wb") as f:
-        f.write(base64.b64decode(screenshot2))
+        f.write(screenshot2)
     with open("./tmp/screenshots/agent3_github.png", "wb") as f:
-        f.write(base64.b64decode(screenshot3))
+        f.write(screenshot3)
     end_time = time.time()
     total_duration = end_time - start_time
     logging.info(f"🔍 DIAGNOSIS: All taking screenshot completed in {total_duration:.3f}s")
@@ -215,7 +215,7 @@ async def test_browser_state_capture(manager: BrowserManager):
     # Get new state for agent 1
     logging.info("Capturing new state for agent 1...")
     state1_new = await agent1.get_browser_state_summary()
-
+    pdb.set_trace()
     # Print new tabs and save screenshot
     logging.info(f"Agent 1 new tabs: {state1_new.tabs}")
     assert state1_new.screenshot, "Agent 1 failed to capture new screenshot."
@@ -227,12 +227,12 @@ async def test_browser_state_capture(manager: BrowserManager):
     logging.info("Verifying active page with manager...")
     active_target_id = await manager._get_active_target()
     logging.info(f"Manager sees active target: {active_target_id}")
-    active_tab1 = await manager._get_activate_tab_info()
+    active_tab1 = await manager.get_activate_tab()
     print(active_tab1)
     await agent2.active_focus_page()
     active_target_id = await manager._get_active_target()
     logging.info(f"After switching, Manager sees active target: {active_target_id}")
-    active_tab2 = await manager._get_activate_tab_info()
+    active_tab2 = await manager.get_activate_tab()
     print(active_tab2)
     await manager.unregister_agent("agent-state-1", close_tabs=True)
     main_tabs = await manager.main_browser_session.get_tabs()
@@ -397,10 +397,10 @@ async def main():
             # await test_manual_page_assignment(manager)
             # await test_agent_cleanup(manager)
             # await test_agent_tab_isolation(manager)
-            # await test_browser_state_capture(manager)
+            await test_browser_state_capture(manager)
             # await get_all_css_selector(main_browser_session)
             # await test_website_api(main_browser_session)
-            await test_page_element(browser_session=main_browser_session)
+            # await test_page_element(browser_session=main_browser_session)
 
     except Exception as e:
         logging.error(f"An error occurred during tests: {e}", exc_info=True)
