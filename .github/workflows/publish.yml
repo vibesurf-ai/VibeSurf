@@ -23,11 +23,24 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     
+    - name: Free disk space
+      run: |
+        echo "=== Initial disk usage ==="
+        df -h
+        echo "=== Cleaning up space ==="
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf "/usr/local/share/boost"
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        sudo docker image prune -af
+        echo "=== Disk usage after cleanup ==="
+        df -h
+    
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install build pytest
-        pip install -e .
+        pip install --no-cache-dir build pytest
+        pip install --no-cache-dir -e .
     
     - name: Test CLI import
       run: |
@@ -44,6 +57,20 @@ jobs:
         ref: 'main'  # Always checkout main branch for latest code
         fetch-depth: 0  # Full history for setuptools-scm
     
+    - name: Free disk space before build
+      run: |
+        echo "=== Initial disk usage ==="
+        df -h
+        echo "=== Cleaning up space ==="
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf "/usr/local/share/boost"
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        sudo docker image prune -af
+        sudo apt-get clean
+        echo "=== Disk usage after cleanup ==="
+        df -h
+    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -58,28 +85,51 @@ jobs:
     
     - name: Build frontend
       run: |
+        echo "=== Starting frontend build ==="
+        df -h
         cd vibe_surf/frontend
-        npm ci
+        
+        # Use npm ci with cache optimization
+        npm ci --prefer-offline --no-audit --progress=false
         npm run build
+        
+        echo "=== After frontend build ==="
+        df -h
         
         # Copy build folder to backend directory as frontend
         mkdir -p ../backend/frontend
         cp -r build/* ../backend/frontend/
         
-        echo "=== Frontend build completed ==="
+        # Clean up node_modules to save space
+        rm -rf node_modules
+        rm -rf build
+        
+        echo "=== Frontend build completed and cleaned up ==="
         ls -la ../backend/frontend/
+        df -h
     
     - name: Install build dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install build setuptools-scm[toml]
+        echo "=== Installing build dependencies ==="
+        df -h
+        python -m pip install --upgrade pip --no-cache-dir
+        pip install --no-cache-dir build setuptools-scm[toml]
+        echo "=== After installing build dependencies ==="
+        df -h
     
     - name: Build package
-      run: python -m build
+      run: |
+        echo "=== Building package ==="
+        df -h
+        python -m build
+        echo "=== Package built ==="
+        df -h
     
     - name: Check built package
       run: |
-        pip install twine
+        echo "=== Installing twine and checking package ==="
+        df -h
+        pip install --no-cache-dir twine
         twine check dist/*
         
         # Show package contents
@@ -87,14 +137,18 @@ jobs:
         ls -la dist/
         
         echo "=== Package info ==="
-        python -m pip install dist/*.whl
+        python -m pip install --no-cache-dir dist/*.whl
         python -c "import vibe_surf; print(f'Installed version: {vibe_surf.__version__}')"
+        
+        echo "=== Final disk usage ==="
+        df -h
     
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: dist
         path: dist/
+        retention-days: 30  # Consistent retention policy
 
   build-extension:
     needs: test
@@ -106,6 +160,17 @@ jobs:
         ref: 'main'  # Always checkout main branch for latest code
         fetch-depth: 0  # Full history for setuptools-scm
     
+    - name: Free disk space
+      run: |
+        echo "=== Initial disk usage ==="
+        df -h
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf "/usr/local/share/boost"
+        sudo docker image prune -af
+        echo "=== Disk usage after cleanup ==="
+        df -h
+    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -113,8 +178,8 @@ jobs:
     
     - name: Install dependencies for version extraction
       run: |
-        python -m pip install --upgrade pip
-        pip install setuptools-scm[toml]
+        python -m pip install --upgrade pip --no-cache-dir
+        pip install --no-cache-dir setuptools-scm[toml]
     
     - name: Update Extension Version
       run: |
@@ -165,7 +230,7 @@ jobs:
       with:
         name: vibesurf-extension
         path: vibesurf-extension.zip
-        retention-days: 90
+        retention-days: 30  # Reduced from 90 days to save storage
 
   build-installer:
     needs: test
@@ -177,6 +242,21 @@ jobs:
         ref: 'main'
         fetch-depth: 0
 
+    - name: Free disk space
+      run: |
+        echo "=== Initial disk usage ==="
+        Get-WmiObject -Class Win32_LogicalDisk | Select-Object DeviceID, @{Name="FreeSpace(GB)";Expression={[math]::Round($_.FreeSpace/1GB,2)}}
+        echo "=== Cleaning up space ==="
+        # Clean Windows temp files and caches
+        Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "$env:LOCALAPPDATA\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
+        # Clean Visual Studio temp files
+        if (Test-Path "$env:LOCALAPPDATA\Microsoft\VisualStudio") {
+            Remove-Item -Path "$env:LOCALAPPDATA\Microsoft\VisualStudio\*" -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        echo "=== Disk usage after cleanup ==="
+        Get-WmiObject -Class Win32_LogicalDisk | Select-Object DeviceID, @{Name="FreeSpace(GB)";Expression={[math]::Round($_.FreeSpace/1GB,2)}}
+
     # Update Extension Version for consistency
     - name: Update Extension Version
       shell: bash
@@ -184,7 +264,7 @@ jobs:
         echo "=== Updating Extension Version ==="
         
         # Install setuptools-scm for version extraction
-        python -m pip install --upgrade pip setuptools-scm[toml]
+        python -m pip install --upgrade pip --no-cache-dir setuptools-scm[toml]
         
         # Get version from setuptools-scm
         VERSION=$(python -m setuptools_scm)
@@ -269,7 +349,7 @@ jobs:
       with:
         name: vibesurf-installer
         path: dist/VibeSurf-Installer.exe
-        retention-days: 90
+        retention-days: 30  # Reduced from 90 days to save storage
 
   publish-pypi:
     needs: [test, build-wheels]
