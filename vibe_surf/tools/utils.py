@@ -1540,3 +1540,21 @@ Provide the extracted information in a clear, structured format."""
 
     return extracted_content
 
+def remove_import_statements(code: str) -> str:
+    """
+    Remove import statements from Python code since modules are pre-imported in namespace
+    """
+    lines = code.split('\n')
+    filtered_lines = []
+    
+    for line in lines:
+        stripped_line = line.strip()
+        # Skip import statements but preserve other lines
+        if (stripped_line.startswith('import ') or
+            stripped_line.startswith('from ') and ' import ' in stripped_line):
+            # Add comment to show what was removed
+            filtered_lines.append(f"# REMOVED: {line}")
+        else:
+            filtered_lines.append(line)
+    
+    return '\n'.join(filtered_lines)

@@ -17,6 +17,7 @@ import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import seaborn as sns
+import io
 import json
 import re
 import os
@@ -59,7 +60,7 @@ from bs4 import BeautifulSoup
 from vibe_surf.logger import get_logger
 from vibe_surf.tools.utils import clean_html_basic
 from vibe_surf.tools.utils import _extract_structured_content, _rank_search_results_with_llm, \
-    extract_file_content_with_llm
+    extract_file_content_with_llm, remove_import_statements
 
 logger = get_logger(__name__)
 
@@ -946,20 +947,32 @@ class VibeSurfTools:
                 return ActionResult(error=error_msg, extracted_content=error_msg)
 
         @self.registry.action(
-            """Execute Python code for data processing(pandas,openpyxl,re,csv), visualization(matplotlib, seaborn), and analysis. 
+            """Execute Python code for data processing, visualization, and analysis.
 
-            Best Practices for Output:
-            - Use print() to display important information and results
-            - For large datasets: print only summary (e.g., df.head(3), first 1000 chars), then save full data to file
-            - When saving files, print the filename and briefly describe file contents (keys, data structure, etc.)
-            - All charts/plots must be saved to files using plt.savefig() or similar
-            - When creating charts, print explanation of what the chart shows and its purpose
-            - Example: print(f"Saved chart to 'sales_trend.png' - shows monthly sales trend over time")
+            * PRE-IMPORTED MODULES (No import needed):
+            - pandas (as pd), numpy (as np), matplotlib.pyplot (as plt)
+            - seaborn (as sns), json, re, os, csv, io
+            - openpyxl, datetime, timedelta, Path
+            - Helper functions: open(), safe_path()
+            - Save data root: BASE_DIR
+
+            * FILE OPERATIONS:
+            - BASE_DIR: Your workspace directory (use for all file operations)
+            - Use relative paths only: "data.csv", "charts/plot.png"
+            - Example: plt.savefig(f"{BASE_DIR}/analysis_chart.png")
+            - Example: df.to_csv(f"{BASE_DIR}/results.csv")
             
-            Security:
-            - All file operations restricted to BASE_DIR
-            - No system-level access
-            - No dangerous module imports
+            * BEST PRACTICES:
+            - Use print() to display important information and results
+            - For large datasets: print summary (df.head(3), first 1000 chars), then save full data
+            - When saving files, print filename and describe contents
+            - Save all charts/plots: plt.savefig(f"{BASE_DIR}/chart_name.png")
+            - Example output: print(f"Saved trend chart to '{BASE_DIR}/sales_trend.png' - shows monthly growth")
+            
+            * SECURITY:
+            - File operations restricted to BASE_DIR only
+            - No system-level access or dangerous operations
+            - Import statements automatically removed (modules pre-loaded)
             """,
             param_model=ExecutePythonCodeAction,
         )
@@ -967,29 +980,6 @@ class VibeSurfTools:
                 params: ExecutePythonCodeAction,
                 file_system: CustomFileSystem
         ):
-            """
-            Execute Python code in a secure, sandboxed environment with pre-imported libraries
-            
-            Features:
-            - Data processing with pandas
-            - Visualization with matplotlib/seaborn
-            - File operations restricted to workspace directory
-            - Excel processing with openpyxl
-            - JSON, regex, and basic utilities
-            
-            Best Practices for Output:
-            - Use print() to display important information and results
-            - For large datasets: print only summary (e.g., df.head(3), first 1000 chars), then save full data to file
-            - When saving files, print the filename and briefly describe file contents (keys, data structure, etc.)
-            - All charts/plots must be saved to files using plt.savefig() or similar
-            - When creating charts, print explanation of what the chart shows and its purpose
-            - Example: print(f"Saved chart to 'sales_trend.png' - shows monthly sales trend over time")
-            
-            Security:
-            - All file operations restricted to BASE_DIR
-            - No system-level access
-            - No dangerous module imports
-            """
             try:
                 # Get base directory from file system
                 base_dir = str(file_system.get_dir())
@@ -1036,6 +1026,7 @@ class VibeSurfTools:
                         'timedelta': timedelta,
                         'Path': Path,
                         'csv': csv,
+                        'io': io
                     })
                     
                     # Add secure file helper functions
@@ -1066,6 +1057,10 @@ class VibeSurfTools:
                 except ImportError as e:
                     logger.warning(f"Failed to import some libraries: {e}")
                 
+                # Remove import statements from user code since modules are pre-imported
+                cleaned_code = remove_import_statements(params.code)
+                logger.info(cleaned_code)
+                
                 # Check for dangerous operations
                 dangerous_keywords = [
                     'import subprocess', 'import sys', 'import importlib',
@@ -1075,17 +1070,17 @@ class VibeSurfTools:
                     'delattr', 'setattr', 'getattr', '__'
                 ]
                 
-                code_lower = params.code.lower()
+                code_lower = cleaned_code.lower()
                 for keyword in dangerous_keywords:
                     if keyword in code_lower and keyword not in ['open(', '__']:  # Allow our safe open
-                        if keyword == 'open(' and 'safe_open' in params.code:
+                        if keyword == 'open(' and 'safe_open' in cleaned_code:
                             continue  # Allow our safe open function
                         return ActionResult(
                             error=f"🚫 Security Error: Dangerous operation '{keyword}' detected. Code execution blocked for security reasons."
                         )
                 
-                # Compile and execute the code
-                compiled_code = compile(params.code, '<code>', 'exec')
+                # Compile and execute the cleaned code
+                compiled_code = compile(cleaned_code, '<code>', 'exec')
                 exec(compiled_code, namespace, namespace)
                 import sys
                 output_value = sys.stdout.getvalue()
