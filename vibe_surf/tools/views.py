@@ -59,6 +59,7 @@ class BrowserUseAgentExecution(BaseModel):
         min_length=1,
     )
 
+
 class BrowserUseFile(BaseModel):
     file_path: str = Field(description='Path to the file')
     file_description: str = Field(
@@ -98,13 +99,13 @@ class TodoModification(BaseModel):
         description='Text of the todo item to operate on',
     )
 
+
 class TodoModifyAction(BaseModel):
     """Parameters for modifying todo items"""
     modifications: list[TodoModification] = Field(
         description='List of todo modifications to apply',
         min_length=1,
     )
-
 
 
 class VibeSurfDoneAction(BaseModel):
@@ -179,6 +180,13 @@ class SkillCodeAction(BaseModel):
     )
 
 
+class GenJSCodeAction(BaseModel):
+    """Parameters for skill_code action"""
+    code_requirement: str = Field(
+        description='Functional requirement or code prompt describing what the JavaScript code should accomplish. Can be a description like "extract products with price over $100", requirements, or complete/incomplete JavaScript code snippets that will be processed by LLM to generate proper executable code.',
+    )
+
+
 class SkillFinanceAction(BaseModel):
     """Parameters for skill_finance action"""
     symbol: str = Field(
@@ -221,7 +229,7 @@ class DownloadMediaAction(BaseModel):
         default=None,
         description='Optional custom filename. If not provided, will auto-detect from URL or Content-Disposition header',
     )
- 
+
 
 class SkillXhsAction(BaseModel):
     """Parameters for skill_xhs action - Xiaohongshu API skill"""

@@ -43,7 +43,8 @@ from vibe_surf.tools.vibesurf_registry import VibeSurfRegistry
 from bs4 import BeautifulSoup
 from vibe_surf.logger import get_logger
 from vibe_surf.tools.utils import clean_html_basic
-from vibe_surf.tools.utils import _extract_structured_content, _rank_search_results_with_llm, extract_file_content_with_llm
+from vibe_surf.tools.utils import _extract_structured_content, _rank_search_results_with_llm, \
+    extract_file_content_with_llm
 
 logger = get_logger(__name__)
 
@@ -385,11 +386,11 @@ class VibeSurfTools:
                 params: SkillCodeAction,
                 browser_manager: BrowserManager,
                 page_extraction_llm: BaseChatModel,
+                file_system: CustomFileSystem
         ):
             """
             Skill: Generate and execute JavaScript code from functional requirements or code prompts with iterative retry logic
             """
-            MAX_ITERATIONS = 5
 
             try:
                 if not page_extraction_llm:
@@ -408,7 +409,13 @@ class VibeSurfTools:
                 success, execute_result, js_code = await generate_java_script_code(params.code_requirement,
                                                                                    page_extraction_llm, browser_session,
                                                                                    MAX_ITERATIONS=5)
-                msg = f'```javascript\n{js_code}\n```\nResult:\n```json\n {execute_result}\n```\n'
+                if len(execute_result) < 16000:
+                    msg = f'```javascript\n{js_code}\n```\nResult:\n```json\n {execute_result}\n```\n'
+                else:
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    result_json = f"skill_code_results/{timestamp}.json"
+                    await file_system.write_file(result_json, execute_result)
+                    msg = f'```javascript\n{js_code}\n```\nResult:\n```json\n {execute_result[:16000]}\n...TRUNCATED...\n```\nView more in {result_json}\n'
                 if success:
                     return ActionResult(extracted_content=msg)
                 else:
@@ -927,7 +934,7 @@ class VibeSurfTools:
         """
         Register extra tools for dynamic toolkit and MCP tool access
         """
-        
+
         @self.registry.action(
             'Get all available toolkit types from both Composio and MCP clients',
             param_model=NoParamsAction,
@@ -941,41 +948,41 @@ class VibeSurfTools:
             """
             try:
                 toolkit_types = []
-                
+
                 # Add Composio toolkit types
                 if self.composio_toolkits:
                     toolkit_types.extend(list(self.composio_toolkits.keys()))
-                
+
                 # Add MCP client types
                 if self.mcp_clients:
                     toolkit_types.extend(list(self.mcp_clients.keys()))
-                
+
                 result_text = f"Available toolkit types ({len(toolkit_types)} total):\n\n"
-                
+
                 # Group by type
                 composio_types = list(self.composio_toolkits.keys()) if self.composio_toolkits else []
                 mcp_types = list(self.mcp_clients.keys()) if self.mcp_clients else []
-                
+
                 if composio_types:
                     result_text += f"**Composio Toolkits ({len(composio_types)}):**\n"
                     for toolkit in composio_types:
                         result_text += f"- {toolkit}\n"
                     result_text += "\n"
-                
+
                 if mcp_types:
                     result_text += f"**MCP Clients ({len(mcp_types)}):**\n"
                     for client in mcp_types:
                         result_text += f"- {client}\n"
                     result_text += "\n"
-                
+
                 if not toolkit_types:
                     result_text = "No toolkit types available. Please register Composio toolkits or MCP clients first."
-                
+
                 logger.info(f'📋 Retrieved {len(toolkit_types)} toolkit types')
                 return ActionResult(
                     extracted_content=result_text,
                 )
-                
+
             except Exception as e:
                 logger.error(f'❌ Failed to get toolkit types: {e}')
                 return ActionResult(error=f'Failed to get toolkit types: {str(e)}')
@@ -1000,9 +1007,9 @@ class VibeSurfTools:
                     filters = [f.lower() for f in params.filters]
                 else:
                     filters = []
-                
+
                 matching_tools = []
-                
+
                 # Search in registry actions with prefixes
                 for action_name, action in self.registry.registry.actions.items():
                     # Check if this action belongs to the specified toolkit type
@@ -1013,7 +1020,7 @@ class VibeSurfTools:
                             description = param_dict.get('description', action_name)
                         except:
                             description = action_name
-                        
+
                         # Check if any filter matches tool name or description
                         search_text = f"{action_name} {description}".lower()
                         if any(filter_term in search_text for filter_term in filters):
@@ -1021,7 +1028,7 @@ class VibeSurfTools:
                                 'tool_name': action_name,
                                 'description': description
                             })
-                    
+
                     elif toolkit_type in self.mcp_clients and action_name.startswith(f"mcp.{toolkit_type}."):
                         # Get tool description from param_model
                         try:
@@ -1029,7 +1036,7 @@ class VibeSurfTools:
                             description = param_dict.get('description', action_name)
                         except:
                             description = action_name
-                        
+
                         # Check if any filter matches tool name or description
                         search_text = f"{action_name} {description}".lower()
                         if any(filter_term in search_text for filter_term in filters):
@@ -1037,7 +1044,7 @@ class VibeSurfTools:
                                 'tool_name': action_name,
                                 'description': description
                             })
-                
+
                 # Format results
                 if matching_tools:
                     result_text = f"Found {len(matching_tools)} tools in '{toolkit_type}' matching filters {params.filters}:\n\n"
@@ -1046,14 +1053,14 @@ class VibeSurfTools:
                         result_text += f"   Description: {tool['description']}\n\n"
                 else:
                     result_text = f"No tools found in '{toolkit_type}' matching filters {params.filters}"
-                
+
                 logger.info(f'🔍 Found {len(matching_tools)} tools in {toolkit_type} matching filters')
                 return ActionResult(
                     extracted_content=result_text,
                     include_extracted_content_only_once=True,
                     long_term_memory=f'Found {len(matching_tools)} tools in {toolkit_type} matching filters: {", ".join(params.filters)}'
                 )
-                
+
             except Exception as e:
                 logger.error(f'❌ Failed to search tools: {e}')
                 return ActionResult(error=f'Failed to search tools: {str(e)}')
@@ -1074,24 +1081,24 @@ class VibeSurfTools:
             """
             try:
                 tool_name = params.tool_name
-                
+
                 if tool_name not in self.registry.registry.actions:
                     return ActionResult(error=f'Tool "{tool_name}" not found in registry')
-                
+
                 action = self.registry.registry.actions[tool_name]
-                
+
                 # Convert param_model to dict
                 try:
                     param_dict = action.param_model.model_json_schema()
                     result_text = json.dumps(param_dict, indent=2, ensure_ascii=False)
                 except Exception as e:
                     result_text = f"Tool: {tool_name}\nError getting parameter info: {str(e)}"
-                
+
                 logger.info(f'ℹ️ Retrieved tool info for: {tool_name}')
                 return ActionResult(
                     extracted_content=f"```json\n{result_text}\n```"
                 )
-                
+
             except Exception as e:
                 logger.error(f'❌ Failed to get tool info: {e}')
                 return ActionResult(error=f'Failed to get tool info: {str(e)}')
@@ -1120,10 +1127,10 @@ class VibeSurfTools:
             """
             try:
                 tool_name = params.tool_name
-                
+
                 if tool_name not in self.registry.registry.actions:
                     return ActionResult(error=f'Tool "{tool_name}" not found in registry')
-                
+
                 # Parse tool parameters
                 try:
                     tool_params_dict = json.loads(params.tool_params)
@@ -1132,29 +1139,30 @@ class VibeSurfTools:
                         tool_params_dict = json.loads(repair_json(params.tool_params))
                     except Exception as e:
                         return ActionResult(error=f'Failed to parse tool parameters: {str(e)}')
-                
+
                 # Get the action
                 action = self.registry.registry.actions[tool_name]
-                
+
                 # Create special context (same as in act method)
                 special_context = {
                     'browser_manager': browser_manager,
                     'page_extraction_llm': page_extraction_llm,
                     'file_system': file_system,
                 }
-                
+
                 # Validate parameters
                 try:
                     validated_params = action.param_model(**tool_params_dict)
                 except Exception as e:
-                    return ActionResult(error=f'Invalid parameters {tool_params_dict} for action {tool_name}: {type(e)}: {e}')
-                
+                    return ActionResult(
+                        error=f'Invalid parameters {tool_params_dict} for action {tool_name}: {type(e)}: {e}')
+
                 # Execute the tool
                 result = await action.function(params=validated_params, **special_context)
-                
+
                 logger.info(f'🔧 Successfully executed extra tool: {tool_name}')
                 return result
-                
+
             except Exception as e:
                 logger.error(f'❌ Failed to execute extra tool: {e}')
                 return ActionResult(error=f'Failed to execute extra tool: {str(e)}')

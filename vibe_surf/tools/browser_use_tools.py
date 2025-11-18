@@ -49,7 +49,7 @@ from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.logger import get_logger
 from vibe_surf.tools.vibesurf_tools import VibeSurfTools
-from vibe_surf.tools.views import SkillCodeAction
+from vibe_surf.tools.views import GenJSCodeAction
 
 logger = get_logger(__name__)
 
@@ -309,12 +309,13 @@ class BrowserUseTools(Tools, VibeSurfTools):
 
         @self.registry.action(
             'Generate JavaScript code via LLM and Execute on webpage.',
-            param_model=SkillCodeAction,
+            param_model=GenJSCodeAction,
         )
-        async def skill_code(
-                params: SkillCodeAction,
+        async def gen_and_execute_js_code(
+                params: GenJSCodeAction,
                 browser_session: AgentBrowserSession,
                 page_extraction_llm: BaseChatModel,
+                file_system: FileSystem
         ):
             try:
                 if not page_extraction_llm:
@@ -325,12 +326,17 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 success, execute_result, js_code = await generate_java_script_code(params.code_requirement,
                                                                                    page_extraction_llm, browser_session,
                                                                                    MAX_ITERATIONS=5)
-                msg = f'```javascript\n{js_code}\n```\nResult:\n```json\n {execute_result}\n```\n'
+                if len(execute_result) < 16000:
+                    msg = f'```javascript\n{js_code}\n```\nResult:\n```json\n {execute_result}\n```\n'
+                else:
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    result_json = f"skill_code_results/{timestamp}.json"
+                    await file_system.write_file(result_json, execute_result)
+                    msg = f'```javascript\n{js_code}\n```\nResult:\n```json\n {execute_result[:16000]}\n...TRUNCATED...\n```\nView more in {result_json}\n'
                 if success:
                     return ActionResult(extracted_content=msg)
                 else:
                     return ActionResult(error=msg)
-
             except Exception as e:
                 logger.error(f'❌ Skill Code failed: {e}')
                 return ActionResult(error=f'Skill code failed: {str(e)}')
