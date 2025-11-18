@@ -948,31 +948,6 @@ class VibeSurfTools:
 
         @self.registry.action(
             """Execute Python code for data processing, visualization, and analysis.
-
-            * PRE-IMPORTED MODULES (No import needed):
-            - pandas (as pd), numpy (as np), matplotlib.pyplot (as plt)
-            - seaborn (as sns), json, re, os, csv, io
-            - openpyxl, datetime, timedelta, Path
-            - Helper functions: open(), safe_path()
-            - Save data root: BASE_DIR
-
-            * FILE OPERATIONS:
-            - BASE_DIR: Your workspace directory (use for all file operations)
-            - Use relative paths only: "data.csv", "charts/plot.png"
-            - Example: plt.savefig(f"{BASE_DIR}/analysis_chart.png")
-            - Example: df.to_csv(f"{BASE_DIR}/results.csv")
-            
-            * BEST PRACTICES:
-            - Use print() to display important information and results
-            - For large datasets: print summary (df.head(3), first 1000 chars), then save full data
-            - When saving files, print filename and describe contents
-            - Save all charts/plots: plt.savefig(f"{BASE_DIR}/chart_name.png")
-            - Example output: print(f"Saved trend chart to '{BASE_DIR}/sales_trend.png' - shows monthly growth")
-            
-            * SECURITY:
-            - File operations restricted to BASE_DIR only
-            - No system-level access or dangerous operations
-            - Import statements automatically removed (modules pre-loaded)
             """,
             param_model=ExecutePythonCodeAction,
         )
@@ -1002,7 +977,7 @@ class VibeSurfTools:
                         'sorted': sorted, 'str': str, 'sum': sum, 'tuple': tuple,
                         'type': type, 'zip': zip,
                     },
-                    'BASE_DIR': base_dir,
+                    'SAVE_DIR': base_dir,
                 }
                 
                 # Import common libraries safely
@@ -1032,9 +1007,12 @@ class VibeSurfTools:
                     # Add secure file helper functions
                     def safe_open(path, mode='r', **kwargs):
                         """Secure file open that restricts operations to BASE_DIR"""
-                        if os.path.isabs(path):
+                        if (not path.startswith(base_dir)) and os.path.isabs(path):
                             raise PermissionError("Absolute paths are not allowed. Only relative paths within workspace are supported.")
-                        full_path = os.path.join(base_dir, path)
+                        if not path.startswith(base_dir):
+                            full_path = os.path.join(base_dir, path)
+                        else:
+                            full_path = path
                         if not full_path.startswith(base_dir):
                             raise PermissionError("File operations are restricted to workspace directory only.")
                         os.makedirs(os.path.dirname(full_path), exist_ok=True)
@@ -1042,9 +1020,13 @@ class VibeSurfTools:
                     
                     def safe_path(path):
                         """Get safe path within BASE_DIR"""
-                        if os.path.isabs(path):
-                            raise PermissionError("Absolute paths are not allowed. Only relative paths within workspace are supported.")
-                        full_path = os.path.join(base_dir, path)
+                        if (not path.startswith(base_dir)) and os.path.isabs(path):
+                            raise PermissionError(
+                                "Absolute paths are not allowed. Only relative paths within workspace are supported.")
+                        if not path.startswith(base_dir):
+                            full_path = os.path.join(base_dir, path)
+                        else:
+                            full_path = path
                         if not full_path.startswith(base_dir):
                             raise PermissionError("File operations are restricted to workspace directory only.")
                         return full_path
@@ -1079,15 +1061,27 @@ class VibeSurfTools:
                             error=f"🚫 Security Error: Dangerous operation '{keyword}' detected. Code execution blocked for security reasons."
                         )
                 
-                # Compile and execute the cleaned code
-                compiled_code = compile(cleaned_code, '<code>', 'exec')
-                exec(compiled_code, namespace, namespace)
+                # Capture stdout to get print outputs
                 import sys
-                output_value = sys.stdout.getvalue()
-                if output_value:
-                    result_text = output_value
-                else:
-                    result_text = "No result print in console after execute the python code."
+                from io import StringIO
+                
+                old_stdout = sys.stdout
+                sys.stdout = captured_output = StringIO()
+                
+                try:
+                    # Compile and execute the cleaned code
+                    compiled_code = compile(cleaned_code, '<code>', 'exec')
+                    exec(compiled_code, namespace, namespace)
+                    
+                    # Get the captured output
+                    output_value = captured_output.getvalue()
+                    if output_value.strip():
+                        result_text = output_value
+                    else:
+                        result_text = "No output printed to console after executing the Python code."
+                finally:
+                    # Restore stdout
+                    sys.stdout = old_stdout
                 
                 logger.info(f'🐍 Python code executed successfully')
                 return ActionResult(
