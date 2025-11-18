@@ -263,7 +263,7 @@ async def generate_java_script_code(code_requirement, llm, browser_session, MAX_
                     session_id=cdp_session.session_id,
                 )
                 execute_result = str(result)
-                logger.info(result)
+                logger.debug(result)
                 # Check for JavaScript execution errors
                 if result.get('exceptionDetails'):
                     exception = result['exceptionDetails']

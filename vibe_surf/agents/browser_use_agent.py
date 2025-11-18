@@ -138,7 +138,6 @@ class BrowserUseAgent(Agent):
             include_recent_events: bool = False,
             sample_images: list[ContentPartTextParam | ContentPartImageParam] | None = None,
             final_response_after_failure: bool = True,
-            allow_parallel_action_types: list[str] = ["extract", "extract_content_from_file"],
             _url_shortening_limit: int = 25,
             token_cost_service: Optional[TokenCost] = None,
             **kwargs,
@@ -151,7 +150,6 @@ class BrowserUseAgent(Agent):
         self.id = task_id or uuid7str()
         self.task_id: str = self.id
         self.session_id: str = uuid7str()
-        self.allow_parallel_action_types = allow_parallel_action_types
         self._url_shortening_limit = _url_shortening_limit
         self.sample_images = sample_images
         browser_profile = browser_profile or DEFAULT_BROWSER_PROFILE
