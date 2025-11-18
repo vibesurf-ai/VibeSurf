@@ -17,6 +17,7 @@ import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import seaborn as sns
+import io
 import json
 import re
 import os
@@ -59,7 +60,7 @@ from bs4 import BeautifulSoup
 from vibe_surf.logger import get_logger
 from vibe_surf.tools.utils import clean_html_basic
 from vibe_surf.tools.utils import _extract_structured_content, _rank_search_results_with_llm, \
-    extract_file_content_with_llm
+    extract_file_content_with_llm, remove_import_statements
 
 logger = get_logger(__name__)
 
@@ -946,20 +947,7 @@ class VibeSurfTools:
                 return ActionResult(error=error_msg, extracted_content=error_msg)
 
         @self.registry.action(
-            """Execute Python code for data processing(pandas,openpyxl,re,csv), visualization(matplotlib, seaborn), and analysis. 
-
-            Best Practices for Output:
-            - Use print() to display important information and results
-            - For large datasets: print only summary (e.g., df.head(3), first 1000 chars), then save full data to file
-            - When saving files, print the filename and briefly describe file contents (keys, data structure, etc.)
-            - All charts/plots must be saved to files using plt.savefig() or similar
-            - When creating charts, print explanation of what the chart shows and its purpose
-            - Example: print(f"Saved chart to 'sales_trend.png' - shows monthly sales trend over time")
-            
-            Security:
-            - All file operations restricted to BASE_DIR
-            - No system-level access
-            - No dangerous module imports
+            """Execute Python code for data processing, visualization, and analysis.
             """,
             param_model=ExecutePythonCodeAction,
         )
@@ -967,29 +955,6 @@ class VibeSurfTools:
                 params: ExecutePythonCodeAction,
                 file_system: CustomFileSystem
         ):
-            """
-            Execute Python code in a secure, sandboxed environment with pre-imported libraries
-            
-            Features:
-            - Data processing with pandas
-            - Visualization with matplotlib/seaborn
-            - File operations restricted to workspace directory
-            - Excel processing with openpyxl
-            - JSON, regex, and basic utilities
-            
-            Best Practices for Output:
-            - Use print() to display important information and results
-            - For large datasets: print only summary (e.g., df.head(3), first 1000 chars), then save full data to file
-            - When saving files, print the filename and briefly describe file contents (keys, data structure, etc.)
-            - All charts/plots must be saved to files using plt.savefig() or similar
-            - When creating charts, print explanation of what the chart shows and its purpose
-            - Example: print(f"Saved chart to 'sales_trend.png' - shows monthly sales trend over time")
-            
-            Security:
-            - All file operations restricted to BASE_DIR
-            - No system-level access
-            - No dangerous module imports
-            """
             try:
                 # Get base directory from file system
                 base_dir = str(file_system.get_dir())
@@ -1012,7 +977,7 @@ class VibeSurfTools:
                         'sorted': sorted, 'str': str, 'sum': sum, 'tuple': tuple,
                         'type': type, 'zip': zip,
                     },
-                    'BASE_DIR': base_dir,
+                    'SAVE_DIR': base_dir,
                 }
                 
                 # Import common libraries safely
@@ -1036,14 +1001,18 @@ class VibeSurfTools:
                         'timedelta': timedelta,
                         'Path': Path,
                         'csv': csv,
+                        'io': io
                     })
                     
                     # Add secure file helper functions
                     def safe_open(path, mode='r', **kwargs):
                         """Secure file open that restricts operations to BASE_DIR"""
-                        if os.path.isabs(path):
+                        if (not path.startswith(base_dir)) and os.path.isabs(path):
                             raise PermissionError("Absolute paths are not allowed. Only relative paths within workspace are supported.")
-                        full_path = os.path.join(base_dir, path)
+                        if not path.startswith(base_dir):
+                            full_path = os.path.join(base_dir, path)
+                        else:
+                            full_path = path
                         if not full_path.startswith(base_dir):
                             raise PermissionError("File operations are restricted to workspace directory only.")
                         os.makedirs(os.path.dirname(full_path), exist_ok=True)
@@ -1051,9 +1020,13 @@ class VibeSurfTools:
                     
                     def safe_path(path):
                         """Get safe path within BASE_DIR"""
-                        if os.path.isabs(path):
-                            raise PermissionError("Absolute paths are not allowed. Only relative paths within workspace are supported.")
-                        full_path = os.path.join(base_dir, path)
+                        if (not path.startswith(base_dir)) and os.path.isabs(path):
+                            raise PermissionError(
+                                "Absolute paths are not allowed. Only relative paths within workspace are supported.")
+                        if not path.startswith(base_dir):
+                            full_path = os.path.join(base_dir, path)
+                        else:
+                            full_path = path
                         if not full_path.startswith(base_dir):
                             raise PermissionError("File operations are restricted to workspace directory only.")
                         return full_path
@@ -1066,6 +1039,10 @@ class VibeSurfTools:
                 except ImportError as e:
                     logger.warning(f"Failed to import some libraries: {e}")
                 
+                # Remove import statements from user code since modules are pre-imported
+                cleaned_code = remove_import_statements(params.code)
+                logger.info(cleaned_code)
+                
                 # Check for dangerous operations
                 dangerous_keywords = [
                     'import subprocess', 'import sys', 'import importlib',
@@ -1075,24 +1052,36 @@ class VibeSurfTools:
                     'delattr', 'setattr', 'getattr', '__'
                 ]
                 
-                code_lower = params.code.lower()
+                code_lower = cleaned_code.lower()
                 for keyword in dangerous_keywords:
                     if keyword in code_lower and keyword not in ['open(', '__']:  # Allow our safe open
-                        if keyword == 'open(' and 'safe_open' in params.code:
+                        if keyword == 'open(' and 'safe_open' in cleaned_code:
                             continue  # Allow our safe open function
                         return ActionResult(
                             error=f"🚫 Security Error: Dangerous operation '{keyword}' detected. Code execution blocked for security reasons."
                         )
                 
-                # Compile and execute the code
-                compiled_code = compile(params.code, '<code>', 'exec')
-                exec(compiled_code, namespace, namespace)
+                # Capture stdout to get print outputs
                 import sys
-                output_value = sys.stdout.getvalue()
-                if output_value:
-                    result_text = output_value
-                else:
-                    result_text = "No result print in console after execute the python code."
+                from io import StringIO
+                
+                old_stdout = sys.stdout
+                sys.stdout = captured_output = StringIO()
+                
+                try:
+                    # Compile and execute the cleaned code
+                    compiled_code = compile(cleaned_code, '<code>', 'exec')
+                    exec(compiled_code, namespace, namespace)
+                    
+                    # Get the captured output
+                    output_value = captured_output.getvalue()
+                    if output_value.strip():
+                        result_text = output_value
+                    else:
+                        result_text = "No output printed to console after executing the Python code."
+                finally:
+                    # Restore stdout
+                    sys.stdout = old_stdout
                 
                 logger.info(f'🐍 Python code executed successfully')
                 return ActionResult(
