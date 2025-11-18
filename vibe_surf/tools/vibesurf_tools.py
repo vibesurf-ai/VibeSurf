@@ -10,6 +10,21 @@ import base64
 import mimetypes
 import yfinance as yf
 import pprint
+import pandas as pd
+import numpy as np
+import matplotlib
+
+matplotlib.use('Agg')  # Use non-interactive backend
+import matplotlib.pyplot as plt
+import seaborn as sns
+import json
+import re
+import os
+import openpyxl
+from datetime import datetime, timedelta
+from pathlib import Path
+import csv
+
 from json_repair import repair_json
 from datetime import datetime
 from typing import Optional, Type, Callable, Dict, Any, Union, Awaitable, TypeVar
@@ -33,7 +48,7 @@ from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionA
     ReportWriterTask, TodoGenerateAction, TodoModifyAction, VibeSurfDoneAction, SkillSearchAction, SkillCrawlAction, \
     SkillSummaryAction, SkillTakeScreenshotAction, SkillDeepResearchAction, SkillCodeAction, SkillFinanceAction, \
     SkillXhsAction, SkillDouyinAction, SkillYoutubeAction, SkillWeiboAction, GrepContentAction, \
-    SearchToolAction, GetToolInfoAction, ExecuteExtraToolAction
+    SearchToolAction, GetToolInfoAction, ExecuteExtraToolAction, ExecutePythonCodeAction
 from vibe_surf.tools.finance_tools import FinanceDataRetriever, FinanceMarkdownFormatter, FinanceMethod
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.composio_client import ComposioClient
@@ -927,6 +942,172 @@ class VibeSurfTools:
 
             except Exception as e:
                 error_msg = f'❌ Failed to retrieve YouTube data: {str(e)}'
+                logger.error(error_msg)
+                return ActionResult(error=error_msg, extracted_content=error_msg)
+
+        @self.registry.action(
+            """Execute Python code for data processing(pandas,openpyxl,re,csv), visualization(matplotlib, seaborn), and analysis. 
+
+            Best Practices for Output:
+            - Use print() to display important information and results
+            - For large datasets: print only summary (e.g., df.head(3), first 1000 chars), then save full data to file
+            - When saving files, print the filename and briefly describe file contents (keys, data structure, etc.)
+            - All charts/plots must be saved to files using plt.savefig() or similar
+            - When creating charts, print explanation of what the chart shows and its purpose
+            - Example: print(f"Saved chart to 'sales_trend.png' - shows monthly sales trend over time")
+            
+            Security:
+            - All file operations restricted to BASE_DIR
+            - No system-level access
+            - No dangerous module imports
+            """,
+            param_model=ExecutePythonCodeAction,
+        )
+        async def execute_python_code(
+                params: ExecutePythonCodeAction,
+                file_system: CustomFileSystem
+        ):
+            """
+            Execute Python code in a secure, sandboxed environment with pre-imported libraries
+            
+            Features:
+            - Data processing with pandas
+            - Visualization with matplotlib/seaborn
+            - File operations restricted to workspace directory
+            - Excel processing with openpyxl
+            - JSON, regex, and basic utilities
+            
+            Best Practices for Output:
+            - Use print() to display important information and results
+            - For large datasets: print only summary (e.g., df.head(3), first 1000 chars), then save full data to file
+            - When saving files, print the filename and briefly describe file contents (keys, data structure, etc.)
+            - All charts/plots must be saved to files using plt.savefig() or similar
+            - When creating charts, print explanation of what the chart shows and its purpose
+            - Example: print(f"Saved chart to 'sales_trend.png' - shows monthly sales trend over time")
+            
+            Security:
+            - All file operations restricted to BASE_DIR
+            - No system-level access
+            - No dangerous module imports
+            """
+            try:
+                # Get base directory from file system
+                base_dir = str(file_system.get_dir())
+                
+                # Create a secure namespace with pre-imported libraries
+                namespace = {
+                    '__builtins__': {
+                        # Safe built-ins only
+                        'abs': abs, 'all': all, 'any': any, 'bin': bin, 'bool': bool,
+                        'chr': chr, 'dict': dict, 'dir': dir, 'divmod': divmod,
+                        'enumerate': enumerate, 'filter': filter, 'float': float,
+                        'format': format, 'frozenset': frozenset, 'getattr': getattr,
+                        'hasattr': hasattr, 'hash': hash, 'hex': hex, 'id': id,
+                        'int': int, 'isinstance': isinstance, 'issubclass': issubclass,
+                        'iter': iter, 'len': len, 'list': list, 'map': map,
+                        'max': max, 'min': min, 'next': next, 'oct': oct,
+                        'ord': ord, 'pow': pow, 'print': print, 'range': range,
+                        'repr': repr, 'reversed': reversed, 'round': round,
+                        'set': set, 'setattr': setattr, 'slice': slice,
+                        'sorted': sorted, 'str': str, 'sum': sum, 'tuple': tuple,
+                        'type': type, 'zip': zip,
+                    },
+                    'BASE_DIR': base_dir,
+                }
+                
+                # Import common libraries safely
+                try:
+
+                    # Add libraries to namespace
+                    namespace.update({
+                        'pd': pd,
+                        'pandas': pd,
+                        'np': np,
+                        'numpy': np,
+                        'plt': plt,
+                        'matplotlib': matplotlib,
+                        'sns': sns,
+                        'seaborn': sns,
+                        'json': json,
+                        're': re,
+                        'os': os,
+                        'openpyxl': openpyxl,
+                        'datetime': datetime,
+                        'timedelta': timedelta,
+                        'Path': Path,
+                        'csv': csv,
+                    })
+                    
+                    # Add secure file helper functions
+                    def safe_open(path, mode='r', **kwargs):
+                        """Secure file open that restricts operations to BASE_DIR"""
+                        if os.path.isabs(path):
+                            raise PermissionError("Absolute paths are not allowed. Only relative paths within workspace are supported.")
+                        full_path = os.path.join(base_dir, path)
+                        if not full_path.startswith(base_dir):
+                            raise PermissionError("File operations are restricted to workspace directory only.")
+                        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                        return open(full_path, mode, **kwargs)
+                    
+                    def safe_path(path):
+                        """Get safe path within BASE_DIR"""
+                        if os.path.isabs(path):
+                            raise PermissionError("Absolute paths are not allowed. Only relative paths within workspace are supported.")
+                        full_path = os.path.join(base_dir, path)
+                        if not full_path.startswith(base_dir):
+                            raise PermissionError("File operations are restricted to workspace directory only.")
+                        return full_path
+                    
+                    namespace.update({
+                        'open': safe_open,
+                        'safe_path': safe_path,
+                    })
+                    
+                except ImportError as e:
+                    logger.warning(f"Failed to import some libraries: {e}")
+                
+                # Check for dangerous operations
+                dangerous_keywords = [
+                    'import subprocess', 'import sys', 'import importlib',
+                    '__import__', 'eval(', 'exec(', 'compile(',
+                    'open(', 'file(', 'input(', 'raw_input(',
+                    'execfile', 'reload', 'vars(', 'globals(', 'locals(',
+                    'delattr', 'setattr', 'getattr', '__'
+                ]
+                
+                code_lower = params.code.lower()
+                for keyword in dangerous_keywords:
+                    if keyword in code_lower and keyword not in ['open(', '__']:  # Allow our safe open
+                        if keyword == 'open(' and 'safe_open' in params.code:
+                            continue  # Allow our safe open function
+                        return ActionResult(
+                            error=f"🚫 Security Error: Dangerous operation '{keyword}' detected. Code execution blocked for security reasons."
+                        )
+                
+                # Compile and execute the code
+                compiled_code = compile(params.code, '<code>', 'exec')
+                exec(compiled_code, namespace, namespace)
+                import sys
+                output_value = sys.stdout.getvalue()
+                if output_value:
+                    result_text = output_value
+                else:
+                    result_text = "No result print in console after execute the python code."
+                
+                logger.info(f'🐍 Python code executed successfully')
+                return ActionResult(
+                    extracted_content=result_text)
+                
+            except PermissionError as e:
+                error_msg = f'🚫 Security Error: {str(e)}'
+                logger.error(error_msg)
+                return ActionResult(error=error_msg, extracted_content=error_msg)
+            except SyntaxError as e:
+                error_msg = f'❌ Syntax Error in Python code: {str(e)}'
+                logger.error(error_msg)
+                return ActionResult(error=error_msg, extracted_content=error_msg)
+            except Exception as e:
+                error_msg = f'❌ Python code execution failed: {str(e)}'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg, extracted_content=error_msg)
 

@@ -337,3 +337,10 @@ class ExecuteExtraToolAction(BaseModel):
     tool_params: str = Field(
         description='JSON string containing parameters for the tool execution',
     )
+
+
+class ExecutePythonCodeAction(BaseModel):
+    """Parameters for execute_python_code action"""
+    code: str = Field(
+        description='Python code to execute. Supports data processing, visualization (matplotlib/seaborn), file operations, and analysis. All file operations are restricted to the workspace directory for security.',
+    )
