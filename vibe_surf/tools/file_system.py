@@ -267,23 +267,9 @@ class CustomFileSystem(FileSystem):
 
     async def write_file(self, full_filename: str, content: str) -> str:
         """Write content to file using file-specific write method"""
-        if not self._is_valid_filename(full_filename):
-            return INVALID_FILENAME_ERROR_MESSAGE
-
         try:
             full_path = self.data_dir / full_filename
             full_path.parent.mkdir(parents=True, exist_ok=True)
-            name_without_ext, extension = self._parse_filename(full_filename)
-            file_class = self._get_file_type_class(extension)
-            if not file_class:
-                raise ValueError(f"Error: Invalid file extension '{extension}' for file '{full_filename}'.")
-
-            # Create or get existing file using full filename as key
-            if full_filename in self.files:
-                file_obj = self.files[full_filename]
-            else:
-                file_obj = file_class(name=name_without_ext)
-                self.files[full_filename] = file_obj  # Use full filename as key
 
             with open(str(full_path), encoding='utf-8', mode='w') as f:
                 f.write(content)
@@ -306,17 +292,6 @@ class CustomFileSystem(FileSystem):
         try:
             full_path = self.data_dir / full_filename
             full_path.parent.mkdir(parents=True, exist_ok=True)
-            name_without_ext, extension = self._parse_filename(full_filename)
-            file_class = self._get_file_type_class(extension)
-            if not file_class:
-                raise ValueError(f"Error: Invalid file extension '{extension}' for file '{full_filename}'.")
-
-            # Create or get existing file using full filename as key
-            if full_filename in self.files:
-                file_obj = self.files[full_filename]
-            else:
-                file_obj = file_class(name=name_without_ext)
-                self.files[full_filename] = file_obj  # Use full filename as key
 
             # Use file-specific write method
             with open(str(full_path), encoding='utf-8', mode='w') as f:

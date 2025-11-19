@@ -485,6 +485,78 @@ class BrowserUseAgent(Agent):
         # Increment step counter after step is fully completed
         self.state.n_steps += 1
 
+    @observe_debug(ignore_input=True, ignore_output=True)
+    @time_execution_async('--multi_act')
+    async def multi_act(self, actions: list[ActionModel]) -> list[ActionResult]:
+        """Execute multiple actions"""
+        results: list[ActionResult] = []
+        time_elapsed = 0
+        total_actions = len(actions)
+
+        assert self.browser_session is not None, 'BrowserSession is not set up'
+        try:
+            if (
+                    self.browser_session._cached_browser_state_summary is not None
+                    and self.browser_session._cached_browser_state_summary.dom_state is not None
+            ):
+                cached_selector_map = dict(self.browser_session._cached_browser_state_summary.dom_state.selector_map)
+                cached_element_hashes = {e.parent_branch_hash() for e in cached_selector_map.values()}
+            else:
+                cached_selector_map = {}
+                cached_element_hashes = set()
+        except Exception as e:
+            self.logger.error(f'Error getting cached selector map: {e}')
+            cached_selector_map = {}
+            cached_element_hashes = set()
+
+        for i, action in enumerate(actions):
+            if i > 0:
+                # ONLY ALLOW TO CALL `done` IF IT IS A SINGLE ACTION
+                if action.model_dump(exclude_unset=True).get('done') is not None:
+                    msg = f'Done action is allowed only as a single action - stopped after action {i} / {total_actions}.'
+                    self.logger.debug(msg)
+                    break
+
+            # wait between actions (only after first action)
+            if i > 0:
+                self.logger.debug(f'Waiting {self.browser_profile.wait_between_actions} seconds between actions')
+                await asyncio.sleep(self.browser_profile.wait_between_actions)
+
+            try:
+                await self._check_stop_or_pause()
+                # Get action name from the action model
+                action_data = action.model_dump(exclude_unset=True)
+                action_name = next(iter(action_data.keys())) if action_data else 'unknown'
+
+                # Log action before execution
+                self._log_action(action, action_name, i + 1, total_actions)
+
+                time_start = time.time()
+
+                result = await self.tools.act(
+                    action=action,
+                    browser_session=self.browser_session,
+                    file_system=self.file_system,
+                    page_extraction_llm=self.settings.page_extraction_llm,
+                    sensitive_data=self.sensitive_data,
+                    available_file_paths=self.available_file_paths,
+                )
+                await self.add_glow_effect()
+                time_end = time.time()
+                time_elapsed = time_end - time_start
+
+                results.append(result)
+
+                if results[-1].is_done or results[-1].error or i == total_actions - 1:
+                    break
+
+            except Exception as e:
+                # Handle any exceptions during action execution
+                self.logger.error(f'❌ Executing action {i + 1} failed -> {type(e).__name__}: {e}')
+                raise e
+
+        return results
+
     def add_new_task(self, new_task: str) -> None:
         """Add a new task to the agent, keeping the same task_id as tasks are continuous"""
         # Simply delegate to message manager - no need for new task_id or events
@@ -495,6 +567,94 @@ class BrowserUseAgent(Agent):
         # Mark as follow-up task and recreate eventbus (gets shut down after each run)
         self.state.follow_up_task = True
 
+    async def add_glow_effect(self):
+        try:
+            glow_effect_js = """
+            (function() {
+                const existingGlow = document.querySelector('.browser-edge-glow');
+                if (existingGlow) {
+                    return { created: true };
+                }
+
+                const style = document.createElement('style');
+                style.textContent = `
+                    .browser-edge-glow {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        pointer-events: none;
+                        z-index: 2147483647;
+                        box-shadow: 
+                            inset 0 0 50px rgba(0, 191, 255, 0.6),
+                            inset 0 0 100px rgba(0, 191, 255, 0.4),
+                            inset 0 0 200px rgba(0, 191, 255, 0.2);
+                        animation: edge-glow-pulse 3s ease-in-out infinite;
+                    }
+
+                    @keyframes edge-glow-pulse {
+                        0%, 100% { 
+                            box-shadow: 
+                                inset 0 0 30px rgba(0, 191, 255, 0.3),
+                                inset 0 0 60px rgba(0, 191, 255, 0.2),
+                                inset 0 0 120px rgba(0, 191, 255, 0.1);
+                        }
+                        50% { 
+                            box-shadow: 
+                                inset 0 0 80px rgba(0, 191, 255, 0.8),
+                                inset 0 0 160px rgba(0, 191, 255, 0.6),
+                                inset 0 0 320px rgba(0, 191, 255, 0.3);
+                        }
+                    }
+                `;
+
+                document.head.appendChild(style);
+
+                const glowDiv = document.createElement('div');
+                glowDiv.className = 'browser-edge-glow';
+                document.body.appendChild(glowDiv);
+
+                return { created: true };
+            })();
+            """
+
+            cdp_session = await self.browser_session.get_or_create_cdp_session()
+            result = await cdp_session.cdp_client.send.Runtime.evaluate(
+                params={'expression': glow_effect_js, 'returnByValue': True},
+                session_id=cdp_session.session_id,
+            )
+            return result
+        except Exception as e:
+            logging.debug(str(e))
+
+    async def remove_glow_effect(self):
+        try:
+            self.logger.info("Remove Glow Effect")
+            remove_effect_js = """
+            (function removeGlow() {
+                document.querySelectorAll('.browser-edge-glow').forEach(el => el.remove());
+                document.querySelectorAll('style').forEach(style => {
+                    if (style.textContent.includes('browser-edge-glow')) {
+                        style.remove();
+                    }
+                });
+            })();
+            """
+
+            cdp_session = await self.browser_session.get_or_create_cdp_session()
+            result = await cdp_session.cdp_client.send.Runtime.evaluate(
+                params={'expression': remove_effect_js, 'returnByValue': True},
+                session_id=cdp_session.session_id,
+            )
+            for cdp_session in self.browser_session._cdp_session_pool.values():
+                result = await cdp_session.cdp_client.send.Runtime.evaluate(
+                    params={'expression': remove_effect_js, 'returnByValue': True},
+                    session_id=cdp_session.session_id,
+                )
+        except Exception as e:
+            logging.debug(str(e))
+
     @observe(name='agent.run', metadata={'task': '{{task}}', 'debug': '{{debug}}'})
     @time_execution_async('--run')
     async def run(
@@ -504,7 +664,7 @@ class BrowserUseAgent(Agent):
             on_step_end: AgentHookFunc | None = None,
     ) -> AgentHistoryList[AgentStructuredOutput]:
         """Execute the task with maximum number of steps"""
-
+        await self.add_glow_effect()
         loop = asyncio.get_event_loop()
         agent_run_error: str | None = None  # Initialize error tracking variable
         self._force_exit_telemetry_logged = False  # ADDED: Flag for custom telemetry on force exit
@@ -524,7 +684,7 @@ class BrowserUseAgent(Agent):
             loop=loop,
             pause_callback=self.pause,
             resume_callback=self.resume,
-            custom_exit_callback=on_force_exit_log_telemetry,  # Pass the new telemetrycallback
+            custom_exit_callback=on_force_exit_log_telemetry,
             exit_on_second_int=True,
         )
         signal_handler.register()
@@ -551,6 +711,7 @@ class BrowserUseAgent(Agent):
 
             self.logger.debug(f'🔄 Starting main execution loop with max {max_steps} steps...')
             for step in range(max_steps):
+                await self.add_glow_effect()
                 # Replace the polling with clean pause-wait
                 if self.state.paused:
                     self.logger.debug(f'⏸️ Step {step}: Agent paused, waiting to resume...')
@@ -626,6 +787,8 @@ class BrowserUseAgent(Agent):
             raise e
 
         finally:
+            await self.remove_glow_effect()
+
             # Log token usage summary
             await self.token_cost_service.log_usage_summary()
 
