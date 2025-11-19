@@ -308,7 +308,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 return ActionResult(error=f'Navigation failed: {str(e)}')
 
         @self.registry.action(
-            'Generate JavaScript code via LLM and Execute on webpage.',
+            'Generate JavaScript code via LLM and Execute on webpage. Useful for crawl web data and process.',
             param_model=GenJSCodeAction,
         )
         async def gen_and_execute_js_code(
