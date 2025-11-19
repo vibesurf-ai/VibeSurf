@@ -1673,7 +1673,7 @@ Please continue with your assigned work, incorporating this guidance only if it'
             latest_version = await check_latest_vibesurf_version()
             current_version = get_vibesurf_version()
             if latest_version and latest_version != current_version:
-                update_msg = f'📦 Newer version of vibesurf available: {latest_version} (current: {current_version}). \nUpgrade with: \n`uv pip install vibesurf -U`\nor\nDownload [Windows Installer](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-windows-x64.exe).\n\nYou can find more information at [release page](https://github.com/vibesurf-ai/VibeSurf/releases).'
+                update_msg = f'📦 Newer version of vibesurf available: {latest_version} (current: {current_version}). \nUpgrade with: \n`uv pip install vibesurf -U`\nor\nDownload [Windows Installer](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/VibeSurf-Installer.exe).\n\nYou can find more information at [release page](https://github.com/vibesurf-ai/VibeSurf/releases).'
                 logger.debug(update_msg)
                 activity_update_tip = {
                     "agent_name": 'System',

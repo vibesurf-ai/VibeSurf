@@ -427,8 +427,7 @@ class VibeSurfTools:
                                                                                    MAX_ITERATIONS=5)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 code_file = f"codes/{timestamp}.js"
-                with open(code_file, "w") as f:
-                    await file_system.write_file(code_file, execute_result)
+                await file_system.write_file(code_file, js_code)
 
                 if len(execute_result) < 1000:
                     msg = f'JavaScript Code save at:{code_file}\nResult:\n```json\n {execute_result}\n```\n'
