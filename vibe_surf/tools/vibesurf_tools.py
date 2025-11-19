@@ -425,13 +425,17 @@ class VibeSurfTools:
                 success, execute_result, js_code = await generate_java_script_code(params.code_requirement,
                                                                                    page_extraction_llm, browser_session,
                                                                                    MAX_ITERATIONS=5)
-                if len(execute_result) < 16000:
-                    msg = f'```javascript\n{js_code}\n```\nResult:\n```json\n {execute_result}\n```\n'
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                code_file = f"codes/{timestamp}.js"
+                with open(code_file, "w") as f:
+                    await file_system.write_file(code_file, execute_result)
+
+                if len(execute_result) < 1000:
+                    msg = f'JavaScript Code save at:{code_file}\nResult:\n```json\n {execute_result}\n```\n'
                 else:
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    result_json = f"skill_code_results/{timestamp}.json"
-                    await file_system.write_file(result_json, execute_result)
-                    msg = f'```javascript\n{js_code}\n```\nResult:\n```json\n {execute_result[:16000]}\n...TRUNCATED...\n```\nView more in {result_json}\n'
+                    result_file = f"codes/{timestamp}.json"
+                    await file_system.write_file(result_file, execute_result)
+                    msg = f'JavaScript Code save at:{code_file}\nResult:\n```json\n {execute_result[:1000]}\n...TRUNCATED...\n```\nView more in {result_file}\n'
                 if success:
                     return ActionResult(extracted_content=msg)
                 else:
