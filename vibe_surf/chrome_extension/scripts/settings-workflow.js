@@ -431,17 +431,31 @@ class VibeSurfSettingsWorkflow {
   async loadWorkflows() {
     try {
       
-      const response = await this.apiClient.getWorkflows();
+      // First get the project ID
+      const projects = await this.apiClient.getProjects();
       
-      // Handle different response structures
+      if (!Array.isArray(projects) || projects.length === 0) {
+        console.warn('[SettingsWorkflow] No projects found');
+        this.state.workflows = [];
+        this.state.filteredWorkflows = [];
+        this.renderWorkflows();
+        return;
+      }
+      
+      // Use the first project (typically "Starter Project")
+      const projectId = projects[0].id;
+      console.log("Project ID:", projectId);
+      
+      // Get workflows with updated_at using the new API
+      const projectData = await this.apiClient.getProjectFlows(projectId);
+      console.log(projectData);
+      
+      // Extract workflows from the flows.items array
       let workflows = [];
-      if (Array.isArray(response)) {
-        workflows = response;
-      } else if (response.flows && Array.isArray(response.flows)) {
-        workflows = response.flows;
-      } else if (response.data && Array.isArray(response.data)) {
-        workflows = response.data;
+      if (projectData && projectData.flows && Array.isArray(projectData.flows.items)) {
+        workflows = projectData.flows.items;
       } else {
+        console.warn('[SettingsWorkflow] Unexpected project data structure:', projectData);
         workflows = [];
       }
       

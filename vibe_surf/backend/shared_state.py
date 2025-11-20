@@ -788,9 +788,45 @@ class ScheduleManager:
                 schedules = result.scalars().all()
                 logger.debug(f"Found {len(schedules)} enabled schedules in database")
                 
+                now = datetime.now(timezone.utc)
                 self.schedules = {}
+                
                 for schedule in schedules:
                     logger.info(f"Loading flow: {schedule.flow_id} into schedule")
+                    
+                    # Check if next_execution_at is in the past and recalculate if needed
+                    next_execution = schedule.next_execution_at
+                    if next_execution:
+                        if isinstance(next_execution, str):
+                            next_execution = datetime.fromisoformat(next_execution.replace('Z', '+00:00'))
+                        if next_execution.tzinfo is None:
+                            next_execution = next_execution.replace(tzinfo=timezone.utc)
+                        
+                        # If next_execution is in the past, recalculate it
+                        if next_execution < now:
+                            logger.info(f"Schedule for flow {schedule.flow_id} has expired next_execution_at ({next_execution}), recalculating...")
+                            try:
+                                local_now = datetime.now().astimezone()
+                                cron = croniter(schedule.cron_expression, local_now)
+                                local_next = cron.get_next(datetime)
+                                if local_next.tzinfo is None:
+                                    local_next = local_next.replace(tzinfo=local_now.tzinfo)
+                                next_execution = local_next.astimezone(timezone.utc)
+                                
+                                # Update in database
+                                await session.execute(
+                                    update(Schedule)
+                                    .where(Schedule.flow_id == schedule.flow_id)
+                                    .values(
+                                        next_execution_at=next_execution,
+                                        updated_at=now
+                                    )
+                                )
+                                logger.info(f"Updated next_execution_at for flow {schedule.flow_id} to {next_execution}")
+                            except (ValueError, TypeError) as e:
+                                logger.error(f"Failed to recalculate next_execution_at for flow {schedule.flow_id}: {e}")
+                                next_execution = None
+                    
                     schedule_dict = {
                         'id': schedule.id,
                         'flow_id': schedule.flow_id,
@@ -798,12 +834,15 @@ class ScheduleManager:
                         'is_enabled': schedule.is_enabled,
                         'description': schedule.description,
                         'last_execution_at': schedule.last_execution_at,
-                        'next_execution_at': schedule.next_execution_at,
+                        'next_execution_at': next_execution,
                         'execution_count': schedule.execution_count,
                         'created_at': schedule.created_at,
                         'updated_at': schedule.updated_at
                     }
                     self.schedules[schedule.flow_id] = schedule_dict
+                
+                # Commit all updates
+                await session.commit()
                 
                 logger.info(f"✅ Successfully reloaded {len(self.schedules)} active schedules")
                 break  # Exit after processing to avoid multiple iterations

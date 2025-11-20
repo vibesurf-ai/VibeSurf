@@ -651,6 +651,21 @@ class VibeSurfAPIClient {
     return this.get('/v1/projects/');
   }
 
+  // Get project flows with updated_at timestamp for sorting
+  async getProjectFlows(projectId, params = {}) {
+    const defaultParams = {
+      id: projectId,
+      page: 1,
+      size: 100,  // Maximum allowed by backend API
+      is_component: false,
+      is_flow: true,
+      search: ''
+    };
+    
+    const queryParams = { ...defaultParams, ...params };
+    return this.get(`/v1/projects/${encodeURIComponent(projectId)}`, { params: queryParams });
+  }
+
   // Generate UUID from backend
   async generateUUID() {
     return this.get('/vibesurf/generate-uuid');
