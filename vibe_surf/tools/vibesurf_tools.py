@@ -434,7 +434,7 @@ class VibeSurfTools:
                 else:
                     result_file = f"codes/{timestamp}.json"
                     await file_system.write_file(result_file, execute_result)
-                    msg = f'```javascript\n{js_code}\n```\n Code save at:{code_file}\nResult:\n```json\n {execute_result[:1000]}\n...TRUNCATED due to exceed 1000 chars, View more in {result_file}...\n```\n'
+                    msg = f'Code save at:{code_file}\n```javascript\n{js_code}\n```\n Result save at {result_file}:\n```json\n {execute_result[:1000]}\n...\n```'
                 if success:
                     return ActionResult(extracted_content=msg)
                 else:
@@ -1605,7 +1605,7 @@ class VibeSurfTools:
             )
 
         @self.registry.action(
-            'Extract content from a file. Support image files, pdf, markdown, txt, json, csv.',
+            'Extract content from a file. Support images, pdf, markdown, txt, json, csv, python, js and etc..',
             param_model=FileExtractionAction,
         )
         async def extract_content_from_file(

@@ -335,7 +335,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 else:
                     result_file = f"codes/{timestamp}.json"
                     await file_system.write_file(result_file, execute_result)
-                    msg = f'```javascript\n{js_code}\n```\n Code save at:{code_file}\nResult:\n```json\n {execute_result[:1000]}\n...TRUNCATED due to exceed 1000 chars, View more in {result_file}...\n```\n'
+                    msg = f'Code save at:{code_file}\n```javascript\n{js_code}\n```\n Result save at {result_file}:\n```json\n {execute_result[:1000]}\n...\n```'
                 if success:
                     return ActionResult(extracted_content=msg)
                 else:

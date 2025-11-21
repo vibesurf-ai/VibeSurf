@@ -109,24 +109,12 @@ class VibeSurfApp {
       if (healthCheck.status === 'healthy') {
         console.log('[VibeSurf] Backend connection successful');
         
-        // Update badge to show connected status
-        chrome.runtime.sendMessage({
-          type: 'UPDATE_BADGE',
-          data: { text: '●', color: '#28a745' }
-        });
-        
       } else {
         throw new Error('Backend health check failed');
       }
       
     } catch (error) {
       console.error('[VibeSurf] Backend connection failed:', error);
-      
-      // Update badge to show disconnected status
-      chrome.runtime.sendMessage({
-        type: 'UPDATE_BADGE',
-        data: { text: '●', color: '#dc3545' }
-      });
       
       // Show warning notification
       chrome.runtime.sendMessage({
@@ -198,27 +186,14 @@ class VibeSurfApp {
         const healthCheck = await this.apiClient.healthCheck();
         
         if (healthCheck.status === 'healthy') {
-          // Update badge to green if we're connected
-          chrome.runtime.sendMessage({
-            type: 'UPDATE_BADGE',
-            data: { text: '●', color: '#28a745' }
-          });
+          // Backend is healthy
         } else {
-          // Update badge to red if health check fails
-          chrome.runtime.sendMessage({
-            type: 'UPDATE_BADGE',
-            data: { text: '●', color: '#dc3545' }
-          });
+          // Health check failed
         }
         
       } catch (error) {
         // Silently handle health check failures
         console.warn('[VibeSurf] Health check failed:', error.message);
-        
-        chrome.runtime.sendMessage({
-          type: 'UPDATE_BADGE',
-          data: { text: '●', color: '#dc3545' }
-        });
       }
     }, 30000); // Check every 30 seconds
 
@@ -255,12 +230,6 @@ class VibeSurfApp {
     retryBtn.addEventListener('click', () => {
       console.log('[VibeSurf] Retrying initialization...');
       this.retryInitialization();
-    });
-    
-    // Update badge to show error
-    chrome.runtime.sendMessage({
-      type: 'UPDATE_BADGE',
-      data: { text: '!', color: '#dc3545' }
     });
     
     // Show error notification
