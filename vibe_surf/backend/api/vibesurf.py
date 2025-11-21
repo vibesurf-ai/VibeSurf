@@ -44,6 +44,9 @@ class UUIDResponse(BaseModel):
 class VersionResponse(BaseModel):
     version: str
 
+class ExtensionPathResponse(BaseModel):
+    extension_path: str
+
 class ImportWorkflowRequest(BaseModel):
     workflow_json: str
 
@@ -447,3 +450,16 @@ async def get_vibesurf_version():
     except Exception as e:
         logger.error(f"Error getting VibeSurf version: {e}")
         raise HTTPException(status_code=500, detail="Failed to get version")
+
+@router.get("/extension-path", response_model=ExtensionPathResponse)
+async def get_extension_path():
+    """Get Chrome extension directory path"""
+    try:
+        import vibe_surf
+        vibe_surf_dir = os.path.dirname(vibe_surf.__file__)
+        extension_path = os.path.join(vibe_surf_dir, 'chrome_extension')
+        logger.info(f"Chrome extension path: {extension_path}")
+        return ExtensionPathResponse(extension_path=extension_path)
+    except Exception as e:
+        logger.error(f"Error getting extension path: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get extension path")

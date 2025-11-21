@@ -866,24 +866,33 @@ class VibeSurfUIManager {
   // Upgrade Handler
   async handleUpgrade() {
     try {
-      console.log('[UIManager] Starting extension upgrade...');
+      console.log('[UIManager] Getting extension path...');
       
-      // Download the latest extension zip from GitHub releases
-      const downloadUrl = 'https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip';
+      // Get extension path from backend
+      const pathResponse = await this.apiClient.getExtensionPath();
+      const extensionPath = pathResponse.extension_path;
       
-      // Open download URL in new tab
-      const downloadResult = await chrome.runtime.sendMessage({
+      console.log('[UIManager] Extension path:', extensionPath);
+      
+      // Copy path to clipboard
+      await navigator.clipboard.writeText(extensionPath);
+      
+      console.log('[UIManager] Extension path copied to clipboard');
+      
+      // Open extension directory as file:// URL
+      const fileUrl = `file://${extensionPath}`;
+      const fileResult = await chrome.runtime.sendMessage({
         type: 'OPEN_FILE_URL',
-        data: { fileUrl: downloadUrl }
+        data: { fileUrl: fileUrl }
       });
       
-      if (!downloadResult || !downloadResult.success) {
-        throw new Error(downloadResult?.error || 'Failed to open download URL');
+      if (!fileResult || !fileResult.success) {
+        console.warn('[UIManager] Failed to open extension directory:', fileResult?.error);
+      } else {
+        console.log('[UIManager] Successfully opened extension directory tab:', fileResult.tabId);
       }
       
-      console.log('[UIManager] Successfully opened download tab:', downloadResult.tabId);
-      
-      // Also open chrome://extensions in a new tab
+      // Open chrome://extensions in a new tab
       const extensionsResult = await chrome.runtime.sendMessage({
         type: 'OPEN_FILE_URL',
         data: { fileUrl: 'chrome://extensions' }
@@ -891,16 +900,16 @@ class VibeSurfUIManager {
       
       if (!extensionsResult || !extensionsResult.success) {
         console.warn('[UIManager] Failed to open chrome://extensions:', extensionsResult?.error);
-        // Don't throw error here as download was successful
       } else {
         console.log('[UIManager] Successfully opened chrome://extensions tab:', extensionsResult.tabId);
       }
       
-      this.showNotification('Extension download started and chrome://extensions opened. Please follow the installation instructions.', 'info');
+      // Show notification
+      this.showNotification(`Extension path copied to clipboard. Extension directory and Chrome extensions page opened.`, 'success');
       
     } catch (error) {
-      console.error('[UIManager] Upgrade failed:', error);
-      this.showNotification(`Failed to start upgrade: ${error.message}`, 'error');
+      console.error('[UIManager] Failed to get extension path:', error);
+      this.showNotification(`Failed to get extension path: ${error.message}`, 'error');
     }
   }
 
@@ -2514,11 +2523,12 @@ class VibeSurfUIManager {
 
   showNotification(message, type = 'info') {
     // Map UI notification types to valid Chrome notification types
-    if(type === "error") {
+    if(type === "error" || type == "system") {
       const validTypes = {
         'info': 'basic',
         'success': 'basic',
         'warning': 'basic',
+        'system': 'basic',
         'error': 'basic',
         'basic': 'basic',
         'image': 'image',

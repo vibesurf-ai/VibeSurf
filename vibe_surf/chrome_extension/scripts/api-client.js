@@ -711,6 +711,11 @@ class VibeSurfAPIClient {
   async getVibeSurfVersion() {
     return this.get('/vibesurf/version');
   }
+
+  // Get Chrome extension path
+  async getExtensionPath() {
+    return this.get('/vibesurf/extension-path');
+  }
 }
 
 // Custom error class for API errors
