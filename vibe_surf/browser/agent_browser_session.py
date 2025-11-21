@@ -301,12 +301,12 @@ class AgentBrowserSession(BrowserSession):
                             line-height: 1.5;
                         }}
                         .vibesurf-section {{
-                            background: rgba(255, 255, 255, 0.12);
+                            background: rgba(111, 233, 255, 0.08);
                             border-radius: 16px;
                             padding: 24px;
                             margin-bottom: 16px;
                             backdrop-filter: blur(10px);
-                            border: 1px solid rgba(255, 255, 255, 0.18);
+                            border: 1px solid rgba(111, 233, 255, 0.15);
                         }}
                         .vibesurf-section-title {{
                             font-size: 20px;
@@ -333,11 +333,11 @@ class AgentBrowserSession(BrowserSession):
                             position: absolute;
                             left: 0;
                             font-weight: bold;
-                            color: #60D394;
+                            color: #6FE9FF;
                             font-size: 18px;
                             width: 24px;
                             height: 24px;
-                            background: rgba(96, 211, 148, 0.15);
+                            background: rgba(111, 233, 255, 0.15);
                             border-radius: 50%;
                             display: flex;
                             align-items: center;
@@ -345,7 +345,7 @@ class AgentBrowserSession(BrowserSession):
                             line-height: 1;
                         }}
                         .vibesurf-path-box {{
-                            background: rgba(0, 0, 0, 0.25);
+                            background: rgba(0, 0, 0, 0.4);
                             border-radius: 10px;
                             padding: 14px 16px;
                             margin: 12px 0 0 0;
@@ -355,30 +355,31 @@ class AgentBrowserSession(BrowserSession):
                             display: flex;
                             align-items: center;
                             gap: 12px;
-                            border: 1px solid rgba(255, 255, 255, 0.1);
+                            border: 1px solid rgba(111, 233, 255, 0.2);
                         }}
                         .vibesurf-path-text {{
                             flex: 1;
                             user-select: all;
-                            color: #E0E7FF;
+                            color: #6FE9FF;
                         }}
                         .vibesurf-copy-btn {{
-                            background: rgba(255, 255, 255, 0.95);
-                            border: none;
+                            background: rgba(111, 233, 255, 0.15);
+                            border: 1px solid rgba(111, 233, 255, 0.3);
                             border-radius: 8px;
                             padding: 8px 16px;
-                            color: #5B6EF5;
+                            color: #6FE9FF;
                             cursor: pointer;
                             font-size: 13px;
                             font-weight: 600;
                             transition: all 0.2s ease;
                             white-space: nowrap;
-                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
                         }}
                         .vibesurf-copy-btn:hover {{
-                            background: white;
+                            background: rgba(111, 233, 255, 0.25);
+                            border-color: rgba(111, 233, 255, 0.5);
                             transform: translateY(-1px);
-                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                            box-shadow: 0 4px 12px rgba(111, 233, 255, 0.4);
                         }}
                         .vibesurf-copy-btn:active {{
                             transform: translateY(0);
@@ -420,8 +421,8 @@ class AgentBrowserSession(BrowserSession):
                             accent-color: #60D394;
                         }}
                         .vibesurf-btn {{
-                            background: linear-gradient(135deg, #FFFFFF 0%, #F0F4FF 100%);
-                            color: #5B6EF5;
+                            background: linear-gradient(135deg, #6FE9FF 0%, #5AD4EB 100%);
+                            color: #0D2435;
                             border: none;
                             border-radius: 12px;
                             padding: 14px 32px;
@@ -429,12 +430,13 @@ class AgentBrowserSession(BrowserSession):
                             font-weight: 700;
                             cursor: pointer;
                             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+                            box-shadow: 0 4px 16px rgba(111, 233, 255, 0.3);
                             letter-spacing: 0.3px;
                         }}
                         .vibesurf-btn:hover {{
+                            background: linear-gradient(135deg, #7FEFFF 0%, #6FE4F5 100%);
                             transform: translateY(-2px) scale(1.02);
-                            box-shadow: 0 8px 24px rgba(91, 110, 245, 0.3);
+                            box-shadow: 0 8px 24px rgba(111, 233, 255, 0.5);
                             animation: pulse 0.6s ease;
                         }}
                         .vibesurf-btn:active {{
@@ -465,12 +467,12 @@ class AgentBrowserSession(BrowserSession):
                     // Create modal container
                     const modal = document.createElement('div');
                     modal.style.cssText = `
-                        background: linear-gradient(145deg, #5B6EF5 0%, #7B89F4 50%, #8B95F6 100%);
+                        background: linear-gradient(145deg, #0D2435 0%, #14334A 50%, #1A4059 100%);
                         border-radius: 24px;
                         padding: 48px;
                         max-width: 650px;
                         width: 92%;
-                        box-shadow: 0 24px 80px rgba(91, 110, 245, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+                        box-shadow: 0 24px 80px rgba(26, 64, 89, 0.8), 0 0 0 1px rgba(111, 233, 255, 0.2);
                         color: white;
                         animation: slideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
                         position: relative;
