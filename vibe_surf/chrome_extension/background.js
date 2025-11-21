@@ -90,9 +90,7 @@ class VibeSurfBackground {
       // Initialize default settings
       await this.initializeSettings();
       
-      // Set default badge
-      await chrome.action.setBadgeText({ text: '' });
-      await chrome.action.setBadgeBackgroundColor({ color: '#007acc' });
+      // Badge removed - no default badge needed
       
       // Show welcome notification on fresh install
       if (details.reason === 'install') {
@@ -117,10 +115,6 @@ class VibeSurfBackground {
       if (chrome.sidePanel && chrome.sidePanel.open) {
         // Open side panel for the current tab
         await chrome.sidePanel.open({ tabId: tab.id });
-        
-        // Update badge to indicate active state
-        await chrome.action.setBadgeText({ text: '●', tabId: tab.id });
-        await chrome.action.setBadgeBackgroundColor({ color: '#007acc', tabId: tab.id });
         
       } else {
         
@@ -882,10 +876,7 @@ class VibeSurfBackground {
 
   // Cleanup method for extension unload
   async cleanup() {
-    
-    // Clear any active badges
-    await chrome.action.setBadgeText({ text: '' });
-    
+    // Cleanup method - no badges to clear
     // Could add other cleanup tasks here
   }
 }
