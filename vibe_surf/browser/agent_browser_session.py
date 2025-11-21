@@ -252,6 +252,8 @@ class AgentBrowserSession(BrowserSession):
                 vibe_surf_dir = os.path.dirname(vibe_surf.__file__)
                 extension_path = os.path.join(vibe_surf_dir, 'chrome_extension')
                 
+                extension_path_js = extension_path.replace('\\', '/')
+                
                 welcome_js = f"""
                 (function showVibeSurfWelcome() {{
                     // Check if user has dismissed the welcome modal
@@ -552,7 +554,7 @@ class AgentBrowserSession(BrowserSession):
                     const pathText = document.createElement('span');
                     pathText.className = 'vibesurf-path-text';
                     pathText.id = 'extension-path';
-                    pathText.textContent = '{extension_path}';
+                    pathText.textContent = '{extension_path_js}';
                     pathBox.appendChild(pathText);
                     
                     const copyBtn = document.createElement('button');
