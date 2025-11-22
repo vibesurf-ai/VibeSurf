@@ -1,7 +1,9 @@
 import os
 import uuid
+import mimetypes
 from pathlib import Path
 from typing import Optional
+from PIL import Image
 
 from vibe_surf.common import get_workspace_dir
 from vibe_surf.langflow.custom import Component
@@ -27,6 +29,18 @@ class VertexImageGeneratorComponent(Component):
             display_name="Prompt",
             info="Text description for the image",
             required=True,
+        ),
+        FileInput(
+            name="image_file",
+            display_name="Image File",
+            file_types=["png", "jpg", "jpeg", "webp"],
+            info="Optional reference image",
+        ),
+        MessageTextInput(
+            name="image_path",
+            display_name="Image Path",
+            info="Optional path to reference image",
+            advanced=True,
         ),
         StrInput(
             name="project",
@@ -56,7 +70,7 @@ class VertexImageGeneratorComponent(Component):
         DropdownInput(
             name="aspect_ratio",
             display_name="Aspect Ratio",
-            options=["1:1", "3:4", "4:3", "9:16", "16:9"],
+            options=["1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
             value="1:1",
             info="Aspect ratio of the generated image",
             advanced=True
@@ -121,6 +135,39 @@ class VertexImageGeneratorComponent(Component):
 
         client = genai.Client(**client_kwargs)
 
+        # Handle Image Input and Aspect Ratio
+        input_image_part = None
+        image_source = self.image_file or self.image_path
+        
+        if image_source:
+            try:
+                resolved_path = self.resolve_path(image_source)
+                p = Path(resolved_path)
+                if p.exists():
+                    # Calculate aspect ratio
+                    try:
+                        with Image.open(p) as img:
+                            width, height = img.size
+                            current_ratio = width / height
+                            target_ratios = {
+                                "1:1": 1/1, "3:2": 3/2, "2:3": 2/3, "3:4": 3/4, "4:3": 4/3,
+                                "4:5": 4/5, "5:4": 5/4, "9:16": 9/16, "16:9": 16/9, "21:9": 21/9
+                            }
+                            closest = min(target_ratios.keys(), key=lambda k: abs(target_ratios[k] - current_ratio))
+                            self.aspect_ratio = closest
+                    except Exception as e:
+                        print(f"Could not calculate aspect ratio: {e}")
+
+                    # Prepare Image Part
+                    mime_type, _ = mimetypes.guess_type(p)
+                    if not mime_type:
+                        mime_type = "image/png" # Default
+                    
+                    image_bytes = p.read_bytes()
+                    input_image_part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+            except Exception as e:
+                print(f"Error processing input image: {e}")
+
         # Configure generation parameters
         generate_content_config = types.GenerateContentConfig(
             temperature=1,
@@ -141,12 +188,14 @@ class VertexImageGeneratorComponent(Component):
 
         # Generate Content
         try:
+            parts = [types.Part.from_text(text=str(self.prompt))]
+            if input_image_part:
+                parts.append(input_image_part)
+
             contents = [
                 types.Content(
                     role="user",
-                    parts=[
-                        types.Part.from_text(text=str(self.prompt))
-                    ]
+                    parts=parts
                 ),
             ]
 
