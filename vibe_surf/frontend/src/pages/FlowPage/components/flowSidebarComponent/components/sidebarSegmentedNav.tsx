@@ -15,7 +15,7 @@ import { useSearchContext } from "../index";
 export type { SidebarSection };
 
 interface NavItem {
-  id: SidebarSection;
+  id: SidebarSection | "add_note" | "add_media_player";
   icon: string;
   label: string;
   tooltip: string;
@@ -52,21 +52,39 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Sticky Notes",
     tooltip: "Add Sticky Notes",
   },
+  {
+    id: "add_media_player",
+    icon: "video",
+    label: "Media Player",
+    tooltip: "Add Media Player",
+  },
 ];
 
 const SidebarSegmentedNav = () => {
   const { activeSection, setActiveSection, toggleSidebar, open } = useSidebar();
   const { focusSearch, setSearch } = useSearchContext();
   const [isAddNoteActive, setIsAddNoteActive] = useState(false);
+  const [isAddMediaPlayerActive, setIsAddMediaPlayerActive] = useState(false);
+  
   const handleAddNote = () => {
     window.dispatchEvent(new Event("lf:start-add-note"));
     setIsAddNoteActive(true);
   };
 
+  const handleAddMediaPlayer = () => {
+    window.dispatchEvent(new Event("lf:start-add-media-player"));
+    setIsAddMediaPlayerActive(true);
+  };
+
   useEffect(() => {
-    const onEnd = () => setIsAddNoteActive(false);
-    window.addEventListener("lf:end-add-note", onEnd);
-    return () => window.removeEventListener("lf:end-add-note", onEnd);
+    const onEndNote = () => setIsAddNoteActive(false);
+    const onEndMediaPlayer = () => setIsAddMediaPlayerActive(false);
+    window.addEventListener("lf:end-add-note", onEndNote);
+    window.addEventListener("lf:end-add-media-player", onEndMediaPlayer);
+    return () => {
+      window.removeEventListener("lf:end-add-note", onEndNote);
+      window.removeEventListener("lf:end-add-media-player", onEndMediaPlayer);
+    };
   }, []);
 
   return (
@@ -83,6 +101,11 @@ const SidebarSegmentedNav = () => {
                     if (item.id === "add_note") {
                       e.stopPropagation();
                       handleAddNote();
+                      return;
+                    }
+                    if (item.id === "add_media_player") {
+                      e.stopPropagation();
+                      handleAddMediaPlayer();
                       return;
                     }
 
@@ -102,6 +125,8 @@ const SidebarSegmentedNav = () => {
                   isActive={
                     item.id === "add_note"
                       ? isAddNoteActive
+                      : item.id === "add_media_player"
+                      ? isAddMediaPlayerActive
                       : activeSection === item.id
                   }
                   className={cn(
@@ -109,6 +134,8 @@ const SidebarSegmentedNav = () => {
                     (
                       item.id === "add_note"
                         ? isAddNoteActive
+                        : item.id === "add_media_player"
+                        ? isAddMediaPlayerActive
                         : activeSection === item.id
                     )
                       ? "bg-accent text-accent-foreground"

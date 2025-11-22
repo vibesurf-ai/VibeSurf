@@ -21,6 +21,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { useShallow } from "zustand/react/shallow";
 import { DefaultEdge } from "@/CustomEdges";
 import NoteNode from "@/CustomNodes/NoteNode";
+import MediaPlayerNode from "@/CustomNodes/MediaPlayerNode";
 import FlowToolbar from "@/components/core/flowToolbarComponent";
 import {
   COLOR_OPTIONS,
@@ -52,6 +53,7 @@ import type {
   AllNodeType,
   EdgeType,
   NoteNodeType,
+  MediaPlayerNodeType,
 } from "../../../../types/flow";
 import {
   generateFlow,
@@ -84,6 +86,7 @@ import isWrappedWithClass from "./utils/is-wrapped-with-class";
 const nodeTypes = {
   genericNode: GenericNode,
   noteNode: NoteNode,
+  mediaPlayerNode: MediaPlayerNode,
 };
 
 const edgeTypes = {
@@ -152,6 +155,7 @@ export default function Page({
   }, [currentFlowId]);
 
   const [isAddingNote, setIsAddingNote] = useState(false);
+  const [isAddingMediaPlayer, setIsAddingMediaPlayer] = useState(false);
 
   const addComponent = useAddComponent();
 
@@ -618,14 +622,53 @@ export default function Page({
         // Signal sidebar to revert add_note active state
         window.dispatchEvent(new Event("lf:end-add-note"));
       }
+      if (isAddingMediaPlayer) {
+        const shadowBox = document.getElementById("shadow-box-media");
+        if (shadowBox) {
+          shadowBox.style.display = "none";
+        }
+        const position = reactFlowInstance?.screenToFlowPosition({
+          x: event.clientX - shadowBoxWidth / 2,
+          y: event.clientY - shadowBoxHeight / 2,
+        });
+        const data = {
+          node: {
+            description: "",
+            display_name: "Media Player",
+            documentation: "",
+            template: {
+              mediaUrl: { value: "" },
+            },
+          },
+          type: "mediaPlayerNode",
+        };
+        const newId = getNodeId("mediaPlayerNode");
+
+        const newNode: MediaPlayerNodeType = {
+          id: newId,
+          type: "mediaPlayerNode",
+          position: position || { x: 0, y: 0 },
+          data: {
+            ...data,
+            id: newId,
+          },
+        };
+        setNodes((nds) => nds.concat(newNode));
+        setIsAddingMediaPlayer(false);
+        // Signal sidebar to revert add_media_player active state
+        window.dispatchEvent(new Event("lf:end-add-media-player"));
+      }
     },
     [
       isAddingNote,
+      isAddingMediaPlayer,
       setNodes,
       reactFlowInstance,
       getNodeId,
       setFilterEdge,
       setFilterComponent,
+      shadowBoxWidth,
+      shadowBoxHeight,
     ],
   );
 
@@ -659,6 +702,14 @@ export default function Page({
           shadowBox.style.top = `${event.clientY - shadowBoxHeight / 2}px`;
         }
       }
+      if (isAddingMediaPlayer) {
+        const shadowBox = document.getElementById("shadow-box-media");
+        if (shadowBox) {
+          shadowBox.style.display = "block";
+          shadowBox.style.left = `${event.clientX - shadowBoxWidth / 2}px`;
+          shadowBox.style.top = `${event.clientY - shadowBoxHeight / 2}px`;
+        }
+      }
     };
 
     document.addEventListener("mousemove", handleGlobalMouseMove);
@@ -666,7 +717,7 @@ export default function Page({
     return () => {
       document.removeEventListener("mousemove", handleGlobalMouseMove);
     };
-  }, [isAddingNote, shadowBoxWidth, shadowBoxHeight]);
+  }, [isAddingNote, isAddingMediaPlayer, shadowBoxWidth, shadowBoxHeight]);
 
   // Listen for a global event to start the add-note flow from outside components
   useEffect(() => {
@@ -680,9 +731,21 @@ export default function Page({
       }
     };
 
+    const handleStartAddMediaPlayer = () => {
+      setIsAddingMediaPlayer(true);
+      const shadowBox = document.getElementById("shadow-box-media");
+      if (shadowBox) {
+        shadowBox.style.display = "block";
+        shadowBox.style.left = `${position.current.x - shadowBoxWidth / 2}px`;
+        shadowBox.style.top = `${position.current.y - shadowBoxHeight / 2}px`;
+      }
+    };
+
     window.addEventListener("lf:start-add-note", handleStartAddNote);
+    window.addEventListener("lf:start-add-media-player", handleStartAddMediaPlayer);
     return () => {
       window.removeEventListener("lf:start-add-note", handleStartAddNote);
+      window.removeEventListener("lf:start-add-media-player", handleStartAddMediaPlayer);
     };
   }, [shadowBoxWidth, shadowBoxHeight]);
 
@@ -775,6 +838,18 @@ export default function Page({
               opacity: 0.7,
               pointerEvents: "none",
               // Prevent shadow-box from showing unexpectedly during initial renders
+              display: "none",
+            }}
+          ></div>
+          <div
+            id="shadow-box-media"
+            style={{
+              position: "absolute",
+              width: `${shadowBoxWidth}px`,
+              height: `${shadowBoxHeight}px`,
+              backgroundColor: "#3b82f6",
+              opacity: 0.7,
+              pointerEvents: "none",
               display: "none",
             }}
           ></div>

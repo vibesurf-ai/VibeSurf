@@ -1979,7 +1979,7 @@ class Graph:
         """Builds the vertices of the graph."""
         vertices: list[Vertex] = []
         for frontend_data in self._vertices:
-            if frontend_data.get("type") == NodeTypeEnum.NoteNode:
+            if frontend_data.get("type") in (NodeTypeEnum.NoteNode, NodeTypeEnum.MediaPlayerNode):
                 continue
             try:
                 vertex_instance = self.get_vertex(frontend_data["id"])
