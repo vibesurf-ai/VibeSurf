@@ -54,7 +54,6 @@ class GoogleGenAIImageGeneratorComponent(Component):
             options=["gemini-3-pro-image-preview", "gemini-2.5-flash-image"],
             value="gemini-3-pro-image-preview",
             info="Model name",
-            advanced=True
         ),
         StrInput(
             name="proxy",
