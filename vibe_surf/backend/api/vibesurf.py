@@ -11,6 +11,7 @@ import httpx
 from pathlib import Path
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -463,3 +464,31 @@ async def get_extension_path():
     except Exception as e:
         logger.error(f"Error getting extension path: {e}")
         raise HTTPException(status_code=500, detail="Failed to get extension path")
+
+@router.get("/serve")
+async def serve_file(path: str):
+    """Serve a local file securely"""
+    try:
+        # Decode path if it's URL encoded? FastAPI handles query params
+        # Check if path is relative
+        file_path = Path(path)
+        
+        # If relative, make it relative to workspace root
+        if not file_path.is_absolute():
+            from vibe_surf import common
+            workspace_dir = common.get_workspace_dir()
+            file_path = Path(workspace_dir) / path
+            
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+            
+        if not file_path.is_file():
+            raise HTTPException(status_code=400, detail="Not a file")
+            
+        return FileResponse(str(file_path))
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error serving file {path}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to serve file: {str(e)}")

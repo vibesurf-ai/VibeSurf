@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Download, Maximize2, X, Play, Pause, Volume2, VolumeX, ZoomIn, ZoomOut, RotateCw } from "lucide-react";
 import { BASE_URL_API } from "../constants/constants";
+import custom from "../customization/config-constants";
 
 interface MediaDisplayProps {
   path: string;
@@ -31,10 +32,10 @@ export const MediaDisplay = ({
   
   // Construct the full URL
   // If path is already a full URL (http/https), use it directly
-  // Otherwise, treat it as a local file path
+  // Otherwise, treat it as a local file path and use the serve endpoint
   const mediaSrc = path.startsWith("http://") || path.startsWith("https://")
     ? path
-    : path;  // For local files, use path directly (browser file:// protocol or relative path)
+    : `/api/vibesurf/serve?path=${encodeURIComponent(path)}`;
 
   const handleDownload = async () => {
     try {

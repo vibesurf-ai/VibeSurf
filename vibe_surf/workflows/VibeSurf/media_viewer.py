@@ -114,9 +114,6 @@ class MediaViewerComponent(Component):
                 "loop": self.loop if media_type == "video" else False,
             }
 
-            # DEBUG: Log the media data structure being returned
-            print(f"[MediaViewer Backend] Returning media_data: {media_data}")
-
             # Set status message
             self.status = f"Displaying {media_type}: {self.media_path}"
 
