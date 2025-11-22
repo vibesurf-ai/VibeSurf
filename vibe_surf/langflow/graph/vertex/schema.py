@@ -6,6 +6,7 @@ from typing_extensions import NotRequired, TypedDict
 class NodeTypeEnum(str, Enum):
     NoteNode = "noteNode"
     GenericNode = "genericNode"
+    MediaPlayerNode = "mediaPlayerNode"
 
 
 class Position(TypedDict):

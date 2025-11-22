@@ -37,6 +37,7 @@ export enum IOOutputTypes {
   KEY_PAIR = "KeyPairOutput",
   STRING_LIST = "StringListOutput",
   DATA = "DataOutput",
+  MEDIA = "MediaOutput",
 }
 
 export enum EventDeliveryType {

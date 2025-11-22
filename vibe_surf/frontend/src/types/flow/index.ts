@@ -38,10 +38,11 @@ export type FlowType = {
 
 export type GenericNodeType = Node<NodeDataType, "genericNode">;
 export type NoteNodeType = Node<NoteDataType, "noteNode">;
+export type MediaPlayerNodeType = Node<MediaPlayerDataType, "mediaPlayerNode">;
 
-export type AllNodeType = GenericNodeType | NoteNodeType;
-export type SetNodeType<T = "genericNode" | "noteNode"> =
-  T extends "genericNode" ? GenericNodeType : NoteNodeType;
+export type AllNodeType = GenericNodeType | NoteNodeType | MediaPlayerNodeType;
+export type SetNodeType<T = "genericNode" | "noteNode" | "mediaPlayerNode"> =
+  T extends "genericNode" ? GenericNodeType : T extends "noteNode" ? NoteNodeType : MediaPlayerNodeType;
 
 export type noteClassType = Pick<
   APIClassType,
@@ -58,6 +59,20 @@ export type NoteDataType = {
   showNode?: boolean;
   type: string;
   node: noteClassType;
+  id: string;
+};
+
+export type MediaPlayerDataType = {
+  showNode?: boolean;
+  type: string;
+  node: noteClassType & {
+    template: {
+      mediaUrl?: {
+        value: string;
+      };
+      [key: string]: any;
+    };
+  };
   id: string;
 };
 export type NodeDataType = {

@@ -4,6 +4,7 @@ import { MAX_TEXT_LENGTH } from "@/constants/constants";
 import type { LogsLogType, OutputLogType } from "@/types/api";
 import ForwardedIconComponent from "../../../../../../components/common/genericIconComponent";
 import DataOutputComponent from "../../../../../../components/core/dataOutputComponent";
+import { MediaDisplay } from "../../../../../../components/MediaDisplay";
 import {
   Alert,
   AlertDescription,
@@ -44,6 +45,32 @@ const SwitchOutputView: React.FC<SwitchOutputViewProps> = ({
     resultMessage = resultMessage.raw;
   }
 
+  // Debug logging - Always log when component renders
+  console.log("[SwitchOutputView] Rendering for nodeId:", nodeId, "outputName:", outputName);
+  console.log("[SwitchOutputView] resultType:", resultType);
+  console.log("[SwitchOutputView] resultMessage:", resultMessage);
+  console.log("[SwitchOutputView] resultMessage keys:", Object.keys(resultMessage || {}));
+  
+  // Debug logging for media viewer - check all possible structures
+  console.log("[MediaViewer Debug] Checking for media content");
+  console.log("[MediaViewer Debug] resultMessage.data:", resultMessage?.data);
+  console.log("[MediaViewer Debug] resultMessage.type:", resultMessage?.type);
+  console.log("[MediaViewer Debug] resultMessage.path:", resultMessage?.path);
+  console.log("[MediaViewer Debug] resultMessage.media_data:", resultMessage?.media_data);
+  
+  if (resultMessage?.data?.type === "image" || resultMessage?.data?.type === "video") {
+    console.log("[MediaViewer Debug] ✅ MEDIA DETECTED in data! Type:", resultMessage.data.type);
+    console.log("[MediaViewer Debug] Path:", resultMessage.data.path);
+  }
+  if (resultMessage?.type === "image" || resultMessage?.type === "video") {
+    console.log("[MediaViewer Debug] ✅ MEDIA DETECTED directly! Type:", resultMessage.type);
+    console.log("[MediaViewer Debug] Path:", resultMessage.path);
+  }
+  if (resultMessage?.media_data?.type === "image" || resultMessage?.media_data?.type === "video") {
+    console.log("[MediaViewer Debug] ✅ MEDIA DETECTED in media_data! Type:", resultMessage.media_data.type);
+    console.log("[MediaViewer Debug] Path:", resultMessage.media_data.path);
+  }
+
   const resultMessageMemoized = useMemo(() => {
     if (!resultMessage) return "";
 
@@ -73,6 +100,41 @@ const SwitchOutputView: React.FC<SwitchOutputViewProps> = ({
     return resultMessage;
   }, [resultMessage]);
 
+  // Robust media detection
+  const isMedia = useMemo(() => {
+    try {
+      // Case 1: Message type with data.type
+      if (resultType === "message" &&
+          resultMessageMemoized?.data?.type &&
+          ["image", "video"].includes(resultMessageMemoized.data.type)) {
+        return true;
+      }
+      
+      // Case 2: Object type (Data) with direct type property
+      // This matches the structure seen in logs: {path: "...", type: "image", ...}
+      if (resultType === "object" &&
+          resultMessageMemoized &&
+          typeof resultMessageMemoized === "object") {
+            
+        // Direct property check
+        if (["image", "video"].includes(resultMessageMemoized.type)) {
+          return true;
+        }
+        
+        // Nested media_data check
+        if (resultMessageMemoized.media_data &&
+            ["image", "video"].includes(resultMessageMemoized.media_data.type)) {
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (e) {
+      console.error("Error in isMedia check:", e);
+      return false;
+    }
+  }, [resultType, resultMessageMemoized]);
+
   return type === "Outputs" ? (
     <>
       <Case condition={!resultType || resultType === "unknown"}>
@@ -88,7 +150,43 @@ const SwitchOutputView: React.FC<SwitchOutputViewProps> = ({
         <TextOutputView left={false} value={resultMessageMemoized} />
       </Case>
 
-      <Case condition={RECORD_TYPES.includes(resultType)}>
+      {/* Check for media content BEFORE checking RECORD_TYPES */}
+      <Case condition={isMedia}>
+        <div className="p-4">
+          {resultMessageMemoized?.data?.path ? (
+            <MediaDisplay
+              path={resultMessageMemoized.data.path}
+              type={resultMessageMemoized.data.type}
+              alt={resultMessageMemoized.data.alt}
+              showControls={resultMessageMemoized.data.showControls ?? true}
+              autoPlay={resultMessageMemoized.data.autoPlay ?? false}
+              loop={resultMessageMemoized.data.loop ?? false}
+            />
+          ) : resultMessageMemoized?.media_data?.path ? (
+            <MediaDisplay
+              path={resultMessageMemoized.media_data.path}
+              type={resultMessageMemoized.media_data.type}
+              alt={resultMessageMemoized.media_data.alt}
+              showControls={resultMessageMemoized.media_data.showControls ?? true}
+              autoPlay={resultMessageMemoized.media_data.autoPlay ?? false}
+              loop={resultMessageMemoized.media_data.loop ?? false}
+            />
+          ) : resultMessageMemoized?.path ? (
+            <MediaDisplay
+              path={resultMessageMemoized.path}
+              type={resultMessageMemoized.type}
+              alt={resultMessageMemoized.alt}
+              showControls={resultMessageMemoized.showControls ?? true}
+              autoPlay={resultMessageMemoized.autoPlay ?? false}
+              loop={resultMessageMemoized.loop ?? false}
+            />
+          ) : (
+            <div className="text-muted-foreground">Invalid media data</div>
+          )}
+        </div>
+      </Case>
+
+      <Case condition={RECORD_TYPES.includes(resultType) && !isMedia}>
         <DataOutputComponent
           rows={
             Array.isArray(resultMessageMemoized)
@@ -107,7 +205,7 @@ const SwitchOutputView: React.FC<SwitchOutputViewProps> = ({
           columnMode="union"
         />
       </Case>
-      <Case condition={JSON_TYPES.includes(resultType)}>
+      <Case condition={JSON_TYPES.includes(resultType) && !isMedia}>
         <JsonOutputViewComponent
           nodeId={nodeId}
           outputName={outputName}

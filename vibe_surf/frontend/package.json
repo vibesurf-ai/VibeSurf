@@ -70,6 +70,7 @@
     "react-laag": "^2.0.5",
     "react-markdown": "^8.0.7",
     "react-pdf": "^9.0.0",
+    "react-player": "^3.4.0",
     "react-router-dom": "^6.23.1",
     "react-sortablejs": "^6.1.4",
     "react-syntax-highlighter": "^15.6.1",

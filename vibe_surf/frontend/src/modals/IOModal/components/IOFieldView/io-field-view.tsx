@@ -4,6 +4,7 @@ import useHandleNewValue from "@/CustomNodes/hooks/use-handle-new-value";
 import CustomIOFileInput from "@/customization/components/custom-file-input";
 import type { AllNodeType } from "@/types/flow";
 import ImageViewer from "../../../../components/common/ImageViewer";
+import { MediaDisplay } from "../../../../components/MediaDisplay";
 import CsvOutputComponent from "../../../../components/core/csvOutputComponent";
 import DataOutputComponent from "../../../../components/core/dataOutputComponent";
 import InputListComponent from "../../../../components/core/parameterRenderComponent/components/inputListComponent";
@@ -267,6 +268,28 @@ export default function IOFieldView({
                   }
                   columnMode="union"
                 />
+              </div>
+            );
+
+          case IOOutputTypes.MEDIA:
+            const mediaData = (flowPool[node.id] ?? [])[(flowPool[node.id]?.length ?? 1) - 1]?.data?.results?.media_data;
+            const parsedMediaData = typeof mediaData === 'string' ? JSON.parse(mediaData) : mediaData;
+            return left ? (
+              <div>Expand the view to see the media</div>
+            ) : parsedMediaData?.path ? (
+              <div className="h-full p-4">
+                <MediaDisplay
+                  path={parsedMediaData.path}
+                  type={parsedMediaData.type || "image"}
+                  alt={parsedMediaData.alt}
+                  showControls={parsedMediaData.showControls ?? true}
+                  autoPlay={parsedMediaData.autoPlay ?? false}
+                  loop={parsedMediaData.loop ?? false}
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                No media data available
               </div>
             );
 

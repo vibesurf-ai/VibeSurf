@@ -3,6 +3,7 @@ import { cloneDeep } from "lodash";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useShallow } from "zustand/react/shallow";
+import { MediaDisplay } from "@/components/MediaDisplay";
 import ForwardedIconComponent from "@/components/common/genericIconComponent";
 import ShadTooltip from "@/components/common/shadTooltipComponent";
 import { usePostValidateComponentCode } from "@/controllers/API/queries/nodes/use-post-validate-component-code";
@@ -86,6 +87,7 @@ function GenericNode({
   const templates = useTypesStore((state) => state.templates);
   const deleteNode = useFlowStore((state) => state.deleteNode);
   const setNode = useFlowStore((state) => state.setNode);
+  const flowPool = useFlowStore((state) => state.flowPool);
   const updateNodeInternals = useUpdateNodeInternals();
   const setErrorData = useAlertStore((state) => state.setErrorData);
   const takeSnapshot = useFlowsManagerStore((state) => state.takeSnapshot);
@@ -353,6 +355,66 @@ function GenericNode({
   const [hasChangedNodeDescription, setHasChangedNodeDescription] =
     useState(false);
 
+  const [executionMedia, setExecutionMedia] = useState<{
+    path: string;
+    type: "image" | "video";
+    alt?: string;
+    showControls?: boolean;
+    autoPlay?: boolean;
+    loop?: boolean;
+  } | null>(null);
+
+  // Listen to flowPool to get execution results
+  useEffect(() => {
+    if (!flowPool) return;
+
+    const nodeHistory = flowPool[data.id] ?? [];
+    const lastExecution = nodeHistory[nodeHistory.length - 1];
+    
+    if (lastExecution?.data?.outputs) {
+      const outputs = lastExecution.data.outputs;
+      
+      for (const outputName in outputs) {
+        const output = outputs[outputName];
+        const resultMessage = output?.message;
+        
+        if (!resultMessage) continue;
+
+        let mediaData: any = null;
+        
+        // Case 1: Message with data.type (Standard Message)
+        if (resultMessage.data?.type &&
+            ["image", "video"].includes(resultMessage.data.type)) {
+          mediaData = resultMessage.data;
+        }
+        // Case 2: Direct object (Data)
+        else if (resultMessage.type &&
+                 ["image", "video"].includes(resultMessage.type)) {
+          mediaData = resultMessage;
+        }
+        // Case 3: Nested media_data
+        else if (resultMessage.media_data?.type &&
+                 ["image", "video"].includes(resultMessage.media_data.type)) {
+          mediaData = resultMessage.media_data;
+        }
+        
+        if (mediaData && mediaData.path) {
+          setExecutionMedia({
+            path: mediaData.path,
+            type: mediaData.type,
+            alt: mediaData.alt,
+            showControls: mediaData.showControls ?? true,
+            autoPlay: mediaData.autoPlay ?? false,
+            loop: mediaData.loop ?? false,
+          });
+          return; // Found media, stop searching
+        }
+      }
+    }
+    // Reset if no media found in latest execution (or new execution)
+    // But be careful not to flicker. For now, only set if found.
+  }, [flowPool, data.id]);
+
   const editedNameDescription =
     editNameDescription && hasChangedNodeDescription;
 
@@ -610,6 +672,23 @@ function GenericNode({
                 setEditNameDescription={set}
                 setHasChangedNodeDescription={setHasChangedNodeDescription}
               />
+            </div>
+          )}
+          
+          {/* Execution Media Display */}
+          {showNode && executionMedia && (
+            <div className="w-full overflow-hidden rounded-b-xl bg-muted/30 border-t">
+               <div className="p-2">
+                <MediaDisplay
+                  path={executionMedia.path}
+                  type={executionMedia.type}
+                  alt={executionMedia.alt}
+                  showControls={executionMedia.showControls}
+                  autoPlay={executionMedia.autoPlay}
+                  loop={executionMedia.loop}
+                  className="w-full h-auto max-h-[300px] object-contain rounded-lg"
+                />
+              </div>
             </div>
           )}
         </div>
