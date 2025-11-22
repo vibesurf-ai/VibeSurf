@@ -40,13 +40,18 @@ class VertexImageGeneratorComponent(Component):
             value="global",
             advanced=True
         ),
+        StrInput(
+            name="proxy",
+            display_name="Proxy",
+            info="HTTP/HTTPS Proxy (e.g. http://127.0.0.1:7890)",
+            advanced=True
+        ),
         DropdownInput(
             name="model_name",
             display_name="Model Name",
-            options=["gemini-3-pro-preview", "gemini-2.5-flash-image"],
-            value="gemini-3-pro-preview",
+            options=["gemini-3-pro-image-preview", "gemini-2.5-flash-image"],
+            value="gemini-3-pro-image-preview",
             info="Model name",
-            advanced=True
         ),
         DropdownInput(
             name="aspect_ratio",
@@ -87,28 +92,32 @@ class VertexImageGeneratorComponent(Component):
         # The new google.genai SDK client can accept credentials directly, or we can set env vars?
         # Looking at the SDK, client(vertexai=True, project=..., location=..., credentials=...) seems plausible
         # or we just set the GOOGLE_APPLICATION_CREDENTIALS env var if a file is provided.
-        
+
         # Let's try to construct credentials explicitly if provided
         credentials = None
         project = self.project
         location = self.location
-        
+
         if self.credentials:
             # If user provided a file path
-             credentials = service_account.Credentials.from_service_account_file(self.credentials)
-             if not project:
-                 project = credentials.project_id
+            credentials = service_account.Credentials.from_service_account_file(self.credentials)
+            if not project:
+                project = credentials.project_id
 
         client_kwargs = {
             "vertexai": True,
             "project": project,
             "location": location,
         }
-             
+
         # If user provided a credentials file path in self.credentials, let's strictly use that file for auth
         if self.credentials:
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self.credentials
 
+        # Handle Proxy
+        if self.proxy:
+            os.environ["http_proxy"] = self.proxy
+            os.environ["https_proxy"] = self.proxy
 
         client = genai.Client(**client_kwargs)
 
@@ -140,18 +149,18 @@ class VertexImageGeneratorComponent(Component):
                     ]
                 ),
             ]
-            
+
             response = client.models.generate_content(
                 model=self.model_name,
                 contents=contents,
                 config=generate_content_config,
             )
         except Exception as e:
-             raise ValueError(f"Error calling Vertex AI via GenAI SDK: {str(e)}")
+            raise ValueError(f"Error calling Vertex AI via GenAI SDK: {str(e)}")
 
         # Extract Image
         image_bytes = None
-        
+
         try:
             if response.parts:
                 for part in response.parts:
@@ -159,10 +168,11 @@ class VertexImageGeneratorComponent(Component):
                         image_bytes = part.inline_data.data
                         break
         except Exception as e:
-             raise ValueError(f"Failed to parse response from Vertex AI: {str(e)}")
-        
+            self.log(response)
+            raise ValueError(f"Failed to parse response from Vertex AI: {str(e)}")
+
         if not image_bytes:
-             raise ValueError(f"No image generated in response.")
+            raise ValueError(f"No image generated in response.")
 
         # Save to FileSystem
         if hasattr(self, "graph"):
@@ -175,16 +185,16 @@ class VertexImageGeneratorComponent(Component):
         workspace_dir = get_workspace_dir()
         output_dir = Path(workspace_dir) / "AIGC" / session_id
         os.makedirs(output_dir, exist_ok=True)
-        
+
         filename = f"vertex_{uuid.uuid4()}.png"
         file_path = output_dir / filename
-        
+
         with open(file_path, "wb") as f:
             f.write(image_bytes)
-            
+
         media_path = str(file_path)
         media_type = "image"
-        
+
         media_data = {
             "path": media_path,
             "type": media_type,
@@ -193,7 +203,7 @@ class VertexImageGeneratorComponent(Component):
             "autoPlay": False,
             "loop": False,
         }
-        
+
         self.status = f"Generated image: {media_path}"
-        
+
         return Data(data=media_data)

@@ -39,4 +39,4 @@ def configure_system_proxies():
         logger.info(f"Set HTTPS_PROXY to: {https_proxy}")
 
     if http_proxy or https_proxy:
-        os.environ['no_proxy'] = 'localhost,127.0.0.1,::1,backend.composio.dev,us.i.posthog.com,oauth2.googleapis.com'
+        os.environ['no_proxy'] = 'localhost,127.0.0.1,::1,backend.composio.dev,us.i.posthog.com'
