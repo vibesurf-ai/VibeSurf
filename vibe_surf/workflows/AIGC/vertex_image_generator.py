@@ -211,8 +211,8 @@ class VertexImageGeneratorComponent(Component):
         image_bytes = None
 
         try:
-            if response.parts:
-                for part in response.parts:
+            if response.candidates:
+                for part in response.candidates[0].content.parts:
                     if part.inline_data:
                         image_bytes = part.inline_data.data
                         break
@@ -221,6 +221,7 @@ class VertexImageGeneratorComponent(Component):
             raise ValueError(f"Failed to parse response from Vertex AI: {str(e)}")
 
         if not image_bytes:
+            print(response)
             raise ValueError(f"No image generated in response.")
 
         # Save to FileSystem
