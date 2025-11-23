@@ -6,6 +6,7 @@ import json
 import os
 import base64
 import mimetypes
+import urllib.parse
 
 from browser_use.dom.service import EnhancedDOMTreeNode
 from vibe_surf.logger import get_logger
@@ -358,7 +359,8 @@ async def generate_java_script_code(code_requirement, llm, browser_session, MAX_
 
 async def google_ai_model_search(browser_manager, query: str, max_results: int = 100):
     """
-    Google AI model Search
+    Google AI model Search - Extract both AI response and sources
+    Returns dict with 'response' and 'sources' keys
     """
     agent_id = "ai_search_agent"
     try:
@@ -370,6 +372,132 @@ async def google_ai_model_search(browser_manager, query: str, max_results: int =
 
         # Wait for page to load
         await asyncio.sleep(2)
+
+        # Extract AI response content
+        ai_response = ""
+        try:
+            cdp_session = await browser_session.get_or_create_cdp_session()
+            
+            # JavaScript to extract AI response content
+            extract_ai_content_js = """
+(async function() {
+    try {
+        const MAX_ATTEMPTS = 5;
+        const DELAY_MS = 1000;
+
+        // Function to detect the share button/link
+        const findShareButton = () => {
+            // Selectors for share buttons, including English and Chinese
+            const selectors = [
+                '[aria-label="Share"]',
+                '[aria-label="分享"]',
+                '[aria-label="Get link"]',
+                '[aria-label="获取链接"]',
+                '[aria-label="Manage public links"]',
+                '[aria-label="管理公开链接"]',
+                'div[role="button"] svg path[d*="M18 16.08"]'
+            ];
+
+            for (const selector of selectors) {
+                const element = document.querySelector(selector);
+                if (element && element.offsetParent !== null) {
+                    return element;
+                }
+            }
+            return null;
+        };
+
+        // Function to extract AI content
+        const extractContent = () => {
+            // Primary container for Google AI Overviews (SGE)
+            const container = document.querySelector('.YzCcne');
+            if (container) {
+                return container.innerText.trim();
+            }
+
+            // Fallback: look for elements with specific data attributes
+            const fallback = document.querySelector('[data-attrid="wa:/description"]');
+            if (fallback) {
+                return fallback.innerText.trim();
+            }
+
+            // Fallback 2: Look for the heading "AI Mode" or similar
+            const headings = Array.from(document.querySelectorAll('h1, h2, [role="heading"]'));
+            const aiHeading = headings.find(h => h.innerText.includes('AI') || h.innerText.includes('Overview') || h.innerText.includes('模式'));
+            if (aiHeading) {
+                let current = aiHeading;
+                while (current && current.parentElement) {
+                    current = current.parentElement;
+                    if (current.innerText.length > 200) {
+                        return current.innerText.trim();
+                    }
+                }
+            }
+
+            return null;
+        };
+
+        // Retry loop
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            const shareButton = findShareButton();
+            
+            if (shareButton) {
+                const content = extractContent();
+                if (content) {
+                    return {
+                        status: "success",
+                        message: "AI response finished and extracted.",
+                        content: content,
+                        share_button_found: true,
+                        attempts: attempt
+                    };
+                }
+            }
+
+            if (attempt < MAX_ATTEMPTS) {
+                await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+            }
+        }
+
+        // If loop finishes without success
+        return {
+            status: "incomplete",
+            message: "Share link not detected or content not found after 5 attempts.",
+            share_button_found: !!findShareButton(),
+            partial_content: extractContent()
+        };
+
+    } catch (e) {
+        return {
+            status: "error",
+            message: e.toString()
+        };
+    }
+})()
+"""
+            
+            ai_result = await cdp_session.cdp_client.send.Runtime.evaluate(
+                params={'expression': extract_ai_content_js, 'returnByValue': True, 'awaitPromise': True},
+                session_id=cdp_session.session_id,
+            )
+            
+            if not ai_result.get('exceptionDetails'):
+                result_data = ai_result.get('result', {})
+                ai_data = result_data.get('value', {})
+                
+                if isinstance(ai_data, dict):
+                    if ai_data.get('status') == 'success':
+                        ai_response = ai_data.get('content', '')
+                        logger.info(f"AI response extracted successfully on attempt {ai_data.get('attempts', 'unknown')}")
+                    elif ai_data.get('status') == 'incomplete':
+                        # Try to get partial content if available
+                        ai_response = ai_data.get('partial_content', '')
+                        logger.warning(f"AI response incomplete: {ai_data.get('message', 'Unknown reason')}")
+                    else:
+                        logger.warning(f"AI response extraction failed: {ai_data.get('message', 'Unknown error')}")
+                        
+        except Exception as e:
+            logger.warning(f"Failed to extract AI response: {e}")
 
         # Try to click "显示更多" button
         try:
@@ -582,21 +710,30 @@ async def google_ai_model_search(browser_manager, query: str, max_results: int =
 
         if result.get('exceptionDetails'):
             logger.warning(f"JavaScript extraction failed: {result['exceptionDetails']}")
-            return []
+            sources = []
+        else:
+            result_data = result.get('result', {})
+            value = result_data.get('value', '[]')
 
-        result_data = result.get('result', {})
-        value = result_data.get('value', '[]')
+            try:
+                extracted_results = json.loads(value)
+                sources = extracted_results[:max_results] if isinstance(extracted_results, list) else []
+            except (json.JSONDecodeError, ValueError):
+                logger.warning(f"Failed to parse extraction results: {value}")
+                sources = []
 
-        try:
-            extracted_results = json.loads(value)
-            return extracted_results[:max_results] if isinstance(extracted_results, list) else []
-        except (json.JSONDecodeError, ValueError):
-            logger.warning(f"Failed to parse extraction results: {value}")
-            return []
+        # Return dict with both AI response and sources
+        return {
+            "response": ai_response,
+            "sources": sources
+        }
 
     except Exception as e:
         logger.error(f"Google AI model search failed for query '{query}': {e}")
-        return []
+        return {
+            "response": "",
+            "sources": []
+        }
 
     finally:
         try:
@@ -608,6 +745,7 @@ async def google_ai_model_search(browser_manager, query: str, max_results: int =
 async def fallback_parallel_search(browser_manager, query: str, max_results: int = 100):
     """
     Fallback method: Parallel search across all, news, and videos tabs using separate browser sessions
+    Returns dict with 'response' (empty) and 'sources' keys to match google_ai_model_search format
     """
     agent_ids = []
     try:
@@ -661,11 +799,18 @@ async def fallback_parallel_search(browser_manager, query: str, max_results: int
                 seen_urls.add(url)
                 unique_results.append(result)
 
-        return unique_results[:max_results]
+        # Return dict with empty response and sources list (matching google_ai_model_search format)
+        return {
+            "response": "",
+            "sources": unique_results[:max_results]
+        }
 
     except Exception as e:
         logger.error(f"Fallback parallel search failed for query '{query}': {e}")
-        return []
+        return {
+            "response": "",
+            "sources": []
+        }
     finally:
         # Clean up browser sessions
         for agent_id in agent_ids:
@@ -1558,3 +1703,94 @@ def remove_import_statements(code: str) -> str:
             filtered_lines.append(line)
     
     return '\n'.join(filtered_lines)
+
+async def _detect_file_format(url: str, headers: dict, content: bytes) -> str:
+    """Detect file format from URL, headers, and content"""
+
+    # Try Content-Type header first
+    content_type = headers.get('content-type', '').lower()
+    if content_type:
+        # Common image formats
+        if 'image/jpeg' in content_type or 'image/jpg' in content_type:
+            return '.jpg'
+        elif 'image/png' in content_type:
+            return '.png'
+        elif 'image/gif' in content_type:
+            return '.gif'
+        elif 'image/webp' in content_type:
+            return '.webp'
+        elif 'image/svg' in content_type:
+            return '.svg'
+        elif 'image/bmp' in content_type:
+            return '.bmp'
+        elif 'image/tiff' in content_type:
+            return '.tiff'
+        # Video formats
+        elif 'video/mp4' in content_type:
+            return '.mp4'
+        elif 'video/webm' in content_type:
+            return '.webm'
+        elif 'video/avi' in content_type:
+            return '.avi'
+        elif 'video/mov' in content_type or 'video/quicktime' in content_type:
+            return '.mov'
+        # Audio formats
+        elif 'audio/mpeg' in content_type or 'audio/mp3' in content_type:
+            return '.mp3'
+        elif 'audio/wav' in content_type:
+            return '.wav'
+        elif 'audio/ogg' in content_type:
+            return '.ogg'
+        elif 'audio/webm' in content_type:
+            return '.webm'
+
+    # Try magic number detection
+    if len(content) >= 8:
+        # JPEG
+        if content.startswith(b'\xff\xd8\xff'):
+            return '.jpg'
+        # PNG
+        elif content.startswith(b'\x89PNG\r\n\x1a\n'):
+            return '.png'
+        # GIF
+        elif content.startswith(b'GIF87a') or content.startswith(b'GIF89a'):
+            return '.gif'
+        # WebP
+        elif content[8:12] == b'WEBP':
+            return '.webp'
+        # BMP
+        elif content.startswith(b'BM'):
+            return '.bmp'
+        # TIFF
+        elif content.startswith(b'II*\x00') or content.startswith(b'MM\x00*'):
+            return '.tiff'
+        # MP4
+        elif b'ftyp' in content[4:12]:
+            return '.mp4'
+        # PDF
+        elif content.startswith(b'%PDF'):
+            return '.pdf'
+
+    # Try URL path extension
+    url_path = urllib.parse.urlparse(url).path
+    if url_path:
+        ext = os.path.splitext(url_path)[1].lower()
+        if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.tiff',
+                   '.mp4', '.webm', '.avi', '.mov', '.wmv', '.flv',
+                   '.mp3', '.wav', '.ogg', '.aac', '.flac',
+                   '.pdf', '.doc', '.docx', '.txt']:
+            return ext
+
+    # Default fallback
+    return '.bin'
+
+def _format_file_size(size_bytes: int) -> str:
+    """Format file size in human readable format"""
+    if size_bytes == 0:
+        return "0 B"
+    size_names = ["B", "KB", "MB", "GB", "TB"]
+    i = 0
+    while size_bytes >= 1024.0 and i < len(size_names) - 1:
+        size_bytes /= 1024.0
+        i += 1
+    return f"{size_bytes:.1f} {size_names[i]}"

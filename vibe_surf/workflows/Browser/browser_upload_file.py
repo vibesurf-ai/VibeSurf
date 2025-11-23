@@ -25,11 +25,15 @@ class BrowserUploadFileComponent(Component):
             required=True
         ),
         FileInput(
+            name="upload_file",
+            display_name="Upload File",
+            info="Uploaded File to upload",
+            fileTypes=['json', 'md', 'csv', 'pdf', 'png', 'jpg', 'jpeg', 'txt', 'py', 'js'],
+        ),
+        MessageTextInput(
             name="file",
             display_name="File",
-            info="File to upload",
-            required=True,
-            fileTypes=['json', 'md', 'csv', 'pdf', 'png', 'jpg', 'jpeg', 'txt', 'py', 'js'],
+            info="File to upload."
         ),
         MessageTextInput(
             name="element_text",
@@ -164,7 +168,7 @@ class BrowserUploadFileComponent(Component):
             # Set file(s) to upload
             await cdp_client.send.DOM.setFileInputFiles(
                 params={
-                    'files': [self.file],
+                    'files': [self.file or self.upload_file],
                     'backendNodeId': element._backend_node_id,
                 },
                 session_id=element._session_id,

@@ -10,6 +10,7 @@ from vibe_surf.langflow.schema.dataframe import DataFrame
 from browser_use.llm.base import BaseChatModel
 from vibe_surf.tools.utils import fallback_parallel_search, google_ai_model_search, _rank_search_results_with_llm
 from vibe_surf.logger import get_logger
+from vibe_surf.langflow.schema.data import Data
 
 logger = get_logger(__name__)
 
@@ -63,11 +64,10 @@ class AdvancedSearchComponent(Component):
             display_name="Search Results",
             name="search_results",
             method="run_advanced_search",
-            types=["DataFrame"],
         ),
     ]
 
-    async def run_advanced_search(self) -> DataFrame:
+    async def run_advanced_search(self) -> Data:
         try:
             from vibe_surf.backend import shared_state
             
@@ -97,70 +97,19 @@ class AdvancedSearchComponent(Component):
             # Rerank results if requested
             if self.rerank and self.llm and search_results:
                 logger.info("Reranking search results using LLM")
-                search_results = await _rank_search_results_with_llm(
-                    results=search_results,
+                sources_results = search_results.get('sources', [])
+                sources_results = await _rank_search_results_with_llm(
+                    results=sources_results,
                     query=self.query,
                     llm=self.llm
                 )
+                search_results['sources'] = sources_results
             
-            # Convert results to DataFrame format
-            if not search_results:
-                logger.warning("No search results found")
-                return DataFrame(
-                    data=[],
-                    columns=['title', 'url', 'summary', 'source', 'source_tab']
-                )
-            
-            # Prepare data for DataFrame
-            df_data = []
-            for result in search_results:
-                row = {
-                    'title': result.get('title', 'No title'),
-                    'url': result.get('url', 'No URL'),
-                    'summary': result.get('summary', 'No description available'),
-                    'source': result.get('source', 'Unknown source'),
-                    'source_tab': result.get('source_tab', 'unknown'),
-                }
-                
-                # Add optional fields if they exist
-                if 'time' in result:
-                    row['time'] = result['time']
-                if 'duration' in result:
-                    row['duration'] = result['duration']
-                if 'extraction_method' in result:
-                    row['extraction_method'] = result['extraction_method']
-                
-                df_data.append(row)
-            
-            # Determine columns based on available data
-            columns = ['title', 'url', 'summary', 'source', 'source_tab']
-            if any('time' in result for result in search_results):
-                columns.append('time')
-            if any('duration' in result for result in search_results):
-                columns.append('duration')
-            if any('extraction_method' in result for result in search_results):
-                columns.append('extraction_method')
-            
-            logger.info(f"Returning {len(df_data)} search results as DataFrame")
-            
-            return DataFrame(
-                data=df_data,
-                columns=columns
-            )
+            return Data(data=search_results)
             
         except Exception as e:
             logger.error(f"Advanced search failed: {e}")
             import traceback
             traceback.print_exc()
-            
-            # Return error DataFrame
-            return DataFrame(
-                data=[{
-                    'title': 'Search Error',
-                    'url': 'N/A',
-                    'summary': f'Search failed with error: {str(e)}',
-                    'source': 'Error',
-                    'source_tab': 'error'
-                }],
-                columns=['title', 'url', 'summary', 'source', 'source_tab']
-            )
+
+            return Data()

@@ -130,18 +130,22 @@ class VibeSurfTools:
                 logger.info(f'🔍 Starting Google AI model search for: {params.query}')
 
                 # Attempt Google AI model search with udm=50
-                ai_search_results = await google_ai_model_search(browser_manager, params.query, max_results=15)
+                search_result_dict = await google_ai_model_search(browser_manager, params.query, max_results=15)
 
                 # Step 2: If AI search fails or returns insufficient results, use fallback method
-                if not ai_search_results or len(ai_search_results) == 0:
+                if not search_result_dict or (isinstance(search_result_dict, dict) and len(search_result_dict.get('sources', [])) == 0):
                     logger.info(f'🔄 Google AI search returned no results, using fallback parallel search')
 
                     # Use parallel search across all, news, and videos tabs
-                    fallback_results = await fallback_parallel_search(browser_manager, params.query, max_results=15)
-                    all_results = fallback_results
+                    search_result_dict = await fallback_parallel_search(browser_manager, params.query, max_results=15)
+                    used_fallback = True
                 else:
-                    logger.info(f'✅ Google AI search found {len(ai_search_results)} results')
-                    all_results = ai_search_results
+                    logger.info(f'✅ Google AI search found results')
+                    used_fallback = False
+
+                # Extract response and sources from dict
+                ai_response = search_result_dict.get('response', '')
+                all_results = search_result_dict.get('sources', [])
 
                 # Step 3: Process results based on rank parameter
                 if params.rank and all_results and len(all_results) > 10:
@@ -179,23 +183,33 @@ class VibeSurfTools:
                     else:
                         top_results = all_results[:15] if all_results else []
 
-                # Step 4: Format results for display
+                # Step 4: Format results for display - AI response first, then sources
+                results_text = f"# 🔍 Search Results for '{params.query}'\n\n"
+                
+                # Display AI response if available
+                if ai_response:
+                    results_text += f"## 🤖 AI Response\n\n{ai_response}\n\n"
+                    results_text += "---\n\n"
+                
+                # Display sources
                 if top_results:
-                    results_text = f"🔍 Search Results for '{params.query}':\n\n"
+                    results_text += f"## 📚 Sources ({len(top_results)} results)\n\n"
                     for i, result in enumerate(top_results):
                         title = result.get('title', 'Unknown Title')
                         url = result.get('url', 'No URL')
                         summary = result.get('summary', 'No description available')
 
-                        results_text += f"{i + 1}. **{title}**\n   URL: {url}\n   Summary: {summary}\n\n"
+                        results_text += f"### {i + 1}. {title}\n"
+                        results_text += f"**URL:** {url}\n\n"
+                        results_text += f"**Summary:** {summary}\n\n"
                 else:
-                    results_text = f"No results found for query: {params.query}"
+                    results_text += f"## 📚 Sources\n\nNo source results found for query: {params.query}\n\n"
 
-                logger.info(f'🔍 Skill Search completed for: {params.query}, found {len(top_results)} results')
+                logger.info(f'🔍 Skill Search completed for: {params.query}, found {len(top_results)} sources, AI response: {bool(ai_response)}')
                 return ActionResult(
                     extracted_content=results_text,
                     include_extracted_content_only_once=True,
-                    long_term_memory=f'Search completed for: {params.query}, found {len(top_results)} relevant results using {"AI model search" if ai_search_results else "fallback search"}'
+                    long_term_memory=f'Search completed for: {params.query}, found {len(top_results)} sources{"with AI response" if ai_response else ""} using {"fallback search" if used_fallback else "AI model search"}'
                 )
 
             except Exception as e:

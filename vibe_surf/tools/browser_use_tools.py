@@ -50,6 +50,7 @@ from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.logger import get_logger
 from vibe_surf.tools.vibesurf_tools import VibeSurfTools
 from vibe_surf.tools.views import GenJSCodeAction
+from vibe_surf.tools.utils import _detect_file_format, _format_file_size
 
 logger = get_logger(__name__)
 
@@ -432,7 +433,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 downloads_dir.mkdir(exist_ok=True)
 
                 # Download the file and detect format
-                async with aiohttp.ClientSession() as session:
+                async with aiohttp.ClientSession(trust_env=True) as session:
                     async with session.get(params.url) as response:
                         if response.status != 200:
                             raise Exception(f"HTTP {response.status}: Failed to download from {params.url}")
@@ -441,7 +442,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
                         content = await response.read()
                         headers_dict = dict(response.headers)
                         # Detect file format and extension
-                        file_extension = await self._detect_file_format(params.url, headers_dict, content)
+                        file_extension = await _detect_file_format(params.url, headers_dict, content)
 
                         # Generate filename
                         if params.filename:
@@ -475,7 +476,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
 
                         # Calculate file size for display
                         file_size = len(content)
-                        size_str = self._format_file_size(file_size)
+                        size_str = _format_file_size(file_size)
 
                         msg = f'📥 Downloaded media to: {str(filepath.relative_to(fs_dir))} ({size_str})'
                         logger.info(msg)
@@ -489,94 +490,3 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 error_msg = f'❌ Failed to download media: {str(e)}'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg)
-
-    async def _detect_file_format(self, url: str, headers: dict, content: bytes) -> str:
-        """Detect file format from URL, headers, and content"""
-
-        # Try Content-Type header first
-        content_type = headers.get('content-type', '').lower()
-        if content_type:
-            # Common image formats
-            if 'image/jpeg' in content_type or 'image/jpg' in content_type:
-                return '.jpg'
-            elif 'image/png' in content_type:
-                return '.png'
-            elif 'image/gif' in content_type:
-                return '.gif'
-            elif 'image/webp' in content_type:
-                return '.webp'
-            elif 'image/svg' in content_type:
-                return '.svg'
-            elif 'image/bmp' in content_type:
-                return '.bmp'
-            elif 'image/tiff' in content_type:
-                return '.tiff'
-            # Video formats
-            elif 'video/mp4' in content_type:
-                return '.mp4'
-            elif 'video/webm' in content_type:
-                return '.webm'
-            elif 'video/avi' in content_type:
-                return '.avi'
-            elif 'video/mov' in content_type or 'video/quicktime' in content_type:
-                return '.mov'
-            # Audio formats
-            elif 'audio/mpeg' in content_type or 'audio/mp3' in content_type:
-                return '.mp3'
-            elif 'audio/wav' in content_type:
-                return '.wav'
-            elif 'audio/ogg' in content_type:
-                return '.ogg'
-            elif 'audio/webm' in content_type:
-                return '.webm'
-
-        # Try magic number detection
-        if len(content) >= 8:
-            # JPEG
-            if content.startswith(b'\xff\xd8\xff'):
-                return '.jpg'
-            # PNG
-            elif content.startswith(b'\x89PNG\r\n\x1a\n'):
-                return '.png'
-            # GIF
-            elif content.startswith(b'GIF87a') or content.startswith(b'GIF89a'):
-                return '.gif'
-            # WebP
-            elif content[8:12] == b'WEBP':
-                return '.webp'
-            # BMP
-            elif content.startswith(b'BM'):
-                return '.bmp'
-            # TIFF
-            elif content.startswith(b'II*\x00') or content.startswith(b'MM\x00*'):
-                return '.tiff'
-            # MP4
-            elif b'ftyp' in content[4:12]:
-                return '.mp4'
-            # PDF
-            elif content.startswith(b'%PDF'):
-                return '.pdf'
-
-        # Try URL path extension
-        url_path = urllib.parse.urlparse(url).path
-        if url_path:
-            ext = os.path.splitext(url_path)[1].lower()
-            if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.tiff',
-                       '.mp4', '.webm', '.avi', '.mov', '.wmv', '.flv',
-                       '.mp3', '.wav', '.ogg', '.aac', '.flac',
-                       '.pdf', '.doc', '.docx', '.txt']:
-                return ext
-
-        # Default fallback
-        return '.bin'
-
-    def _format_file_size(self, size_bytes: int) -> str:
-        """Format file size in human readable format"""
-        if size_bytes == 0:
-            return "0 B"
-        size_names = ["B", "KB", "MB", "GB", "TB"]
-        i = 0
-        while size_bytes >= 1024.0 and i < len(size_names) - 1:
-            size_bytes /= 1024.0
-            i += 1
-        return f"{size_bytes:.1f} {size_names[i]}"
