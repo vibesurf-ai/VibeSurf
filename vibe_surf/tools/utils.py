@@ -6,6 +6,7 @@ import json
 import os
 import base64
 import mimetypes
+import urllib.parse
 
 from browser_use.dom.service import EnhancedDOMTreeNode
 from vibe_surf.logger import get_logger
@@ -1558,3 +1559,94 @@ def remove_import_statements(code: str) -> str:
             filtered_lines.append(line)
     
     return '\n'.join(filtered_lines)
+
+async def _detect_file_format(url: str, headers: dict, content: bytes) -> str:
+    """Detect file format from URL, headers, and content"""
+
+    # Try Content-Type header first
+    content_type = headers.get('content-type', '').lower()
+    if content_type:
+        # Common image formats
+        if 'image/jpeg' in content_type or 'image/jpg' in content_type:
+            return '.jpg'
+        elif 'image/png' in content_type:
+            return '.png'
+        elif 'image/gif' in content_type:
+            return '.gif'
+        elif 'image/webp' in content_type:
+            return '.webp'
+        elif 'image/svg' in content_type:
+            return '.svg'
+        elif 'image/bmp' in content_type:
+            return '.bmp'
+        elif 'image/tiff' in content_type:
+            return '.tiff'
+        # Video formats
+        elif 'video/mp4' in content_type:
+            return '.mp4'
+        elif 'video/webm' in content_type:
+            return '.webm'
+        elif 'video/avi' in content_type:
+            return '.avi'
+        elif 'video/mov' in content_type or 'video/quicktime' in content_type:
+            return '.mov'
+        # Audio formats
+        elif 'audio/mpeg' in content_type or 'audio/mp3' in content_type:
+            return '.mp3'
+        elif 'audio/wav' in content_type:
+            return '.wav'
+        elif 'audio/ogg' in content_type:
+            return '.ogg'
+        elif 'audio/webm' in content_type:
+            return '.webm'
+
+    # Try magic number detection
+    if len(content) >= 8:
+        # JPEG
+        if content.startswith(b'\xff\xd8\xff'):
+            return '.jpg'
+        # PNG
+        elif content.startswith(b'\x89PNG\r\n\x1a\n'):
+            return '.png'
+        # GIF
+        elif content.startswith(b'GIF87a') or content.startswith(b'GIF89a'):
+            return '.gif'
+        # WebP
+        elif content[8:12] == b'WEBP':
+            return '.webp'
+        # BMP
+        elif content.startswith(b'BM'):
+            return '.bmp'
+        # TIFF
+        elif content.startswith(b'II*\x00') or content.startswith(b'MM\x00*'):
+            return '.tiff'
+        # MP4
+        elif b'ftyp' in content[4:12]:
+            return '.mp4'
+        # PDF
+        elif content.startswith(b'%PDF'):
+            return '.pdf'
+
+    # Try URL path extension
+    url_path = urllib.parse.urlparse(url).path
+    if url_path:
+        ext = os.path.splitext(url_path)[1].lower()
+        if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.tiff',
+                   '.mp4', '.webm', '.avi', '.mov', '.wmv', '.flv',
+                   '.mp3', '.wav', '.ogg', '.aac', '.flac',
+                   '.pdf', '.doc', '.docx', '.txt']:
+            return ext
+
+    # Default fallback
+    return '.bin'
+
+def _format_file_size(size_bytes: int) -> str:
+    """Format file size in human readable format"""
+    if size_bytes == 0:
+        return "0 B"
+    size_names = ["B", "KB", "MB", "GB", "TB"]
+    i = 0
+    while size_bytes >= 1024.0 and i < len(size_names) - 1:
+        size_bytes /= 1024.0
+        i += 1
+    return f"{size_bytes:.1f} {size_names[i]}"
