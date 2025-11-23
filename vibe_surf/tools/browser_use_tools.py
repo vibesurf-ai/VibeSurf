@@ -433,7 +433,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 downloads_dir.mkdir(exist_ok=True)
 
                 # Download the file and detect format
-                async with aiohttp.ClientSession() as session:
+                async with aiohttp.ClientSession(trust_env=True) as session:
                     async with session.get(params.url) as response:
                         if response.status != 200:
                             raise Exception(f"HTTP {response.status}: Failed to download from {params.url}")

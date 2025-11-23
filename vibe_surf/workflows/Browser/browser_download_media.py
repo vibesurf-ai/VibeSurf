@@ -57,8 +57,9 @@ class BrowserDownloadMediaComponent(Component):
             os.makedirs(downloads_dir, exist_ok=True)
 
             # Download the file and detect format
-            async with aiohttp.ClientSession() as session:
-                async with session.get(self.url) as response:
+            # trust_env=True enables proxy from environment variables (HTTP_PROXY, HTTPS_PROXY)
+            async with aiohttp.ClientSession(trust_env=True) as session:
+                async with session.get(self.url, timeout=aiohttp.ClientTimeout(total=60)) as response:
                     if response.status != 200:
                         raise Exception(f"HTTP {response.status}: Failed to download from {self.url}")
 
