@@ -16,8 +16,10 @@
     constructor() {
       this.initialized = false;
       this.pageContext = null;
+      this.isRecording = false;
       this.setupMessageListener();
       this.collectPageContext();
+      this.setupEventListeners();
     }
     
     setupMessageListener() {
@@ -26,6 +28,18 @@
         console.log('[VibeSurf Content] Received message:', message.type);
         
         switch (message.type) {
+          case 'START_RECORDING_CONTENT':
+            this.isRecording = true;
+            console.log('[VibeSurf Content] Recording enabled');
+            sendResponse({ success: true });
+            break;
+            
+          case 'STOP_RECORDING_CONTENT':
+            this.isRecording = false;
+            console.log('[VibeSurf Content] Recording disabled');
+            sendResponse({ success: true });
+            break;
+            
           case 'GET_PAGE_CONTEXT':
             sendResponse(this.getPageContext());
             break;
@@ -378,6 +392,121 @@
         console.error('[VibeSurf Content] Error removing permission iframe:', error);
         return false;
       }
+    }
+    
+    // Setup event listeners for recording
+    setupEventListeners() {
+      console.log('[VibeSurf Content] Setting up event listeners');
+      
+      // Click events
+      document.addEventListener('click', (event) => {
+        console.log('[VibeSurf Content] Click detected, isRecording:', this.isRecording);
+        if (!this.isRecording) return;
+        
+        const target = event.target;
+        if (!target) return;
+        
+        const data = {
+          targetText: this.getElementText(target),
+          selector: this.getSelector(target),
+          coordinates: { x: event.clientX, y: event.clientY }
+        };
+        
+        console.log('[VibeSurf Content] Sending CUSTOM_CLICK_EVENT:', data);
+        chrome.runtime.sendMessage({
+          type: 'CUSTOM_CLICK_EVENT',
+          data: data
+        }).catch((err) => {
+          console.error('[VibeSurf Content] Failed to send click event:', err);
+        });
+      }, true);
+      
+      // Input events
+      document.addEventListener('input', (event) => {
+        if (!this.isRecording) return;
+        
+        const target = event.target;
+        if (!target || (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA')) return;
+        
+        const data = {
+          targetText: target.placeholder || target.name || this.getSelector(target),
+          selector: this.getSelector(target),
+          value: target.type === 'password' ? '********' : target.value
+        };
+        
+        chrome.runtime.sendMessage({
+          type: 'CUSTOM_INPUT_EVENT',
+          data: data
+        }).catch(() => {});
+      }, true);
+      
+      // Key events
+      document.addEventListener('keydown', (event) => {
+        if (!this.isRecording) return;
+        
+        if (event.key === 'Enter' || event.key === 'Tab' || event.key === 'Escape') {
+          const data = {
+            key: event.key,
+            modifiers: []
+          };
+          
+          if (event.ctrlKey) data.modifiers.push('Ctrl');
+          if (event.metaKey) data.modifiers.push('Meta');
+          if (event.shiftKey) data.modifiers.push('Shift');
+          if (event.altKey) data.modifiers.push('Alt');
+          
+          chrome.runtime.sendMessage({
+            type: 'CUSTOM_KEY_EVENT',
+            data: data
+          }).catch(() => {});
+        }
+      }, true);
+    }
+    
+    // Get readable text from element
+    getElementText(element) {
+      if (!element) return '';
+      
+      // For buttons and links, use text content
+      if (element.tagName === 'BUTTON' || element.tagName === 'A') {
+        return element.textContent?.trim().substring(0, 100) || '';
+      }
+      
+      // For inputs, use label or placeholder
+      if (element.tagName === 'INPUT') {
+        const label = document.querySelector(`label[for="${element.id}"]`);
+        if (label) return label.textContent?.trim() || '';
+        return element.placeholder || element.name || '';
+      }
+      
+      return element.textContent?.trim().substring(0, 100) || '';
+    }
+    
+    // Get CSS selector for element
+    getSelector(element) {
+      if (!element) return '';
+      
+      if (element.id) return `#${element.id}`;
+      if (element.name) return `[name="${element.name}"]`;
+      
+      let path = [];
+      let current = element;
+      
+      while (current && current.nodeType === Node.ELEMENT_NODE && path.length < 4) {
+        let selector = current.nodeName.toLowerCase();
+        
+        if (current.className && typeof current.className === 'string') {
+          const classes = current.className.trim().split(/\s+/);
+          if (classes.length > 0 && classes[0]) {
+            selector += '.' + classes[0];
+          }
+        }
+        
+        path.unshift(selector);
+        current = current.parentNode;
+      }
+      
+      return path.join(' > ');
     }
     
     // Utility method to send context updates to background

@@ -1,28 +1,19 @@
 // Background Script - VibeSurf Extension
 // Handles extension lifecycle, side panel management, and cross-context communication
 
-// Load configuration using importScripts for service worker
-try {
-  importScripts('./config.js');
-  console.log('[VibeSurf] Configuration loaded');
-} catch (error) {
-  console.error('[VibeSurf] Failed to load configuration:', error);
-  // Fallback configuration
-  self.VIBESURF_CONFIG = {
-    BACKEND_URL: 'http://127.0.0.1:9335',
-    SOCIAL_LINKS: {
-      github: "https://github.com/vibesurf-ai/VibeSurf",
-      discord: "https://discord.gg/86SPfhRVbk",
-      x: "https://x.com/warmshao",
-      reportBug: "https://github.com/vibesurf-ai/VibeSurf/issues/new/choose",
-      website: "https://vibe-surf.com/"
-    }
-  };
-}
+// ES6 module imports (for type: "module" in manifest.json)
+import { VIBESURF_CONFIG } from './config.js';
+import { WorkflowRecorder } from './scripts/workflow-recorder.js';
+
+console.log('[VibeSurf] Modules loaded');
 
 class VibeSurfBackground {
   constructor() {
     this.isInitialized = false;
+    
+    // Initialize WorkflowRecorder
+    this.workflowRecorder = new WorkflowRecorder();
+    
     this.setupEventListeners();
     this.initDevMode();
   }
@@ -80,6 +71,8 @@ class VibeSurfBackground {
     chrome.tabs.onActivated.addListener(this.handleTabActivated.bind(this));
     chrome.tabs.onUpdated.addListener(this.handleTabUpdated.bind(this));
 
+    // Setup workflow recorder tab listeners
+    this.workflowRecorder.setupTabListeners();
   }
 
   async handleInstalled(details) {
@@ -166,6 +159,27 @@ class VibeSurfBackground {
 
   handleMessage(message, sender, sendResponse) {
     console.log('[VibeSurf] Received message:', message.type);
+    
+    // List of messages handled by WorkflowRecorder
+    const recorderMessages = [
+      'START_RECORDING', 'STOP_RECORDING', 'GET_RECORDING_DATA',
+      'ADD_EXTRACTION_STEP', 'CUSTOM_CLICK_EVENT', 'CUSTOM_INPUT_EVENT',
+      'CUSTOM_KEY_EVENT', 'RRWEB_EVENT'
+    ];
+    
+    // Delegate recording-related messages to WorkflowRecorder
+    if (recorderMessages.includes(message.type)) {
+      const response = this.workflowRecorder.handleEvent(message, sender);
+      
+      // Check if response contains async screenshot capture
+      if (response && response.isAsync) {
+        response.promise.then(sendResponse);
+        return true; // Keep channel open for async response
+      } else {
+        sendResponse(response);
+        return false;
+      }
+    }
     
     // Handle async messages properly
     (async () => {
@@ -266,7 +280,7 @@ class VibeSurfBackground {
               'HEALTH_CHECK', 'GET_BACKEND_STATUS', 'STORE_SESSION_DATA', 'GET_SESSION_DATA',
               'OPEN_FILE_URL', 'OPEN_FILE_SYSTEM', 'GET_ALL_TABS', 'REQUEST_MICROPHONE_PERMISSION',
               'REQUEST_MICROPHONE_PERMISSION_WITH_UI', 'MICROPHONE_PERMISSION_RESULT'
-            ]);
+            ], 'Recording messages:', recorderMessages);
             result = { error: 'Unknown message type', receivedType: message.type };
         }
         
@@ -315,8 +329,8 @@ class VibeSurfBackground {
   }
 
   async initializeSettings() {
-    // Load configuration from service worker global
-    const config = self.VIBESURF_CONFIG || {};
+    // Load configuration from imported module
+    const config = VIBESURF_CONFIG || {};
     
     const defaultSettings = {
       backendUrl: config.BACKEND_URL || 'http://localhost:9335',
@@ -434,8 +448,8 @@ class VibeSurfBackground {
   }
 
   async checkBackendStatus(backendUrl = null) {
-    // Use configuration file value as default from service worker global
-    const config = self.VIBESURF_CONFIG || {};
+    // Use configuration file value as default from imported module
+    const config = VIBESURF_CONFIG || {};
     backendUrl = backendUrl || config.BACKEND_URL || 'http://localhost:9335';
     try {
       const response = await fetch(`${backendUrl}/health`, {

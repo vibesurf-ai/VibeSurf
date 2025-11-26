@@ -2820,7 +2820,7 @@ class VibeSurfSettingsWorkflow {
     
     this._isOpeningRecordModal = true;
     
-    this.showRecordToWorkflowModal();
+    this.showRecordWorkflowDialog();
     
     // Reset flag after modal is shown
     setTimeout(() => {
@@ -2828,80 +2828,528 @@ class VibeSurfSettingsWorkflow {
     }, 500);
   }
   
-  // Show record workflow modal
-  showRecordToWorkflowModal() {
-    // Create modal if it doesn't exist
-    if (!this.elements.recordToWorkflowModal) {
-      this.createRecordToWorkflowModal();
+  // Show initial recording dialog
+  showRecordWorkflowDialog() {
+    // Create dialog if it doesn't exist
+    if (!this.elements.recordWorkflowDialog) {
+      this.createRecordWorkflowDialog();
     }
     
-    if (this.elements.recordToWorkflowModal) {
-      this.elements.recordToWorkflowModal.classList.remove('hidden');
+    // Reset form
+    if (this.elements.recordWorkflowNameInput) {
+      this.elements.recordWorkflowNameInput.value = '';
+    }
+    if (this.elements.recordWorkflowDescInput) {
+      this.elements.recordWorkflowDescInput.value = '';
+    }
+    this.hideRecordWorkflowValidation();
+    
+    // Show dialog
+    if (this.elements.recordWorkflowDialog) {
+      this.elements.recordWorkflowDialog.classList.remove('hidden');
+      setTimeout(() => {
+        if (this.elements.recordWorkflowNameInput) {
+          this.elements.recordWorkflowNameInput.focus();
+        }
+      }, 100);
     }
   }
   
-  // Create record workflow modal
-  createRecordToWorkflowModal() {
-    // Create modal HTML
-    const modalHTML = `
-      <div id="record-to-workflow-modal" class="modal hidden">
+  // Create record workflow dialog
+  createRecordWorkflowDialog() {
+    const dialogHTML = `
+      <div id="record-workflow-dialog" class="modal hidden">
         <div class="modal-overlay"></div>
-        <div class="modal-content record-to-workflow-modal-content">
+        <div class="modal-content record-workflow-dialog-content">
           <div class="modal-header">
             <h3>Record Workflow</h3>
             <button class="modal-close">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>
             </button>
           </div>
           <div class="modal-body">
-            <div class="record-to-workflow-content">
-              <div class="coming-soon-message">
-                <div class="coming-soon-icon">🚧</div>
-                <div class="coming-soon-title">Feature Coming Soon</div>
-                <div class="coming-soon-description">
-                  This feature is currently under development. Please stay tuned for updates!
-                </div>
-              </div>
+            <div class="form-group">
+              <label class="form-label" for="record-workflow-name-input">Workflow Name <span class="required">*</span></label>
+              <input type="text" id="record-workflow-name-input" class="form-input" placeholder="Enter workflow name" required />
             </div>
+            <div class="form-group">
+              <label class="form-label" for="record-workflow-desc-input">Description (optional)</label>
+              <textarea id="record-workflow-desc-input" class="form-textarea" placeholder="Describe what this workflow does" rows="3"></textarea>
+            </div>
+            <div id="record-workflow-validation" style="display: none;"></div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="form-btn primary" id="record-to-workflow-got-it">Got it</button>
+            <button type="button" class="form-btn secondary" id="record-workflow-cancel">Cancel</button>
+            <button type="button" class="form-btn primary" id="record-workflow-start">Confirm</button>
           </div>
         </div>
       </div>
     `;
     
-    // Add modal to body
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    document.body.insertAdjacentHTML('beforeend', dialogHTML);
     
-    // Get modal elements
-    this.elements.recordToWorkflowModal = document.getElementById('record-to-workflow-modal');
-    this.elements.recordToWorkflowGotIt = document.getElementById('record-to-workflow-got-it');
+    this.elements.recordWorkflowDialog = document.getElementById('record-workflow-dialog');
+    this.elements.recordWorkflowNameInput = document.getElementById('record-workflow-name-input');
+    this.elements.recordWorkflowDescInput = document.getElementById('record-workflow-desc-input');
+    this.elements.recordWorkflowValidation = document.getElementById('record-workflow-validation');
+    this.elements.recordWorkflowCancel = document.getElementById('record-workflow-cancel');
+    this.elements.recordWorkflowStart = document.getElementById('record-workflow-start');
     
     // Bind events
-    if (this.elements.recordToWorkflowGotIt) {
-      this.elements.recordToWorkflowGotIt.addEventListener('click', this.hideRecordToWorkflowModal.bind(this));
+    if (this.elements.recordWorkflowCancel) {
+      this.elements.recordWorkflowCancel.addEventListener('click', this.hideRecordWorkflowDialog.bind(this));
+    }
+    if (this.elements.recordWorkflowStart) {
+      this.elements.recordWorkflowStart.addEventListener('click', this.handleStartRecording.bind(this));
     }
     
-    // Bind close button
-    const modalClose = this.elements.recordToWorkflowModal?.querySelector('.modal-close');
+    const modalClose = this.elements.recordWorkflowDialog?.querySelector('.modal-close');
     if (modalClose) {
-      modalClose.addEventListener('click', this.hideRecordToWorkflowModal.bind(this));
+      modalClose.addEventListener('click', this.hideRecordWorkflowDialog.bind(this));
     }
     
-    // Bind overlay click
-    const modalOverlay = this.elements.recordToWorkflowModal?.querySelector('.modal-overlay');
+    const modalOverlay = this.elements.recordWorkflowDialog?.querySelector('.modal-overlay');
     if (modalOverlay) {
-      modalOverlay.addEventListener('click', this.hideRecordToWorkflowModal.bind(this));
+      modalOverlay.addEventListener('click', this.hideRecordWorkflowDialog.bind(this));
     }
   }
   
-  // Hide record workflow modal
-  hideRecordToWorkflowModal() {
-    if (this.elements.recordToWorkflowModal) {
-      this.elements.recordToWorkflowModal.classList.add('hidden');
+  // Hide record workflow dialog
+  hideRecordWorkflowDialog() {
+    if (this.elements.recordWorkflowDialog) {
+      this.elements.recordWorkflowDialog.classList.add('hidden');
+    }
+  }
+  
+  // Show record workflow validation message
+  showRecordWorkflowValidation(message, type) {
+    if (!this.elements.recordWorkflowValidation) return;
+    
+    const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+    this.elements.recordWorkflowValidation.innerHTML = `
+      <div class="validation-message ${className}">
+        ${this.escapeHtml(message)}
+      </div>
+    `;
+    this.elements.recordWorkflowValidation.style.display = 'block';
+  }
+  
+  // Hide record workflow validation message
+  hideRecordWorkflowValidation() {
+    if (this.elements.recordWorkflowValidation) {
+      this.elements.recordWorkflowValidation.style.display = 'none';
+      this.elements.recordWorkflowValidation.innerHTML = '';
+    }
+  }
+  
+  // Handle start recording
+  async handleStartRecording() {
+    const name = this.elements.recordWorkflowNameInput?.value?.trim();
+    const description = this.elements.recordWorkflowDescInput?.value?.trim() || '';
+    
+    if (!name) {
+      this.showRecordWorkflowValidation('Please enter a workflow name', 'error');
+      return;
+    }
+    
+    // Store workflow info for later
+    this.recordingWorkflowInfo = {
+      name: name,
+      description: description
+    };
+    
+    // Hide dialog and show recording page
+    this.hideRecordWorkflowDialog();
+    this.showRecordingPage();
+  }
+  
+  // Show recording page
+  showRecordingPage() {
+    // Create recording page if it doesn't exist
+    if (!this.elements.recordingPage) {
+      this.createRecordingPage();
+    }
+    
+    // Reset recording state
+    this.recordingState = {
+      isRecording: false,
+      steps: [],
+      startTime: null
+    };
+    
+    // Clear previous steps
+    if (this.elements.recordingStepsList) {
+      this.elements.recordingStepsList.innerHTML = '<div class="no-steps-message">Click "Start Recording" to begin</div>';
+    }
+    
+    // Show page
+    if (this.elements.recordingPage) {
+      this.elements.recordingPage.classList.remove('hidden');
+    }
+  }
+  
+  // Create recording page
+  createRecordingPage() {
+    const pageHTML = `
+      <div id="recording-page" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content recording-page-content">
+          <div class="modal-header">
+            <h3>Recording: <span id="recording-workflow-title">Workflow</span></h3>
+            <button class="modal-close" id="recording-page-close">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="recording-controls">
+              <button id="recording-toggle-btn" class="recording-toggle-btn">
+                <span class="recording-btn-text">Start Recording</span>
+                <div class="recording-indicator hidden"></div>
+              </button>
+            </div>
+            <div class="recording-steps-container">
+              <h4>Recorded Steps</h4>
+              <div id="recording-steps-list" class="recording-steps-list">
+                <div class="no-steps-message">Click "Start Recording" to begin</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', pageHTML);
+    
+    this.elements.recordingPage = document.getElementById('recording-page');
+    this.elements.recordingWorkflowTitle = document.getElementById('recording-workflow-title');
+    this.elements.recordingToggleBtn = document.getElementById('recording-toggle-btn');
+    this.elements.recordingStepsList = document.getElementById('recording-steps-list');
+    this.elements.recordingPageClose = document.getElementById('recording-page-close');
+    
+    // Set workflow name
+    if (this.elements.recordingWorkflowTitle && this.recordingWorkflowInfo) {
+      this.elements.recordingWorkflowTitle.textContent = this.recordingWorkflowInfo.name;
+    }
+    
+    // Bind events
+    if (this.elements.recordingToggleBtn) {
+      this.elements.recordingToggleBtn.addEventListener('click', this.handleRecordingToggle.bind(this));
+    }
+    if (this.elements.recordingPageClose) {
+      this.elements.recordingPageClose.addEventListener('click', this.handleRecordingPageClose.bind(this));
+    }
+    
+    const modalOverlay = this.elements.recordingPage?.querySelector('.modal-overlay');
+    if (modalOverlay) {
+      modalOverlay.addEventListener('click', this.handleRecordingPageClose.bind(this));
+    }
+  }
+  
+  // Handle recording toggle (start/stop)
+  async handleRecordingToggle() {
+    if (!this.recordingState.isRecording) {
+      // Start recording
+      await this.startWorkflowRecording();
+    } else {
+      // Stop recording
+      await this.stopWorkflowRecording();
+    }
+  }
+  
+  // Start workflow recording
+  async startWorkflowRecording() {
+    try {
+      // Send message to background script to start recording
+      const response = await chrome.runtime.sendMessage({ type: 'START_RECORDING' });
+      
+      if (response && response.success) {
+        this.recordingState.isRecording = true;
+        this.recordingState.startTime = response.startTime || Date.now();
+        this.recordingState.steps = [];
+        
+        // Notify all tabs to start capturing user interactions
+        try {
+          const tabs = await chrome.tabs.query({});
+          for (const tab of tabs) {
+            if (tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
+              chrome.tabs.sendMessage(tab.id, { type: 'START_RECORDING_CONTENT' }).catch(() => {
+                // Ignore errors - content script may not be loaded
+              });
+            }
+          }
+        } catch (error) {
+          console.warn('[SettingsWorkflow] Failed to notify content scripts:', error);
+        }
+        
+        // Update UI
+        this.updateRecordingButton(true);
+        
+        // Start polling for steps
+        this.startStepsPolling();
+        
+        this.emit('notification', {
+          message: 'Recording started',
+          type: 'success'
+        });
+      } else {
+        throw new Error(response?.error || 'Failed to start recording');
+      }
+    } catch (error) {
+      console.error('[SettingsWorkflow] Failed to start recording:', error);
+      this.emit('notification', {
+        message: `Failed to start recording: ${error.message}`,
+        type: 'error'
+      });
+    }
+  }
+  
+  // Stop workflow recording and auto-save
+  async stopWorkflowRecording() {
+    try {
+      // Notify all tabs to stop capturing
+      try {
+        const tabs = await chrome.tabs.query({});
+        for (const tab of tabs) {
+          if (tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
+            chrome.tabs.sendMessage(tab.id, { type: 'STOP_RECORDING_CONTENT' }).catch(() => {
+              // Ignore errors
+            });
+          }
+        }
+      } catch (error) {
+        console.warn('[SettingsWorkflow] Failed to notify content scripts:', error);
+      }
+      
+      // Stop the recording and get the final workflow data
+      const stopResponse = await chrome.runtime.sendMessage({ type: 'STOP_RECORDING' });
+      
+      if (stopResponse && stopResponse.success) {
+        // Extract steps directly from stopResponse
+        const steps = stopResponse.workflow?.steps || [];
+        this.recordingState.steps = steps;
+        this.recordingState.isRecording = false;
+        
+        // Stop polling
+        this.stopStepsPolling();
+        
+        // Update UI to show "Saving..." state
+        this.updateRecordingButton(false, true); // false = not recording, true = saving
+        
+        // Auto-save immediately
+        if (steps.length > 0) {
+          await this.handleSaveWorkflow();
+        } else {
+          // No steps recorded - just show message
+          this.updateRecordingButton(false, false);
+          this.emit('notification', {
+            message: 'No steps recorded',
+            type: 'warning'
+          });
+        }
+      } else {
+        throw new Error(stopResponse?.error || 'Failed to stop recording');
+      }
+    } catch (error) {
+      console.error('[SettingsWorkflow] Failed to stop recording:', error);
+      this.updateRecordingButton(false, false);
+      this.emit('notification', {
+        message: `Failed to stop recording: ${error.message}`,
+        type: 'error'
+      });
+    }
+  }
+  
+  // Handle Save Workflow (now called automatically after stop)
+  async handleSaveWorkflow() {
+    if (!this.recordingState.steps || this.recordingState.steps.length === 0) {
+      this.emit('notification', {
+        message: 'No steps recorded to save',
+        type: 'warning'
+      });
+      return;
+    }
+    
+    try {
+      // Save recording to backend
+      await this.saveRecording(this.recordingState.steps);
+      
+      this.emit('notification', {
+        message: 'Workflow saved successfully',
+        type: 'success'
+      });
+      
+      // Close recording page after short delay
+      setTimeout(() => {
+        this.hideRecordingPage();
+        // Reload workflows to show new one
+        this.loadWorkflows();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('[SettingsWorkflow] Failed to save workflow:', error);
+      this.updateRecordingButton(false, false);
+      this.emit('notification', {
+        message: `Failed to save workflow: ${error.message}`,
+        type: 'error'
+      });
+    }
+  }
+  
+  // Save recording to backend
+  async saveRecording(steps) {
+    try {
+      const backendUrl = this.apiClient.baseURL || window.CONFIG?.BACKEND_URL || 'http://127.0.0.1:9335';
+      
+      const response = await fetch(`${backendUrl}/api/vibesurf/workflows/save-recording`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: this.recordingWorkflowInfo.name,
+          description: this.recordingWorkflowInfo.description,
+          workflows: steps
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('[SettingsWorkflow] Recording saved:', data);
+      
+      return data;
+    } catch (error) {
+      console.error('[SettingsWorkflow] Failed to save recording:', error);
+      throw error;
+    }
+  }
+  
+  // Update recording button appearance
+  updateRecordingButton(isRecording, isSaving = false) {
+    if (!this.elements.recordingToggleBtn) return;
+    
+    const btnText = this.elements.recordingToggleBtn.querySelector('.recording-btn-text');
+    const indicator = this.elements.recordingToggleBtn.querySelector('.recording-indicator');
+    
+    if (isRecording) {
+      this.elements.recordingToggleBtn.classList.add('recording');
+      this.elements.recordingToggleBtn.disabled = false;
+      if (btnText) btnText.style.display = 'none';
+      if (indicator) indicator.classList.remove('hidden');
+    } else if (isSaving) {
+      this.elements.recordingToggleBtn.classList.remove('recording');
+      this.elements.recordingToggleBtn.disabled = true;
+      if (btnText) {
+        btnText.textContent = 'Saving...';
+        btnText.style.display = 'block';
+      }
+      if (indicator) indicator.classList.add('hidden');
+    } else {
+      this.elements.recordingToggleBtn.classList.remove('recording');
+      this.elements.recordingToggleBtn.disabled = false;
+      if (btnText) {
+        btnText.textContent = 'Start Recording';
+        btnText.style.display = 'block';
+      }
+      if (indicator) indicator.classList.add('hidden');
+    }
+  }
+  
+  // Start polling for steps (reduced frequency)
+  startStepsPolling() {
+    this.stopStepsPolling(); // Clear any existing interval
+    
+    this.stepsPollingInterval = setInterval(async () => {
+      try {
+        const response = await chrome.runtime.sendMessage({ type: 'GET_RECORDING_DATA' });
+        // Extract steps from workflow object in response
+        if (response && response.workflow && response.workflow.steps) {
+          this.updateStepsDisplay(response.workflow.steps);
+        } else if (response && response.steps) {
+          // Fallback for direct steps format
+          this.updateStepsDisplay(response.steps);
+        }
+      } catch (error) {
+        console.error('[SettingsWorkflow] Failed to poll steps:', error);
+      }
+    }, 2000); // Poll every 2 seconds (reduced from 1 second)
+  }
+  
+  // Stop polling for steps
+  stopStepsPolling() {
+    if (this.stepsPollingInterval) {
+      clearInterval(this.stepsPollingInterval);
+      this.stepsPollingInterval = null;
+    }
+  }
+  
+  // Update steps display
+  updateStepsDisplay(steps) {
+    if (!this.elements.recordingStepsList) return;
+    
+    if (steps.length === 0) {
+      this.elements.recordingStepsList.innerHTML = '<div class="no-steps-message">No steps recorded yet</div>';
+      return;
+    }
+    
+    const stepsHTML = steps.map((step, index) => {
+      const time = new Date(step.timestamp).toLocaleTimeString();
+      return `
+        <div class="recording-step">
+          <div class="step-index">${index + 1}</div>
+          <div class="step-info">
+            <div class="step-type">${this.escapeHtml(step.type)}</div>
+            <div class="step-details">${this.getStepDetails(step)}</div>
+            <div class="step-time">${time}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    this.elements.recordingStepsList.innerHTML = stepsHTML;
+    // Auto-scroll to bottom
+    this.elements.recordingStepsList.scrollTop = this.elements.recordingStepsList.scrollHeight;
+  }
+  
+  // Get step details for display
+  getStepDetails(step) {
+    switch (step.type) {
+      case 'navigate':
+        return this.escapeHtml(step.url || 'Unknown URL');
+      case 'click':
+        return `Clicked at (${step.x}, ${step.y})`;
+      case 'input':
+        return `Input: ${this.escapeHtml(step.value || '')}`;
+      default:
+        return 'Action performed';
+    }
+  }
+  
+  // Handle recording page close
+  handleRecordingPageClose() {
+    if (this.recordingState.isRecording) {
+      // Confirm before closing if recording
+      if (confirm('Recording is in progress. Do you want to stop and discard?')) {
+        this.stopStepsPolling();
+        chrome.runtime.sendMessage({ type: 'STOP_RECORDING' });
+        this.hideRecordingPage();
+      }
+    } else {
+      this.hideRecordingPage();
+    }
+  }
+  
+  // Hide recording page
+  hideRecordingPage() {
+    this.stopStepsPolling();
+    if (this.elements.recordingPage) {
+      this.elements.recordingPage.classList.add('hidden');
     }
   }
 

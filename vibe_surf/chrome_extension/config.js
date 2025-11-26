@@ -41,7 +41,7 @@ const VIBESURF_CONFIG = {
   DEBUG: false
 };
 
-// Make config available globally for Chrome extension
+// Make config available globally for Chrome extension (content scripts, sidepanel, etc.)
 if (typeof window !== 'undefined') {
   window.VIBESURF_CONFIG = VIBESURF_CONFIG;
 }
@@ -51,7 +51,6 @@ if (typeof self !== 'undefined' && typeof window === 'undefined') {
   self.VIBESURF_CONFIG = VIBESURF_CONFIG;
 }
 
-// Node.js environment compatibility (if needed)
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = VIBESURF_CONFIG;
-}
+// ES6 module export for type: "module" in manifest.json (background.js)
+// Note: This must be at the top level, not inside a condition
+export { VIBESURF_CONFIG };
