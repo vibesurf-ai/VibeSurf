@@ -16,8 +16,29 @@
     constructor() {
       this.initialized = false;
       this.pageContext = null;
+      this.isRecording = false;
       this.setupMessageListener();
       this.collectPageContext();
+      this.setupEventListeners();
+      
+      // Query recording state from background on initialization
+      this.queryRecordingState();
+    }
+    
+    // Query if recording is active when content script loads
+    async queryRecordingState() {
+      try {
+        console.log('[VibeSurf Content] Querying recording state from background...');
+        const response = await chrome.runtime.sendMessage({ type: 'GET_RECORDING_STATUS' });
+        if (response && response.isRecording) {
+          this.isRecording = true;
+          console.log('[VibeSurf Content] ✅ Recording is ACTIVE - event capture ENABLED');
+        } else {
+          console.log('[VibeSurf Content] ❌ Recording is INACTIVE - event capture DISABLED');
+        }
+      } catch (error) {
+        console.warn('[VibeSurf Content] Failed to query recording state:', error);
+      }
     }
     
     setupMessageListener() {
@@ -26,6 +47,18 @@
         console.log('[VibeSurf Content] Received message:', message.type);
         
         switch (message.type) {
+          case 'START_RECORDING_CONTENT':
+            this.isRecording = true;
+            console.log('[VibeSurf Content] Recording enabled');
+            sendResponse({ success: true });
+            break;
+            
+          case 'STOP_RECORDING_CONTENT':
+            this.isRecording = false;
+            console.log('[VibeSurf Content] Recording disabled');
+            sendResponse({ success: true });
+            break;
+            
           case 'GET_PAGE_CONTEXT':
             sendResponse(this.getPageContext());
             break;
@@ -378,6 +411,188 @@
         console.error('[VibeSurf Content] Error removing permission iframe:', error);
         return false;
       }
+    }
+    
+    // Setup event listeners for recording
+    setupEventListeners() {
+      console.log('[VibeSurf Content] Setting up event listeners');
+      
+      // Click events
+      document.addEventListener('click', (event) => {
+        console.log('[VibeSurf Content] Click detected, isRecording:', this.isRecording);
+        if (!this.isRecording) return;
+        
+        const target = event.target;
+        if (!target) return;
+        
+        // 🐛 DEBUG: Log target element details
+        console.log('[VibeSurf Content] 🐛 Click target:', {
+          tagName: target.tagName,
+          type: target.type,
+          isInput: target.tagName === 'INPUT' || target.tagName === 'TEXTAREA',
+          isContentEditable: target.isContentEditable,
+          className: target.className,
+          id: target.id
+        });
+        
+        const data = {
+          targetText: this.getElementText(target),
+          selector: this.getSelector(target),
+          coordinates: { x: event.clientX, y: event.clientY }
+        };
+        
+        console.log('[VibeSurf Content] Sending CUSTOM_CLICK_EVENT:', data);
+        chrome.runtime.sendMessage({
+          type: 'CUSTOM_CLICK_EVENT',
+          data: {
+            ...data,
+            url: window.location.href,
+            frameUrl: window.location.href !== window.parent.location.href ? window.location.href : ''
+          }
+        }).catch((err) => {
+          console.error('[VibeSurf Content] Failed to send click event:', err);
+        });
+      }, true);
+      
+      // Input events - handle INPUT, TEXTAREA, and contenteditable elements
+      document.addEventListener('input', (event) => {
+        if (!this.isRecording) return;
+        
+        const target = event.target;
+        if (!target) return;
+        
+        // Check if this is an input field (INPUT, TEXTAREA, or contenteditable)
+        const isInputElement = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+        const isContentEditable = target.isContentEditable;
+        
+        if (!isInputElement && !isContentEditable) return;
+        
+        // Get the text content/value based on element type
+        let value;
+        if (isInputElement) {
+          value = target.type === 'password' ? '********' : target.value;
+        } else if (isContentEditable) {
+          // For contenteditable, get the text content
+          value = target.textContent || target.innerText || '';
+        }
+        
+        // 🐛 DEBUG: Log input event details
+        console.log('[VibeSurf Content] 🐛 Input event:', {
+          tagName: target.tagName,
+          type: target.type,
+          isContentEditable: isContentEditable,
+          selector: this.getSelector(target),
+          valueLength: value?.length || 0,
+          timestamp: Date.now()
+        });
+        
+        const data = {
+          targetText: isInputElement
+            ? (target.placeholder || target.name || this.getSelector(target))
+            : this.getElementText(target) || this.getSelector(target),
+          selector: this.getSelector(target),
+          value: value
+        };
+        
+        chrome.runtime.sendMessage({
+          type: 'CUSTOM_INPUT_EVENT',
+          data: {
+            ...data,
+            url: window.location.href,
+            frameUrl: window.location.href !== window.parent.location.href ? window.location.href : ''
+          }
+        }).catch(() => {});
+      }, true);
+      
+      // Key events
+      document.addEventListener('keydown', (event) => {
+        if (!this.isRecording) return;
+        
+        if (event.key === 'Enter' || event.key === 'Tab' || event.key === 'Escape') {
+          const data = {
+            key: event.key,
+            modifiers: []
+          };
+          
+          if (event.ctrlKey) data.modifiers.push('Ctrl');
+          if (event.metaKey) data.modifiers.push('Meta');
+          if (event.shiftKey) data.modifiers.push('Shift');
+          if (event.altKey) data.modifiers.push('Alt');
+          
+          chrome.runtime.sendMessage({
+            type: 'CUSTOM_KEY_EVENT',
+            data: data
+          }).catch(() => {});
+        }
+      }, true);
+
+      // Scroll events (debounced)
+      let scrollTimeout;
+      document.addEventListener('scroll', (event) => {
+        if (!this.isRecording) return;
+        
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          const scrollX = window.scrollX || window.pageXOffset;
+          const scrollY = window.scrollY || window.pageYOffset;
+          
+          chrome.runtime.sendMessage({
+            type: 'RRWEB_EVENT',
+            data: {
+              type: 'scroll',
+              scrollX: Math.round(scrollX),
+              scrollY: Math.round(scrollY),
+              timestamp: Date.now()
+            }
+          }).catch(() => {});
+        }, 500); // 500ms debounce
+      }, { passive: true });
+    }
+    
+    // Get readable text from element
+    getElementText(element) {
+      if (!element) return '';
+      
+      // For buttons and links, use text content
+      if (element.tagName === 'BUTTON' || element.tagName === 'A') {
+        return element.textContent?.trim().substring(0, 100) || '';
+      }
+      
+      // For inputs, use label or placeholder
+      if (element.tagName === 'INPUT') {
+        const label = document.querySelector(`label[for="${element.id}"]`);
+        if (label) return label.textContent?.trim() || '';
+        return element.placeholder || element.name || '';
+      }
+      
+      return element.textContent?.trim().substring(0, 100) || '';
+    }
+    
+    // Get CSS selector for element
+    getSelector(element) {
+      if (!element) return '';
+      
+      if (element.id) return `#${element.id}`;
+      if (element.name) return `[name="${element.name}"]`;
+      
+      let path = [];
+      let current = element;
+      
+      while (current && current.nodeType === Node.ELEMENT_NODE && path.length < 4) {
+        let selector = current.nodeName.toLowerCase();
+        
+        if (current.className && typeof current.className === 'string') {
+          const classes = current.className.trim().split(/\s+/);
+          if (classes.length > 0 && classes[0]) {
+            selector += '.' + classes[0];
+          }
+        }
+        
+        path.unshift(selector);
+        current = current.parentNode;
+      }
+      
+      return path.join(' > ');
     }
     
     // Utility method to send context updates to background

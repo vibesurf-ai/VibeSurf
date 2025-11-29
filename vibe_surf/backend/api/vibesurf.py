@@ -8,8 +8,9 @@ import uuid
 import json
 import re
 import httpx
+from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -58,6 +59,16 @@ class ImportWorkflowResponse(BaseModel):
     edit_url: Optional[str] = None
 
 class ExportWorkflowResponse(BaseModel):
+    success: bool
+    message: str
+    file_path: Optional[str] = None
+
+class SaveWorkflowRecordingRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    workflows: List[Dict[str, Any]]
+
+class SaveWorkflowRecordingResponse(BaseModel):
     success: bool
     message: str
     file_path: Optional[str] = None
@@ -453,6 +464,54 @@ async def get_vibesurf_version():
         raise HTTPException(status_code=500, detail="Failed to get version")
 
 @router.get("/extension-path", response_model=ExtensionPathResponse)
+@router.post("/workflows/save-recording", response_model=SaveWorkflowRecordingResponse)
+async def save_workflow_recording(request: SaveWorkflowRecordingRequest):
+    """Save workflow recording to workdir/workflows/raws/ directory"""
+    try:
+        # Get workspace directory
+        from vibe_surf import common
+        work_dir = common.get_workspace_dir()
+        
+        # Create workflows/raws directory if it doesn't exist
+        workflows_dir = Path(work_dir) / "workflows" / "raws"
+        workflows_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Sanitize filename by removing invalid characters
+        sanitized_name = "".join(c for c in request.name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        sanitized_name = sanitized_name.replace(' ', '_')
+        
+        # Create filename
+        filename = f"{timestamp}_{sanitized_name}.json"
+        file_path = workflows_dir / filename
+        
+        # Prepare workflow data with metadata
+        workflow_data = {
+            "name": request.name,
+            "description": request.description or "",
+            "workflows": request.workflows,
+            "timestamp": datetime.now().isoformat(),
+            "version": "1.0"
+        }
+        
+        # Save to file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(workflow_data, f, indent=2, ensure_ascii=False)
+        
+        logger.info(f"Successfully saved workflow recording to {file_path}")
+        
+        return SaveWorkflowRecordingResponse(
+            success=True,
+            message="Workflow recording saved successfully",
+            file_path=str(file_path)
+        )
+        
+    except Exception as e:
+        logger.error(f"Error saving workflow recording: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save workflow recording: {str(e)}")
+
 async def get_extension_path():
     """Get Chrome extension directory path"""
     try:

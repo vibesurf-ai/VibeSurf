@@ -2341,6 +2341,375 @@
     }
 }
 
+/* Recording Workflow Styles */
+
+/* Recording Dialog */
+.record-workflow-dialog-content {
+    max-width: 500px;
+    border-radius: 16px;
+}
+
+/* Recording Page */
+.recording-page-content {
+    max-width: 700px;
+    min-height: 500px;
+    border-radius: 16px;
+}
+
+/* Recording Controls */
+.recording-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    padding: 40px 20px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+
+.recording-toggle-btn {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.recording-toggle-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 12px 32px rgba(59, 130, 246, 0.4);
+}
+
+.recording-toggle-btn:active {
+    transform: scale(0.98);
+}
+
+/* Save Workflow Button */
+.recording-save-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.recording-save-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(40, 167, 69, 0.4);
+}
+
+.recording-save-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.recording-save-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.recording-save-btn.hidden {
+    display: none;
+}
+
+/* Recording State - Red Circle with Pulsing Animation */
+.recording-toggle-btn.recording {
+    background: #dc3545;
+    box-shadow: 0 8px 24px rgba(220, 53, 69, 0.4);
+    animation: recording-pulse 2s ease-in-out infinite;
+}
+
+.recording-toggle-btn.recording:hover {
+    transform: scale(1.05);
+    box-shadow: 0 12px 32px rgba(220, 53, 69, 0.5);
+}
+
+@keyframes recording-pulse {
+    0%, 100% {
+        box-shadow: 0 8px 24px rgba(220, 53, 69, 0.4), 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
+    50% {
+        box-shadow: 0 12px 32px rgba(220, 53, 69, 0.5), 0 0 0 20px rgba(220, 53, 69, 0);
+    }
+}
+
+/* Recording Indicator (Inner Circle) */
+.recording-indicator {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: white;
+    position: relative;
+    animation: inner-pulse 2s ease-in-out infinite;
+}
+
+@keyframes inner-pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(0.9);
+        opacity: 0.8;
+    }
+}
+
+.recording-btn-text {
+    display: block;
+    text-align: center;
+}
+
+/* Recording Steps Container */
+.recording-steps-container {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    max-height: 500px;
+    display: flex;
+    flex-direction: column;
+    width: 90%;
+    margin: 0 auto;
+}
+
+.recording-steps-container h4 {
+    margin: 0 0 24px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-color);
+    text-align: center;
+}
+
+.recording-steps-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: relative;
+    padding: 0 10px;
+}
+
+/* Individual Recording Step - Card Style with Arrow */
+.recording-step {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    gap: 16px;
+    padding: 16px 20px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 2px solid var(--border-color);
+    transition: all 0.3s ease;
+    animation: slideIn 0.3s ease-out;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    position: relative;
+}
+
+/* Arrow connector between steps */
+.recording-step:not(:last-child)::after {
+    content: '↓';
+    position: absolute;
+    left: 50%;
+    bottom: -24px;
+    transform: translateX(-50%);
+    font-size: 20px;
+    color: var(--primary-color);
+    font-weight: bold;
+    z-index: 1;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.recording-step:hover {
+    border-color: var(--primary-color);
+    background: rgba(59, 130, 246, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.step-index {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    color: white;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 700;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.step-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.step-type {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-color);
+    text-transform: capitalize;
+    letter-spacing: 0.3px;
+}
+
+.step-details {
+    font-size: 14px;
+    color: var(--text-muted);
+    word-break: break-word;
+    line-height: 1.5;
+}
+
+.step-time {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    opacity: 0.8;
+}
+
+/* No Steps Message */
+.no-steps-message {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    font-size: 15px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 2px dashed var(--border-color);
+}
+
+/* Dark Theme Support for Recording UI */
+[data-theme="dark"] .recording-steps-container,
+.dark-theme .recording-steps-container {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .recording-step,
+.dark-theme .recording-step {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .recording-step:hover,
+.dark-theme .recording-step:hover {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+/* Responsive Design for Recording UI */
+@media (max-width: 768px) {
+    .recording-toggle-btn {
+        width: 100px;
+        height: 100px;
+        font-size: 14px;
+    }
+    
+    .recording-indicator {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .recording-save-btn {
+        padding: 12px 24px;
+        font-size: 14px;
+    }
+    
+    .recording-steps-container {
+        padding: 16px;
+        max-height: 350px;
+        width: 95%;
+    }
+    
+    .recording-page-content {
+        margin: 20px;
+        max-width: calc(100vw - 40px);
+    }
+    
+    .recording-step {
+        grid-template-columns: 40px 1fr;
+        gap: 12px;
+        padding: 12px 16px;
+    }
+    
+    .step-index {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .recording-toggle-btn {
+        width: 90px;
+        height: 90px;
+        font-size: 13px;
+    }
+    
+    .recording-indicator {
+        width: 45px;
+        height: 45px;
+    }
+    
+    .recording-controls {
+        padding: 30px 10px;
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .recording-save-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .recording-steps-container {
+        width: 98%;
+    }
+    
+    .step-index {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+    }
+    
+    .step-type {
+        font-size: 14px;
+    }
+    
+    .step-details {
+        font-size: 13px;
+    }
+}
+
 /* Hidden utility class */
 .hidden {
     display: none !important;

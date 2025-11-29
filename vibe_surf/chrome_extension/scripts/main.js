@@ -491,6 +491,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // This message is typically handled by voice recorder, just acknowledge
         sendResponse({ acknowledged: true });
         break;
+
+      // Ignore known messages that are handled elsewhere but might broadcast
+      case 'CUSTOM_CLICK_EVENT':
+      case 'CUSTOM_INPUT_EVENT':
+      case 'CUSTOM_KEY_EVENT':
+      case 'PAGE_CONTEXT_UPDATE':
+        // These are handled by background/recorder, just ignore in main.js
+        break;
         
       default:
         console.warn('[VibeSurf] Unknown message type:', message.type);
