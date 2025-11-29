@@ -15,7 +15,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: 'main'  # Always checkout main branch for latest code
         fetch-depth: 0  # Full history for setuptools-scm
     
     - name: Set up Python ${{ matrix.python-version }}
@@ -54,8 +53,20 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: 'main'  # Always checkout main branch for latest code
         fetch-depth: 0  # Full history for setuptools-scm
+    
+    - name: Debug git state
+      run: |
+        echo "=== Git branch and tag info ==="
+        git branch -a
+        git describe --tags --always --dirty
+        git log -1 --oneline
+        git tag --points-at HEAD
+        echo "=== GitHub event context ==="
+        echo "Event name: ${{ github.event_name }}"
+        echo "Ref: ${{ github.ref }}"
+        echo "Ref name: ${{ github.ref_name }}"
+        echo "Release tag: ${{ github.event.release.tag_name }}"
     
     - name: Free disk space before build
       run: |
@@ -157,7 +168,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: 'main'  # Always checkout main branch for latest code
         fetch-depth: 0  # Full history for setuptools-scm
     
     - name: Free disk space
@@ -239,7 +249,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: 'main'
         fetch-depth: 0
 
     - name: Free disk space
