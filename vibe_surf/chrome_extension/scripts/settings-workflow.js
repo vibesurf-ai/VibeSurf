@@ -3330,11 +3330,30 @@ class VibeSurfSettingsWorkflow {
       case 'navigate':
         return this.escapeHtml(step.url || 'Unknown URL');
       case 'click':
-        return `Clicked at (${step.x}, ${step.y})`;
+        if (step.target_text && step.target_text !== 'Unknown Element') {
+          return `Clicked on "${this.escapeHtml(step.target_text)}"`;
+        } else if (step.target_selector) {
+          return `Clicked on ${this.escapeHtml(step.target_selector)}`;
+        } else if (step.coordinates && step.coordinates.x !== undefined) {
+          return `Clicked at (${step.coordinates.x}, ${step.coordinates.y})`;
+        } else if (step.x !== undefined && step.y !== undefined) {
+          return `Clicked at (${step.x}, ${step.y})`;
+        } else {
+          return 'Click action';
+        }
       case 'input':
-        return `Input: ${this.escapeHtml(step.value || '')}`;
+        const inputTarget = step.target_text && step.target_text !== 'Input Field' ?
+          `"${this.escapeHtml(step.target_text)}"` :
+          (step.target_selector ? this.escapeHtml(step.target_selector) : 'input field');
+        return `Typed "${this.escapeHtml(step.value || '')}" into ${inputTarget}`;
+      case 'scroll':
+        return `Scrolled to (${step.scrollX}, ${step.scrollY})`;
+      case 'navigate':
+        return `Navigated to ${this.escapeHtml(step.url || 'Unknown URL')}`;
+      case 'keypress':
+        return `Pressed key "${this.escapeHtml(step.key)}"`;
       default:
-        return 'Action performed';
+        return `Action: ${this.escapeHtml(step.type)}`;
     }
   }
   

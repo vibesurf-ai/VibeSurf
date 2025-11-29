@@ -488,6 +488,28 @@
           }).catch(() => {});
         }
       }, true);
+
+      // Scroll events (debounced)
+      let scrollTimeout;
+      document.addEventListener('scroll', (event) => {
+        if (!this.isRecording) return;
+        
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          const scrollX = window.scrollX || window.pageXOffset;
+          const scrollY = window.scrollY || window.pageYOffset;
+          
+          chrome.runtime.sendMessage({
+            type: 'RRWEB_EVENT',
+            data: {
+              type: 'scroll',
+              scrollX: Math.round(scrollX),
+              scrollY: Math.round(scrollY),
+              timestamp: Date.now()
+            }
+          }).catch(() => {});
+        }, 500); // 500ms debounce
+      }, { passive: true });
     }
     
     // Get readable text from element
