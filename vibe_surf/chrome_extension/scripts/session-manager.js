@@ -78,60 +78,123 @@ class VibeSurfSessionManager {
       // Stop current polling
       this.stopActivityPolling();
 
+      console.log(`[SessionManager] Loading session from database: ${sessionId}`);
 
-      // Load session data from background
-      const response = await chrome.runtime.sendMessage({
-        type: 'GET_SESSION_DATA',
-        data: { sessionId }
-      });
-
-
-      // Check if response is valid and has sessionData
-      if (response && response.sessionData) {
-        this.currentSession = {
-          id: sessionId,
-          ...response.sessionData
-        };
-
-        // Load activity logs from backend
-        await this.loadSessionActivity();
-
-        this.emit('sessionLoaded', { sessionId, session: this.currentSession });
+      // Try to load session data from backend database first (best practice)
+      try {
+        const tasksResponse = await this.apiClient.getSessionTasks(sessionId);
         
-        return true;
-      } else if (response && response.error) {
-        console.error('[SessionManager] Background error:', response.error);
-        this.emit('sessionError', { error: response.error, sessionId });
-        return false;
-      } else {
-        // Session not found in storage - create a new session with this ID
-        
-        this.currentSession = {
-          id: sessionId,
-          createdAt: new Date().toISOString(),
-          status: 'active',
-          taskHistory: [],
-          currentTask: null
-        };
+        if (tasksResponse && tasksResponse.tasks) {
+          console.log(`[SessionManager] ✅ Session found in database with ${tasksResponse.tasks.length} tasks`);
+          
+          // Reconstruct session from database tasks
+          this.currentSession = {
+            id: sessionId,
+            createdAt: tasksResponse.tasks.length > 0 ? tasksResponse.tasks[0].created_at : new Date().toISOString(),
+            status: 'active',
+            taskHistory: tasksResponse.tasks,
+            currentTask: this.findCurrentTask(tasksResponse.tasks)
+          };
 
-        // Clear activity logs for new session
-        this.activityLogs = [];
+          // Load activity logs from backend
+          await this.loadSessionActivity();
 
-        // Try to load any existing activity logs from backend
-        await this.loadSessionActivity();
+          // Update Chrome Storage cache for quick access
+          await this.storeSessionData();
 
-        // Store the new session
-        await this.storeSessionData();
-
-        this.emit('sessionLoaded', { sessionId, session: this.currentSession });
-        
-        return true;
+          this.emit('sessionLoaded', { sessionId, session: this.currentSession });
+          
+          return true;
+        }
+      } catch (apiError) {
+        console.log(`[SessionManager] Session not found in database, checking cache...`, apiError.message);
       }
+
+      // Fallback: Try Chrome Storage cache
+      try {
+        const response = await chrome.runtime.sendMessage({
+          type: 'GET_SESSION_DATA',
+          data: { sessionId }
+        });
+
+        if (response && response.sessionData) {
+          console.log(`[SessionManager] ✅ Session found in Chrome Storage cache`);
+          this.currentSession = {
+            id: sessionId,
+            ...response.sessionData
+          };
+
+          // Load activity logs from backend
+          await this.loadSessionActivity();
+
+          this.emit('sessionLoaded', { sessionId, session: this.currentSession });
+          
+          return true;
+        }
+      } catch (storageError) {
+        console.log(`[SessionManager] Session not in cache either:`, storageError.message);
+      }
+
+      // Session not found anywhere - create a new session with this ID
+      console.log(`[SessionManager] Creating new session: ${sessionId}`);
+      
+      this.currentSession = {
+        id: sessionId,
+        createdAt: new Date().toISOString(),
+        status: 'active',
+        taskHistory: [],
+        currentTask: null
+      };
+
+      // Clear activity logs for new session
+      this.activityLogs = [];
+
+      // Try to load any existing activity logs from backend
+      await this.loadSessionActivity();
+
+      // Store the new session in cache
+      await this.storeSessionData();
+
+      this.emit('sessionLoaded', { sessionId, session: this.currentSession });
+      
+      return true;
+      
     } catch (error) {
       console.error('[SessionManager] Failed to load session:', error);
       this.emit('sessionError', { error: error.message, sessionId });
       return false;
     }
+  }
+
+  // Helper method to find the current/latest task from task history
+  findCurrentTask(tasks) {
+    if (!tasks || tasks.length === 0) return null;
+    
+    // Find the most recent task that's not completed
+    const runningTask = tasks.find(task =>
+      ['running', 'submitted', 'paused'].includes(task.status?.toLowerCase())
+    );
+    
+    if (runningTask) {
+      return {
+        taskId: runningTask.task_id,
+        description: runningTask.task_description,
+        llmProfile: runningTask.llm_profile_name,
+        status: runningTask.status,
+        submittedAt: runningTask.created_at
+      };
+    }
+    
+    // If no running task, return the most recent task
+    const latestTask = tasks[tasks.length - 1];
+    return {
+      taskId: latestTask.task_id,
+      description: latestTask.task_description,
+      llmProfile: latestTask.llm_profile_name,
+      status: latestTask.status,
+      submittedAt: latestTask.created_at,
+      completedAt: latestTask.completed_at
+    };
   }
 
   async loadSessionActivity() {
@@ -589,11 +652,32 @@ class VibeSurfSessionManager {
   // History management
   async getSessionHistory() {
     try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'GET_SESSION_DATA'
-      });
-
-      return response.sessions || [];
+      console.log('[SessionManager] Loading session history from database');
+      
+      // Get all sessions from database (best practice)
+      const response = await this.apiClient.getAllSessions(-1, 0);
+      
+      if (response && response.sessions) {
+        console.log(`[SessionManager] ✅ Loaded ${response.sessions.length} sessions from database`);
+        return response.sessions;
+      }
+      
+      // Fallback to Chrome Storage cache if database fails
+      console.log('[SessionManager] Database query failed, checking cache...');
+      try {
+        const storageResponse = await chrome.runtime.sendMessage({
+          type: 'GET_SESSION_DATA'
+        });
+        
+        if (storageResponse && storageResponse.sessions) {
+          console.log(`[SessionManager] ✅ Loaded ${storageResponse.sessions.length} sessions from cache`);
+          return storageResponse.sessions;
+        }
+      } catch (storageError) {
+        console.log('[SessionManager] Cache also failed:', storageError.message);
+      }
+      
+      return [];
     } catch (error) {
       console.error('[SessionManager] Failed to get session history:', error);
       return [];
