@@ -175,3 +175,10 @@ VibeSurf builds on top of other awesome open-source projects:
 
 Huge thanks to their creators and contributors!
 
+
+
+## 💬 Join Our Community
+
+Welcome to join our WeChat group for discussions!
+
+![WeChat Group](assets/wx.png)

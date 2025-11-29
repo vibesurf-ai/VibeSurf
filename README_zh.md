@@ -174,3 +174,9 @@ VibeSurf 建立在其他优秀的开源项目之上：
 - [Langflow](https://github.com/langflow-ai/langflow)
 
 非常感谢他们的创作者和贡献者！
+
+## 💬 加入我们的社区
+
+欢迎加入我们的微信群讨论！
+
+![微信群](assets/wx.png)
