@@ -14,11 +14,25 @@ If you're as excited about open-source AI browsing as I am, give it a star! ⭐
 
 - 🚀 **Multi-Agent Parallel Processing**: Run multiple AI agents simultaneously in different browser tabs, enabling both deep research and wide research with massive efficiency gains.
 
-- 🥷 **Stealth-First Architecture**: Uses Chrome DevTools Protocol (CDP) instead of Playwright for superior stealth capabilities, preventing bot detection.
+- 🔄 **Agentic Browser Workflow**: Create custom drag-and-drop and conversation-based workflows that combine deterministic automation with AI intelligence - perfect for repetitive tasks like auto-login, data collection, and social media posting.
 
 - 🎨 **Seamless Chrome Extension UI**: Native browser integration without switching applications, providing an intuitive interface that feels like part of your browser.
 
 - 🔒 **Privacy-First LLM Support**: Supports local LLMs (Ollama, etc.) and custom LLM APIs to ensure your browsing data stays private and secure during vibe surfing.
+
+## 🚀 Browser Workflow Magic
+
+### Why Browser Workflow Matters
+
+🎯 **Efficiency First**: Most browser operations follow predictable patterns - why rebuild them every time with agents? Workflows let you define once, run forever.
+
+💰 **Token Savings**: Workflows consume virtually zero tokens, only using them when dynamic information retrieval is needed. Save costs while maintaining intelligence.
+
+⚡ **Speed & Reliability**: Deterministic workflows deliver consistent, fast, and highly accurate results. No more waiting for agents to "think" through repetitive steps.
+
+<video src="https://github.com/user-attachments/assets/5e50de7a-02e7-44e0-a95b-98d1a3eab66e" controls="controls">Your browser does not support playing this video!</video>
+
+👉 [**Explore Workflow Templates**](https://vibe-surf.com/workflows) - Get started with pre-built workflows for common tasks!
 
 ## 🛠️ Installation
 
@@ -161,3 +175,10 @@ VibeSurf builds on top of other awesome open-source projects:
 
 Huge thanks to their creators and contributors!
 
+
+
+## 💬 Join Our Community
+
+Welcome to join our WeChat group for discussions!
+
+![WeChat Group](assets/wx.png)
