@@ -157,10 +157,17 @@ class WorkflowRecorder {
           ...baseStep,
           type: 'click',
           action: 'click',
-          target_text: event.data?.targetText || '',
+          target_text: event.data?.targetText || event.data?.elementText || event.data?.elementTag || 'Unknown Element',
           target_selector: event.data?.selector || '',
           coordinates: event.data?.coordinates || { x: 0, y: 0 },
-          screenshot: event.data?.screenshot || null
+          screenshot: event.data?.screenshot || null,
+          url: event.data?.url || event.tabUrl,
+          frameUrl: event.data?.frameUrl || '',
+          xpath: event.data?.xpath || '',
+          cssSelector: event.data?.selector || '',
+          elementTag: event.data?.elementTag || '',
+          elementText: event.data?.elementText || '',
+          radioButtonInfo: event.data?.radioButtonInfo
         };
         
       case this.EVENT_TYPES.CUSTOM_INPUT:
@@ -168,10 +175,15 @@ class WorkflowRecorder {
           ...baseStep,
           type: 'input',
           action: 'type',
-          target_text: event.data?.targetText || '',
+          target_text: event.data?.targetText || event.data?.elementTag || 'Input Field',
           target_selector: event.data?.selector || '',
           value: event.data?.value || '',
-          screenshot: event.data?.screenshot || null
+          screenshot: event.data?.screenshot || null,
+          url: event.data?.url || event.tabUrl,
+          frameUrl: event.data?.frameUrl || '',
+          xpath: event.data?.xpath || '',
+          cssSelector: event.data?.selector || '',
+          elementTag: event.data?.elementTag || ''
         };
         
       case this.EVENT_TYPES.CUSTOM_KEY:
@@ -181,7 +193,8 @@ class WorkflowRecorder {
           action: 'press',
           key: event.data?.key || '',
           modifiers: event.data?.modifiers || [],
-          screenshot: event.data?.screenshot || null
+          screenshot: event.data?.screenshot || null,
+          elementTag: event.data?.elementTag
         };
         
       case this.EVENT_TYPES.RRWEB:
@@ -255,9 +268,42 @@ class WorkflowRecorder {
     console.log('[WorkflowRecorder] Click event stored', { tabId, data });
   }
   
-  // Store custom input event
+  // Store custom input event - with debouncing/merging
   storeInputEvent(tabId, data) {
     if (!this.isRecordingEnabled) return;
+    
+    // Check if we should merge with the previous event
+    const events = this.sessionLogs.get(tabId);
+    if (events && events.length > 0) {
+      const lastEvent = events[events.length - 1];
+      
+      // Merge if:
+      // 1. Last event was also an input event
+      // 2. It was on the same element (selector matches)
+      // 3. It happened recently (e.g., within 2 seconds)
+      if (lastEvent.type === this.EVENT_TYPES.CUSTOM_INPUT &&
+          lastEvent.data.selector === data.selector &&
+          (Date.now() - lastEvent.timestamp) < 2000) {
+            
+        console.log('[WorkflowRecorder] Merging input event with previous', {
+          previousValue: lastEvent.data.value,
+          newValue: data.value
+        });
+        
+        // Update the last event with new value and timestamp
+        lastEvent.data.value = data.value;
+        lastEvent.timestamp = Date.now();
+        
+        // Also update screenshot if the new one has one (usually the later one is better)
+        if (data.screenshot) {
+          lastEvent.data.screenshot = data.screenshot;
+        }
+        
+        this.trackUserInteraction(tabId);
+        this.broadcastWorkflowDataUpdate();
+        return;
+      }
+    }
     
     const event = {
       type: this.EVENT_TYPES.CUSTOM_INPUT,

@@ -2979,6 +2979,9 @@ class VibeSurfSettingsWorkflow {
       startTime: null
     };
     
+    // Reset recording button state
+    this.updateRecordingButton(false, false);
+
     // Clear previous steps
     if (this.elements.recordingStepsList) {
       this.elements.recordingStepsList.innerHTML = '<div class="no-steps-message">Click "Start Recording" to begin</div>';
@@ -3067,6 +3070,10 @@ class VibeSurfSettingsWorkflow {
       const response = await chrome.runtime.sendMessage({ type: 'START_RECORDING' });
       
       if (response && response.success) {
+        // Explicitly reset recording steps
+        this.recordingState.steps = [];
+        this.updateStepsDisplay([]);
+        
         this.recordingState.isRecording = true;
         this.recordingState.startTime = response.startTime || Date.now();
         this.recordingState.steps = [];

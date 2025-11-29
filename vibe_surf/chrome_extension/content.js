@@ -434,7 +434,11 @@
         console.log('[VibeSurf Content] Sending CUSTOM_CLICK_EVENT:', data);
         chrome.runtime.sendMessage({
           type: 'CUSTOM_CLICK_EVENT',
-          data: data
+          data: {
+            ...data,
+            url: window.location.href,
+            frameUrl: window.location.href !== window.parent.location.href ? window.location.href : ''
+          }
         }).catch((err) => {
           console.error('[VibeSurf Content] Failed to send click event:', err);
         });
@@ -455,7 +459,11 @@
         
         chrome.runtime.sendMessage({
           type: 'CUSTOM_INPUT_EVENT',
-          data: data
+          data: {
+            ...data,
+            url: window.location.href,
+            frameUrl: window.location.href !== window.parent.location.href ? window.location.href : ''
+          }
         }).catch(() => {});
       }, true);
       

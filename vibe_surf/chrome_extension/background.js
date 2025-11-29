@@ -169,6 +169,7 @@ class VibeSurfBackground {
     
     // Delegate recording-related messages to WorkflowRecorder
     if (recorderMessages.includes(message.type)) {
+      // Pass the sender object which contains tab information (sender.tab.id)
       const response = this.workflowRecorder.handleEvent(message, sender);
       
       // Check if response contains async screenshot capture
