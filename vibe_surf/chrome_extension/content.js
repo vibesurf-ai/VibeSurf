@@ -425,6 +425,16 @@
         const target = event.target;
         if (!target) return;
         
+        // 🐛 DEBUG: Log target element details
+        console.log('[VibeSurf Content] 🐛 Click target:', {
+          tagName: target.tagName,
+          type: target.type,
+          isInput: target.tagName === 'INPUT' || target.tagName === 'TEXTAREA',
+          isContentEditable: target.isContentEditable,
+          className: target.className,
+          id: target.id
+        });
+        
         const data = {
           targetText: this.getElementText(target),
           selector: this.getSelector(target),
@@ -444,17 +454,44 @@
         });
       }, true);
       
-      // Input events
+      // Input events - handle INPUT, TEXTAREA, and contenteditable elements
       document.addEventListener('input', (event) => {
         if (!this.isRecording) return;
         
         const target = event.target;
-        if (!target || (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA')) return;
+        if (!target) return;
+        
+        // Check if this is an input field (INPUT, TEXTAREA, or contenteditable)
+        const isInputElement = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+        const isContentEditable = target.isContentEditable;
+        
+        if (!isInputElement && !isContentEditable) return;
+        
+        // Get the text content/value based on element type
+        let value;
+        if (isInputElement) {
+          value = target.type === 'password' ? '********' : target.value;
+        } else if (isContentEditable) {
+          // For contenteditable, get the text content
+          value = target.textContent || target.innerText || '';
+        }
+        
+        // 🐛 DEBUG: Log input event details
+        console.log('[VibeSurf Content] 🐛 Input event:', {
+          tagName: target.tagName,
+          type: target.type,
+          isContentEditable: isContentEditable,
+          selector: this.getSelector(target),
+          valueLength: value?.length || 0,
+          timestamp: Date.now()
+        });
         
         const data = {
-          targetText: target.placeholder || target.name || this.getSelector(target),
+          targetText: isInputElement
+            ? (target.placeholder || target.name || this.getSelector(target))
+            : this.getElementText(target) || this.getSelector(target),
           selector: this.getSelector(target),
-          value: target.type === 'password' ? '********' : target.value
+          value: value
         };
         
         chrome.runtime.sendMessage({
