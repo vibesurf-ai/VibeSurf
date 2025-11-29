@@ -693,7 +693,10 @@ def update_envs(updates: Dict[str, str]) -> bool:
     try:
         # Update the envs dictionary
         envs.update(updates)
-        
+
+        for env_key in envs:
+            os.environ[env_key] = envs[env_key]
+
         # Save to envs.json
         envs_file_path = os.path.join(workspace_dir, "envs.json")
         with open(envs_file_path, 'w', encoding='utf-8') as f:

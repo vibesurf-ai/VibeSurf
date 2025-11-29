@@ -3,6 +3,7 @@ Configuration API endpoints for VibeSurf Backend
 
 Handles LLM Profile and tools configuration management.
 """
+import os
 
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import JSONResponse
@@ -693,7 +694,10 @@ async def get_environments():
     try:
         from .. import shared_state
         envs = shared_state.get_envs()
-        
+
+        envs["HTTP_PROXY"] = os.getenv("HTTP_PROXY", "")
+        envs["HTTPS_PROXY"] = os.getenv("HTTPS_PROXY", "")
+        envs["no_proxy"] = os.getenv("no_proxy", "")
         return {
             "environments": envs,
             "count": len(envs)
@@ -707,32 +711,31 @@ async def get_environments():
         )
 
 @router.put("/environments")
-async def update_environments(updates: Dict[str, str]):
+async def update_environments(request: Dict):
     """Update environment variables"""
     try:
         from .. import shared_state
         
-        # Validate that we only update allowed keys
-        allowed_keys = {
-            "BROWSER_EXECUTION_PATH",
-            "BROWSER_USER_DATA",
-            "VIBESURF_EXTENSION",
-            "VIBESURF_BACKEND_URL"
-        }
-        
-        # Filter updates to only include allowed keys
+        # Extract environments from request - handle both formats
+        if "environments" in request:
+            updates = request["environments"]
+        else:
+            updates = request
+
+        envs = shared_state.get_envs()
+        allowed_keys = list(envs.keys())
         filtered_updates = {
             key: value for key, value in updates.items()
             if key in allowed_keys
         }
-        
-        if not filtered_updates:
+
+        if not updates or not isinstance(updates, dict):
             raise HTTPException(
                 status_code=400,
-                detail=f"No valid environment variables provided. Allowed keys: {list(allowed_keys)}"
+                detail="No valid environment variables provided"
             )
         
-        # Update environment variables
+        # Update environment variables - no filtering, accept all keys
         success = shared_state.update_envs(filtered_updates)
         if not success:
             raise HTTPException(
@@ -745,7 +748,7 @@ async def update_environments(updates: Dict[str, str]):
         
         return {
             "message": "Environment variables updated successfully",
-            "updated_keys": list(filtered_updates.keys()),
+            "updated_keys": list(updates.keys()),
             "environments": updated_envs
         }
         

@@ -146,24 +146,38 @@ class GoogleGenAIImageGeneratorComponent(Component):
 
         # Configure generation parameters
         # User feedback suggests explicitly asking for image modality
-        generate_content_config = types.GenerateContentConfig(
-            temperature=1,
-            top_p=0.95,
-            max_output_tokens=32768,  # Might not be needed for image only, but harmless if API supports it
-            response_modalities=["TEXT", "IMAGE"],  # Only return image as requested
-            safety_settings=[
-                types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
-                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="OFF"),
-                types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="OFF"),
-                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="OFF")
-            ],
-            # Image config
-            image_config=types.ImageConfig(
-                aspect_ratio=str(self.aspect_ratio),
-                image_size=str(self.resolution),
-                output_mime_type="image/png",
-            ),
-        )
+        if self.use_vertex:
+            generate_content_config = types.GenerateContentConfig(
+                temperature=1,
+                top_p=0.95,
+                max_output_tokens=32768,  # Might not be needed for image only, but harmless if API supports it
+                response_modalities=["TEXT", "IMAGE"],  # Only return image as requested
+                safety_settings=[
+                    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
+                    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="OFF"),
+                    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="OFF"),
+                    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="OFF")
+                ],
+                # Image config
+                image_config=types.ImageConfig(
+                    aspect_ratio=str(self.aspect_ratio),
+                    image_size=str(self.resolution),
+                    output_mime_type="image/png",
+                ),
+            )
+        else:
+            generate_content_config = types.GenerateContentConfig(
+                temperature=1,
+                top_p=0.95,
+                max_output_tokens=32768,  # Might not be needed for image only, but harmless if API supports it
+                response_modalities=["TEXT", "IMAGE"],  # Only return image as requested
+                safety_settings=[
+                    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
+                    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="OFF"),
+                    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="OFF"),
+                    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="OFF")
+                ],
+            )
 
         # Generate Content
         try:

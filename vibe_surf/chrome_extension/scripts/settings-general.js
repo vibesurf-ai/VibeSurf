@@ -355,16 +355,6 @@ class VibeSurfSettingsGeneral {
     const envVarItems = this.elements.envVariablesList.querySelectorAll('.env-var-item');
     const envVars = {};
 
-    // Backend URL related keys that should be skipped during save
-    const backendUrlKeys = [
-      'BACKEND_URL',
-      'VIBESURF_BACKEND_URL',
-      'API_URL',
-      'BASE_URL',
-      'API_BASE_URL',
-      'BACKEND_API_URL'
-    ];
-
     envVarItems.forEach(item => {
       const keyInput = item.querySelector('.env-var-key input');
       const valueInput = item.querySelector('.env-var-value input');
@@ -372,18 +362,14 @@ class VibeSurfSettingsGeneral {
       if (keyInput && valueInput && keyInput.value.trim()) {
         const key = keyInput.value.trim();
         const value = valueInput.value.trim();
-        
-        // Skip backend URL variables (they are readonly)
-        if (!backendUrlKeys.includes(key.toUpperCase())) {
-          envVars[key] = value;
-        }
+        envVars[key] = value;
       }
     });
 
     try {
       await this.apiClient.updateEnvironmentVariables(envVars);
       this.emit('notification', {
-        message: 'Environment variables updated successfully (backend URL variables are read-only)',
+        message: 'Environment variables updated successfully',
         type: 'success'
       });
     } catch (error) {
@@ -408,39 +394,23 @@ class VibeSurfSettingsGeneral {
         <div class="empty-state">
           <div class="empty-state-icon">🔧</div>
           <div class="empty-state-title">No Environment Variables</div>
-          <div class="empty-state-description">Environment variables are configured on the backend. Only updates to existing variables are allowed.</div>
+          <div class="empty-state-description">Environment variables are configured on the backend. Add or update variables as needed.</div>
         </div>
       `;
       return;
     }
 
-    // Backend URL related keys that should be readonly
-    const backendUrlKeys = [
-      'BACKEND_URL',
-      'VIBESURF_BACKEND_URL',
-      'API_URL',
-      'BASE_URL',
-      'API_BASE_URL',
-      'BACKEND_API_URL'
-    ];
-
-    // Add existing environment variables (read-only keys, editable/readonly values based on type)
+    // Add existing environment variables (all are editable)
     Object.entries(envVars).forEach(([key, value]) => {
       const envVarItem = document.createElement('div');
       envVarItem.className = 'env-var-item';
-      
-      // Check if this is a backend URL variable
-      const isBackendUrl = backendUrlKeys.includes(key.toUpperCase());
-      const valueReadonly = isBackendUrl ? 'readonly' : '';
-      const valueClass = isBackendUrl ? 'form-input readonly-input' : 'form-input';
-      const valueTitle = isBackendUrl ? 'Backend URL is not editable from settings' : '';
       
       envVarItem.innerHTML = `
         <div class="env-var-key">
           <input type="text" class="form-input" placeholder="Variable name" value="${this.escapeHtml(key)}" readonly>
         </div>
         <div class="env-var-value">
-          <input type="text" class="${valueClass}" placeholder="Variable value" value="${this.escapeHtml(value)}" ${valueReadonly} title="${valueTitle}">
+          <input type="text" class="form-input" placeholder="Variable value" value="${this.escapeHtml(value)}">
         </div>
       `;
 
