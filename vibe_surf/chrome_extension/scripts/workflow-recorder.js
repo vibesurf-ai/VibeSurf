@@ -478,6 +478,15 @@ class WorkflowRecorder {
           workflow: this.getRecordingData()
         };
         
+      case 'GET_RECORDING_STATUS':
+        console.log('[WorkflowRecorder] Status query - isRecording:', this.isRecordingEnabled);
+        return {
+          success: true,
+          isRecording: this.isRecordingEnabled,
+          startTime: this.recordingStartTime,
+          eventCount: this.getTotalEventCount()
+        };
+        
       case 'ADD_EXTRACTION_STEP':
         if (tabId) {
           this.storeExtractionEvent(tabId, data);
@@ -486,13 +495,19 @@ class WorkflowRecorder {
         
       case 'CUSTOM_CLICK_EVENT':
         if (tabId) {
+          console.log('[WorkflowRecorder] 🖱️ CLICK event received from tab', tabId, 'Recording enabled:', this.isRecordingEnabled);
           this.storeClickEvent(tabId, data);
+        } else {
+          console.warn('[WorkflowRecorder] ⚠️ CLICK event has no tabId!');
         }
         return { success: true };
         
       case 'CUSTOM_INPUT_EVENT':
         if (tabId) {
+          console.log('[WorkflowRecorder] ⌨️ INPUT event received from tab', tabId, 'Recording enabled:', this.isRecordingEnabled);
           this.storeInputEvent(tabId, data);
+        } else {
+          console.warn('[WorkflowRecorder] ⚠️ INPUT event has no tabId!');
         }
         return { success: true };
         

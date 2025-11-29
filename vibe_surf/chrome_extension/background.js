@@ -162,7 +162,7 @@ class VibeSurfBackground {
     
     // List of messages handled by WorkflowRecorder
     const recorderMessages = [
-      'START_RECORDING', 'STOP_RECORDING', 'GET_RECORDING_DATA',
+      'START_RECORDING', 'STOP_RECORDING', 'GET_RECORDING_DATA', 'GET_RECORDING_STATUS',
       'ADD_EXTRACTION_STEP', 'CUSTOM_CLICK_EVENT', 'CUSTOM_INPUT_EVENT',
       'CUSTOM_KEY_EVENT', 'RRWEB_EVENT'
     ];

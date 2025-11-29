@@ -20,6 +20,25 @@
       this.setupMessageListener();
       this.collectPageContext();
       this.setupEventListeners();
+      
+      // Query recording state from background on initialization
+      this.queryRecordingState();
+    }
+    
+    // Query if recording is active when content script loads
+    async queryRecordingState() {
+      try {
+        console.log('[VibeSurf Content] Querying recording state from background...');
+        const response = await chrome.runtime.sendMessage({ type: 'GET_RECORDING_STATUS' });
+        if (response && response.isRecording) {
+          this.isRecording = true;
+          console.log('[VibeSurf Content] ✅ Recording is ACTIVE - event capture ENABLED');
+        } else {
+          console.log('[VibeSurf Content] ❌ Recording is INACTIVE - event capture DISABLED');
+        }
+      } catch (error) {
+        console.warn('[VibeSurf Content] Failed to query recording state:', error);
+      }
     }
     
     setupMessageListener() {
