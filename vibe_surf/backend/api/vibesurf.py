@@ -72,6 +72,8 @@ class SaveWorkflowRecordingResponse(BaseModel):
     success: bool
     message: str
     file_path: Optional[str] = None
+    langflow_path: Optional[str] = None
+    workflow_id: Optional[str] = None
 
 # Constants
 VIBESURF_API_KEY_NAME = "VIBESURF_API_KEY"
@@ -466,7 +468,7 @@ async def get_vibesurf_version():
 @router.get("/extension-path", response_model=ExtensionPathResponse)
 @router.post("/workflows/save-recording", response_model=SaveWorkflowRecordingResponse)
 async def save_workflow_recording(request: SaveWorkflowRecordingRequest):
-    """Save workflow recording to workdir/workflows/raws/ directory"""
+    """Save workflow recording to workdir/workflows/raws/ directory and convert to Langflow format"""
     try:
         # Get workspace directory
         from vibe_surf import common
@@ -496,16 +498,60 @@ async def save_workflow_recording(request: SaveWorkflowRecordingRequest):
             "version": "1.0"
         }
         
-        # Save to file
+        # Save raw workflow to file
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(workflow_data, f, indent=2, ensure_ascii=False)
         
         logger.info(f"Successfully saved workflow recording to {file_path}")
         
+        # Convert to Langflow format and save to database
+        langflow_path = None
+        workflow_id = None
+        conversion_error = None
+        
+        try:
+            from vibe_surf.backend.utils.workflow_converter import convert_and_save_workflow
+            
+            conversion_result = await convert_and_save_workflow(
+                raw_json_path=str(file_path),
+                output_json_path=None,
+                save_to_db=True
+            )
+            
+            if conversion_result["success"]:
+                langflow_path = conversion_result["output_path"]
+                db_flow = conversion_result["db_flow"]
+                if db_flow:
+                    workflow_id = str(db_flow.id)
+                    logger.info(f"Workflow converted and saved to database with ID: {workflow_id}")
+                else:
+                    logger.warning("Workflow converted but not saved to database")
+            else:
+                conversion_error = conversion_result['message']
+                logger.error(f"Failed to convert workflow: {conversion_error}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to convert workflow: {conversion_error}"
+                )
+                
+        except HTTPException:
+            # Re-raise HTTPException
+            raise
+        except Exception as conv_error:
+            logger.error(f"Error during workflow conversion: {conv_error}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error during workflow conversion: {str(conv_error)}"
+            )
+        
         return SaveWorkflowRecordingResponse(
             success=True,
-            message="Workflow recording saved successfully",
-            file_path=str(file_path)
+            message="Workflow recording saved and converted successfully",
+            file_path=str(file_path),
+            langflow_path=langflow_path,
+            workflow_id=workflow_id
         )
         
     except Exception as e:

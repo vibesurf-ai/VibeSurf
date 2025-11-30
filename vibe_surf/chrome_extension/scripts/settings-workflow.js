@@ -3182,26 +3182,24 @@ class VibeSurfSettingsWorkflow {
     
     try {
       // Save recording to backend
-      await this.saveRecording(this.recordingState.steps);
+      const result = await this.saveRecording(this.recordingState.steps);
       
-      this.emit('notification', {
+      // Show success result dialog
+      this.showWorkflowSaveResultDialog({
+        success: true,
         message: 'Workflow saved successfully',
-        type: 'success'
+        workflow_id: result.workflow_id,
+        langflow_path: result.langflow_path
       });
-      
-      // Close recording page after short delay
-      setTimeout(() => {
-        this.hideRecordingPage();
-        // Reload workflows to show new one
-        this.loadWorkflows();
-      }, 1000);
       
     } catch (error) {
       console.error('[SettingsWorkflow] Failed to save workflow:', error);
       this.updateRecordingButton(false, false);
-      this.emit('notification', {
-        message: `Failed to save workflow: ${error.message}`,
-        type: 'error'
+      
+      // Show error result dialog
+      this.showWorkflowSaveResultDialog({
+        success: false,
+        message: error.message || 'Failed to save workflow'
       });
     }
   }
@@ -3377,6 +3375,139 @@ class VibeSurfSettingsWorkflow {
     if (this.elements.recordingPage) {
       this.elements.recordingPage.classList.add('hidden');
     }
+  }
+
+  // Show workflow save result dialog
+  showWorkflowSaveResultDialog(result) {
+    // Create dialog if it doesn't exist
+    if (!this.elements.workflowSaveResultDialog) {
+      this.createWorkflowSaveResultDialog();
+    }
+    
+    const { success, message, workflow_id, langflow_path } = result;
+    
+    // Update dialog content
+    const dialogTitle = this.elements.workflowSaveResultDialog?.querySelector('.result-dialog-title');
+    const dialogIcon = this.elements.workflowSaveResultDialog?.querySelector('.result-dialog-icon');
+    const dialogMessage = this.elements.workflowSaveResultDialog?.querySelector('.result-dialog-message');
+    const dialogDetails = this.elements.workflowSaveResultDialog?.querySelector('.result-dialog-details');
+    const dialogConfirm = this.elements.workflowSaveResultDialog?.querySelector('.result-dialog-confirm');
+    
+    if (success) {
+      if (dialogTitle) dialogTitle.textContent = 'Workflow Saved Successfully';
+      if (dialogIcon) dialogIcon.textContent = '✅';
+      if (dialogMessage) dialogMessage.textContent = message;
+      
+      // Show workflow details
+      if (dialogDetails && workflow_id) {
+        dialogDetails.innerHTML = `
+          <div class="result-detail-item">
+            <span class="result-detail-label">Workflow ID:</span>
+            <div class="result-detail-value">
+              <code class="workflow-id-code">${this.escapeHtml(workflow_id)}</code>
+              <button class="btn btn-icon copy-workflow-id-btn" data-workflow-id="${workflow_id}" title="Copy Workflow ID">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M16 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6C4 4.89543 4.89543 4 6 4H8" stroke="currentColor" stroke-width="2"/>
+                  <rect x="8" y="2" width="8" height="4" rx="1" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          ${langflow_path ? `
+            <div class="result-detail-item">
+              <span class="result-detail-label">Saved to database</span>
+              <span class="result-detail-value success-text">✓</span>
+            </div>
+          ` : ''}
+        `;
+        dialogDetails.style.display = 'block';
+        
+        // Bind copy button
+        setTimeout(() => {
+          const copyBtn = dialogDetails.querySelector('.copy-workflow-id-btn');
+          if (copyBtn) {
+            copyBtn.addEventListener('click', async () => {
+              try {
+                await navigator.clipboard.writeText(workflow_id);
+                this.emit('notification', {
+                  message: 'Workflow ID copied to clipboard',
+                  type: 'success'
+                });
+              } catch (error) {
+                console.error('[SettingsWorkflow] Failed to copy workflow ID:', error);
+              }
+            });
+          }
+        }, 100);
+      } else if (dialogDetails) {
+        dialogDetails.style.display = 'none';
+      }
+    } else {
+      if (dialogTitle) dialogTitle.textContent = 'Failed to Save Workflow';
+      if (dialogIcon) dialogIcon.textContent = '❌';
+      if (dialogMessage) dialogMessage.textContent = message;
+      if (dialogDetails) dialogDetails.style.display = 'none';
+    }
+    
+    // Update button state
+    this.updateRecordingButton(false, false);
+    
+    // Show dialog
+    if (this.elements.workflowSaveResultDialog) {
+      this.elements.workflowSaveResultDialog.classList.remove('hidden');
+    }
+  }
+  
+  // Create workflow save result dialog
+  createWorkflowSaveResultDialog() {
+    const dialogHTML = `
+      <div id="workflow-save-result-dialog" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content result-dialog-content">
+          <div class="modal-body">
+            <div class="result-dialog-icon">✅</div>
+            <h3 class="result-dialog-title">Workflow Saved Successfully</h3>
+            <p class="result-dialog-message">Your workflow has been saved</p>
+            <div class="result-dialog-details" style="display: none;"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="form-btn primary result-dialog-confirm">OK</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', dialogHTML);
+    
+    this.elements.workflowSaveResultDialog = document.getElementById('workflow-save-result-dialog');
+    
+    // Bind events
+    const confirmBtn = this.elements.workflowSaveResultDialog?.querySelector('.result-dialog-confirm');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', () => {
+        this.hideWorkflowSaveResultDialog();
+      });
+    }
+    
+    const modalOverlay = this.elements.workflowSaveResultDialog?.querySelector('.modal-overlay');
+    if (modalOverlay) {
+      modalOverlay.addEventListener('click', () => {
+        this.hideWorkflowSaveResultDialog();
+      });
+    }
+  }
+  
+  // Hide workflow save result dialog
+  hideWorkflowSaveResultDialog() {
+    if (this.elements.workflowSaveResultDialog) {
+      this.elements.workflowSaveResultDialog.classList.add('hidden');
+    }
+    
+    // Close all recording-related dialogs
+    this.hideRecordingPage();
+    
+    // Reload workflows to show new one
+    this.loadWorkflows();
   }
 
   // Utility function to escape HTML

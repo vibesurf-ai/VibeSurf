@@ -2710,6 +2710,303 @@
     }
 }
 
+/* Workflow Save Result Dialog Styles */
+.workflow-save-result-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    animation: fadeIn 0.3s ease;
+}
+
+.result-dialog-content {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.result-dialog-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.result-success-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    animation: successBounce 0.6s ease;
+}
+
+.result-error-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    color: #dc3545;
+    animation: errorShake 0.6s ease;
+}
+
+@keyframes successBounce {
+    0%, 20%, 53%, 80%, 100% { transform: translateY(0) scale(1); }
+    40%, 43% { transform: translateY(-8px) scale(1.1); }
+    70% { transform: translateY(-4px) scale(1.05); }
+    90% { transform: translateY(-2px) scale(1.02); }
+}
+
+@keyframes errorShake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.result-dialog-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-color);
+    margin-bottom: 8px;
+}
+
+.result-dialog-message {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.result-dialog-body {
+    margin-bottom: 24px;
+}
+
+.result-workflow-id-section {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 16px;
+}
+
+.result-workflow-id-section h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.workflow-id-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.workflow-id-display {
+    flex: 1;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 14px;
+    color: var(--primary-color);
+    background: var(--bg-primary);
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    word-break: break-all;
+    font-weight: 500;
+}
+
+.workflow-id-copy-btn {
+    padding: 12px 16px;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.workflow-id-copy-btn:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.workflow-id-copy-btn:active {
+    transform: translateY(0);
+}
+
+.result-db-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 16px;
+}
+
+.result-db-status.success {
+    border-color: #28a745;
+    background: rgba(40, 167, 69, 0.1);
+}
+
+.result-db-status.error {
+    border-color: #dc3545;
+    background: rgba(220, 53, 69, 0.1);
+}
+
+.result-db-status-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.result-db-status.success .result-db-status-icon {
+    color: #28a745;
+}
+
+.result-db-status.error .result-db-status-icon {
+    color: #dc3545;
+}
+
+.result-db-status-text {
+    font-size: 14px;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.result-error-message {
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid #dc3545;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.result-error-message p {
+    margin: 0;
+    font-size: 14px;
+    color: #dc3545;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.result-dialog-actions {
+    display: flex;
+    justify-content: center;
+}
+
+.result-dialog-close-btn {
+    padding: 14px 32px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.result-dialog-close-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+}
+
+.result-dialog-close-btn:active {
+    transform: translateY(0);
+}
+
+/* Dark Theme Support for Result Dialog */
+[data-theme="dark"] .result-dialog-content,
+.dark-theme .result-dialog-content {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .result-workflow-id-section,
+.dark-theme .result-workflow-id-section {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .workflow-id-display,
+.dark-theme .workflow-id-display {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .result-db-status,
+.dark-theme .result-db-status {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Responsive Design for Result Dialog */
+@media (max-width: 768px) {
+    .result-dialog-content {
+        padding: 24px;
+        max-width: 90%;
+    }
+    
+    .result-success-icon,
+    .result-error-icon {
+        font-size: 48px;
+    }
+    
+    .result-dialog-title {
+        font-size: 20px;
+    }
+    
+    .result-dialog-message {
+        font-size: 14px;
+    }
+    
+    .workflow-id-container {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .workflow-id-copy-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .result-dialog-content {
+        padding: 20px;
+        max-width: 95%;
+    }
+    
+    .result-workflow-id-section {
+        padding: 16px;
+    }
+    
+    .workflow-id-display {
+        font-size: 12px;
+        padding: 10px 12px;
+    }
+}
+
 /* Hidden utility class */
 .hidden {
     display: none !important;
