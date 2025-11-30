@@ -77,7 +77,7 @@ def build_workflow_graph(raw_workflow_data: Dict[str, Any]) -> Graph:
                 target_text = ""
             
             component = BrowserClickElementComponent(
-                element_text=target_text,  # Always pass string, even if empty
+                # element_text=target_text,  # Always pass string, even if empty
                 css_selector=target_selector  # Always pass string, even if empty
             )
             
