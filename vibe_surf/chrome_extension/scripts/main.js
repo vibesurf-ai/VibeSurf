@@ -24,10 +24,15 @@ class VibeSurfApp {
       // Initialize API client
       this.initializeAPIClient();
       
-      // Check backend connectivity
-      await this.checkBackendConnection();
+      // Non-blocking backend check - don't prevent UI from loading
+      const backendReady = await this.checkBackendConnection();
+      if (!backendReady) {
+        console.warn('[VibeSurf] Backend not ready yet, will retry in background');
+        // Start background retry mechanism
+        this.retryBackendConnection();
+      }
       
-      // Initialize session manager
+      // Initialize session manager (continue even if backend not ready)
       this.initializeSessionManager();
       
       // Initialize UI manager
@@ -108,25 +113,58 @@ class VibeSurfApp {
       
       if (healthCheck.status === 'healthy') {
         console.log('[VibeSurf] Backend connection successful');
-        
+        return true;
       } else {
-        throw new Error('Backend health check failed');
+        console.warn('[VibeSurf] Backend health check returned unhealthy status');
+        return false;
       }
       
     } catch (error) {
-      console.error('[VibeSurf] Backend connection failed:', error);
-      
-      // Show warning notification
-      chrome.runtime.sendMessage({
-        type: 'SHOW_NOTIFICATION',
-        data: {
-          title: 'VibeSurf Backend Disconnected',
-          message: 'Cannot connect to VibeSurf backend. Please check if the server is running.'
-        }
-      });
-      
-      throw error;
+      console.warn('[VibeSurf] Backend connection failed:', error.message);
+      // Don't throw error - allow UI to load anyway
+      return false;
     }
+  }
+
+  retryBackendConnection() {
+    let retryCount = 0;
+    const maxRetries = 10;
+    const retryInterval = 3000; // 3 seconds
+    
+    console.log('[VibeSurf] Starting background backend connection retry...');
+    
+    const retryTimer = setInterval(async () => {
+      retryCount++;
+      console.log(`[VibeSurf] Backend retry attempt ${retryCount}/${maxRetries}`);
+      
+      const isReady = await this.checkBackendConnection();
+      
+      if (isReady) {
+        clearInterval(retryTimer);
+        console.log('[VibeSurf] Backend connected successfully after retry');
+        
+        // Show success notification
+        chrome.runtime.sendMessage({
+          type: 'SHOW_NOTIFICATION',
+          data: {
+            title: 'VibeSurf Backend Connected',
+            message: 'Successfully connected to VibeSurf backend server'
+          }
+        });
+      } else if (retryCount >= maxRetries) {
+        clearInterval(retryTimer);
+        console.warn('[VibeSurf] Backend connection timeout after max retries');
+        
+        // Show warning notification (not error)
+        chrome.runtime.sendMessage({
+          type: 'SHOW_NOTIFICATION',
+          data: {
+            title: 'VibeSurf Backend Unavailable',
+            message: 'Cannot connect to backend. Please ensure the VibeSurf server is running.'
+          }
+        });
+      }
+    }, retryInterval);
   }
 
   initializeSessionManager() {
