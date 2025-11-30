@@ -568,31 +568,130 @@
       return element.textContent?.trim().substring(0, 100) || '';
     }
     
-    // Get CSS selector for element
+    // Get CSS selector for element (Based on Chromium's algorithm)
+    // Reference: chromium/src/third_party/blink/renderer/core/inspector/InspectorDOMAgent.cpp
     getSelector(element) {
-      if (!element) return '';
+      if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+        return '';
+      }
       
-      if (element.id) return `#${element.id}`;
-      if (element.name) return `[name="${element.name}"]`;
+      // Step 1: Try ID selector (if unique)
+      if (element.id) {
+        const idSelector = this.idSelector(element);
+        if (idSelector && this.isUnique(element, idSelector)) {
+          return idSelector;
+        }
+      }
       
-      let path = [];
+      // Step 2: Build path from an ancestor with ID (or body) to element
+      const path = [];
       let current = element;
       
-      while (current && current.nodeType === Node.ELEMENT_NODE && path.length < 4) {
-        let selector = current.nodeName.toLowerCase();
+      // Find path components
+      while (current && current !== document.documentElement) {
+        const step = this.cssPathStep(current);
+        if (!step) break;
         
-        if (current.className && typeof current.className === 'string') {
-          const classes = current.className.trim().split(/\s+/);
-          if (classes.length > 0 && classes[0]) {
-            selector += '.' + classes[0];
-          }
-        }
+        path.unshift(step.value);
         
-        path.unshift(selector);
-        current = current.parentNode;
+        // If we reached an element with ID that makes the path unique, stop
+        if (step.optimized) break;
+        
+        current = current.parentElement;
       }
       
       return path.join(' > ');
+    }
+    
+    // Generate CSS path step for an element
+    cssPathStep(element) {
+      // Check for ID first (optimized path)
+      if (element.id) {
+        const idSelector = this.idSelector(element);
+        if (idSelector) {
+          return { value: idSelector, optimized: true };
+        }
+      }
+      
+      const nodeName = element.nodeName.toLowerCase();
+      
+      // Check if we need nth-child
+      const parent = element.parentElement;
+      if (!parent) {
+        return { value: nodeName, optimized: false };
+      }
+      
+      // Get all siblings with the same tag name
+      const siblings = Array.from(parent.children);
+      const sameTagSiblings = siblings.filter(sibling =>
+        sibling.nodeName.toLowerCase() === nodeName
+      );
+      
+      // If element has classes, try to use them
+      const classNames = this.getClassNames(element);
+      
+      // Build selector
+      let selector = nodeName;
+      
+      // Add classes if they help narrow it down
+      if (classNames.length > 0) {
+        // Try with classes to see if it's more specific
+        const classSelector = nodeName + '.' + classNames.join('.');
+        const sameClassSiblings = siblings.filter(sibling => {
+          if (sibling.nodeName.toLowerCase() !== nodeName) return false;
+          const siblingClasses = this.getClassNames(sibling);
+          return classNames.every(c => siblingClasses.includes(c));
+        });
+        
+        // Use classes if they reduce ambiguity
+        if (sameClassSiblings.length < sameTagSiblings.length) {
+          selector = classSelector;
+          if (sameClassSiblings.length === 1) {
+            // Classes make it unique among siblings
+            return { value: selector, optimized: false };
+          }
+        }
+      }
+      
+      // Need nth-child to disambiguate
+      if (sameTagSiblings.length > 1) {
+        const index = siblings.indexOf(element) + 1;
+        selector += `:nth-child(${index})`;
+      }
+      
+      return { value: selector, optimized: false };
+    }
+    
+    // Get ID selector
+    idSelector(element) {
+      if (!element.id) return null;
+      
+      const id = element.id;
+      // Escape special characters in ID
+      return '#' + CSS.escape(id);
+    }
+    
+    // Get class names for element
+    getClassNames(element) {
+      if (!element.className || typeof element.className !== 'string') {
+        return [];
+      }
+      
+      return element.className
+        .trim()
+        .split(/\s+/)
+        .filter(c => c.length > 0)
+        .map(c => CSS.escape(c));
+    }
+    
+    // Check if selector uniquely identifies the element
+    isUnique(element, selector) {
+      try {
+        const matches = document.querySelectorAll(selector);
+        return matches.length === 1 && matches[0] === element;
+      } catch (e) {
+        return false;
+      }
     }
     
     // Utility method to send context updates to background

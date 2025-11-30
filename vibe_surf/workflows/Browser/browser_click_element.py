@@ -12,6 +12,7 @@ from vibe_surf.langflow.schema.message import Message
 from vibe_surf.browser.find_page_element import SemanticExtractor
 from vibe_surf.langflow.field_typing import LanguageModel
 
+
 class BrowserClickElementComponent(Component):
     display_name = "Click element"
     description = "Browser click element"
@@ -103,9 +104,11 @@ class BrowserClickElementComponent(Component):
 
                 semantic_extractor = SemanticExtractor()
                 element_mappings = await semantic_extractor.extract_semantic_mapping(self.browser_session)
+                css_hints = self.css_selector.split('>') if self.css_selector else []
+                css_hints = [css_hint_.strip() for css_hint_ in css_hints]
                 element_info = semantic_extractor.find_element_by_hierarchy(element_mappings,
                                                                             target_text=self.element_text,
-                                                                            context_hints=self.element_hints)
+                                                                            context_hints=self.element_hints or css_hints)
                 direct_selector = await _try_direct_selector(self.browser_session, self.element_text)
                 selector_to_use = None
                 if direct_selector:
