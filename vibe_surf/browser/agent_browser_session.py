@@ -950,8 +950,8 @@ class AgentBrowserSession(BrowserSession):
                 )
                 if ready_state and ready_state.get("value", "loading") == "complete":
                     break
-            except Exception:
-                pass
+            except Exception as e:
+                print(e)
             await asyncio.sleep(1.0)
 
     async def take_screenshot(self, target_id: Optional[str] = None,

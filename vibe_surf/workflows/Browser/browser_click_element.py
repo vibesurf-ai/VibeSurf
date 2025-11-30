@@ -151,17 +151,19 @@ class BrowserClickElementComponent(Component):
                         if elements:
                             element = elements[0]
 
-            elif self.css_selector:
+            if not element and self.css_selector:
                 page = await self.browser_session.get_current_page()
                 elements = await page.get_elements_by_css_selector(self.css_selector)
                 self.log(f"Found {len(elements)} elements with CSS selector {self.css_selector}")
                 self.log(elements)
                 if elements:
                     element = elements[0]
-            elif self.backend_node_id:
+
+            if not element and self.backend_node_id:
                 page = await self.browser_session.get_current_page()
                 element = await page.get_element(self.backend_node_id)
-            elif self.element_prompt and self.llm:
+
+            if not element and self.element_prompt and self.llm:
                 page = await self.browser_session.get_current_page()
                 element = await page.get_element_by_prompt(self.element_prompt, self.llm)
 
@@ -170,6 +172,7 @@ class BrowserClickElementComponent(Component):
                 raise ValueError("No element found!")
 
             await element.click(button=self.click_button, click_count=self.click_count, modifiers=['Control'])
+            await asyncio.sleep(1)
             if self.browser_session.main_browser_session:
                 after_tabs = await self.browser_session.main_browser_session.get_tabs()
             else:

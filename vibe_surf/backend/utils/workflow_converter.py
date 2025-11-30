@@ -84,7 +84,6 @@ def build_workflow_graph(raw_workflow_data: Dict[str, Any]) -> Graph:
             # Set display name - for click, include target_text if available
             display_name = f"Click {target_text}" if target_text else "Click element"
             component.display_name = display_name
-            component.description = "Browser click element"
             component_id = graph.add_component(component)
             
         elif action_type == "type" or action_type == "input":
@@ -96,15 +95,16 @@ def build_workflow_graph(raw_workflow_data: Dict[str, Any]) -> Graph:
                 input_text=input_text,
                 css_selector=target_selector  # Always pass string, even if empty
             )
-            component.display_name = "Input Text"
-            component.description = "Browser input Text to an element"
             component_id = graph.add_component(component)
             
         elif action_type == "scroll":
             # Create Scroll component
-            component = BrowserScrollComponent()
-            component.display_name = "Scroll"
-            component.description = "Scroll down or up on a browser page"
+            scroll_delta_x = action.get("scrollX", 0)
+            scroll_delta_y = action.get("scrollY", 500)
+            component = BrowserScrollComponent(
+                scroll_delta_x=scroll_delta_x,
+                scroll_delta_y=scroll_delta_y
+            )
             component_id = graph.add_component(component)
             
         else:
@@ -149,7 +149,17 @@ def convert_raw_workflow_to_langflow(raw_json_path: str) -> Dict[str, Any]:
     # Prepare and dump the graph
     graph.prepare()
     graph_data = graph.dump()["data"]
-    
+
+    for node_data in graph_data["nodes"]:
+        node_data.update({
+            "type": "genericNode",
+        })
+
+    flow_json_string = json.dumps(graph_data, ensure_ascii=False)
+    flow_json_string = flow_json_string.replace('"type": "FieldTypes.TEXT"', '"type": "str"')
+    flow_json_string = flow_json_string.replace('"type": "FieldTypes.OTHER"', '"type": "other"')
+    graph_data = json.loads(flow_json_string)
+
     # Return full workflow structure
     workflow_data = {
         "name": workflow_name,
@@ -221,7 +231,7 @@ def stringify_handle(handle_obj: dict) -> str:
 
 def generate_edge_id(source: str, source_handle: str, target: str, target_handle: str) -> str:
     """Generate Langflow format edge ID"""
-    edge_id = f"reactflow__edge-{source}{source_handle}-{target}{target_handle}"
+    edge_id = f"xy-edge__{source}{source_handle}-{target}{target_handle}"
     return edge_id
 
 
