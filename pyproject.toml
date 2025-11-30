@@ -275,3 +275,6 @@ packages = { find = { where = ["."], include = ["vibe_surf*"], exclude = ["vibe_
 
 [tool.setuptools_scm]
 write_to = "vibe_surf/_version.py"
+version_scheme = "release-branch-semver"
+local_scheme = "no-local-version"
+git_describe_command = "git describe --dirty --tags --long --match v*"

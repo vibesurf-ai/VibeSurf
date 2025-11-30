@@ -54,6 +54,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Full history for setuptools-scm
+        ref: ${{ github.event.release.tag_name }}  # Checkout exact release tag
     
     - name: Debug git state
       run: |
@@ -111,6 +112,9 @@ jobs:
         mkdir -p ../backend/frontend
         cp -r build/* ../backend/frontend/
         
+        # Add .gitignore to prevent dirty state
+        echo "*" > ../backend/frontend/.gitignore
+        
         # Clean up node_modules to save space
         rm -rf node_modules
         rm -rf build
@@ -150,6 +154,9 @@ jobs:
         echo "// Extension version - auto-generated during build" > scripts/version.js
         echo "window.VIBESURF_EXTENSION_VERSION = '$CLEAN_VERSION';" >> scripts/version.js
         echo "console.log('[VibeSurf] Extension version:', '$CLEAN_VERSION');" >> scripts/version.js
+        
+        # Add to git to prevent dirty state
+        git add manifest.json scripts/version.js
         
         echo "=== Version files updated ==="
         echo "manifest.json version:"
