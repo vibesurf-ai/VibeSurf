@@ -54,6 +54,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Full history for setuptools-scm
+        ref: ${{ github.event.release.tag_name }}  # Ensure we checkout the exact tag
     
     - name: Debug git state
       run: |
@@ -67,6 +68,13 @@ jobs:
         echo "Ref: ${{ github.ref }}"
         echo "Ref name: ${{ github.ref_name }}"
         echo "Release tag: ${{ github.event.release.tag_name }}"
+        
+        # Verify we're on the correct tag
+        CURRENT_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "no-tag")
+        echo "Current exact tag: $CURRENT_TAG"
+        if [ "$CURRENT_TAG" != "${{ github.event.release.tag_name }}" ]; then
+          echo "WARNING: Current tag ($CURRENT_TAG) doesn't match release tag (${{ github.event.release.tag_name }})"
+        fi
     
     - name: Free disk space before build
       run: |
@@ -132,13 +140,22 @@ jobs:
       run: |
         echo "=== Updating Extension Version ==="
         
-        # Get version from setuptools-scm
-        VERSION=$(python -m setuptools_scm)
-        echo "Version from setuptools-scm: $VERSION"
+        # Get release tag from GitHub context (if available)
+        RELEASE_TAG="${{ github.event.release.tag_name }}"
+        
+        if [ -n "$RELEASE_TAG" ]; then
+          # Extract version from release tag (remove 'v' prefix if present)
+          VERSION=$(echo "$RELEASE_TAG" | sed 's/^v//')
+          echo "Using release tag version: $VERSION"
+        else
+          # Fallback to setuptools-scm for non-release builds
+          VERSION=$(python -m setuptools_scm)
+          echo "Using setuptools-scm version: $VERSION"
+        fi
         
         # Extract Chrome-compatible version (only numbers and dots)
-        # Remove everything after + and any non-numeric/non-dot characters
-        TEMP_VERSION=$(echo $VERSION | sed 's/+.*//')
+        # Remove .devN suffix, git hash (after +), and any non-numeric/non-dot characters
+        TEMP_VERSION=$(echo $VERSION | sed 's/\.dev[0-9]*//' | sed 's/+.*//')
         CLEAN_VERSION=$(echo $TEMP_VERSION | sed 's/[^0-9.]//g')
         echo "Clean version for extension: $CLEAN_VERSION"
         
@@ -227,13 +244,22 @@ jobs:
       run: |
         echo "=== Updating Extension Version ==="
         
-        # Get version from setuptools-scm
-        VERSION=$(python -m setuptools_scm)
-        echo "Version from setuptools-scm: $VERSION"
+        # Get release tag from GitHub context (if available)
+        RELEASE_TAG="${{ github.event.release.tag_name }}"
+        
+        if [ -n "$RELEASE_TAG" ]; then
+          # Extract version from release tag (remove 'v' prefix if present)
+          VERSION=$(echo "$RELEASE_TAG" | sed 's/^v//')
+          echo "Using release tag version: $VERSION"
+        else
+          # Fallback to setuptools-scm for non-release builds
+          VERSION=$(python -m setuptools_scm)
+          echo "Using setuptools-scm version: $VERSION"
+        fi
         
         # Extract Chrome-compatible version (only numbers and dots)
-        # Remove everything after + and any non-numeric/non-dot characters
-        TEMP_VERSION=$(echo $VERSION | sed 's/+.*//')
+        # Remove .devN suffix, git hash (after +), and any non-numeric/non-dot characters
+        TEMP_VERSION=$(echo $VERSION | sed 's/\.dev[0-9]*//' | sed 's/+.*//')
         CLEAN_VERSION=$(echo $TEMP_VERSION | sed 's/[^0-9.]//g')
         echo "Clean version for extension: $CLEAN_VERSION"
         
@@ -252,26 +278,11 @@ jobs:
         echo "version.js content:"
         cat scripts/version.js
     
-    - name: Package Chrome Extension
-      run: |
-        echo "=== Packaging Chrome Extension ==="
-        cd vibe_surf/chrome_extension
-        
-        # Create the zip file
-        zip -r ../../vibesurf-extension.zip . -x "*.git*" "*.DS_Store*" "node_modules/*"
-        
-        echo "=== Extension packaged ==="
-        ls -la ../../vibesurf-extension.zip
-        
-        # Show package contents for verification
-        echo "=== Extension contents ==="
-        unzip -l ../../vibesurf-extension.zip | head -20
-    
     - name: Upload extension artifact
       uses: actions/upload-artifact@v4
       with:
         name: vibesurf-extension
-        path: vibesurf-extension.zip
+        path: vibe_surf/chrome_extension/
         retention-days: 30  # Reduced from 90 days to save storage
 
   build-installer:
@@ -307,12 +318,23 @@ jobs:
         # Install setuptools-scm for version extraction
         python -m pip install --upgrade pip --no-cache-dir setuptools-scm[toml]
         
-        # Get version from setuptools-scm
-        VERSION=$(python -m setuptools_scm)
-        echo "Version from setuptools-scm: $VERSION"
+        # Get release tag from GitHub context (if available)
+        RELEASE_TAG="${{ github.event.release.tag_name }}"
         
-        # Extract version parts (remove any +dev suffix for extension)
-        CLEAN_VERSION=$(echo $VERSION | sed 's/+.*//')
+        if [ -n "$RELEASE_TAG" ]; then
+          # Extract version from release tag (remove 'v' prefix if present)
+          VERSION=$(echo "$RELEASE_TAG" | sed 's/^v//')
+          echo "Using release tag version: $VERSION"
+        else
+          # Fallback to setuptools-scm for non-release builds
+          VERSION=$(python -m setuptools_scm)
+          echo "Using setuptools-scm version: $VERSION"
+        fi
+        
+        # Extract Chrome-compatible version (only numbers and dots)
+        # Remove .devN suffix, git hash (after +), and any non-numeric/non-dot characters
+        TEMP_VERSION=$(echo $VERSION | sed 's/\.dev[0-9]*//' | sed 's/+.*//')
+        CLEAN_VERSION=$(echo $TEMP_VERSION | sed 's/[^0-9.]//g')
         echo "Clean version for extension: $CLEAN_VERSION"
         
         # Update manifest.json version
@@ -395,6 +417,7 @@ jobs:
   publish-pypi:
     needs: [test, build-wheels]
     runs-on: ubuntu-latest
+    if: github.event_name == 'release'  # Only publish to PyPI on releases
     environment: release
     permissions:
       id-token: write  # Required for trusted publishing
@@ -405,6 +428,21 @@ jobs:
       with:
         name: dist
         path: dist/
+    
+    - name: Verify release tag
+      run: |
+        echo "=== Verifying release build ==="
+        echo "Event: ${{ github.event_name }}"
+        echo "Ref: ${{ github.ref }}"
+        echo "Tag: ${{ github.event.release.tag_name }}"
+        
+        # Verify we have a proper release tag
+        if [ -z "${{ github.event.release.tag_name }}" ]; then
+          echo "ERROR: No release tag found. Cannot publish to PyPI."
+          exit 1
+        fi
+        
+        echo "✓ Release tag verified: ${{ github.event.release.tag_name }}"
     
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
@@ -447,7 +485,21 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: vibesurf-extension
-        path: ./
+        path: extension/
+    
+    - name: Create extension zip for release
+      run: |
+        echo "=== Creating extension zip for release ==="
+        cd extension
+        zip -r ../vibesurf-extension.zip . -x "*.git*" "*.DS_Store*"
+        cd ..
+        
+        echo "=== Extension zip created ==="
+        ls -la vibesurf-extension.zip
+        
+        # Show package contents for verification
+        echo "=== Extension contents ==="
+        unzip -l vibesurf-extension.zip | head -20
 
     - name: Upload extension to release
       uses: softprops/action-gh-release@v1
