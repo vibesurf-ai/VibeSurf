@@ -54,7 +54,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Full history for setuptools-scm
-        ref: ${{ github.event.release.tag_name }}  # Checkout exact release tag
+        ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
     
     - name: Debug git state
       run: |
@@ -68,6 +68,15 @@ jobs:
         echo "Ref: ${{ github.ref }}"
         echo "Ref name: ${{ github.ref_name }}"
         echo "Release tag: ${{ github.event.release.tag_name }}"
+        echo "=== Current HEAD ==="
+        git log -1 --oneline
+        echo "=== Tag at HEAD ==="
+        git tag --points-at HEAD
+        echo "=== All recent tags ==="
+        git tag -l "v*" | tail -10
+        echo "=== setuptools-scm version detection ==="
+        python -m pip install --no-cache-dir setuptools-scm[toml]
+        python -m setuptools_scm
     
     - name: Free disk space before build
       run: |
@@ -208,6 +217,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Full history for setuptools-scm
+        ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
     
     - name: Free disk space
       run: |
@@ -289,6 +299,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
 
     - name: Free disk space
       run: |
