@@ -380,6 +380,7 @@ jobs:
   publish-pypi:
     needs: [test, build-wheels]
     runs-on: ubuntu-latest
+    if: github.event_name == 'release'  # Only publish to PyPI on releases
     environment: release
     permissions:
       id-token: write  # Required for trusted publishing
@@ -390,6 +391,21 @@ jobs:
       with:
         name: dist
         path: dist/
+    
+    - name: Verify release tag
+      run: |
+        echo "=== Verifying release build ==="
+        echo "Event: ${{ github.event_name }}"
+        echo "Ref: ${{ github.ref }}"
+        echo "Tag: ${{ github.event.release.tag_name }}"
+        
+        # Verify we have a proper release tag
+        if [ -z "${{ github.event.release.tag_name }}" ]; then
+          echo "ERROR: No release tag found. Cannot publish to PyPI."
+          exit 1
+        fi
+        
+        echo "✓ Release tag verified: ${{ github.event.release.tag_name }}"
     
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
