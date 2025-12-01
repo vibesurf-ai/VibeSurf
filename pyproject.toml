@@ -275,7 +275,5 @@ packages = { find = { where = ["."], include = ["vibe_surf*"], exclude = ["vibe_
 
 [tool.setuptools_scm]
 write_to = "vibe_surf/_version.py"
-# For release builds, use clean version from tags
-# For dev builds, use local version with commit hash
-local_scheme = "no-local-version"
-version_scheme = "release-branch-semver"
+# Use default version scheme: clean version on tags, dev version otherwise
+# Remove local_scheme to allow proper tag-based versioning
