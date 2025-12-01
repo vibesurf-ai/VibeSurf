@@ -275,5 +275,6 @@ packages = { find = { where = ["."], include = ["vibe_surf*"], exclude = ["vibe_
 
 [tool.setuptools_scm]
 write_to = "vibe_surf/_version.py"
-# Use default version scheme: clean version on tags, dev version otherwise
-# Remove local_scheme to allow proper tag-based versioning
+# Disable local version identifiers (the +gXXX part) for PyPI compatibility
+local_scheme = "no-local-version"
+# Use default version scheme for proper tag-based versioning

@@ -178,9 +178,22 @@ jobs:
         echo "Version $VERSION will be used for wheel package"
     
     - name: Build package
+      env:
+        # Force setuptools-scm to use the release tag version
+        SETUPTOOLS_SCM_PRETEND_VERSION: ${{ github.event.release.tag_name != '' && github.event.release.tag_name || '' }}
       run: |
         echo "=== Building package ==="
         df -h
+        
+        # Extract clean version from tag (remove 'v' prefix if present)
+        if [ -n "${{ github.event.release.tag_name }}" ]; then
+          RELEASE_VERSION=$(echo "${{ github.event.release.tag_name }}" | sed 's/^v//')
+          echo "Building release version: $RELEASE_VERSION"
+          export SETUPTOOLS_SCM_PRETEND_VERSION="$RELEASE_VERSION"
+        else
+          echo "Building development version (no release tag)"
+        fi
+        
         python -m build
         echo "=== Package built ==="
         df -h
