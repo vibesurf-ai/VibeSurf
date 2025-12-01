@@ -121,9 +121,6 @@ jobs:
         mkdir -p ../backend/frontend
         cp -r build/* ../backend/frontend/
         
-        # Add .gitignore to prevent dirty state
-        echo "*" > ../backend/frontend/.gitignore
-        
         # Clean up node_modules to save space
         rm -rf node_modules
         rm -rf build
@@ -164,9 +161,6 @@ jobs:
         echo "window.VIBESURF_EXTENSION_VERSION = '$CLEAN_VERSION';" >> scripts/version.js
         echo "console.log('[VibeSurf] Extension version:', '$CLEAN_VERSION');" >> scripts/version.js
         
-        # Add to git to prevent dirty state
-        git add manifest.json scripts/version.js
-        
         echo "=== Version files updated ==="
         echo "manifest.json version:"
         grep -A1 -B1 '"version"' manifest.json
@@ -178,6 +172,9 @@ jobs:
     
     - name: Build package
       run: |
+        # Reset git changes to prevent dirty state
+        git checkout -- vibe_surf/chrome_extension/manifest.json vibe_surf/chrome_extension/scripts/version.js || true
+        git clean -fd vibe_surf/backend/frontend || true
         echo "=== Building package ==="
         df -h
         python -m build
