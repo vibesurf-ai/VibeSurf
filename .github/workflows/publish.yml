@@ -252,26 +252,11 @@ jobs:
         echo "version.js content:"
         cat scripts/version.js
     
-    - name: Package Chrome Extension
-      run: |
-        echo "=== Packaging Chrome Extension ==="
-        cd vibe_surf/chrome_extension
-        
-        # Create the zip file
-        zip -r ../../vibesurf-extension.zip . -x "*.git*" "*.DS_Store*" "node_modules/*"
-        
-        echo "=== Extension packaged ==="
-        ls -la ../../vibesurf-extension.zip
-        
-        # Show package contents for verification
-        echo "=== Extension contents ==="
-        unzip -l ../../vibesurf-extension.zip | head -20
-    
     - name: Upload extension artifact
       uses: actions/upload-artifact@v4
       with:
         name: vibesurf-extension
-        path: vibesurf-extension.zip
+        path: vibe_surf/chrome_extension/
         retention-days: 30  # Reduced from 90 days to save storage
 
   build-installer:
@@ -447,7 +432,21 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: vibesurf-extension
-        path: ./
+        path: extension/
+    
+    - name: Create extension zip for release
+      run: |
+        echo "=== Creating extension zip for release ==="
+        cd extension
+        zip -r ../vibesurf-extension.zip . -x "*.git*" "*.DS_Store*"
+        cd ..
+        
+        echo "=== Extension zip created ==="
+        ls -la vibesurf-extension.zip
+        
+        # Show package contents for verification
+        echo "=== Extension contents ==="
+        unzip -l vibesurf-extension.zip | head -20
 
     - name: Upload extension to release
       uses: softprops/action-gh-release@v1
