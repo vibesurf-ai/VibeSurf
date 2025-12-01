@@ -275,4 +275,3 @@ packages = { find = { where = ["."], include = ["vibe_surf*"], exclude = ["vibe_
 
 [tool.setuptools_scm]
 write_to = "vibe_surf/_version.py"
-local_scheme = "no-local-version"
