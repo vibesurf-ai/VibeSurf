@@ -324,10 +324,6 @@ async def generate_java_script_code(code_requirement, llm, browser_session, MAX_
                     message_history.append(UserMessage(content=empty_feedback))
                     continue  # Try next iteration
 
-                # Apply length limit with better truncation
-                if len(result_text) > 30000:
-                    result_text = result_text[:30000] + '\n... [Truncated after 30000 characters]'
-
                 # Success! Return the result
                 msg = f'Generated Code (Iteration {iteration}): \n```javascript\n{generated_js_code}\n```\nResult:\n```json\n {result_text}\n```\n'
                 logger.info(f'✅ Skill Code succeeded on iteration {iteration}')
@@ -338,6 +334,7 @@ async def generate_java_script_code(code_requirement, llm, browser_session, MAX_
             except Exception as e:
                 # CDP communication or other system errors
                 error_msg = f'Failed to execute JavaScript: {type(e).__name__}: {e}'
+                logger.error(error_msg)
 
                 # Add system error feedback to message history for next iteration
                 system_error_feedback = f"""The previous JavaScript code failed to execute due to system error:
