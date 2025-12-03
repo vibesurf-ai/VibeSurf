@@ -132,7 +132,7 @@ async def execute_task_background(
 
         # Check if MCP server configuration needs update
         await _check_and_update_mcp_servers(db_session)
-        
+
         # Check if Composio tools configuration needs update
         await _check_and_update_composio_tools(db_session)
 
@@ -265,7 +265,6 @@ async def _check_and_update_mcp_servers(db_session):
         # Get current active MCP servers from database
         active_profiles = await McpProfileQueries.get_active_profiles(db_session)
         current_active_servers = {profile.mcp_id: profile.mcp_server_name for profile in active_profiles}
-
         # Compare with shared state
         if current_active_servers != active_mcp_server:
             logger.info(f"MCP server configuration changed. Updating tools...")
@@ -301,7 +300,7 @@ async def _check_and_update_composio_tools(db_session):
 
         # Get current enabled Composio toolkits from database
         enabled_toolkits = await ComposioToolkitQueries.get_enabled_toolkits(db_session)
-        
+
         # Build toolkit_tools_dict from enabled toolkits
         current_toolkit_tools = {}
         for toolkit in enabled_toolkits:
@@ -345,7 +344,8 @@ async def _build_mcp_server_config(active_profiles) -> Dict[str, Any]:
     }
 
     for profile in active_profiles:
-        mcp_server_config["mcpServers"][profile.mcp_server_name] = json.loads(profile.mcp_server_params)
+        mcp_server_config["mcpServers"][profile.mcp_server_name] = json.loads(profile.mcp_server_params) if isinstance(
+            profile.mcp_server_params, str) else profile.mcp_server_params
 
     return mcp_server_config
 
@@ -400,7 +400,7 @@ async def _load_enabled_composio_toolkits():
             try:
                 # Get all enabled Composio toolkits
                 enabled_toolkits = await ComposioToolkitQueries.get_enabled_toolkits(db)
-                
+
                 # Build toolkit_tools_dict from enabled toolkits
                 toolkit_tools_dict = {}
                 for toolkit in enabled_toolkits:
@@ -411,7 +411,8 @@ async def _load_enabled_composio_toolkits():
                         except (json.JSONDecodeError, TypeError) as e:
                             logger.warning(f"Failed to parse tools for toolkit {toolkit.slug}: {e}")
 
-                logger.info(f"✅ Loaded {len(toolkit_tools_dict)} enabled Composio toolkits: {list(toolkit_tools_dict.keys())}")
+                logger.info(
+                    f"✅ Loaded {len(toolkit_tools_dict)} enabled Composio toolkits: {list(toolkit_tools_dict.keys())}")
 
                 return toolkit_tools_dict
 
@@ -467,7 +468,7 @@ async def initialize_vibesurf_components():
                 with open(envs_file_path, 'r', encoding='utf-8') as f:
                     envs = json.load(f)
                 logger.info(f"✅ Loaded environment configuration from {envs_file_path}")
-                
+
                 # Set loaded environment variables to system environment
                 for key, value in envs.items():
                     if value:  # Only set non-empty values
@@ -689,7 +690,7 @@ def get_envs() -> Dict[str, str]:
 def update_envs(updates: Dict[str, str]) -> bool:
     """Update environment variables and save to envs.json"""
     global envs, workspace_dir
-    
+
     try:
         # Update the envs dictionary
         envs.update(updates)
@@ -701,10 +702,10 @@ def update_envs(updates: Dict[str, str]) -> bool:
         envs_file_path = os.path.join(workspace_dir, "envs.json")
         with open(envs_file_path, 'w', encoding='utf-8') as f:
             json.dump(envs, f, indent=2, ensure_ascii=False)
-        
+
         logger.info(f"✅ Updated and saved environment variables to {envs_file_path}")
         return True
-        
+
     except Exception as e:
         logger.error(f"Failed to update environment variables: {e}")
         return False
@@ -738,23 +739,23 @@ def _update_extension_backend_url(extension_path: str, backend_url: str):
 
 class ScheduleManager:
     """Manager for handling scheduled workflow execution"""
-    
+
     def __init__(self):
         self.schedules = {}  # Dict[flow_id, schedule_dict]
         self.running = False
         self.check_interval = 60  # Check every minute
         self._task = None
-        
+
     async def start(self):
         """Start the schedule manager"""
         if self.running:
             return
-            
+
         self.running = True
         await self.reload_schedules()
         self._task = asyncio.create_task(self._schedule_loop())
         logger.info("✅ Schedule manager started")
-    
+
     async def stop(self):
         """Stop the schedule manager"""
         self.running = False
@@ -765,7 +766,7 @@ class ScheduleManager:
             except asyncio.CancelledError:
                 pass
         logger.info("Schedule manager stopped")
-    
+
     async def reload_schedules(self):
         """Reload schedules from the database"""
         try:
@@ -777,10 +778,10 @@ class ScheduleManager:
             logger.debug("Starting schedule reload from database...")
             async for session in db_manager.get_session():
                 logger.debug("Successfully obtained database session")
-                
+
                 # Import Schedule model
                 from .database.models import Schedule
-                
+
                 # Use SQLAlchemy ORM query
                 result = await session.execute(
                     select(Schedule).where(
@@ -790,13 +791,13 @@ class ScheduleManager:
                 )
                 schedules = result.scalars().all()
                 logger.debug(f"Found {len(schedules)} enabled schedules in database")
-                
+
                 now = datetime.now(timezone.utc)
                 self.schedules = {}
-                
+
                 for schedule in schedules:
                     logger.info(f"Loading flow: {schedule.flow_id} into schedule")
-                    
+
                     # Check if next_execution_at is in the past and recalculate if needed
                     next_execution = schedule.next_execution_at
                     if next_execution:
@@ -804,10 +805,11 @@ class ScheduleManager:
                             next_execution = datetime.fromisoformat(next_execution.replace('Z', '+00:00'))
                         if next_execution.tzinfo is None:
                             next_execution = next_execution.replace(tzinfo=timezone.utc)
-                        
+
                         # If next_execution is in the past, recalculate it
                         if next_execution < now:
-                            logger.info(f"Schedule for flow {schedule.flow_id} has expired next_execution_at ({next_execution}), recalculating...")
+                            logger.info(
+                                f"Schedule for flow {schedule.flow_id} has expired next_execution_at ({next_execution}), recalculating...")
                             try:
                                 local_now = datetime.now().astimezone()
                                 cron = croniter(schedule.cron_expression, local_now)
@@ -815,7 +817,7 @@ class ScheduleManager:
                                 if local_next.tzinfo is None:
                                     local_next = local_next.replace(tzinfo=local_now.tzinfo)
                                 next_execution = local_next.astimezone(timezone.utc)
-                                
+
                                 # Update in database
                                 await session.execute(
                                     update(Schedule)
@@ -825,11 +827,13 @@ class ScheduleManager:
                                         updated_at=now
                                     )
                                 )
-                                logger.info(f"Updated next_execution_at for flow {schedule.flow_id} to {next_execution}")
+                                logger.info(
+                                    f"Updated next_execution_at for flow {schedule.flow_id} to {next_execution}")
                             except (ValueError, TypeError) as e:
-                                logger.error(f"Failed to recalculate next_execution_at for flow {schedule.flow_id}: {e}")
+                                logger.error(
+                                    f"Failed to recalculate next_execution_at for flow {schedule.flow_id}: {e}")
                                 next_execution = None
-                    
+
                     schedule_dict = {
                         'id': schedule.id,
                         'flow_id': schedule.flow_id,
@@ -843,19 +847,19 @@ class ScheduleManager:
                         'updated_at': schedule.updated_at
                     }
                     self.schedules[schedule.flow_id] = schedule_dict
-                
+
                 # Commit all updates
                 await session.commit()
-                
+
                 logger.info(f"✅ Successfully reloaded {len(self.schedules)} active schedules")
                 break  # Exit after processing to avoid multiple iterations
-                
+
         except Exception as e:
             logger.error(f"❌ Failed to reload schedules: {e}")
             # Log the stack trace for debugging
             import traceback
             logger.error(f"Schedule reload traceback: {traceback.format_exc()}")
-    
+
     async def _schedule_loop(self):
         """Main schedule checking loop"""
         while self.running:
@@ -867,44 +871,44 @@ class ScheduleManager:
             except Exception as e:
                 logger.error(f"Error in schedule loop: {e}")
                 await asyncio.sleep(self.check_interval)
-    
+
     async def _check_and_execute_schedules(self):
         """Check for schedules that need to be executed"""
         now = datetime.now(timezone.utc)
-        
+
         for flow_id, schedule in self.schedules.items():
             try:
                 # Check if it's time to execute this schedule
                 if await self._should_execute_schedule(schedule, now):
                     await self._execute_scheduled_flow(flow_id, schedule)
-                    
+
             except Exception as e:
                 logger.error(f"Error checking schedule for flow {flow_id}: {e}")
-    
+
     async def _should_execute_schedule(self, schedule: dict, now: datetime) -> bool:
         """Check if a schedule should be executed now"""
         try:
             cron_expr = schedule.get('cron_expression')
             if not cron_expr:
                 return False
-            
+
             # Check if we have a next execution time
             next_execution_str = schedule.get('next_execution_at')
             if not next_execution_str:
                 # Calculate and update next execution time
                 await self._update_next_execution_time(schedule['flow_id'], cron_expr)
                 return False
-            
+
             # Parse next execution time
             if isinstance(next_execution_str, str):
                 next_execution = datetime.fromisoformat(next_execution_str.replace('Z', '+00:00'))
             else:
                 next_execution = next_execution_str
-                
+
             # Make sure next_execution is timezone-aware
             if next_execution.tzinfo is None:
                 next_execution = next_execution.replace(tzinfo=timezone.utc)
-            
+
             # Check for minimum execution interval (prevent rapid re-execution)
             last_execution = schedule.get('last_execution_at')
             if last_execution:
@@ -912,58 +916,58 @@ class ScheduleManager:
                     last_execution = datetime.fromisoformat(last_execution.replace('Z', '+00:00'))
                 if last_execution.tzinfo is None:
                     last_execution = last_execution.replace(tzinfo=timezone.utc)
-                
+
                 # Prevent execution if less than 30 seconds have passed
                 min_interval = 30  # seconds
                 if (now - last_execution).total_seconds() < min_interval:
                     return False
-            
+
             # Check if it's time to execute (with a small buffer for timing precision)
             return now >= next_execution
-            
+
         except Exception as e:
             logger.error(f"Error checking schedule execution time: {e}")
             return False
-    
+
     async def _execute_scheduled_flow(self, flow_id: str, schedule: dict):
         """Execute a scheduled flow"""
         try:
             logger.info(f"Executing scheduled flow: {flow_id}")
-            
+
             # Import here to avoid circular imports
             import httpx
-            
+
             # Get backend URL from environment
             backend_port = os.getenv("VIBESURF_BACKEND_PORT", "9335")
             backend_url = f"http://127.0.0.1:{backend_port}"
-            
+
             # Make API call to execute the flow
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{backend_url}/api/v1/build/{flow_id}/flow",
                     json={}  # Empty request body for now
                 )
-                
+
                 if response.status_code == 200:
                     logger.info(f"Successfully triggered scheduled flow {flow_id}")
                 else:
                     logger.error(f"Failed to trigger scheduled flow {flow_id}: {response.status_code} {response.text}")
-            
+
             # Update execution tracking
             await self._update_execution_tracking(flow_id, schedule)
-            
+
         except Exception as e:
             logger.error(f"Error executing scheduled flow {flow_id}: {e}")
-    
+
     async def _update_execution_tracking(self, flow_id: str, schedule: dict):
         """Update execution tracking in the database"""
         try:
             global db_manager
             if not db_manager:
                 return
-                
+
             now = datetime.now(timezone.utc)
-            
+
             # Calculate next execution time using local timezone
             cron_expr = schedule.get('cron_expression')
             next_execution = None
@@ -977,14 +981,15 @@ class ScheduleManager:
                         local_next = local_next.replace(tzinfo=local_now.tzinfo)
                     # Convert to UTC for storage
                     next_execution = local_next.astimezone(timezone.utc)
-                    logger.info(f"Updated next execution for flow {flow_id}: {next_execution} UTC (local: {local_next})")
+                    logger.info(
+                        f"Updated next execution for flow {flow_id}: {next_execution} UTC (local: {local_next})")
                 except (ValueError, TypeError):
                     logger.error(f"Invalid cron expression for flow {flow_id}: {cron_expr}")
-            
+
             async for session in db_manager.get_session():
                 # Import Schedule model
                 from .database.models import Schedule
-                
+
                 # Use SQLAlchemy ORM update
                 await session.execute(
                     update(Schedule)
@@ -996,9 +1001,9 @@ class ScheduleManager:
                         updated_at=now
                     )
                 )
-                
+
                 await session.commit()
-                
+
                 # Update local schedule cache AFTER successful database update
                 if flow_id in self.schedules:
                     old_next = self.schedules[flow_id].get('next_execution_at')
@@ -1008,24 +1013,25 @@ class ScheduleManager:
                         'execution_count': schedule.get('execution_count', 0) + 1,
                         'updated_at': now
                     })
-                    logger.info(f"Local cache updated for flow {flow_id}: next_execution changed from {old_next} to {next_execution}")
+                    logger.info(
+                        f"Local cache updated for flow {flow_id}: next_execution changed from {old_next} to {next_execution}")
                 else:
                     logger.warning(f"Flow {flow_id} not found in local cache during execution tracking update")
-                
+
                 break  # Exit after processing to avoid multiple iterations
-                
+
         except Exception as e:
             logger.error(f"Error updating execution tracking for flow {flow_id}: {e}")
-    
+
     async def _update_next_execution_time(self, flow_id: str, cron_expr: str):
         """Update next execution time for a schedule"""
         try:
             global db_manager
             if not db_manager:
                 return
-                
+
             now = datetime.now(timezone.utc)
-            
+
             try:
                 local_now = datetime.now().astimezone()
                 cron = croniter(cron_expr, local_now)
@@ -1039,11 +1045,11 @@ class ScheduleManager:
             except (ValueError, TypeError):
                 logger.error(f"Invalid cron expression for flow {flow_id}: {cron_expr}")
                 return
-            
+
             async for session in db_manager.get_session():
                 # Import Schedule model
                 from .database.models import Schedule
-                
+
                 # Use SQLAlchemy ORM update
                 await session.execute(
                     update(Schedule)
@@ -1053,9 +1059,9 @@ class ScheduleManager:
                         updated_at=now
                     )
                 )
-                
+
                 await session.commit()
-                
+
                 # Update local schedule cache AFTER successful database update
                 if flow_id in self.schedules:
                     old_next = self.schedules[flow_id].get('next_execution_at')
@@ -1063,12 +1069,13 @@ class ScheduleManager:
                         'next_execution_at': next_execution,
                         'updated_at': now
                     })
-                    logger.info(f"Local cache updated for flow {flow_id}: next_execution changed from {old_next} to {next_execution}")
+                    logger.info(
+                        f"Local cache updated for flow {flow_id}: next_execution changed from {old_next} to {next_execution}")
                 else:
                     logger.warning(f"Flow {flow_id} not found in local cache during next execution time update")
-                
+
                 break  # Exit after processing to avoid multiple iterations
-                
+
         except Exception as e:
             logger.error(f"Error updating next execution time for flow {flow_id}: {e}")
 
@@ -1076,15 +1083,15 @@ class ScheduleManager:
 async def initialize_schedule_manager():
     """Initialize and start the schedule manager"""
     global schedule_manager
-    
+
     try:
         if schedule_manager:
             await schedule_manager.stop()
-        
+
         schedule_manager = ScheduleManager()
         await schedule_manager.start()
         logger.info("✅ Schedule manager initialized and started")
-        
+
     except Exception as e:
         logger.error(f"Failed to initialize schedule manager: {e}")
 
@@ -1092,13 +1099,12 @@ async def initialize_schedule_manager():
 async def shutdown_schedule_manager():
     """Shutdown the schedule manager"""
     global schedule_manager
-    
+
     try:
         if schedule_manager:
             await schedule_manager.stop()
             schedule_manager = None
         logger.info("Schedule manager shutdown completed")
-        
+
     except Exception as e:
         logger.error(f"Error shutting down schedule manager: {e}")
-
