@@ -1213,7 +1213,7 @@ class VibeSurfTools:
 
                         # Check if any filter matches tool name or description
                         search_text = f"{action_name} {description}".lower()
-                        if any(filter_term in search_text for filter_term in filters):
+                        if not filters or any(filter_term in search_text for filter_term in filters):
                             matching_tools.append({
                                 'tool_name': action_name,
                                 'description': description
@@ -1229,7 +1229,7 @@ class VibeSurfTools:
 
                         # Check if any filter matches tool name or description
                         search_text = f"{action_name} {description}".lower()
-                        if any(filter_term in search_text for filter_term in filters):
+                        if not filters or any(filter_term in search_text for filter_term in filters):
                             matching_tools.append({
                                 'tool_name': action_name,
                                 'description': description
@@ -1247,8 +1247,7 @@ class VibeSurfTools:
                 logger.info(f'🔍 Found {len(matching_tools)} tools in {toolkit_type} matching filters')
                 return ActionResult(
                     extracted_content=result_text,
-                    include_extracted_content_only_once=True,
-                    long_term_memory=f'Found {len(matching_tools)} tools in {toolkit_type} matching filters: {", ".join(params.filters)}'
+                    include_extracted_content_only_once=True
                 )
 
             except Exception as e:
