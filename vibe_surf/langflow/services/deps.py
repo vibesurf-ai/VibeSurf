@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
@@ -7,7 +8,6 @@ from vibe_surf.langflow.logging.logger import logger
 from vibe_surf.langflow.services.schema import ServiceType
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator
 
     from sqlmodel.ext.asyncio.session import AsyncSession
 

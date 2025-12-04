@@ -54,7 +54,7 @@ dependencies = [
     "json-repair>=0.48.0",
     "yfinance>=0.2.66",
     # langflow base
-    "fastapi>=0.115.2,<1.0.0",
+    "fastapi==0.116.1",
     "httpx[http2]>=0.27,<1.0.0",
     "aiofile>=3.9.0,<4.0.0",
     "uvicorn>=0.30.0,<1.0.0",
