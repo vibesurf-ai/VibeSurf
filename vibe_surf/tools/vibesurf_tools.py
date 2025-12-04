@@ -1190,9 +1190,12 @@ class VibeSurfTools:
             """
             try:
                 toolkit_type = params.toolkit_type
-                if params.filters:
-                    filters = [f.lower() for f in params.filters]
-                else:
+                try:
+                    if params.filters:
+                        filters = [f.lower() for f in params.filters]
+                    else:
+                        filters = []
+                except Exception as e:
                     filters = []
 
                 matching_tools = []
