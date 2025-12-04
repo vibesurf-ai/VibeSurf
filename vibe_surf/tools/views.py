@@ -318,6 +318,7 @@ class SearchToolAction(BaseModel):
         description='Toolkit type to search.',
     )
     filters: Optional[str] = Field(
+        default=None,
         description='Query terms to filter tools by name and description(include or not). If you want to all tools name of this Toolkit, leave it to None.',
     )
 
