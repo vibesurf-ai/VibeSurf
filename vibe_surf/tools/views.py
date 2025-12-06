@@ -351,11 +351,11 @@ class SkillTrendAction(BaseModel):
     """Parameters for skill_trend action - NewsNow trending news"""
     source_id: str | None = Field(
         default=None,
-        description='News source ID to fetch from. Use "*" to fetch from all sources, None to list available sources, or specify a source ID like "zhihu", "weibo", etc.',
+        description='News source ID to fetch from. Use "*" to fetch from all sources, None to list available sources, or specify a source ID like "douyin", "zhihu", "weibo", "hackernews", "producthunt", "github", etc.',
     )
     key_words: str | None = Field(
         default=None,
-        description='Comma-separated keywords to filter news items. If None, returns all news. Example: "AI,technology,science"',
+        description='Comma-separated keywords to filter news items. If None, returns all news. Example: "AI,科技,science,deepseek"',
     )
     count: int = Field(
         default=10,

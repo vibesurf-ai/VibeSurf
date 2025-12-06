@@ -267,7 +267,8 @@ packages = { find = { where = ["."], include = ["vibe_surf*"], exclude = ["vibe_
     "backend/**/*",
     "chrome_extension/**/*",
     "backend/frontend/**/*",
-    "langflow/**/*"
+    "langflow/**/*",
+    "tools/**/*.json"
 ]
 
 [tool.setuptools.package-dir]
