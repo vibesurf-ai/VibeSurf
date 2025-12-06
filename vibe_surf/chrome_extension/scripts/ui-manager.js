@@ -3631,11 +3631,22 @@ class VibeSurfUIManager {
       return;
     }
 
-    // Get social links from config
-    const socialLinks = window.VIBESURF_CONFIG?.SOCIAL_LINKS;
+    console.log('[UIManager] Initializing social links...');
+
+    // Get social links from config with fallback
+    let socialLinks = window.VIBESURF_CONFIG?.SOCIAL_LINKS;
+    
     if (!socialLinks) {
-      console.warn('[UIManager] Social links not found in config');
-      return;
+      console.warn('[UIManager] Social links not found in config, using default fallback');
+      socialLinks = {
+        github: "https://github.com/vibesurf-ai/VibeSurf",
+        discord: "https://discord.gg/86SPfhRVbk",
+        x: "https://x.com/warmshao",
+        reportBug: "https://github.com/vibesurf-ai/VibeSurf/issues/new/choose",
+        website: "https://vibe-surf.com/"
+      };
+    } else {
+      console.log('[UIManager] Found social links config:', socialLinks);
     }
 
     // Clear existing content
@@ -3653,6 +3664,7 @@ class VibeSurfUIManager {
         const link = this.createSocialLink(platform, url);
         if (link) {
           socialLinksContainer.appendChild(link);
+          console.log(`[UIManager] Added social link for ${platform}`);
         }
       }
     });

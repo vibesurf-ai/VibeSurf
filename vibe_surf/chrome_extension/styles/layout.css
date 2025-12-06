@@ -50,6 +50,8 @@
   align-items: center;
   gap: var(--spacing-xs);
   margin-left: var(--spacing-sm);
+  z-index: 10; /* Ensure social links are above other elements */
+  position: relative; /* Establish stacking context */
 }
 
 .social-link {
@@ -63,6 +65,8 @@
   text-decoration: none;
   transition: all var(--transition-fast);
   opacity: 0.7;
+  cursor: pointer; /* Explicitly set cursor */
+  pointer-events: auto; /* Ensure clickable */
 }
 
 .social-link:hover {
