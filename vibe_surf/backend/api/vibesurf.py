@@ -405,6 +405,19 @@ async def export_workflow(
                     del workflow_data["user_id"]
                 if "folder_id" in workflow_data:
                     del workflow_data["folder_id"]
+                
+                # Remove API keys (password fields) to match frontend behavior
+                if "data" in workflow_data and "nodes" in workflow_data["data"]:
+                    try:
+                        for node in workflow_data["data"]["nodes"]:
+                            if node.get("type") == "genericNode":
+                                template = node.get("data", {}).get("node", {}).get("template", {})
+                                for key, field in template.items():
+                                    if isinstance(field, dict) and field.get("password") is True:
+                                        field["value"] = ""
+                    except Exception as e:
+                        logger.warning(f"Error filtering API keys during export: {e}")
+
                 # Get workflow name from the response
                 flow_name = workflow_data.get("name", "workflow")
                 # Sanitize filename by removing invalid characters
