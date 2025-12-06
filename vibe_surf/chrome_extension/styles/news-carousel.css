@@ -91,7 +91,7 @@
 
 .news-card-inner {
     background: linear-gradient(135deg, var(--card-gradient-start) 0%, var(--card-gradient-end) 100%);
-    border-radius: 16px; /* Rounded corners on all sides */
+    border-radius: 16px;
     padding: 16px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -99,7 +99,6 @@
     display: flex;
     flex-direction: column;
     position: relative;
-    overflow: hidden;
 }
 
 .news-card-inner::before {
@@ -220,7 +219,7 @@
     margin: 0;
     flex: 1;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: visible;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
@@ -281,6 +280,7 @@
 .news-item-content {
     flex: 1;
     min-width: 0;
+    position: relative;
 }
 
 .news-item-title {
@@ -304,54 +304,26 @@
     text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
 }
 
-/* Hover tooltip - positioned above the item */
-.news-item-title[data-hover]::before {
+/* Hover tooltip */
+.news-item-title[data-hover]:hover::after {
     content: attr(data-hover);
     position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    min-width: 200px;
-    max-width: 300px;
-    background: rgba(0, 0, 0, 0.95);
-    color: white;
-    padding: 10px 14px;
-    border-radius: 8px;
+    bottom: calc(100% + 4px);
+    left: 0;
+    background: #1a1a1a;
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 6px;
     font-size: 12px;
-    line-height: 1.5;
+    line-height: 1.4;
     white-space: normal;
     word-wrap: break-word;
-    opacity: 0;
-    visibility: hidden;
+    z-index: 99999;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    min-width: 180px;
+    max-width: 260px;
     pointer-events: none;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-    z-index: 1000;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-    text-align: left;
-}
-
-/* Tooltip arrow */
-.news-item-title[data-hover]::after {
-    content: '';
-    position: absolute;
-    bottom: calc(100% + 2px);
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 6px solid rgba(0, 0, 0, 0.95);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-    z-index: 1001;
-}
-
-.news-item-title[data-hover]:hover::before,
-.news-item-title[data-hover]:hover::after {
-    opacity: 1;
-    visibility: visible;
 }
 
 .news-item-meta {
