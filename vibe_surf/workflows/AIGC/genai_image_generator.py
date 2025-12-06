@@ -62,6 +62,12 @@ class GoogleGenAIImageGeneratorComponent(Component):
             info="HTTP/HTTPS Proxy (e.g. http://127.0.0.1:7890)",
             advanced=True
         ),
+        MessageTextInput(
+            name="base_url",
+            display_name="Base URL",
+            info="Optional custom Base URL for the API",
+            advanced=True,
+        ),
         DropdownInput(
             name="aspect_ratio",
             display_name="Aspect Ratio",
@@ -106,9 +112,14 @@ class GoogleGenAIImageGeneratorComponent(Component):
         # Initialize Client
         # Based on user feedback: client = genai.Client(vertexai=True, api_key=os.environ.get("GOOGLE_CLOUD_API_KEY"))
         # We use the provided api_key and the use_vertex flag
+        http_options = None
+        if self.base_url:
+            http_options = {"base_url": self.base_url}
+
         client = genai.Client(
             vertexai=self.use_vertex,
-            api_key=self.api_key
+            api_key=self.api_key,
+            http_options=http_options
         )
 
         # Handle Image Input and Aspect Ratio
