@@ -1118,7 +1118,7 @@ class VibeSurfTools:
                 return ActionResult(error=error_msg, extracted_content=error_msg)
 
         @self.registry.action(
-            'Get trending and real-time news from various sources using NewsNow API. Can filter by source and keywords.',
+            'Get trending/real-time news via NewsNow. Leave keywords EMPTY for general hot searches to avoid over-filtering. Only set keywords for specific topics.',
             param_model=SkillTrendAction,
         )
         async def skill_trend(
@@ -1216,6 +1216,8 @@ class VibeSurfTools:
                                 del item_copy['url']
                             if 'id' in item_copy:
                                 del item_copy['id']
+                            if 'mobileUrl' in item_copy:
+                                del item_copy['mobileUrl']
                             item_str = json.dumps(item_copy, ensure_ascii=False).lower()
                             if any(keyword in item_str for keyword in keywords):
                                 filtered_items.append(item)

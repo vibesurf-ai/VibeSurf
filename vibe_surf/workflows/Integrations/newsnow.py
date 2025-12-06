@@ -108,6 +108,8 @@ class NewsNowComponent(Component):
                             del item_copy['url']
                         if 'id' in item_copy:
                             del item_copy['id']
+                        if 'mobileUrl' in item_copy:
+                            del item_copy['mobileUrl']
                         item_str = json.dumps(item_copy, ensure_ascii=False).lower()
                         if any(keyword in item_str for keyword in keywords):
                             filtered_items.append(item)

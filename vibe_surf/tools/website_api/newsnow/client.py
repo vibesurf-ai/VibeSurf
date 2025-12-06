@@ -26,11 +26,11 @@ class NewsNowClient:
     
     # Define source lists for different news types
     HOTTEST_SOURCES = [
-        "douyin", "hackernews", "zhihu", "github-trending-today", "baidu", "bilibili-hot-search", "chongbuluo-hot", "cls-hot", "coolapk",
+        "douyin", "hackernews", "zhihu", "github-trending-today", "weibo", "baidu", "bilibili-hot-search", "chongbuluo-hot", "cls-hot", "coolapk",
         "douban", "github-trending-today", "hupu",
         "ifeng", "juejin", "nowcoder", "producthunt", "sspai", "steam",
         "tencent-hot", "thepaper", "tieba", "toutiao", "wallstreetcn-hot",
-        "weibo", "xueqiu-hotstock"
+        "xueqiu-hotstock"
     ]
     
     REALTIME_SOURCES = [
