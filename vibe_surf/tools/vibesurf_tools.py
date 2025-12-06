@@ -1211,7 +1211,12 @@ class VibeSurfTools:
                         filtered_items = []
                         for item in news_items:
                             # Convert item to JSON string and check if any keyword matches
-                            item_str = json.dumps(item, ensure_ascii=False).lower()
+                            item_copy = item.copy()
+                            if 'url' in item_copy:
+                                del item_copy['url']
+                            if 'id' in item_copy:
+                                del item_copy['id']
+                            item_str = json.dumps(item_copy, ensure_ascii=False).lower()
                             if any(keyword in item_str for keyword in keywords):
                                 filtered_items.append(item)
                         

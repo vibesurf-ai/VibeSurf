@@ -8,7 +8,7 @@ from PIL import Image
 from vibe_surf.common import get_workspace_dir
 from vibe_surf.langflow.custom import Component
 from vibe_surf.langflow.io import BoolInput, DropdownInput, SecretStrInput, MessageTextInput, Output, StrInput, \
-    FileInput
+    FileInput, MultiselectInput
 from vibe_surf.langflow.schema.data import Data
 
 

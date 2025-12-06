@@ -359,6 +359,9 @@ class NewsNowClient:
             return {}
 
 
+global_client = NewsNowClient()
+
+
 # Convenience function for quick usage
 async def fetch_news(
     source_id: Optional[str] = None,
