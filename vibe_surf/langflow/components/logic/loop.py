@@ -1,5 +1,5 @@
 from vibe_surf.langflow.custom.custom_component.component import Component
-from vibe_surf.langflow.inputs.inputs import HandleInput
+from vibe_surf.langflow.inputs.inputs import HandleInput, IntInput
 from vibe_surf.langflow.schema.data import Data
 from vibe_surf.langflow.schema.dataframe import DataFrame
 from vibe_surf.langflow.template.field.base import Output
@@ -20,6 +20,17 @@ class LoopComponent(Component):
             info="The initial list of Data objects or DataFrame to iterate over.",
             input_types=["DataFrame"],
         ),
+        IntInput(
+            name="start_ind",
+            display_name="Start index",
+            info="The start index of the loop iteration.",
+            value=0
+        ),
+        IntInput(
+            name="end_ind",
+            display_name="End index",
+            info="The end index of the loop iteration.",
+        )
     ]
 
     outputs = [
@@ -47,12 +58,17 @@ class LoopComponent(Component):
 
     def _validate_data(self, data):
         """Validate and return a list of Data objects."""
+        start_ind = self.start_ind
+        data_list = []
         if isinstance(data, DataFrame):
-            return data.to_data_list()
+            data_list = data.to_data_list()
         if isinstance(data, Data):
-            return [data]
+            data_list = [data]
         if isinstance(data, list) and all(isinstance(item, Data) for item in data):
-            return data
+            data_list = data
+        if data_list:
+            end_ind = len(data_list) if self.end_ind == -1 else self.end_ind
+            return data_list[min(start_ind, len(data_list) - 1):end_ind]
         msg = "The 'data' input must be a DataFrame, a list of Data objects, or a single Data object."
         raise TypeError(msg)
 

@@ -49,7 +49,7 @@ from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionA
     ReportWriterTask, TodoGenerateAction, TodoModifyAction, VibeSurfDoneAction, SkillSearchAction, SkillCrawlAction, \
     SkillSummaryAction, SkillTakeScreenshotAction, SkillDeepResearchAction, SkillCodeAction, SkillFinanceAction, \
     SkillXhsAction, SkillDouyinAction, SkillYoutubeAction, SkillWeiboAction, GrepContentAction, \
-    SearchToolAction, GetToolInfoAction, ExecuteExtraToolAction, ExecutePythonCodeAction
+    SearchToolAction, GetToolInfoAction, ExecuteExtraToolAction, ExecutePythonCodeAction, SkillTrendAction
 from vibe_surf.tools.finance_tools import FinanceDataRetriever, FinanceMarkdownFormatter, FinanceMethod
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.composio_client import ComposioClient
@@ -1114,6 +1114,171 @@ class VibeSurfTools:
                 return ActionResult(error=error_msg, extracted_content=error_msg)
             except Exception as e:
                 error_msg = f'❌ Python code execution failed: {str(e)}'
+                logger.error(error_msg)
+                return ActionResult(error=error_msg, extracted_content=error_msg)
+
+        @self.registry.action(
+            'Get trending and real-time news from various sources using NewsNow API. Can filter by source and keywords.',
+            param_model=SkillTrendAction,
+        )
+        async def skill_trend(
+                params: SkillTrendAction,
+                file_system: CustomFileSystem
+        ):
+            """
+            Skill: Get trending news from NewsNow API
+            
+            Fetches news from various sources (微博, 知乎, IT之家, GitHub, etc.)
+            Can filter by source_id and keywords
+            """
+            try:
+                from vibe_surf.tools.website_api.newsnow.client import NewsNowClient
+                
+                # Initialize NewsNow client
+                client = NewsNowClient()
+                
+                # If source_id is None, show available sources
+                # If source_id is "*", fetch from all sources
+                if params.source_id is None:
+                    available_sources = client.get_available_sources()
+                    
+                    # Format available sources as markdown
+                    md_content = "## 📰 Available News Sources\n\n"
+                    md_content += f"Total: {len(available_sources)} sources\n\n"
+                    
+                    # Group by type
+                    realtime_sources = []
+                    hottest_sources = []
+                    all_sources = []
+                    
+                    for source_id, metadata in available_sources.items():
+                        source_type = metadata.get('type', 'all')
+                        source_name = metadata.get('name', source_id)
+                        source_title = metadata.get('title', '')
+                        
+                        display_name = f"{source_name} - {source_title}" if source_title else source_name
+                        
+                        if source_type == 'realtime':
+                            realtime_sources.append((source_id, display_name))
+                        elif source_type == 'hottest':
+                            hottest_sources.append((source_id, display_name))
+                        else:
+                            all_sources.append((source_id, display_name))
+                    
+                    if realtime_sources:
+                        md_content += "### 🔴 Real-time News Sources\n"
+                        for sid, name in realtime_sources:
+                            md_content += f"- `{sid}`: {name}\n"
+                        md_content += "\n"
+                    
+                    if hottest_sources:
+                        md_content += "### 🔥 Hottest News Sources\n"
+                        for sid, name in hottest_sources:
+                            md_content += f"- `{sid}`: {name}\n"
+                        md_content += "\n"
+                    
+                    if all_sources:
+                        md_content += "### 📌 General News Sources\n"
+                        for sid, name in all_sources:
+                            md_content += f"- `{sid}`: {name}\n"
+                        md_content += "\n"
+                    
+                    md_content += "\n> 💡 Use any source_id above to fetch news from that specific source.\n"
+                    
+                    logger.info(f'📰 Listed {len(available_sources)} available news sources')
+                    return ActionResult(
+                        extracted_content=md_content,
+                        include_extracted_content_only_once=True,
+                        long_term_memory=f'Listed {len(available_sources)} available news sources'
+                    )
+                
+                # Fetch news from specified source or all sources
+                # If source_id is "*", set it to None to fetch all sources
+                fetch_source_id = None if params.source_id == "*" else params.source_id
+                
+                news_results = await client.get_news(
+                    source_id=fetch_source_id,
+                    count=params.count,
+                    news_type=None  # Get both realtime and hottest
+                )
+                
+                # Filter by keywords if provided
+                if params.key_words:
+                    keywords = [kw.strip().lower() for kw in params.key_words.split(',')]
+                    filtered_results = {}
+                    
+                    for source_id, news_items in news_results.items():
+                        filtered_items = []
+                        for item in news_items:
+                            # Convert item to JSON string and check if any keyword matches
+                            item_str = json.dumps(item, ensure_ascii=False).lower()
+                            if any(keyword in item_str for keyword in keywords):
+                                filtered_items.append(item)
+                        
+                        if filtered_items:
+                            filtered_results[source_id] = filtered_items
+                    
+                    news_results = filtered_results
+                
+                # Format results as markdown
+                if not news_results:
+                    md_content = f"## 📰 No news found\n\n"
+                    if params.source_id:
+                        md_content += f"No news found for source: {params.source_id}\n"
+                    if params.key_words:
+                        md_content += f"No news matching keywords: {params.key_words}\n"
+                else:
+                    total_items = sum(len(items) for items in news_results.values())
+                    md_content = f"## 📰 Trending News\n\n"
+                    md_content += f"Found {total_items} news items from {len(news_results)} source(s)\n"
+                    if params.key_words:
+                        md_content += f"Filtered by keywords: {params.key_words}\n"
+                    md_content += "\n---\n\n"
+                    
+                    # Get source metadata for display names
+                    all_sources = client.get_available_sources()
+                    
+                    for source_id, news_items in news_results.items():
+                        source_info = all_sources.get(source_id, {})
+                        source_name = source_info.get('name', source_id)
+                        source_title = source_info.get('title', '')
+                        
+                        display_name = f"{source_name} - {source_title}" if source_title else source_name
+                        
+                        md_content += f"### 📌 {display_name} (`{source_id}`)\n\n"
+                        md_content += f"{len(news_items)} items\n\n"
+                        
+                        for i, item in enumerate(news_items[:params.count], 1):
+                            title = item.get('title', 'No title')
+                            url = item.get('url', '#')
+                            
+                            md_content += f"{i}. [{title}]({url})\n"
+                        
+                        md_content += "\n"
+                
+                # Save to file if results are large
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"newsnow_trend_{timestamp}.json"
+                filepath = file_system.get_dir() / "data" / filename
+                filepath.parent.mkdir(exist_ok=True)
+                
+                with open(filepath, "w", encoding="utf-8") as f:
+                    json.dump(news_results, f, ensure_ascii=False, indent=2)
+                
+                # Add file reference to markdown
+                relative_path = str(filepath.relative_to(file_system.get_dir()))
+                md_content += f"\n> 📁 Full data saved to: [{filename}]({relative_path})\n"
+                
+                logger.info(f'📰 NewsNow trend data retrieved: {len(news_results)} sources, {sum(len(items) for items in news_results.values())} items')
+                
+                return ActionResult(
+                    extracted_content=md_content,
+                    include_extracted_content_only_once=True,
+                    long_term_memory=f'Retrieved trending news from {len(news_results)} sources with {sum(len(items) for items in news_results.values())} items'
+                )
+                
+            except Exception as e:
+                error_msg = f'❌ Failed to retrieve NewsNow trending data: {str(e)}'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg, extracted_content=error_msg)
 

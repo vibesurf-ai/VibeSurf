@@ -345,3 +345,21 @@ class ExecutePythonCodeAction(BaseModel):
     code: str = Field(
         description='Python code to execute. Supports data processing, visualization (matplotlib/seaborn), file operations, and analysis. All file operations are restricted to the workspace directory for security.',
     )
+
+
+class SkillTrendAction(BaseModel):
+    """Parameters for skill_trend action - NewsNow trending news"""
+    source_id: str | None = Field(
+        default=None,
+        description='News source ID to fetch from. Use "*" to fetch from all sources, None to list available sources, or specify a source ID like "zhihu", "weibo", etc.',
+    )
+    key_words: str | None = Field(
+        default=None,
+        description='Comma-separated keywords to filter news items. If None, returns all news. Example: "AI,technology,science"',
+    )
+    count: int = Field(
+        default=10,
+        description='Maximum number of news items to return per source',
+        ge=1,
+        le=50,
+    )
