@@ -48,54 +48,94 @@ class NewsCarouselManager {
     
     async loadNews() {
         try {
+            console.log('[NewsCarousel] Starting to load news, type:', this.currentType);
             this.showLoading();
             
+            console.log('[NewsCarousel] Calling API getNews...');
             const response = await this.apiClient.getNews(null, this.currentType, 15);
+            console.log('[NewsCarousel] API response received:', {
+                hasResponse: !!response,
+                hasNews: !!(response && response.news),
+                newsKeys: response && response.news ? Object.keys(response.news) : [],
+                hasMetadata: !!(response && response.sources_metadata),
+                metadataKeys: response && response.sources_metadata ? Object.keys(response.sources_metadata) : []
+            });
             
             if (response && response.news) {
+                console.log('[NewsCarousel] Processing news data...');
                 this.newsData = Object.entries(response.news).map(([sourceId, items]) => ({
                     sourceId,
                     items,
                     metadata: response.sources_metadata[sourceId] || {}
                 }));
                 
+                console.log('[NewsCarousel] Mapped newsData:', {
+                    totalSources: this.newsData.length,
+                    sources: this.newsData.map(d => ({ sourceId: d.sourceId, itemCount: d.items.length }))
+                });
+                
                 // Filter out sources with no news
                 this.newsData = this.newsData.filter(item => item.items && item.items.length > 0);
                 
+                console.log('[NewsCarousel] Filtered newsData:', {
+                    sourcesWithNews: this.newsData.length
+                });
+                
                 this.sourcesMetadata = response.sources_metadata;
+                
+                console.log('[NewsCarousel] Calling renderCarousel...');
                 this.renderCarousel();
+                console.log('[NewsCarousel] renderCarousel completed');
             } else {
+                console.warn('[NewsCarousel] No news data in response, showing empty state');
                 this.showEmpty();
             }
         } catch (error) {
             console.error('[NewsCarousel] Error loading news:', error);
+            console.error('[NewsCarousel] Error stack:', error.stack);
             this.showError();
         }
     }
     
     renderCarousel() {
+        console.log('[NewsCarousel] renderCarousel called, newsData:', {
+            hasNewsData: !!this.newsData,
+            length: this.newsData ? this.newsData.length : 0
+        });
+        
         if (!this.newsData || this.newsData.length === 0) {
+            console.warn('[NewsCarousel] No news data to render, showing empty state');
             this.showEmpty();
             return;
         }
+        
+        console.log('[NewsCarousel] Rendering carousel with', this.newsData.length, 'sources');
         
         // Reset index
         this.currentIndex = 0;
         
         // Clear slides
+        console.log('[NewsCarousel] Clearing slides container');
         this.slidesContainer.innerHTML = '';
         
         // Create slides
+        console.log('[NewsCarousel] Creating slides...');
         this.newsData.forEach((sourceData, index) => {
+            console.log(`[NewsCarousel] Creating card ${index} for source:`, sourceData.sourceId);
             const slide = this.createNewsCard(sourceData, index);
             this.slidesContainer.appendChild(slide);
         });
+        console.log('[NewsCarousel] All slides created, DOM children count:', this.slidesContainer.children.length);
         
         // Update indicators
+        console.log('[NewsCarousel] Rendering indicators...');
         this.renderIndicators();
         
         // Update navigation
+        console.log('[NewsCarousel] Updating navigation...');
         this.updateNavigation();
+        
+        console.log('[NewsCarousel] renderCarousel complete');
     }
     
     createNewsCard(sourceData, index) {
@@ -390,8 +430,25 @@ class NewsCarouselManager {
     }
     
     async initialize() {
-        console.log('[NewsCarousel] Initializing...');
-        await this.loadNews();
+        console.log('[NewsCarousel] initialize() called');
+        console.log('[NewsCarousel] Elements check:', {
+            hasContainer: !!this.container,
+            hasSlidesContainer: !!this.slidesContainer,
+            hasPrevBtn: !!this.prevBtn,
+            hasNextBtn: !!this.nextBtn,
+            hasIndicatorsContainer: !!this.indicatorsContainer,
+            hasTypeTabs: !!this.typeTabs,
+            typeTabsCount: this.typeTabs ? this.typeTabs.length : 0
+        });
+        
+        try {
+            console.log('[NewsCarousel] Calling loadNews...');
+            await this.loadNews();
+            console.log('[NewsCarousel] loadNews completed');
+        } catch (error) {
+            console.error('[NewsCarousel] Error in initialize:', error);
+            console.error('[NewsCarousel] Error stack:', error.stack);
+        }
     }
 }
 

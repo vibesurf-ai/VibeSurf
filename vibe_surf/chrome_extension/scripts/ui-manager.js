@@ -101,7 +101,9 @@ class VibeSurfUIManager {
       this.setupVoiceRecorderCallbacks();
 
       // Initialize news carousel
+      console.log('[UIManager] Creating NewsCarouselManager...');
       this.newsCarousel = new NewsCarouselManager(this.apiClient);
+      console.log('[UIManager] NewsCarouselManager created:', !!this.newsCarousel);
 
       // Initialize other managers
       this.settingsManager = new VibeSurfSettingsManager(this.apiClient);
@@ -414,15 +416,24 @@ class VibeSurfUIManager {
 
   // Session event handlers
   handleSessionCreated(data) {
+    console.log('[UIManager] handleSessionCreated called, sessionId:', data.sessionId);
     this.updateSessionDisplay(data.sessionId);
     this.clearActivityLog();
     this.showWelcomeMessage();
     this.updateControlPanel('ready');
     
     // Show news carousel on session creation (including initial load)
+    console.log('[UIManager] Checking newsCarousel:', !!this.newsCarousel);
     if (this.newsCarousel) {
+      console.log('[UIManager] Showing and initializing news carousel...');
       this.newsCarousel.show();
-      this.newsCarousel.initialize();
+      this.newsCarousel.initialize().then(() => {
+        console.log('[UIManager] News carousel initialized successfully');
+      }).catch(error => {
+        console.error('[UIManager] Error initializing news carousel:', error);
+      });
+    } else {
+      console.warn('[UIManager] newsCarousel is not initialized');
     }
   }
 
@@ -1517,7 +1528,16 @@ class VibeSurfUIManager {
 
   clearActivityLog() {
     if (this.elements.activityLog) {
+      // Don't clear the news carousel - preserve it
+      const newsCarousel = this.elements.activityLog.querySelector('#news-carousel-container');
+      
+      // Clear all content
       this.elements.activityLog.innerHTML = '';
+      
+      // Restore the news carousel if it existed
+      if (newsCarousel) {
+        this.elements.activityLog.appendChild(newsCarousel);
+      }
     }
   }
 
@@ -1550,7 +1570,17 @@ class VibeSurfUIManager {
     `;
 
     if (this.elements.activityLog) {
+      // Preserve the news carousel
+      const newsCarousel = this.elements.activityLog.querySelector('#news-carousel-container');
+      
+      // Set the welcome message
       this.elements.activityLog.innerHTML = welcomeHTML;
+      
+      // Restore the news carousel at the beginning
+      if (newsCarousel) {
+        this.elements.activityLog.insertBefore(newsCarousel, this.elements.activityLog.firstChild);
+      }
+      
       this.bindTaskSuggestionEvents();
     }
   }

@@ -61,7 +61,10 @@ class NewsNowClient:
         sources_file = Path(__file__).parent / "sources.json"
         try:
             with open(sources_file, 'r', encoding='utf-8') as f:
-                self.sources = json.load(f)
+                sources = json.load(f)
+                for key in sources:
+                    if key in self.HOTTEST_SOURCES + self.REALTIME_SOURCES:
+                        self.sources[key] = sources[key]
             logger.info(f"Loaded {len(self.sources)} news sources")
         except Exception as e:
             logger.error(f"Failed to load sources configuration: {e}")
@@ -298,9 +301,11 @@ class NewsNowClient:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 logger.info(f"POST request to {url} with {len(source_ids)} sources")
+                # API expects {"sources": [...]} format, not just an array
+                payload = {"sources": source_ids}
                 response = await client.post(
                     url,
-                    json=source_ids,
+                    json=payload,
                     headers=self.default_headers
                 )
                 
