@@ -188,6 +188,11 @@ class GoogleGenAIImageGeneratorComponent(Component):
                     types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="OFF"),
                     types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="OFF")
                 ],
+                # Image config
+                image_config=types.ImageConfig(
+                    aspect_ratio=str(self.aspect_ratio),
+                    image_size=str(self.resolution),
+                ),
             )
 
         # Generate Content
@@ -223,6 +228,15 @@ class GoogleGenAIImageGeneratorComponent(Component):
                     if part.inline_data:
                         image_bytes = part.inline_data.data
                         break
+                    elif part.text and part.text.startswith("![image](data:image/"):
+                        try:
+                            import base64
+                            # Format: ![image](data:image/jpeg;base64,...)
+                            base64_str = part.text.split("base64,")[1].split(")")[0]
+                            image_bytes = base64.b64decode(base64_str)
+                            break
+                        except Exception as e:
+                            print(f"Failed to decode base64 image from text: {e}")
         except Exception as e:
             self.log(response)
             raise ValueError(f"Failed to parse response from Vertex AI: {str(e)}")
