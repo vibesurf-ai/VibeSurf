@@ -12,6 +12,7 @@ class NewsCarouselManager {
         
         this.initializeElements();
         this.attachEventListeners();
+        this.setupGlobalTooltip();
     }
     
     initializeElements() {
@@ -446,6 +447,93 @@ class NewsCarouselManager {
             console.error('[NewsCarousel] Error in initialize:', error);
             console.error('[NewsCarousel] Error stack:', error.stack);
         }
+    }
+
+    setupGlobalTooltip() {
+        // Create global tooltip element
+        this.tooltip = document.createElement('div');
+        this.tooltip.className = 'news-global-tooltip';
+        document.body.appendChild(this.tooltip);
+
+        let activeTarget = null;
+
+        // Event delegation for mouseover (enter)
+        this.container.addEventListener('mouseover', (e) => {
+            const target = e.target.closest('.news-item-title[data-hover]');
+            if (target && target !== activeTarget) {
+                activeTarget = target;
+                const text = target.getAttribute('data-hover');
+                if (text) {
+                    this.showTooltip(target, text);
+                }
+            }
+        });
+
+        // Event delegation for mouseout (leave)
+        this.container.addEventListener('mouseout', (e) => {
+            const target = e.target.closest('.news-item-title[data-hover]');
+            if (target && target === activeTarget) {
+                // Check if we moved to the tooltip itself (optional, but pointer-events: none handles this)
+                this.hideTooltip();
+                activeTarget = null;
+            }
+        });
+
+        // Hide on scroll
+        this.container.addEventListener('scroll', () => {
+            if (activeTarget) {
+                this.hideTooltip();
+                activeTarget = null;
+            }
+        }, true); // Capture phase to catch scroll events from children (news-list)
+    }
+
+    showTooltip(target, text) {
+        // Decode HTML entities if necessary since we escaped them for the attribute
+        const temp = document.createElement('div');
+        temp.innerHTML = text;
+        this.tooltip.innerHTML = temp.textContent || temp.innerText || text; // Use text content to be safe but support basic formatting if intended
+        
+        // Actually, since escapeHtml was used for the attribute value,
+        // we might just want to display the text.
+        // Let's just set textContent to be safe and clean.
+        this.tooltip.textContent = temp.textContent;
+
+        this.tooltip.classList.add('visible');
+        this.updateTooltipPosition(target);
+    }
+
+    hideTooltip() {
+        this.tooltip.classList.remove('visible');
+    }
+
+    updateTooltipPosition(target) {
+        if (!target || !this.tooltip) return;
+
+        const rect = target.getBoundingClientRect();
+        const tooltipRect = this.tooltip.getBoundingClientRect();
+        
+        // Default: Position top centered
+        let top = rect.top - tooltipRect.height - 12;
+        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+
+        // Check top boundary - flip to bottom if needed
+        if (top < 10) {
+            top = rect.bottom + 12;
+        }
+
+        // Check left/right boundaries
+        const padding = 10;
+        const windowWidth = window.innerWidth;
+
+        if (left < padding) {
+            left = padding;
+        } else if (left + tooltipRect.width > windowWidth - padding) {
+            left = windowWidth - tooltipRect.width - padding;
+        }
+
+        this.tooltip.style.top = `${top}px`;
+        this.tooltip.style.left = `${left}px`;
     }
 }
 

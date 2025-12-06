@@ -304,26 +304,33 @@
     text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
 }
 
-/* Hover tooltip */
-.news-item-title[data-hover]:hover::after {
-    content: attr(data-hover);
-    position: absolute;
-    bottom: calc(100% + 4px);
-    left: 0;
+/* Global Tooltip Styles (JS controlled) */
+.news-global-tooltip {
+    position: fixed;
     background: #1a1a1a;
     color: #ffffff;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    line-height: 1.4;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
     white-space: normal;
     word-wrap: break-word;
-    z-index: 99999;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    min-width: 180px;
-    max-width: 260px;
+    z-index: 999999;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    max-width: 300px;
+    min-width: 200px;
     pointer-events: none;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    text-align: left;
+    font-weight: 400;
+}
+
+.news-global-tooltip.visible {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .news-item-meta {
