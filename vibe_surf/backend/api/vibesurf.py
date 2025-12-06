@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database.manager import get_db_session
 from ..database.queries import CredentialQueries
 from vibe_surf.logger import get_logger
+from vibe_surf.tools.website_api.newsnow.client import NewsNowClient
 
 logger = get_logger(__name__)
 
@@ -597,3 +598,71 @@ async def serve_file(path: str):
     except Exception as e:
         logger.error(f"Error serving file {path}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to serve file: {str(e)}")
+
+
+# News API endpoints
+class NewsSourcesResponse(BaseModel):
+    sources: Dict[str, Dict[str, Any]]
+
+class NewsResponse(BaseModel):
+    news: Dict[str, List[Dict[str, Any]]]
+    sources_metadata: Dict[str, Dict[str, Any]]
+
+@router.get("/news/sources", response_model=NewsSourcesResponse)
+async def get_news_sources(news_type: Optional[str] = None):
+    """Get available news sources with metadata
+    
+    Args:
+        news_type: Optional filter by news type ("realtime", "hottest", or None for all)
+    """
+    try:
+        client = NewsNowClient()
+        sources = client.get_available_sources(news_type=news_type)
+        return NewsSourcesResponse(sources=sources)
+    except Exception as e:
+        logger.error(f"Error getting news sources: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get news sources")
+
+@router.get("/news", response_model=NewsResponse)
+async def get_news(
+    source_id: Optional[str] = None,
+    news_type: Optional[str] = None,
+    count: int = 10
+):
+    """Get news from sources
+    
+    Args:
+        source_id: Optional source ID. If None, fetches from all sources based on news_type
+        news_type: Optional news type filter ("realtime", "hottest", or None for both)
+        count: Maximum number of news items to return per source (default: 10)
+    """
+    try:
+        client = NewsNowClient()
+        
+        # Client handles all filtering logic internally
+        news_data = await client.get_news(
+            source_id=source_id,
+            news_type=news_type,
+            count=count
+        )
+        
+        # Get metadata for the sources that have news
+        sources_metadata = {}
+        for sid in news_data.keys():
+            if sid in client.sources:
+                metadata = client.sources[sid]
+                sources_metadata[sid] = {
+                    "name": metadata.get("name", ""),
+                    "home": metadata.get("home", ""),
+                    "color": metadata.get("color", ""),
+                    "title": metadata.get("title", ""),
+                    "type": metadata.get("type", "all")
+                }
+        
+        return NewsResponse(
+            news=news_data,
+            sources_metadata=sources_metadata
+        )
+    except Exception as e:
+        logger.error(f"Error getting news: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get news")

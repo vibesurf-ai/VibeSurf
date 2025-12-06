@@ -716,6 +716,26 @@ class VibeSurfAPIClient {
   async getExtensionPath() {
     return this.get('/vibesurf/extension-path');
   }
+
+  // News APIs
+  async getNewsSources(newsType = null) {
+    const params = {};
+    if (newsType) {
+      params.news_type = newsType;
+    }
+    return this.get('/vibesurf/news/sources', { params });
+  }
+
+  async getNews(sourceId = null, newsType = null, count = 10) {
+    const params = { count };
+    if (sourceId) {
+      params.source_id = sourceId;
+    }
+    if (newsType) {
+      params.news_type = newsType;
+    }
+    return this.get('/vibesurf/news', { params });
+  }
 }
 
 // Custom error class for API errors

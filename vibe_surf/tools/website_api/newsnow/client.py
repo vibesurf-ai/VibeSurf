@@ -24,13 +24,27 @@ class NewsNowClient:
     NewsNow API client for fetching news from various sources
     """
     
+    # Define source lists for different news types
+    HOTTEST_SOURCES = [
+        "baidu", "bilibili-hot-search", "chongbuluo-hot", "cls-hot", "coolapk",
+        "douban", "douyin", "github-trending-today", "hackernews", "hupu",
+        "ifeng", "juejin", "nowcoder", "producthunt", "sspai", "steam",
+        "tencent-hot", "thepaper", "tieba", "toutiao", "wallstreetcn-hot",
+        "weibo", "xueqiu-hotstock", "zhihu"
+    ]
+    
+    REALTIME_SOURCES = [
+        "cls-telegraph", "fastbull-express", "gelonghui", "ithome",
+        "jin10", "pcbeta-windows11", "wallstreetcn-quick", "zaobao"
+    ]
+    
     def __init__(self, base_url: str = "https://newsnow.busiyi.world", timeout: int = 30):
         """
         Initialize the NewsNow API client
         
         Args:
             base_url: Base URL for the NewsNow API
-            timeout: Request timeout in seconds
+            timeout: Request timeout in seconds (default: 30)
         """
         self.base_url = base_url
         self.timeout = timeout
@@ -111,7 +125,7 @@ class NewsNowClient:
         Fetch news from specified source(s)
         
         Args:
-            source_id: Optional source ID. If None, fetches from all sources
+            source_id: Optional source ID. If None, fetches from all sources based on news_type
             count: Maximum number of news items to return per source (default: 10)
             news_type: Optional news type filter. Can be "realtime", "hottest", or None for both
             
@@ -123,7 +137,7 @@ class NewsNowClient:
         
         # Determine which sources to fetch
         if source_id:
-            # Fetch specific source
+            # Single source fetch - use legacy method
             if source_id not in self.sources:
                 logger.warning(f"Unknown source ID: {source_id}")
                 return results
@@ -136,60 +150,70 @@ class NewsNowClient:
                 return results
             
             sources_to_fetch = {source_id: source_metadata}
+            
+            # Use legacy method for single source
+            tasks = []
+            source_ids = []
+            
+            for sid in sources_to_fetch.keys():
+                tasks.append(self._fetch_source_news(sid))
+                source_ids.append(sid)
+            
+            responses = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Process responses
+            for sid, response in zip(source_ids, responses):
+                if isinstance(response, Exception):
+                    logger.error(f"Exception fetching news for source {sid}: {response}")
+                    continue
+                
+                if response is None:
+                    continue
+                
+                # Extract and limit news items
+                items = response.get("items", [])
+                limited_items = items[:count] if count > 0 else items
+                
+                # Convert to simpler dict format
+                news_list = []
+                for item in limited_items:
+                    news_dict = {
+                        "id": item.get("id"),
+                        "title": item.get("title"),
+                        "url": item.get("url"),
+                    }
+                    
+                    # Add optional fields if present
+                    if "mobileUrl" in item:
+                        news_dict["mobileUrl"] = item["mobileUrl"]
+                    if "pubDate" in item:
+                        news_dict["pubDate"] = item["pubDate"]
+                    if "extra" in item:
+                        news_dict["extra"] = item["extra"]
+                    
+                    news_list.append(news_dict)
+                
+                results[sid] = news_list
+                logger.info(f"Fetched {len(news_list)} news items from source {sid}")
         else:
-            # Fetch all sources that match the type filter
-            sources_to_fetch = {
-                sid: metadata
-                for sid, metadata in self.sources.items()
-                if should_include_source(metadata, news_type)
-            }
-        
-        logger.info(f"Fetching news from {len(sources_to_fetch)} sources")
-        
-        # Fetch news from all sources concurrently
-        tasks = []
-        source_ids = []
-        
-        for sid in sources_to_fetch.keys():
-            tasks.append(self._fetch_source_news(sid))
-            source_ids.append(sid)
-        
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Process responses
-        for sid, response in zip(source_ids, responses):
-            if isinstance(response, Exception):
-                logger.error(f"Exception fetching news for source {sid}: {response}")
-                continue
+            # Batch fetch based on news type using predefined source lists
+            if news_type == "hottest":
+                source_ids = self.HOTTEST_SOURCES
+            elif news_type == "realtime":
+                source_ids = self.REALTIME_SOURCES
+            else:
+                # Fetch both
+                source_ids = self.HOTTEST_SOURCES + self.REALTIME_SOURCES
             
-            if response is None:
-                continue
+            logger.info(f"Batch fetching news from {len(source_ids)} sources for type: {news_type}")
             
-            # Extract and limit news items
-            items = response.get("items", [])
-            limited_items = items[:count] if count > 0 else items
+            # Use batch fetch API
+            results = await self.fetch_news_batch(source_ids)
             
-            # Convert to simpler dict format
-            news_list = []
-            for item in limited_items:
-                news_dict = {
-                    "id": item.get("id"),
-                    "title": item.get("title"),
-                    "url": item.get("url"),
-                }
-                
-                # Add optional fields if present
-                if "mobileUrl" in item:
-                    news_dict["mobileUrl"] = item["mobileUrl"]
-                if "pubDate" in item:
-                    news_dict["pubDate"] = item["pubDate"]
-                if "extra" in item:
-                    news_dict["extra"] = item["extra"]
-                
-                news_list.append(news_dict)
-            
-            results[sid] = news_list
-            logger.info(f"Fetched {len(news_list)} news items from source {sid}")
+            # Limit items per source
+            if count > 0:
+                for sid in results:
+                    results[sid] = results[sid][:count]
         
         return results
     
@@ -255,6 +279,71 @@ class NewsNowClient:
                 descriptions.append(f"{name} id is {source_id}")
         
         return "; ".join(descriptions)
+    
+    async def fetch_news_batch(
+        self,
+        source_ids: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Fetch news from multiple sources in batch using the /api/s/entire endpoint
+        
+        Args:
+            source_ids: List of source IDs to fetch news from
+            
+        Returns:
+            Dictionary with source IDs as keys and their news data
+        """
+        url = f"{self.base_url}/api/s/entire"
+        
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                logger.info(f"POST request to {url} with {len(source_ids)} sources")
+                response = await client.post(
+                    url,
+                    json=source_ids,
+                    headers=self.default_headers
+                )
+                
+                logger.info(f"Batch API response: status={response.status_code}, content-length={len(response.content)}")
+                
+                # Handle 204 No Content - treat as empty result (not an error)
+                if response.status_code == 204:
+                    logger.warning(f"Batch API returned 204 No Content - no news available")
+                    return {}
+                
+                if response.status_code != 200:
+                    logger.warning(f"Failed to fetch batch news: HTTP {response.status_code}")
+                    return {}
+                
+                data = response.json()
+                
+                # Validate response is a list
+                if not isinstance(data, list):
+                    logger.warning(f"Invalid batch response format")
+                    return {}
+                
+                # Convert list response to dict format
+                results = {}
+                for item in data:
+                    if not isinstance(item, dict):
+                        continue
+                    
+                    source_id = item.get("id")
+                    if not source_id:
+                        continue
+                    
+                    items = item.get("items", [])
+                    if items:
+                        results[source_id] = items
+                
+                return results
+                
+        except httpx.TimeoutException:
+            logger.warning(f"Timeout fetching batch news")
+            return {}
+        except Exception as e:
+            logger.error(f"Error fetching batch news: {e}")
+            return {}
 
 
 # Convenience function for quick usage

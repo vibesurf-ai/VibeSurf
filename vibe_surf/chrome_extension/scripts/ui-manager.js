@@ -18,6 +18,7 @@ class VibeSurfUIManager {
     this.fileManager = null;
     this.modalManager = null;
     this.voiceRecorder = null;
+    this.newsCarousel = null;
 
     // Initialize user settings storage
     this.userSettingsStorage = null;
@@ -98,6 +99,9 @@ class VibeSurfUIManager {
       // Initialize voice recorder
       this.voiceRecorder = new VibeSurfVoiceRecorder(this.apiClient);
       this.setupVoiceRecorderCallbacks();
+
+      // Initialize news carousel
+      this.newsCarousel = new NewsCarouselManager(this.apiClient);
 
       // Initialize other managers
       this.settingsManager = new VibeSurfSettingsManager(this.apiClient);
@@ -414,6 +418,12 @@ class VibeSurfUIManager {
     this.clearActivityLog();
     this.showWelcomeMessage();
     this.updateControlPanel('ready');
+    
+    // Show news carousel on session creation (including initial load)
+    if (this.newsCarousel) {
+      this.newsCarousel.show();
+      this.newsCarousel.initialize();
+    }
   }
 
   handleSessionLoaded(data) {
@@ -435,6 +445,11 @@ class VibeSurfUIManager {
 
     this.updateControlPanel('running');
     this.clearTaskInput();
+    
+    // Hide news carousel when task starts
+    if (this.newsCarousel) {
+      this.newsCarousel.hide();
+    }
   }
 
   handleTaskPaused(data) {
@@ -1528,20 +1543,6 @@ class VibeSurfUIManager {
             <div class="task-content">
               <div class="task-title">Research Founders</div>
               <div class="task-description">Search information about AI browser assistant: VibeSurf, write a brief report</div>
-            </div>
-          </div>
-          <div class="task-suggestion" data-task="news">
-            <div class="task-icon">📰</div>
-            <div class="task-content">
-              <div class="task-title">HackerNews Summary</div>
-              <div class="task-description">Get top 10 news from HackerNews and provide a summary</div>
-            </div>
-          </div>
-          <div class="task-suggestion" data-task="analysis">
-            <div class="task-icon">📈</div>
-            <div class="task-content">
-              <div class="task-title">Stock Market Analysis</div>
-              <div class="task-description">Analyze recent week stock market trends for major tech companies</div>
             </div>
           </div>
         </div>
@@ -2669,10 +2670,11 @@ class VibeSurfUIManager {
       // Check version and show upgrade button if needed
       await this.checkVersionAndShowUpgrade();
 
+      // Don't initialize news carousel on initial load - it will be initialized when user clicks "New Session"
+      // This keeps the extension fast to load
+
       // Create initial session if none exists
-
       if (!this.sessionManager.getCurrentSession()) {
-
         await this.sessionManager.createSession();
       }
 
@@ -2700,12 +2702,6 @@ class VibeSurfUIManager {
     console.log('[UIManager] Requesting microphone permission directly');
 
     try {
-      // Immediately try to get microphone permission
-      console.log('[UIManager] Calling getUserMedia...');
-      console.log('[UIManager] User agent:', navigator.userAgent);
-      console.log('[UIManager] Location protocol:', window.location.protocol);
-      console.log('[UIManager] Location href:', window.location.href);
-
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: false

@@ -50,7 +50,7 @@ class VibeSurfSessionManager {
   }
 
   // Session management
-  async createSession(prefix = 'vibesurf_') {
+  async createSession(prefix = '') {
     const sessionId = await this.apiClient.generateSessionId(prefix);
     
     this.currentSession = {

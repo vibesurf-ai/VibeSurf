@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="styles/history-modal.css">
     <link rel="stylesheet" href="styles/components.css">
     <link rel="stylesheet" href="styles/animations.css">
+    <link rel="stylesheet" href="styles/news-carousel.css">
     <!-- Settings Styles (Modular) -->
     <link rel="stylesheet" href="styles/settings-modal.css">
     <link rel="stylesheet" href="styles/settings-profiles.css">
@@ -94,6 +95,39 @@
             <!-- Activity Log Area -->
             <div class="activity-section">
                 <div id="activity-log" class="activity-log">
+                    <!-- News Carousel -->
+                    <div id="news-carousel-container" class="news-carousel-container">
+                        <div class="news-carousel-header">
+                            <div class="news-carousel-title">📰 热点资讯</div>
+                            <div class="news-type-tabs">
+                                <button class="news-type-tab active" data-type="hottest">🔥 热搜</button>
+                                <button class="news-type-tab" data-type="realtime">⚡ 实时</button>
+                            </div>
+                        </div>
+                        <div class="news-carousel-wrapper">
+                            <button class="carousel-nav prev" id="carousel-prev" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M15 18l-6-6 6-6"/>
+                                </svg>
+                            </button>
+                            <div class="news-carousel-track">
+                                <div class="news-carousel-slides" id="news-carousel-slides">
+                                    <!-- Loading state -->
+                                    <div class="news-loading">
+                                        <div class="news-loading-spinner"></div>
+                                        <div class="news-loading-text">加载新闻中...</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="carousel-nav next" id="carousel-next">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 18l6-6-6-6"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="carousel-indicators" id="carousel-indicators"></div>
+                    </div>
+
                     <div class="welcome-message">
                         <div class="welcome-text">
                             <h4>Welcome to VibeSurf</h4>
@@ -105,20 +139,6 @@
                                 <div class="task-content">
                                     <div class="task-title">Research Founders</div>
                                     <div class="task-description">Search information about AI browser assistant: VibeSurf, write a brief report</div>
-                                </div>
-                            </div>
-                            <div class="task-suggestion" data-task="news">
-                                <div class="task-icon">📰</div>
-                                <div class="task-content">
-                                    <div class="task-title">HackerNews Summary</div>
-                                    <div class="task-description">Get top 10 news from HackerNews and provide a summary</div>
-                                </div>
-                            </div>
-                            <div class="task-suggestion" data-task="analysis">
-                                <div class="task-icon">📈</div>
-                                <div class="task-content">
-                                    <div class="task-title">Stock Market Analysis</div>
-                                    <div class="task-description">Analyze recent week stock market trends for major tech companies</div>
                                 </div>
                             </div>
                         </div>
@@ -1170,6 +1190,7 @@
     <script src="scripts/settings-manager.js"></script>
     <script src="scripts/history-manager.js"></script>
     <script src="scripts/file-manager.js"></script>
+    <script src="scripts/news-carousel.js"></script>
     
     <!-- Core UI Manager -->
     <script src="scripts/ui-manager.js"></script>
