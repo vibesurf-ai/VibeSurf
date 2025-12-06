@@ -17,10 +17,11 @@
 
 .news-carousel-header {
     display: flex;
-    justify-content: center; /* Center aligned */
+    justify-content: center;
     align-items: center;
     padding: 10px 16px;
-    background: transparent; /* No banner background */
+    background: transparent;
+    width: 100%; /* Ensure full width */
 }
 
 .news-carousel-title {
@@ -35,6 +36,7 @@
     border-radius: 12px;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(67, 97, 238, 0.15);
+    margin: 0 auto; /* Center the tabs */
 }
 
 .news-type-tab {
@@ -294,11 +296,62 @@
     cursor: pointer;
     transition: all 0.2s ease;
     text-decoration: none;
+    position: relative;
 }
 
 .news-item-title:hover {
     opacity: 0.9;
     text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+/* Hover tooltip - positioned above the item */
+.news-item-title[data-hover]::before {
+    content: attr(data-hover);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 200px;
+    max-width: 300px;
+    background: rgba(0, 0, 0, 0.95);
+    color: white;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: normal;
+    word-wrap: break-word;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1000;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    text-align: left;
+}
+
+/* Tooltip arrow */
+.news-item-title[data-hover]::after {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid rgba(0, 0, 0, 0.95);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1001;
+}
+
+.news-item-title[data-hover]:hover::before,
+.news-item-title[data-hover]:hover::after {
+    opacity: 1;
+    visibility: visible;
 }
 
 .news-item-meta {

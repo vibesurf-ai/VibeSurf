@@ -1576,9 +1576,9 @@ class VibeSurfUIManager {
       // Set the welcome message
       this.elements.activityLog.innerHTML = welcomeHTML;
       
-      // Restore the news carousel at the beginning
+      // Append the news carousel at the end (after welcome message)
       if (newsCarousel) {
-        this.elements.activityLog.insertBefore(newsCarousel, this.elements.activityLog.firstChild);
+        this.elements.activityLog.appendChild(newsCarousel);
       }
       
       this.bindTaskSuggestionEvents();

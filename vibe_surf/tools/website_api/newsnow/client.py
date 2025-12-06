@@ -26,11 +26,11 @@ class NewsNowClient:
     
     # Define source lists for different news types
     HOTTEST_SOURCES = [
-        "baidu", "bilibili-hot-search", "chongbuluo-hot", "cls-hot", "coolapk",
-        "douban", "douyin", "github-trending-today", "hackernews", "hupu",
+        "douyin", "hackernews", "zhihu", "github-trending-today", "baidu", "bilibili-hot-search", "chongbuluo-hot", "cls-hot", "coolapk",
+        "douban", "github-trending-today", "hupu",
         "ifeng", "juejin", "nowcoder", "producthunt", "sspai", "steam",
         "tencent-hot", "thepaper", "tieba", "toutiao", "wallstreetcn-hot",
-        "weibo", "xueqiu-hotstock", "zhihu"
+        "weibo", "xueqiu-hotstock"
     ]
     
     REALTIME_SOURCES = [
@@ -289,12 +289,13 @@ class NewsNowClient:
     ) -> Dict[str, Any]:
         """
         Fetch news from multiple sources in batch using the /api/s/entire endpoint
+        Returns results in the same order as source_ids
         
         Args:
-            source_ids: List of source IDs to fetch news from
+            source_ids: List of source IDs to fetch news from (order preserved)
             
         Returns:
-            Dictionary with source IDs as keys and their news data
+            Dictionary with source IDs as keys and their news data, ordered by source_ids
         """
         url = f"{self.base_url}/api/s/entire"
         
@@ -327,8 +328,9 @@ class NewsNowClient:
                     logger.warning(f"Invalid batch response format")
                     return {}
                 
-                # Convert list response to dict format
-                results = {}
+                # Convert list response to dict format, preserving order
+                # First collect all data
+                temp_results = {}
                 for item in data:
                     if not isinstance(item, dict):
                         continue
@@ -339,7 +341,13 @@ class NewsNowClient:
                     
                     items = item.get("items", [])
                     if items:
-                        results[source_id] = items
+                        temp_results[source_id] = items
+                
+                # Now build ordered results based on source_ids order
+                results = {}
+                for source_id in source_ids:
+                    if source_id in temp_results:
+                        results[source_id] = temp_results[source_id]
                 
                 return results
                 

@@ -108,9 +108,7 @@ class NewsCarouselManager {
             this.showEmpty();
             return;
         }
-        
-        console.log('[NewsCarousel] Rendering carousel with', this.newsData.length, 'sources');
-        
+
         // Reset index
         this.currentIndex = 0;
         
@@ -119,23 +117,16 @@ class NewsCarouselManager {
         this.slidesContainer.innerHTML = '';
         
         // Create slides
-        console.log('[NewsCarousel] Creating slides...');
         this.newsData.forEach((sourceData, index) => {
             console.log(`[NewsCarousel] Creating card ${index} for source:`, sourceData.sourceId);
             const slide = this.createNewsCard(sourceData, index);
             this.slidesContainer.appendChild(slide);
         });
         console.log('[NewsCarousel] All slides created, DOM children count:', this.slidesContainer.children.length);
-        
-        // Update indicators
-        console.log('[NewsCarousel] Rendering indicators...');
+
         this.renderIndicators();
-        
-        // Update navigation
-        console.log('[NewsCarousel] Updating navigation...');
+
         this.updateNavigation();
-        
-        console.log('[NewsCarousel] renderCarousel complete');
     }
     
     createNewsCard(sourceData, index) {
@@ -192,6 +183,12 @@ class NewsCarouselManager {
         const pubDate = item.pubDate;
         const extra = item.extra;
         
+        // Extract hover info from extra.hover if available
+        let hoverInfo = '';
+        if (extra && typeof extra === 'object' && extra.hover) {
+            hoverInfo = extra.hover;
+        }
+        
         // Format time
         const timeDisplay = this.formatTime(pubDate);
         
@@ -228,11 +225,14 @@ class NewsCarouselManager {
         
         const numberClass = number <= 3 ? 'top-3' : '';
         
+        // Add data-hover attribute if hover info exists
+        const hoverAttr = hoverInfo ? `data-hover="${this.escapeHtml(hoverInfo)}"` : '';
+        
         return `
             <li class="news-item">
                 <div class="news-item-number ${numberClass}">${number}</div>
                 <div class="news-item-content">
-                    <a href="${url}" target="_blank" rel="noopener noreferrer" class="news-item-title">${this.escapeHtml(title)}</a>
+                    <a href="${url}" target="_blank" rel="noopener noreferrer" class="news-item-title" ${hoverAttr}>${this.escapeHtml(title)}</a>
                     ${metaHTML}
                 </div>
             </li>
@@ -430,7 +430,6 @@ class NewsCarouselManager {
     }
     
     async initialize() {
-        console.log('[NewsCarousel] initialize() called');
         console.log('[NewsCarousel] Elements check:', {
             hasContainer: !!this.container,
             hasSlidesContainer: !!this.slidesContainer,
@@ -442,9 +441,7 @@ class NewsCarouselManager {
         });
         
         try {
-            console.log('[NewsCarousel] Calling loadNews...');
             await this.loadNews();
-            console.log('[NewsCarousel] loadNews completed');
         } catch (error) {
             console.error('[NewsCarousel] Error in initialize:', error);
             console.error('[NewsCarousel] Error stack:', error.stack);
