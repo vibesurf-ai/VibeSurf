@@ -7,7 +7,7 @@
     border-radius: 16px;
     margin-bottom: 20px;
     flex-shrink: 0;
-    max-height: 500px; /* Increased height */
+    /* max-height removed to allow content to dictate height */
     height: auto;
     display: block;
     position: relative;
@@ -16,16 +16,11 @@
 }
 
 .news-carousel-header {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 10px 16px;
-    background: transparent;
-    width: 100%; /* Ensure full width */
+    display: none;
 }
 
 .news-carousel-title {
-    display: none; /* Hide the title */
+    display: none;
 }
 
 .news-type-tabs {
@@ -36,7 +31,9 @@
     border-radius: 12px;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(67, 97, 238, 0.15);
-    margin: 0 auto; /* Center the tabs */
+    margin: 4px auto 0;
+    width: fit-content;
+    justify-content: center;
 }
 
 .news-type-tab {
