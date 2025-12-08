@@ -23,6 +23,7 @@ from vibe_surf.workflows.Browser.browser_navigate import BrowserNavigateComponen
 from vibe_surf.workflows.Browser.browser_click_element import BrowserClickElementComponent
 from vibe_surf.workflows.Browser.browser_input_text import BrowserInputTextComponent
 from vibe_surf.workflows.Browser.browser_scroll import BrowserScrollComponent
+from vibe_surf.workflows.Browser.browser_press_key import BrowserPressKeyComponent
 
 logger = get_logger(__name__)
 
@@ -105,6 +106,24 @@ def build_workflow_graph(raw_workflow_data: Dict[str, Any]) -> Graph:
                 scroll_delta_x=scroll_delta_x,
                 scroll_delta_y=scroll_delta_y
             )
+            component_id = graph.add_component(component)
+
+        elif action_type == "press" or action_type == "keypress":
+            # Create Press Key component
+            key = action.get("key", "")
+            modifiers = action.get("modifiers", [])
+            
+            keys_to_press = key
+            if modifiers and isinstance(modifiers, list):
+                # Filter out empty modifiers and join
+                valid_modifiers = [m for m in modifiers if m]
+                if valid_modifiers:
+                    keys_to_press = "+".join(valid_modifiers + [key])
+            
+            component = BrowserPressKeyComponent(
+                keys=keys_to_press
+            )
+            component.display_name = f"Press {keys_to_press}"
             component_id = graph.add_component(component)
             
         else:
