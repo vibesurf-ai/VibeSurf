@@ -245,6 +245,22 @@ class CustomFileSystem(FileSystem):
         pattern = rf'\.({extensions})$'
         return bool(re.match(pattern, file_name))
 
+    async def replace_file_str(self, full_filename: str, old_str: str, new_str: str) -> str:
+        """Replace old_str with new_str in file_name"""
+
+        if not old_str:
+            return 'Error: Cannot replace empty string. Please provide a non-empty string to replace.'
+
+        try:
+            content = await self.read_file(full_filename)
+            content = content.replace(old_str, new_str)
+            await self.write_file(full_filename, content)
+            return f'Successfully replaced all occurrences of "{old_str}" with "{new_str}" in file {full_filename}'
+        except FileSystemError as e:
+            return str(e)
+        except Exception as e:
+            return f"Error: Could not replace string in file '{full_filename}'. {str(e)}"
+
     async def append_file(self, full_filename: str, content: str) -> str:
         """Append content to file using file-specific append method"""
         if not self._is_valid_filename(full_filename):

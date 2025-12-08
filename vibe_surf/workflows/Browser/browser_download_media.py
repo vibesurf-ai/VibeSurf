@@ -35,10 +35,10 @@ class BrowserDownloadMediaComponent(Component):
 
     outputs = [
         Output(
-            display_name="File Path",
+            display_name="File Info",
             name="file_path",
             method="download_media",
-            types=["Message"],
+            types=["Data"],
             group_outputs=True,
         ),
     ]
@@ -66,7 +66,7 @@ class BrowserDownloadMediaComponent(Component):
                     # Get content
                     content = await response.read()
                     headers_dict = dict(response.headers)
-                    
+
                     # Detect file format and extension
                     file_extension = await _detect_file_format(self.url, headers_dict, content)
 
@@ -105,7 +105,17 @@ class BrowserDownloadMediaComponent(Component):
 
                     self._file_path = filepath
                     self.status = f"Downloaded media to {filepath} ({size_str})"
-                    return Message(text=self._file_path)
+                    media_type = "image" if os.path.splitext(self._file_path)[-1].lower() in [".jpg", ".jpeg",
+                                                                                              ".png"] else "video"
+                    media_data = {
+                        "path": self._file_path,
+                        "type": media_type,
+                        "alt": "",
+                        "showControls": True,
+                        "autoPlay": False,
+                        "loop": False,
+                    }
+                    return media_data
 
         except Exception as e:
             import traceback
