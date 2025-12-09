@@ -8,6 +8,7 @@ import uuid
 import json
 import re
 import httpx
+import geocoder
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, List
@@ -620,6 +621,58 @@ class NewsSourcesResponse(BaseModel):
 class NewsResponse(BaseModel):
     news: Dict[str, List[Dict[str, Any]]]
     sources_metadata: Dict[str, Dict[str, Any]]
+
+class WeatherResponse(BaseModel):
+    location: str
+    temp_c: str
+    condition: str
+    humidity: str
+    wind_speed: str
+    details: Dict[str, Any]
+
+@router.get("/weather", response_model=WeatherResponse)
+async def get_weather():
+    """Get weather information based on IP location"""
+    try:
+        # Get location
+        try:
+            g = geocoder.ip('me')
+            if g.city:
+                location_query = g.city
+                display_location = f"{g.city}, {g.country}"
+            elif g.country:
+                location_query = g.country
+                display_location = g.country
+            else:
+                location_query = "London"
+                display_location = "Unknown Location"
+        except Exception as e:
+            logger.error(f"Error getting location: {e}")
+            location_query = "London"
+            display_location = "Unknown Location"
+        
+        # Get weather
+        weather_url = f"https://wttr.in/{location_query}?format=j1"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(weather_url)
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail="Failed to fetch weather data")
+            weather_data = response.json()
+            
+        current = weather_data['current_condition'][0]
+        
+        return WeatherResponse(
+            location=display_location,
+            temp_c=current['temp_C'],
+            condition=current['weatherDesc'][0]['value'],
+            humidity=current['humidity'],
+            wind_speed=current['windspeedKmph'],
+            details=current
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting weather: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get weather: {str(e)}")
 
 @router.get("/news/sources", response_model=NewsSourcesResponse)
 async def get_news_sources(news_type: Optional[str] = None):

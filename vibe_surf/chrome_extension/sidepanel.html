@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="styles/components.css">
     <link rel="stylesheet" href="styles/animations.css">
     <link rel="stylesheet" href="styles/news-carousel.css">
+    <link rel="stylesheet" href="styles/weather.css">
     <!-- Settings Styles (Modular) -->
     <link rel="stylesheet" href="styles/settings-modal.css">
     <link rel="stylesheet" href="styles/settings-profiles.css">
@@ -101,15 +102,8 @@
                             <h4>Welcome to VibeSurf</h4>
                             <p>Let's vibe surfing the world with AI automation</p>
                         </div>
-                        <div class="quick-tasks">
-                            <div class="task-suggestion" data-task="research">
-                                <div class="task-icon">🔍</div>
-                                <div class="task-content">
-                                    <div class="task-title">Research Founders</div>
-                                    <div class="task-description">Search information about AI browser assistant: VibeSurf, write a brief report</div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Weather Widget -->
+                        <div id="weather-widget"></div>
                     </div>
                     
                     <!-- News Carousel -->
@@ -1192,6 +1186,7 @@
     <script src="scripts/history-manager.js"></script>
     <script src="scripts/file-manager.js"></script>
     <script src="scripts/news-carousel.js"></script>
+    <script src="scripts/weather-manager.js"></script>
     
     <!-- Core UI Manager -->
     <script src="scripts/ui-manager.js"></script>

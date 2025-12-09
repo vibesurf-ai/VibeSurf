@@ -40,13 +40,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   text-align: center;
   padding: var(--spacing-lg) var(--spacing-2xl);
   color: var(--text-muted);
   min-height: 0; /* Allow shrinking */
   max-height: none; /* Remove any height constraints */
   overflow: visible; /* Ensure content is not clipped */
+  width: 100%;
 }
 
 .welcome-text h4 {

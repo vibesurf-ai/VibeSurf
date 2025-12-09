@@ -736,6 +736,11 @@ class VibeSurfAPIClient {
     }
     return this.get('/vibesurf/news', { params });
   }
+
+  // Weather APIs
+  async getWeather() {
+    return this.get('/vibesurf/weather');
+  }
 }
 
 // Custom error class for API errors

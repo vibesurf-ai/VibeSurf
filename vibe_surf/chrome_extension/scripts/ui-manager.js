@@ -19,6 +19,7 @@ class VibeSurfUIManager {
     this.modalManager = null;
     this.voiceRecorder = null;
     this.newsCarousel = null;
+    this.weatherManager = null;
 
     // Initialize user settings storage
     this.userSettingsStorage = null;
@@ -104,6 +105,15 @@ class VibeSurfUIManager {
       console.log('[UIManager] Creating NewsCarouselManager...');
       this.newsCarousel = new NewsCarouselManager(this.apiClient);
       console.log('[UIManager] NewsCarouselManager created:', !!this.newsCarousel);
+
+      // Initialize weather manager
+      console.log('[UIManager] Creating WeatherManager...');
+      if (window.VibeSurfWeatherManager) {
+        this.weatherManager = new window.VibeSurfWeatherManager(this.apiClient);
+        console.log('[UIManager] WeatherManager created:', !!this.weatherManager);
+      } else {
+        console.warn('[UIManager] VibeSurfWeatherManager not found on window');
+      }
 
       // Initialize other managers
       this.settingsManager = new VibeSurfSettingsManager(this.apiClient);
@@ -435,6 +445,12 @@ class VibeSurfUIManager {
     } else {
       console.warn('[UIManager] newsCarousel is not initialized');
     }
+
+    // Initialize weather manager if available
+    if (this.weatherManager) {
+      console.log('[UIManager] Initializing weather manager...');
+      this.weatherManager.checkContainer();
+    }
   }
 
   handleSessionLoaded(data) {
@@ -461,6 +477,9 @@ class VibeSurfUIManager {
     if (this.newsCarousel) {
       this.newsCarousel.hide();
     }
+    
+    // Hide weather widget when task starts (handled by removing welcome message)
+    // The weather widget is part of the welcome message area which gets cleared
   }
 
   handleTaskPaused(data) {
@@ -1557,15 +1576,7 @@ class VibeSurfUIManager {
           <h4>Welcome to VibeSurf</h4>
           <p>Let's vibe surfing the world with AI automation</p>
         </div>
-        <div class="quick-tasks">
-          <div class="task-suggestion" data-task="research">
-            <div class="task-icon">🔍</div>
-            <div class="task-content">
-              <div class="task-title">Research Founders</div>
-              <div class="task-description">Search information about AI browser assistant: VibeSurf, write a brief report</div>
-            </div>
-          </div>
-        </div>
+        <div id="weather-widget"></div>
       </div>
     `;
 
@@ -1575,6 +1586,13 @@ class VibeSurfUIManager {
       
       // Set the welcome message
       this.elements.activityLog.innerHTML = welcomeHTML;
+      
+      // Re-initialize weather manager with new container
+      if (this.weatherManager) {
+        setTimeout(() => {
+          this.weatherManager.checkContainer();
+        }, 0);
+      }
       
       // Append the news carousel at the end (after welcome message)
       if (newsCarousel) {
