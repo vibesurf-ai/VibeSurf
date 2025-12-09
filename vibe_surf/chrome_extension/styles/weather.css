@@ -22,7 +22,7 @@
     padding: 10px 14px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
 }
 
 /* Header: Location and Refresh */
@@ -60,12 +60,13 @@
     color: var(--primary-color);
 }
 
-/* Main Weather Info */
+/* Main Weather Info - Now contains all weather data */
 .weather-main {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
     align-items: center;
     gap: 10px;
-    padding: 4px 0;
+    padding: 2px 0;
 }
 
 .weather-icon-large {
@@ -92,36 +93,42 @@
 }
 
 .weather-condition-text {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     color: var(--text-secondary);
-    margin-left: auto;
     text-align: right;
     text-transform: capitalize;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-/* Weather Details */
+/* Weather Details - Now inside weather-main */
 .weather-details {
     display: flex;
-    gap: 16px;
-    margin-top: 2px;
-    padding-top: 6px;
-    border-top: 1px solid var(--border-color-light);
+    gap: 10px;
     font-size: 0.75rem;
+    align-items: center;
+    justify-content: flex-end;
 }
 
 .weather-detail-item {
     display: flex;
-    gap: 6px;
+    gap: 4px;
+    align-items: center;
     color: var(--text-secondary);
+    white-space: nowrap;
 }
 
 .detail-label {
-    opacity: 0.8;
+    opacity: 0.9;
+    font-size: 0.9rem;
+    line-height: 1;
 }
 
 .detail-value {
     font-weight: 500;
     color: var(--text-primary);
+    font-size: 0.75rem;
 }
 
 /* Loading State */
