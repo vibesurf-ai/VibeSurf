@@ -43,4 +43,5 @@ class BrowserWaitComponent(Component):
 
     async def pass_browser_session(self) -> AgentBrowserSession:
         await asyncio.sleep(self.seconds)
+        await self.browser_session._wait_for_stable_network(max_attempt=3)
         return self.browser_session

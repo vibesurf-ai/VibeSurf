@@ -113,7 +113,7 @@ class WeatherManager {
     const { location, temp_c, condition, humidity, wind_speed } = data;
     const icon = this.getWeatherIcon(condition);
     
-    // Use a design similar to Google's weather card
+    // Reorganized layout: humidity and wind are now IN the weather-main section
     this.container.innerHTML = `
       <div class="weather-card">
         <div class="weather-header">
@@ -136,16 +136,15 @@ class WeatherManager {
             <span class="temp-unit">°C</span>
           </div>
           <div class="weather-condition-text">${condition}</div>
-        </div>
-        
-        <div class="weather-details">
-          <div class="weather-detail-item">
-            <span class="detail-label">Humidity</span>
-            <span class="detail-value">${humidity}%</span>
-          </div>
-          <div class="weather-detail-item">
-            <span class="detail-label">Wind</span>
-            <span class="detail-value">${wind_speed} km/h</span>
+          <div class="weather-details">
+            <div class="weather-detail-item">
+              <span class="detail-label">💧</span>
+              <span class="detail-value">${humidity}%</span>
+            </div>
+            <div class="weather-detail-item">
+              <span class="detail-label">💨</span>
+              <span class="detail-value">${wind_speed} km/h</span>
+            </div>
           </div>
         </div>
       </div>

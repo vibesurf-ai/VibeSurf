@@ -174,7 +174,7 @@ class BrowserClickElementComponent(Component):
                 self.status = "No element found!"
                 raise ValueError("No element found!")
 
-            await element.click(button=self.click_button, click_count=self.click_count, modifiers=['Control'])
+            await element.click(button=self.click_button, click_count=self.click_count)
             await asyncio.sleep(1)
             if self.browser_session.main_browser_session:
                 after_tabs = await self.browser_session.main_browser_session.get_tabs()
