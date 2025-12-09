@@ -50,7 +50,7 @@ class BrowserHtmlContentComponent(Component):
             import base64
             import io
             from pathlib import Path
-
+            await self.browser_session._wait_for_stable_network(max_attempt=3)
             html_content = await self.browser_session.get_html_content()
             from vibe_surf.common import get_workspace_dir
             workspace_dir = get_workspace_dir()

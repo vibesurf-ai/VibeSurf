@@ -37,6 +37,7 @@ class BrowserPageInfoComponent(Component):
 
     async def get_page_information(self) -> Data:
         try:
+            await self.browser_session._wait_for_stable_network(max_attempt=3)
             page = await self.browser_session.get_current_page()
             url = await page.get_url()
             title = await page.get_title()
