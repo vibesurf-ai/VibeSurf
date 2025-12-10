@@ -644,12 +644,12 @@ async def get_weather():
                 location_query = g.country
                 display_location = g.country
             else:
-                location_query = "London"
-                display_location = "Unknown Location"
+                location_query = "Beijing"
+                display_location = "Beijing, CN"
         except Exception as e:
-            logger.error(f"Error getting location: {e}")
-            location_query = "London"
-            display_location = "Unknown Location"
+            logger.warning(f"Error getting location: {e}")
+            location_query = "Beijing"
+            display_location = "Beijing, CN"
         
         # Get weather
         weather_url = f"https://wttr.in/{location_query}?format=j1"
