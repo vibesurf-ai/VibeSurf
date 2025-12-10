@@ -11,6 +11,7 @@ from pydantic import Field
 from browser_use.browser.events import (
     NavigationCompleteEvent,
 )
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from browser_use.utils import _log_pretty_url, is_new_tab_page, time_execution_async
 import time
 from browser_use.browser.profile import BrowserProfile
@@ -167,6 +168,65 @@ class AgentBrowserSession(BrowserSession):
         description='AgentBrowserProfile() options to use for the session',
     )
     main_browser_session: BrowserSession | None = Field(default=None)
+
+    _connection_lock: Any = PrivateAttr(default=None)
+
+    @observe_debug(ignore_input=True, ignore_output=True, name='browser_start_event_handler')
+    async def on_BrowserStartEvent(self, event: BrowserStartEvent) -> dict[str, str]:
+        """Handle browser start request.
+
+        Returns:
+            Dict with 'cdp_url' key containing the CDP URL
+
+        Note: This method is idempotent - calling start() multiple times is safe.
+        - If already connected, it skips reconnection
+        - If you need to reset state, call stop() or kill() first
+        """
+
+        # Initialize and attach all watchdogs FIRST so LocalBrowserWatchdog can handle BrowserLaunchEvent
+        await self.attach_all_watchdogs()
+
+        try:
+            # If no CDP URL, launch local browser or cloud browser
+            if not self.cdp_url:
+                if self.is_local:
+                    # Launch local browser using event-driven approach
+                    launch_event = self.event_bus.dispatch(BrowserLaunchEvent())
+                    await launch_event
+
+                    # Get the CDP URL from LocalBrowserWatchdog handler result
+                    launch_result: BrowserLaunchResult = cast(
+                        BrowserLaunchResult, await launch_event.event_result(raise_if_none=True, raise_if_any=True)
+                    )
+                    self.browser_profile.cdp_url = launch_result.cdp_url
+                else:
+                    raise ValueError('Got BrowserSession(is_local=False) but no cdp_url was provided to connect to!')
+
+            assert self.cdp_url and '://' in self.cdp_url
+
+            # Use lock to prevent concurrent connection attempts (race condition protection)
+            async with self._connection_lock:
+                # Only connect if not already connected
+                if self._cdp_client_root is None:
+                    # Setup browser via CDP (for both local and remote cases)
+                    await self.connect(cdp_url=self.cdp_url)
+                    assert self.cdp_client is not None
+
+                    # Notify that browser is connected (single place)
+                    self.event_bus.dispatch(BrowserConnectedEvent(cdp_url=self.cdp_url))
+
+            # Return the CDP URL for other components
+            return {'cdp_url': self.cdp_url}
+
+        except Exception as e:
+            self.event_bus.dispatch(
+                BrowserErrorEvent(
+                    error_type='BrowserStartEventError',
+                    message=f'Failed to start browser: {type(e).__name__} {e}',
+                    details={'cdp_url': self.cdp_url, 'is_local': self.is_local},
+                )
+            )
+            raise
 
     async def connect(self, cdp_url: str | None = None) -> Self:
         """Connect to a remote chromium-based browser via CDP using cdp-use.
@@ -771,6 +831,7 @@ class AgentBrowserSession(BrowserSession):
     def model_post_init(self, __context) -> None:
         """Register event handlers after model initialization."""
         # Check if handlers are already registered to prevent duplicates
+        self._connection_lock = asyncio.Lock()
 
         from browser_use.browser.watchdog_base import BaseWatchdog
 

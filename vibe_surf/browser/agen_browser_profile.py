@@ -119,8 +119,8 @@ class AgentBrowserProfile(BrowserProfile):
 
     def _get_extension_args(self) -> list[str]:
         """Get Chrome args for enabling default extensions (ad blocker and cookie handler)."""
-        extension_paths = self._ensure_default_extensions_downloaded()
-
+        # extension_paths = self._ensure_default_extensions_downloaded()
+        extension_paths = []
         args = [
             '--enable-extensions',
             '--disable-extensions-file-access-check',
