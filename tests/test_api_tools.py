@@ -26,10 +26,10 @@ async def test_xhs_api(browser_session):
 
     try:
         await client.setup()
-        # ret1 = await client.get_home_recommendations()
-        # ret2 = await client.search_content_by_keyword("browser-use")
-        # pdb.set_trace()
+        ret1 = await client.get_home_recommendations()
+        ret2 = await client.search_content_by_keyword("browser-use")
         ret3 = await client.get_user_profile("564e76f40bf90c7d349960be")
+        pdb.set_trace()
     except Exception as e:
         print(e)
         pdb.set_trace()
