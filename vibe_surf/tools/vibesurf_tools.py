@@ -1862,7 +1862,7 @@ class VibeSurfTools:
             return ActionResult(extracted_content=result, long_term_memory=result)
 
         @self.registry.action(
-            'Set external_src=True to copy from external file(absolute path)to FileSystem, False to copy within FileSystem.'
+            'Set external_src=True to copy from external file(absolute path)to FileSystem.'
         )
         async def copy_file(src_file_path: str, dst_file_path: str, file_system: CustomFileSystem,
                             external_src: bool = False):
@@ -1899,7 +1899,7 @@ class VibeSurfTools:
             )
 
         @self.registry.action(
-            'Check file exist or not.'
+            ''
         )
         async def file_exist(file_path: str, file_system: CustomFileSystem):
             if os.path.exists(file_path):
@@ -1919,7 +1919,7 @@ class VibeSurfTools:
             )
 
         @self.registry.action(
-            'List a directory within the FileSystem. Use empty string "" or "." to list the root FileSystem, or provide relative path for subdirectory.'
+            'Use empty string "" or "." to list the root FileSystem, or provide relative path for subdirectory.'
         )
         async def list_directory(directory_path: str, file_system: CustomFileSystem):
             result = await file_system.list_directory(directory_path)
@@ -2068,7 +2068,7 @@ class VibeSurfTools:
                 raise RuntimeError(str(e))
 
         @self.registry.action(
-            'Create a directory within the FileSystem.'
+            ''
         )
         async def create_directory(directory_path: str, file_system: CustomFileSystem):
             result = await file_system.create_directory(directory_path)
@@ -2077,6 +2077,18 @@ class VibeSurfTools:
                 extracted_content=result,
                 include_in_memory=True,
                 long_term_memory=result,
+            )
+
+        @self.registry.action(
+            ''
+        )
+        async def get_filesystem_root(file_system: CustomFileSystem):
+            cur_fs_dir = str(file_system.get_dir())
+            msg = f'Current Workspace Dir: {cur_fs_dir}'
+            return ActionResult(
+                extracted_content=msg,
+                include_in_memory=True,
+                long_term_memory=msg,
             )
 
     async def register_mcp_clients(self, mcp_server_config: Optional[Dict[str, Any]] = None):
