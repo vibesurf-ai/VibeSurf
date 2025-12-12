@@ -109,6 +109,7 @@ import { VectaraIcon } from "@/icons/VectaraIcon";
 import { VertexAIIcon } from "@/icons/VertexAI";
 import { WeaviateIcon } from "@/icons/Weaviate";
 import { WeiboIcon } from "@/icons/Weibo";
+import { ZhihuIcon } from "@/icons/Zhihu";
 import { WikipediaIcon } from "@/icons/Wikipedia";
 import { WolframIcon } from "@/icons/Wolfram";
 import { XAIIcon } from "@/icons/xAI";
@@ -232,6 +233,7 @@ export const eagerIconsMapping = {
   WatsonxAI: WatsonxAiIcon,
   Weaviate: WeaviateIcon,
   Weibo: WeiboIcon,
+  Zhihu: ZhihuIcon,
   Wikipedia: WikipediaIcon,
   Windsurf: WindsurfIcon,
   Wolfram: WolframIcon,

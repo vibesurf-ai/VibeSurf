@@ -331,6 +331,8 @@ export const lazyIconsMapping = {
     import("@/icons/Weaviate").then((mod) => ({ default: mod.WeaviateIcon })),
   Weibo: () =>
     import("@/icons/Weibo").then((mod) => ({ default: mod.WeiboIcon })),
+  Zhihu: () =>
+    import("@/icons/Zhihu").then((mod) => ({ default: mod.ZhihuIcon })),
   Wikipedia: () =>
     import("@/icons/Wikipedia/Wikipedia").then((mod) => ({
       default: mod.default,
