@@ -271,8 +271,8 @@ class XiaoHongShuApiClient(BaseAPIClient):
             session_id: Optional[str] = None,
             page: int = 1,
             page_size: int = 20,
-            sort_type: str = SearchType.GENERAL,
-            content_type: int = ContentType.ALL,
+            sort_type: str = "popularity_descending",
+            content_type: int = 0,
     ) -> List[Dict]:
         """
         Search content by keyword
@@ -314,12 +314,12 @@ class XiaoHongShuApiClient(BaseAPIClient):
             tag_list = note_card.get('tag_list', [])
 
             note_data = {
-                "note_id": note_card.get("note_id"),
+                "note_id": item.get("id"),
                 "type": note_card.get("type"),
                 "title": note_card.get("display_title", "")[:255],
                 "desc": note_card.get("desc", ""),
-                "time": note_card.get("time"),
-                "last_update_time": note_card.get("last_update_time", 0),
+                "time": item.get("time"),
+                "last_update_time": item.get("last_update_time", 0),
                 "user_id": user_info.get("user_id"),
                 "nickname": user_info.get("nickname"),
                 "avatar": user_info.get("avatar"),

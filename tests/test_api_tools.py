@@ -42,9 +42,9 @@ async def test_weibo_api(browser_session):
 
     try:
         await client.setup()
-        ret1 = await client.get_hot_posts()
-        pdb.set_trace()
-        ret2 = await client.get_trending_posts()
+        # ret1 = await client.get_hot_posts()
+        # ret2 = await client.get_trending_posts()
+        ret3 = await client.search_posts_by_keyword("周杰伦")
         pdb.set_trace()
     except Exception as e:
         print(e)
@@ -62,9 +62,9 @@ async def test_zhihu_api(browser_session):
         ret3 = await client.get_current_user_info()
         pdb.set_trace()
         ret2 = await client.get_article_info(article_id=ret1[0]["content_id"])
-        # ret3 = await client.get_note_all_comments(ret1[0])
-        ret3 = await client.get_root_comments(ret1[0]["content_id"], ret1[0]["content_type"], limit=30)
-        ret4 = await client.get_creator_info('toyama')
+        ret3 = await client.get_root_comments(ret1[0]["content_id"], ret1[0]["content_type"])
+        # ret3 = await client.get_root_comments(ret1[0]["content_id"], ret1[0]["content_type"], limit=30)
+        # ret4 = await client.get_creator_info('toyama')
         pdb.set_trace()
 
     except Exception as e:
@@ -146,9 +146,9 @@ async def main():
         await main_browser_session.start()
         async with BrowserManager(main_browser_session=main_browser_session) as manager:
             # await test_xhs_api(browser_session=main_browser_session)
-            # await test_weibo_api(browser_session=main_browser_session)
+            await test_weibo_api(browser_session=main_browser_session)
             # await test_douyin_api(browser_session=main_browser_session)
-            await test_youtube_api(browser_session=main_browser_session)
+            # await test_youtube_api(browser_session=main_browser_session)
             # await test_zhihu_api(browser_session=main_browser_session)
             # await test_yh_finance_api()
     except Exception as e:

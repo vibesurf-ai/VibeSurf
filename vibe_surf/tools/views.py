@@ -269,7 +269,8 @@ class SkillZhihuAction(BaseModel):
     method: str = Field(
         description='''Zhihu API method name. Available methods:
         - get_note_by_keyword: Search content by keyword, params required: {"keyword": "search keyword", "page": 1, "page_size": 20, "sort": "default", "note_type": "default", "search_time": "default"}
-        - get_note_all_comments: Get all comments for content, params required: {"content_id": "content ID", "content_type": "answer|article|zvideo", "crawl_interval": 1.0}
+        - get_root_comments: Get root level comments for content, params required: {"content_id": "content ID", "content_type": "answer|article|zvideo", "offset": "", "limit": 10, "order_by": "score"}
+        - get_all_comments: Get all comments (root and child) for content, params required: {"content_id": "content ID", "content_type": "answer|article|zvideo", "crawl_interval": 1.0}
         - get_creator_info: Get creator profile, params required: {"url_token": "creator url token"}
         - get_all_answer_by_creator: Get all answers by creator, params required: {"url_token": "creator url token", "crawl_interval": 1.0}
         - get_all_articles_by_creator: Get all articles by creator, params required: {"url_token": "creator url token", "crawl_interval": 1.0}

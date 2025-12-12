@@ -67,7 +67,7 @@ class LoopComponent(Component):
         if isinstance(data, list) and all(isinstance(item, Data) for item in data):
             data_list = data
         if data_list:
-            end_ind = len(data_list) if self.end_ind == -1 else self.end_ind
+            end_ind = len(data_list) if self.end_ind is None or self.end_ind == -1 else self.end_ind
             return data_list[min(start_ind, len(data_list) - 1):end_ind]
         msg = "The 'data' input must be a DataFrame, a list of Data objects, or a single Data object."
         raise TypeError(msg)

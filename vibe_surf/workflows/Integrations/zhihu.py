@@ -21,9 +21,9 @@ zhihu_methods = [
         "params": '{"keyword": "search keyword", "page": 1, "page_size": 20}'
     },
     {
-        "name": "get_note_all_comments",
-        "display_name": "Get Content Comments",
-        "description": "Get all comments for a specific content (answer, article, or video)",
+        "name": "get_all_comments",
+        "display_name": "Get All Comments",
+        "description": "Get all comments (root and child) for a specific content (answer, article, or video)",
         "params": '{"content_id": "content ID", "content_type": "answer", "crawl_interval": 1.0}'
     },
     {

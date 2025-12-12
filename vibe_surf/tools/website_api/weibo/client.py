@@ -126,12 +126,18 @@ class WeiboApiClient(BaseAPIClient):
 
     async def check_login(self) -> bool:
         """Check if login state is valid using multiple methods"""
+        ping_flag = False
         try:
-            ret = await self.search_posts_by_keyword("小红书")
-            return ret and len(ret) > 0
+            uri = "/api/config"
+            resp_data: Dict = await self._get_request(endpoint=uri)
+            if resp_data.get("login"):
+                ping_flag = True
+            else:
+                logger.error(f"[WeiboClient.pong] cookie may be invalid and again login...")
         except Exception as e:
-            logger.error(f"Failed to check Weibo login status: {e}")
-            return False
+            logger.error(f"[WeiboClient.pong] Pong weibo failed: {e}, and try to login again...")
+            ping_flag = False
+        return ping_flag
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(1))
     async def _make_request(self, method: str, url: str, **kwargs):
@@ -216,7 +222,7 @@ class WeiboApiClient(BaseAPIClient):
             self,
             keyword: str,
             page: int = 1,
-            search_type: SearchType = SearchType.DEFAULT,
+            search_type: str = "1",
     ) -> List[Dict]:
         """
         Search Weibo posts by keyword

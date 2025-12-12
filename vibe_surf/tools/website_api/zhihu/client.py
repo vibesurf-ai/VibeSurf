@@ -246,9 +246,9 @@ class ZhiHuClient(BaseAPIClient):
         keyword: str,
         page: int = 1,
         page_size: int = 20,
-        sort: SearchSort = SearchSort.DEFAULT,
-        note_type: SearchType = SearchType.DEFAULT,
-        search_time: SearchTime = SearchTime.DEFAULT,
+        sort: str = 'upvoted_count',
+        note_type: str = '',
+        search_time: str = '',
     ) -> List[Dict]:
         """
         Search content by keyword
@@ -276,9 +276,9 @@ class ZhiHuClient(BaseAPIClient):
             "lc_idx": (page - 1) * page_size,
             "show_all_topics": 0,
             "search_source": "Filter",
-            "time_interval": search_time.value,
-            "sort": sort.value,
-            "vertical": note_type.value,
+            "time_interval": search_time,
+            "sort": sort,
+            "vertical": note_type,
         }
         search_res = await self.get(uri, params)
         logger.debug(f"[ZhiHuClient.get_note_by_keyword] Search result: {search_res}")
@@ -336,7 +336,7 @@ class ZhiHuClient(BaseAPIClient):
         }
         return await self.get(uri, params)
 
-    async def get_note_all_comments(
+    async def get_all_comments(
         self,
         content_id: str,
         content_type: str,
@@ -344,7 +344,7 @@ class ZhiHuClient(BaseAPIClient):
         callback: Optional[Callable] = None,
     ) -> List[Dict]:
         """
-        Get all root comments for a content item
+        Get all comments (root and child) for a content item
         
         Args:
             content_id: Content ID

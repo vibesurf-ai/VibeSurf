@@ -41,9 +41,9 @@ def generate_device_id() -> str:
     return ''.join(random.choices(chars, k=32))
 
 
-def create_container_id(search_type: SearchType, keyword: str) -> str:
+def create_container_id(search_type: str, keyword: str) -> str:
     """Create container ID for search requests"""
-    return f"100103type={search_type.value}&q={keyword}"
+    return f"100103type={search_type}&q={keyword}"
 
 
 def extract_cookies_from_browser(web_cookies: List[Dict]) -> Tuple[str, Dict[str, str]]:
