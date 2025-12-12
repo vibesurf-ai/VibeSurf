@@ -11,6 +11,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 from xhshow import Xhshow
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.logger import get_logger
+from vibe_surf.tools.website_api.base_client import BaseAPIClient
 
 from .helpers import (
     generate_trace_id, create_session_id, create_signature_headers,
@@ -35,13 +36,14 @@ class ContentType:
     IMAGE = 2
 
 
-class XiaoHongShuApiClient:
+class XiaoHongShuApiClient(BaseAPIClient):
     """
     XiaoHongShu API client with integrated browser session management.
     This client handles API communication through browser session for authentication.
     """
 
     def __init__(self, browser_session: AgentBrowserSession, timeout: int = 60, proxy: Optional[str] = None):
+        super().__init__(browser_session, timeout, proxy)
         """
         Initialize the RedBook API client
         

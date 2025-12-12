@@ -66,7 +66,14 @@ class YouTubeComponent(Component):
             display_name="Browser Session",
             info="Browser Session defined by VibeSurf",
             input_types=["AgentBrowserSession"],
-            required=True
+            required=False
+        ),
+        HandleInput(
+            name="api_client",
+            display_name="API Client",
+            info="Optional pre-initialized YouTube API client",
+            input_types=["BaseAPIClient"],
+            required=False
         ),
         DropdownInput(
             name="method",
@@ -103,7 +110,7 @@ class YouTubeComponent(Component):
         """Update dropdown options and create dynamic parameter inputs"""
 
         if field_name == "method" and field_value:
-            original_inputs = ['_type', 'browser_session', 'code', 'method']
+            original_inputs = ['_type', 'browser_session', 'api_client', 'code', 'method']
             for input_name in list(build_config.keys()):
                 if input_name not in original_inputs:
                     del build_config[input_name]
@@ -193,6 +200,7 @@ class YouTubeComponent(Component):
     async def execute_youtube_method(self) -> Message:
         """Execute the selected YouTube API method with dynamic parameters"""
         client = None
+        should_close = False
         try:
             if not hasattr(self, 'method') or not self.method:
                 raise ValueError("Please select an API method")
@@ -204,8 +212,16 @@ class YouTubeComponent(Component):
                     method_info = method_info_
                     break
 
-            client = YouTubeApiClient(self.browser_session)
-            await client.setup()
+            # Use provided api_client or create new one
+            if hasattr(self, 'api_client') and self.api_client:
+                client = self.api_client
+                should_close = False
+            else:
+                if not hasattr(self, 'browser_session') or not self.browser_session:
+                    raise ValueError("Either api_client or browser_session must be provided")
+                client = YouTubeApiClient(self.browser_session)
+                await client.setup()
+                should_close = True
 
             params = {}
             method = getattr(YouTubeApiClient, method_info["name"])
@@ -241,5 +257,5 @@ class YouTubeComponent(Component):
             self.status = f"❌ Failed to execute YouTube API call: {str(e)}"
             raise e
         finally:
-            if client:
+            if client and should_close:
                 await client.close()

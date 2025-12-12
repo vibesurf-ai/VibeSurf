@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, unquote, urlencode
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.logger import get_logger
+from vibe_surf.tools.website_api.base_client import BaseAPIClient
 
 from .helpers import (
     SearchType, TrendingType, TrendingConstants,
@@ -28,13 +29,14 @@ from .helpers import (
 logger = get_logger(__name__)
 
 
-class WeiboApiClient:
+class WeiboApiClient(BaseAPIClient):
     """
     Weibo API client with integrated browser session management.
     This client handles API communication through browser session for authentication.
     """
 
     def __init__(self, browser_session: AgentBrowserSession, timeout: int = 60, proxy: Optional[str] = None):
+        super().__init__(browser_session, timeout, proxy)
         """
         Initialize the Weibo API client
         

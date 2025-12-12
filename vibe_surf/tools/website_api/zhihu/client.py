@@ -7,6 +7,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.logger import get_logger
+from vibe_surf.tools.website_api.base_client import BaseAPIClient
 
 from .helpers import (
     SearchTime, SearchType, SearchSort,
@@ -18,12 +19,13 @@ from .helpers import (
 logger = get_logger(__name__)
 
 
-class ZhiHuClient:
+class ZhiHuClient(BaseAPIClient):
     """
     Zhihu API client with integrated browser session management.
     """
 
     def __init__(self, browser_session: AgentBrowserSession, timeout: int = 10, proxy: Optional[str] = None):
+        super().__init__(browser_session, timeout, proxy)
         """
         Initialize the Zhihu API client
         
