@@ -24,7 +24,7 @@ zhihu_methods = [
         "name": "get_note_all_comments",
         "display_name": "Get Content Comments",
         "description": "Get all comments for a specific content (answer, article, or video)",
-        "params": '{"content": {"content_id": "content ID", "content_type": "answer"}, "crawl_interval": 1.0}'
+        "params": '{"content_id": "content ID", "content_type": "answer", "crawl_interval": 1.0}'
     },
     {
         "name": "get_creator_info",
@@ -36,19 +36,19 @@ zhihu_methods = [
         "name": "get_all_answer_by_creator",
         "display_name": "Get Creator Answers",
         "description": "Get all answers by a creator",
-        "params": '{"creator": {"url_token": "creator url token"}, "crawl_interval": 1.0}'
+        "params": '{"url_token": "creator url token", "crawl_interval": 1.0}'
     },
     {
         "name": "get_all_articles_by_creator",
         "display_name": "Get Creator Articles",
         "description": "Get all articles by a creator",
-        "params": '{"creator": {"url_token": "creator url token"}, "crawl_interval": 1.0}'
+        "params": '{"url_token": "creator url token", "crawl_interval": 1.0}'
     },
     {
         "name": "get_all_videos_by_creator",
         "display_name": "Get Creator Videos",
         "description": "Get all videos by a creator",
-        "params": '{"creator": {"url_token": "creator url token"}, "crawl_interval": 1.0}'
+        "params": '{"url_token": "creator url token", "crawl_interval": 1.0}'
     },
     {
         "name": "get_answer_info",

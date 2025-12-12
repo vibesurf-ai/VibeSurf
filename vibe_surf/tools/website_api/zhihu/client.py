@@ -336,7 +336,8 @@ class ZhiHuClient:
 
     async def get_note_all_comments(
         self,
-        content: Dict,
+        content_id: str,
+        content_type: str,
         crawl_interval: float = 1.0,
         callback: Optional[Callable] = None,
     ) -> List[Dict]:
@@ -344,7 +345,8 @@ class ZhiHuClient:
         Get all root comments for a content item
         
         Args:
-            content: Content dictionary (question|article|video)
+            content_id: Content ID
+            content_type: Content type (answer, article, zvideo)
             crawl_interval: Delay between requests
             callback: Callback function after fetching each batch
             
@@ -356,8 +358,11 @@ class ZhiHuClient:
         offset: str = ""
         limit: int = 10
         
+        # Create content dict for extractor
+        content = {"content_id": content_id, "content_type": content_type}
+        
         while not is_end:
-            root_comment_res = await self.get_root_comments(content["content_id"], content["content_type"], offset, limit)
+            root_comment_res = await self.get_root_comments(content_id, content_type, offset, limit)
             if not root_comment_res:
                 break
                 
@@ -373,14 +378,15 @@ class ZhiHuClient:
                 await callback(comments)
 
             result.extend(comments)
-            await self.get_comments_all_sub_comments(content, comments, crawl_interval=crawl_interval, callback=callback)
+            await self._get_comments_all_sub_comments(content_id, content_type, comments, crawl_interval=crawl_interval, callback=callback)
             await asyncio.sleep(crawl_interval)
             
         return result
 
-    async def get_comments_all_sub_comments(
+    async def _get_comments_all_sub_comments(
         self,
-        content: Dict,
+        content_id: str,
+        content_type: str,
         comments: List[Dict],
         crawl_interval: float = 1.0,
         callback: Optional[Callable] = None,
@@ -389,7 +395,8 @@ class ZhiHuClient:
         Get all sub-comments for given comments
         
         Args:
-            content: Content dictionary (question|article|video)
+            content_id: Content ID
+            content_type: Content type (answer, article, zvideo)
             comments: List of parent comment dictionaries
             crawl_interval: Delay between requests
             callback: Callback function after fetching each batch
@@ -398,6 +405,9 @@ class ZhiHuClient:
             List of all sub-comment dictionaries
         """
         all_sub_comments: List[Dict] = []
+        
+        # Create content dict for extractor
+        content = {"content_id": content_id, "content_type": content_type}
         
         for parent_comment in comments:
             if parent_comment.get("sub_comment_count", 0) == 0:
@@ -509,7 +519,7 @@ class ZhiHuClient:
 
     async def get_all_answer_by_creator(
         self,
-        creator: Dict,
+        url_token: str,
         crawl_interval: float = 1.0,
         callback: Optional[Callable] = None
     ) -> List[Dict]:
@@ -517,7 +527,7 @@ class ZhiHuClient:
         Get all answers by creator
         
         Args:
-            creator: Creator dictionary
+            url_token: Creator's url token
             crawl_interval: Delay between requests
             callback: Callback function after fetching each batch
             
@@ -530,11 +540,11 @@ class ZhiHuClient:
         limit: int = 20
         
         while not is_end:
-            res = await self.get_creator_answers(creator["url_token"], offset, limit)
+            res = await self.get_creator_answers(url_token, offset, limit)
             if not res:
                 break
                 
-            logger.info(f"[ZhiHuClient.get_all_anwser_by_creator] Get creator {creator['url_token']} answers: {res}")
+            logger.info(f"[ZhiHuClient.get_all_anwser_by_creator] Get creator {url_token} answers: {res}")
             paging_info = res.get("paging", {})
             is_end = paging_info.get("is_end", True)
             contents = self._extractor.extract_content_list_from_creator(res.get("data", []))
@@ -550,7 +560,7 @@ class ZhiHuClient:
 
     async def get_all_articles_by_creator(
         self,
-        creator: Dict,
+        url_token: str,
         crawl_interval: float = 1.0,
         callback: Optional[Callable] = None,
     ) -> List[Dict]:
@@ -558,7 +568,7 @@ class ZhiHuClient:
         Get all articles by creator
         
         Args:
-            creator: Creator dictionary
+            url_token: Creator's url token
             crawl_interval: Delay between requests
             callback: Callback function after fetching each batch
             
@@ -571,7 +581,7 @@ class ZhiHuClient:
         limit: int = 20
         
         while not is_end:
-            res = await self.get_creator_articles(creator["url_token"], offset, limit)
+            res = await self.get_creator_articles(url_token, offset, limit)
             if not res:
                 break
                 
@@ -590,7 +600,7 @@ class ZhiHuClient:
 
     async def get_all_videos_by_creator(
         self,
-        creator: Dict,
+        url_token: str,
         crawl_interval: float = 1.0,
         callback: Optional[Callable] = None,
     ) -> List[Dict]:
@@ -598,7 +608,7 @@ class ZhiHuClient:
         Get all videos by creator
         
         Args:
-            creator: Creator dictionary
+            url_token: Creator's url token
             crawl_interval: Delay between requests
             callback: Callback function after fetching each batch
             
@@ -611,7 +621,7 @@ class ZhiHuClient:
         limit: int = 20
         
         while not is_end:
-            res = await self.get_creator_videos(creator["url_token"], offset, limit)
+            res = await self.get_creator_videos(url_token, offset, limit)
             if not res:
                 break
                 
