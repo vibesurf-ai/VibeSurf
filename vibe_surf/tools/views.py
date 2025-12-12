@@ -382,3 +382,23 @@ class SkillTrendAction(BaseModel):
         ge=1,
         le=50,
     )
+
+
+class GetApiParamsAction(BaseModel):
+    """Parameters for get_api_params action - Get API parameters for website platforms"""
+    platform: str = Field(
+        description='Platform name: "xiaohongshu", "weibo", "zhihu", "douyin", or "youtube"'
+    )
+
+
+class CallApiAction(BaseModel):
+    """Parameters for call_api action - Call website platform API"""
+    platform: str = Field(
+        description='Platform name: "xiaohongshu", "weibo", "zhihu", "douyin", or "youtube"'
+    )
+    method: str = Field(
+        description='API method name to call'
+    )
+    params: str = Field(
+        description='JSON string of method parameters'
+    )

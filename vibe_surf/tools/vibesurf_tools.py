@@ -48,8 +48,8 @@ from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, BrowserUseAgentExecution, \
     ReportWriterTask, TodoGenerateAction, TodoModifyAction, VibeSurfDoneAction, SkillSearchAction, SkillCrawlAction, \
     SkillSummaryAction, SkillTakeScreenshotAction, SkillDeepResearchAction, SkillCodeAction, SkillFinanceAction, \
-    SkillXhsAction, SkillDouyinAction, SkillYoutubeAction, SkillWeiboAction, SkillZhihuAction, GrepContentAction, \
-    SearchToolAction, GetToolInfoAction, ExecuteExtraToolAction, ExecutePythonCodeAction, SkillTrendAction
+    GrepContentAction, SearchToolAction, GetToolInfoAction, ExecuteExtraToolAction, ExecutePythonCodeAction, \
+    SkillTrendAction, GetApiParamsAction, CallApiAction
 from vibe_surf.tools.finance_tools import FinanceDataRetriever, FinanceMarkdownFormatter, FinanceMethod
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.composio_client import ComposioClient
@@ -79,6 +79,7 @@ class VibeSurfTools:
         self._register_todo_actions()
         self._register_done_action()
         self._register_skills()
+        self._register_api_skills()
         self._register_extra_tools()
         self.mcp_server_config = mcp_server_config
         self.mcp_clients: Dict[str, MCPClient] = {}
@@ -543,555 +544,6 @@ class VibeSurfTools:
                 logger.error(error_msg)
                 return ActionResult(error=error_msg, extracted_content=error_msg)
 
-        @self.registry.action(
-            '',
-            param_model=SkillXhsAction,
-        )
-        async def skill_xhs(
-                params: SkillXhsAction,
-                browser_manager: BrowserManager,
-                file_system: CustomFileSystem
-        ):
-            """
-            Skill: Xiaohongshu API integration
-            
-            Available methods:
-            - search_content_by_keyword: Search content by keyword with sorting options
-            - fetch_content_details: Get detailed information about specific content
-            - fetch_all_content_comments: Get all comments for specific content
-            - get_user_profile: Get user profile information
-            - fetch_all_user_content: Get all content posted by a user
-            - get_home_recommendations: Get homepage recommended content
-            """
-            xhs_client = None
-            try:
-                from vibe_surf.tools.website_api.xhs.client import XiaoHongShuApiClient
-
-                # Initialize client
-                xhs_client = XiaoHongShuApiClient(browser_session=browser_manager.main_browser_session)
-                await xhs_client.setup()
-
-                # Parse params JSON string
-                import json
-                from json_repair import repair_json
-                try:
-                    method_params = json.loads(params.params)
-                except json.JSONDecodeError:
-                    method_params = json.loads(repair_json(params.params))
-
-                # Execute the requested method
-                result = None
-                if params.method == "search_content_by_keyword":
-                    result = await xhs_client.search_content_by_keyword(**method_params)
-                elif params.method == "fetch_content_details":
-                    result = await xhs_client.fetch_content_details(**method_params)
-                elif params.method == "fetch_all_content_comments":
-                    result = await xhs_client.fetch_all_content_comments(**method_params)
-                elif params.method == "get_user_profile":
-                    result = await xhs_client.get_user_profile(**method_params)
-                elif params.method == "fetch_all_user_content":
-                    result = await xhs_client.fetch_all_user_content(**method_params)
-                elif params.method == "get_home_recommendations":
-                    result = await xhs_client.get_home_recommendations()
-                else:
-                    return ActionResult(error=f"Unknown method: {params.method}")
-
-                # Save result to file
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"xhs_{params.method}_{timestamp}.json"
-                filepath = file_system.get_dir() / "data" / filename
-                filepath.parent.mkdir(exist_ok=True)
-
-                with open(filepath, "w", encoding="utf-8") as f:
-                    json.dump(result, f, ensure_ascii=False, indent=2)
-
-                # Format result as markdown
-                if isinstance(result, list):
-                    display_count = min(5, len(result))
-                    md_content = f"## Xiaohongshu {params.method.replace('_', ' ').title()}\n\n"
-                    md_content += f"Showing {display_count} of {len(result)} results:\n\n"
-                    for i, item in enumerate(result[:display_count]):
-                        md_content += f"### Result {i + 1}\n"
-                        for key, value in item.items():
-                            if not value:
-                                continue
-                            if isinstance(value, str) and len(value) > 200:
-                                md_content += f"- **{key}**: {value[:200]}...\n"
-                            else:
-                                md_content += f"- **{key}**: {value}\n"
-                        md_content += "\n"
-                else:
-                    md_content = f"## Xiaohongshu {params.method.replace('_', ' ').title()}\n\n"
-                    for key, value in result.items():
-                        if isinstance(value, str) and len(value) > 200:
-                            md_content += f"- **{key}**: {value[:200]}...\n"
-                        else:
-                            md_content += f"- **{key}**: {value}\n"
-                    md_content += "\n"
-
-                # Add file path to markdown
-                relative_path = str(filepath.relative_to(file_system.get_dir()))
-                md_content += f"\n> 📁 Full data saved to: [{filename}]({relative_path})\n"
-                md_content += f"> 💡 Click the link above to view all results.\n"
-
-                logger.info(f'📕 Xiaohongshu data retrieved with method: {params.method}')
-
-                # Close client
-                await xhs_client.close()
-
-                return ActionResult(
-                    extracted_content=md_content
-                )
-
-            except Exception as e:
-                error_msg = f'❌ Failed to retrieve Xiaohongshu data: {str(e)}'
-                logger.error(error_msg)
-                return ActionResult(error=error_msg, extracted_content=error_msg)
-            finally:
-                if xhs_client:
-                    await xhs_client.close()
-
-        @self.registry.action(
-            '',
-            param_model=SkillWeiboAction,
-        )
-        async def skill_weibo(
-                params: SkillWeiboAction,
-                browser_manager: BrowserManager,
-                file_system: CustomFileSystem
-        ):
-            """
-            Skill: Weibo API integration
-            
-            Available methods:
-            - search_posts_by_keyword: Search posts by keyword with sorting options
-            - get_post_detail: Get detailed information about specific post
-            - get_all_post_comments: Get all comments for specific post
-            - get_user_info: Get user profile information
-            - get_all_user_posts: Get all posts by a user
-            - get_hot_posts: Get hot posts
-            - get_trending_list: Get trending list
-            """
-            wb_client = None
-            try:
-                from vibe_surf.tools.website_api.weibo.client import WeiboApiClient
-
-                # Initialize client
-                wb_client = WeiboApiClient(browser_session=browser_manager.main_browser_session)
-                await wb_client.setup()
-
-                # Parse params JSON string
-                import json
-                from json_repair import repair_json
-                try:
-                    method_params = json.loads(params.params)
-                except json.JSONDecodeError:
-                    method_params = json.loads(repair_json(params.params))
-
-                # Execute the requested method
-                result = None
-                if params.method == "search_posts_by_keyword":
-                    result = await wb_client.search_posts_by_keyword(**method_params)
-                elif params.method == "get_post_detail":
-                    result = await wb_client.get_post_detail(**method_params)
-                elif params.method == "get_all_post_comments":
-                    result = await wb_client.get_all_post_comments(**method_params)
-                elif params.method == "get_user_info":
-                    result = await wb_client.get_user_info(**method_params)
-                elif params.method == "get_all_user_posts":
-                    result = await wb_client.get_all_user_posts(**method_params)
-                elif params.method == "get_hot_posts":
-                    result = await wb_client.get_hot_posts()
-                elif params.method == "get_trending_posts":
-                    result = await wb_client.get_trending_posts()
-                else:
-                    return ActionResult(error=f"Unknown method: {params.method}")
-
-                # Save result to file
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"weibo_{params.method}_{timestamp}.json"
-                filepath = file_system.get_dir() / "data" / filename
-                filepath.parent.mkdir(exist_ok=True)
-
-                with open(filepath, "w", encoding="utf-8") as f:
-                    json.dump(result, f, ensure_ascii=False, indent=2)
-                # Format result as markdown
-                if isinstance(result, list):
-                    display_count = min(5, len(result))
-                    md_content = f"## Weibo {params.method.replace('_', ' ').title()}\n\n"
-                    md_content += f"Showing {display_count} of {len(result)} results:\n\n"
-                    for i, item in enumerate(result[:display_count]):
-                        md_content += f"### Result {i + 1}\n"
-                        for key, value in item.items():
-                            if not value:
-                                continue
-                            if isinstance(value, str) and len(value) > 200:
-                                md_content += f"- **{key}**: {value[:200]}...\n"
-                            else:
-                                md_content += f"- **{key}**: {value}\n"
-                        md_content += "\n"
-                else:
-                    md_content = f"## Weibo {params.method.replace('_', ' ').title()}\n\n"
-                    for key, value in result.items():
-                        if isinstance(value, str) and len(value) > 200:
-                            md_content += f"- **{key}**: {value[:200]}...\n"
-                        else:
-                            md_content += f"- **{key}**: {value}\n"
-                    md_content += "\n"
-
-                # Add file path to markdown
-                relative_path = str(filepath.relative_to(file_system.get_dir()))
-                md_content += f"\n> 📁 Full data saved to: [{filename}]({relative_path})\n"
-                md_content += f"> 💡 Click the link above to view all results.\n"
-
-                logger.info(f'🐦 Weibo data retrieved with method: {params.method}')
-
-                # Close client
-                await wb_client.close()
-
-                return ActionResult(
-                    extracted_content=md_content
-                )
-
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                error_msg = f'❌ Failed to retrieve Weibo data: {str(e)}. \nMost likely you are not login, please go to: [Weibo login page](https://passport.weibo.com/sso/signin?entry=miniblog&source=miniblog) and login.'
-                logger.error(error_msg)
-                return ActionResult(error=error_msg, extracted_content=error_msg)
-            finally:
-                if wb_client:
-                    await wb_client.close()
-
-        @self.registry.action(
-            '',
-            param_model=SkillZhihuAction,
-        )
-        async def skill_zhihu(
-                params: SkillZhihuAction,
-                browser_manager: BrowserManager,
-                file_system: CustomFileSystem
-        ):
-            """
-            Skill: Zhihu API integration
-            
-            Available methods:
-            - get_note_by_keyword: Search content by keyword with sorting and filtering options
-            - get_note_all_comments: Get all comments for specific content
-            - get_creator_info: Get creator profile information
-            - get_all_answer_by_creator: Get all answers by a creator
-            - get_all_articles_by_creator: Get all articles by a creator
-            - get_all_videos_by_creator: Get all videos by a creator
-            - get_answer_info: Get answer details
-            - get_article_info: Get article details
-            - get_video_info: Get video details
-            """
-            zh_client = None
-            try:
-                from vibe_surf.tools.website_api.zhihu.client import ZhiHuClient
-
-                # Initialize client
-                zh_client = ZhiHuClient(browser_session=browser_manager.main_browser_session)
-                await zh_client.setup()
-
-                # Parse params JSON string
-                import json
-                from json_repair import repair_json
-                try:
-                    method_params = json.loads(params.params)
-                except json.JSONDecodeError:
-                    method_params = json.loads(repair_json(params.params))
-
-                # Execute the requested method
-                result = None
-                if params.method == "get_note_by_keyword":
-                    result = await zh_client.get_note_by_keyword(**method_params)
-                elif params.method == "get_note_all_comments":
-                    result = await zh_client.get_note_all_comments(**method_params)
-                elif params.method == "get_creator_info":
-                    result = await zh_client.get_creator_info(**method_params)
-                elif params.method == "get_all_answer_by_creator":
-                    result = await zh_client.get_all_answer_by_creator(**method_params)
-                elif params.method == "get_all_articles_by_creator":
-                    result = await zh_client.get_all_articles_by_creator(**method_params)
-                elif params.method == "get_all_videos_by_creator":
-                    result = await zh_client.get_all_videos_by_creator(**method_params)
-                elif params.method == "get_answer_info":
-                    result = await zh_client.get_answer_info(**method_params)
-                elif params.method == "get_article_info":
-                    result = await zh_client.get_article_info(**method_params)
-                elif params.method == "get_video_info":
-                    result = await zh_client.get_video_info(**method_params)
-                else:
-                    return ActionResult(error=f"Unknown method: {params.method}")
-
-                # Save result to file
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"zhihu_{params.method}_{timestamp}.json"
-                filepath = file_system.get_dir() / "data" / filename
-                filepath.parent.mkdir(exist_ok=True)
-
-                with open(filepath, "w", encoding="utf-8") as f:
-                    json.dump(result, f, ensure_ascii=False, indent=2)
-
-                # Format result as markdown
-                if isinstance(result, list):
-                    display_count = min(5, len(result))
-                    md_content = f"## Zhihu {params.method.replace('_', ' ').title()}\n\n"
-                    md_content += f"Showing {display_count} of {len(result)} results:\n\n"
-                    for i, item in enumerate(result[:display_count]):
-                        md_content += f"### Result {i + 1}\n"
-                        for key, value in item.items():
-                            if not value:
-                                continue
-                            if isinstance(value, str) and len(value) > 200:
-                                md_content += f"- **{key}**: {value[:200]}...\n"
-                            else:
-                                md_content += f"- **{key}**: {value}\n"
-                        md_content += "\n"
-                else:
-                    md_content = f"## Zhihu {params.method.replace('_', ' ').title()}\n\n"
-                    for key, value in result.items():
-                        if isinstance(value, str) and len(value) > 200:
-                            md_content += f"- **{key}**: {value[:200]}...\n"
-                        else:
-                            md_content += f"- **{key}**: {value}\n"
-                    md_content += "\n"
-
-                # Add file path to markdown
-                relative_path = str(filepath.relative_to(file_system.get_dir()))
-                md_content += f"\n> 📁 Full data saved to: [{filename}]({relative_path})\n"
-                md_content += f"> 💡 Click the link above to view all results.\n"
-
-                logger.info(f'🎓 Zhihu data retrieved with method: {params.method}')
-
-                return ActionResult(
-                    extracted_content=md_content
-                )
-
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                error_msg = f'❌ Failed to retrieve Zhihu data: {str(e)}. \nMost likely you are not login, please go to: [Zhihu login page](https://www.zhihu.com/) and login.'
-                logger.error(error_msg)
-                return ActionResult(error=error_msg, extracted_content=error_msg)
-            finally:
-                if zh_client:
-                    await zh_client.close()
-
-        @self.registry.action(
-            '',
-            param_model=SkillDouyinAction,
-        )
-        async def skill_douyin(
-                params: SkillDouyinAction,
-                browser_manager: BrowserManager,
-                file_system: CustomFileSystem
-        ):
-            """
-            Skill: Douyin API integration
-            
-            Available methods:
-            - search_content_by_keyword: Search content by keyword with filtering options
-            - fetch_video_details: Get detailed information about specific video
-            - fetch_all_video_comments: Get all comments for specific video
-            - fetch_user_info: Get user profile information
-            - fetch_all_user_videos: Get all videos by a user
-            """
-            dy_client = None
-            try:
-                from vibe_surf.tools.website_api.douyin.client import DouyinApiClient
-
-                # Initialize client
-                dy_client = DouyinApiClient(browser_session=browser_manager.main_browser_session)
-                await dy_client.setup()
-
-                # Parse params JSON string
-                import json
-                from json_repair import repair_json
-                try:
-                    method_params = json.loads(params.params)
-                except json.JSONDecodeError:
-                    method_params = json.loads(repair_json(params.params))
-
-                # Execute the requested method
-                result = None
-                if params.method == "search_content_by_keyword":
-                    result = await dy_client.search_content_by_keyword(**method_params)
-                elif params.method == "fetch_video_details":
-                    result = await dy_client.fetch_video_details(**method_params)
-                elif params.method == "fetch_all_video_comments":
-                    result = await dy_client.fetch_all_video_comments(**method_params)
-                elif params.method == "fetch_user_info":
-                    result = await dy_client.fetch_user_info(**method_params)
-                elif params.method == "fetch_all_user_videos":
-                    result = await dy_client.fetch_all_user_videos(**method_params)
-                else:
-                    return ActionResult(error=f"Unknown method: {params.method}")
-
-                # Save result to file
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"douyin_{params.method}_{timestamp}.json"
-                filepath = file_system.get_dir() / "data" / filename
-                filepath.parent.mkdir(exist_ok=True)
-
-                with open(filepath, "w", encoding="utf-8") as f:
-                    json.dump(result, f, ensure_ascii=False, indent=2)
-
-                # Format result as markdown
-                if isinstance(result, list):
-                    display_count = min(5, len(result))
-                    md_content = f"## Douyin {params.method.replace('_', ' ').title()}\n\n"
-                    md_content += f"Showing {display_count} of {len(result)} results:\n\n"
-                    for i, item in enumerate(result[:display_count]):
-                        md_content += f"### Result {i + 1}\n"
-                        for key, value in item.items():
-                            if not value:
-                                continue
-                            if isinstance(value, str) and len(value) > 200:
-                                md_content += f"- **{key}**: {value[:200]}...\n"
-                            else:
-                                md_content += f"- **{key}**: {value}\n"
-                        md_content += "\n"
-                else:
-                    md_content = f"## Douyin {params.method.replace('_', ' ').title()}\n\n"
-                    for key, value in result.items():
-                        if isinstance(value, str) and len(value) > 200:
-                            md_content += f"- **{key}**: {value[:200]}...\n"
-                        else:
-                            md_content += f"- **{key}**: {value}\n"
-                    md_content += "\n"
-
-                # Add file path to markdown
-                relative_path = str(filepath.relative_to(file_system.get_dir()))
-                md_content += f"\n> 📁 Full data saved to: [{filename}]({relative_path})\n"
-                md_content += f"> 💡 Click the link above to view all results.\n"
-
-                logger.info(f'🎵 Douyin data retrieved with method: {params.method}')
-
-                # Close client
-                await dy_client.close()
-
-                return ActionResult(
-                    extracted_content=md_content
-                )
-
-            except Exception as e:
-                error_msg = f'❌ Failed to retrieve Douyin data: {str(e)}'
-                logger.error(error_msg)
-                return ActionResult(error=error_msg, extracted_content=error_msg)
-            finally:
-                if dy_client:
-                    await dy_client.close()
-
-        @self.registry.action(
-            """YouTube API - If users want to know the specific content of this video, please use get_video_transcript to get detailed video content first.""",
-            param_model=SkillYoutubeAction,
-        )
-        async def skill_youtube(
-                params: SkillYoutubeAction,
-                browser_manager: BrowserManager,
-                file_system: CustomFileSystem
-        ):
-            """
-            Skill: YouTube API integration
-            
-            Available methods:
-            - search_videos: Search videos by keyword
-            - get_video_details: Get detailed information about specific video
-            - get_video_comments: Get comments for specific video
-            - get_channel_info: Get channel information
-            - get_channel_videos: Get videos from specific channel
-            - get_trending_videos: Get trending videos
-            - get_video_transcript: Get video transcript in multiple languages
-            """
-            yt_client = None
-            try:
-                from vibe_surf.tools.website_api.youtube.client import YouTubeApiClient
-
-                # Initialize client
-                yt_client = YouTubeApiClient(browser_session=browser_manager.main_browser_session)
-                await yt_client.setup()
-
-                # Parse params JSON string
-                import json
-                from json_repair import repair_json
-                try:
-                    method_params = json.loads(params.params)
-                except json.JSONDecodeError:
-                    method_params = json.loads(repair_json(params.params))
-
-                # Execute the requested method
-                result = None
-                if params.method == "search_videos":
-                    result = await yt_client.search_videos(**method_params)
-                elif params.method == "get_video_details":
-                    result = await yt_client.get_video_details(**method_params)
-                elif params.method == "get_video_comments":
-                    result = await yt_client.get_video_comments(**method_params)
-                elif params.method == "get_channel_info":
-                    result = await yt_client.get_channel_info(**method_params)
-                elif params.method == "get_channel_videos":
-                    result = await yt_client.get_channel_videos(**method_params)
-                elif params.method == "get_video_transcript":
-                    result = await yt_client.get_video_transcript(**method_params)
-                else:
-                    return ActionResult(error=f"Unknown method: {params.method}")
-
-                # Save result to file
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"youtube_{params.method}_{timestamp}.json"
-                filepath = file_system.get_dir() / "data" / filename
-                filepath.parent.mkdir(exist_ok=True)
-
-                with open(filepath, "w", encoding="utf-8") as f:
-                    json.dump(result, f, ensure_ascii=False, indent=2)
-
-                # Format result as markdown
-                if isinstance(result, list):
-                    display_count = min(5, len(result))
-                    md_content = f"## YouTube {params.method.replace('_', ' ').title()}\n\n"
-                    md_content += f"Showing {display_count} of {len(result)} results:\n\n"
-                    for i, item in enumerate(result[:display_count]):
-                        md_content += f"### Result {i + 1}\n"
-                        for key, value in item.items():
-                            if not value:
-                                continue
-                            if isinstance(value, str) and len(value) > 200:
-                                md_content += f"- **{key}**: {value[:200]}...\n"
-                            else:
-                                md_content += f"- **{key}**: {value}\n"
-                        md_content += "\n"
-                else:
-                    md_content = f"## YouTube {params.method.replace('_', ' ').title()}\n\n"
-                    for key, value in result.items():
-                        if isinstance(value, str) and len(value) > 200:
-                            md_content += f"- **{key}**: {value[:200]}...\n"
-                        else:
-                            md_content += f"- **{key}**: {value}\n"
-                    md_content += "\n"
-
-                # Add file path to markdown
-                relative_path = str(filepath.relative_to(file_system.get_dir()))
-                md_content += f"\n> 📁 Full data saved to: [{filename}]({relative_path})\n"
-                md_content += f"> 💡 Click the link above to view all results.\n"
-
-                logger.info(f'🎬 YouTube data retrieved with method: {params.method}')
-
-                # Close client
-                await yt_client.close()
-
-                return ActionResult(
-                    extracted_content=md_content
-                )
-
-            except Exception as e:
-                error_msg = f'❌ Failed to retrieve YouTube data: {str(e)}'
-                logger.error(error_msg)
-                return ActionResult(error=error_msg, extracted_content=error_msg)
-            finally:
-                if yt_client:
-                    await yt_client.close()
 
         @self.registry.action(
             """Execute Python code for data processing, visualization, and analysis.
@@ -1418,6 +870,40 @@ class VibeSurfTools:
                 error_msg = f'❌ Failed to retrieve NewsNow trending data: {str(e)}'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg, extracted_content=error_msg)
+
+    def _register_api_skills(self):
+        """
+        Register unified website API skills (Xiaohongshu, Weibo, Zhihu, Douyin, YouTube)
+        """
+        from vibe_surf.tools.website_api_skills import get_api_params, call_api
+
+        @self.registry.action(
+            'Get API parameters and available methods for website platforms.',
+            param_model=GetApiParamsAction,
+        )
+        async def get_website_api_params(params: GetApiParamsAction):
+            """
+            Get API parameters for supported website platforms
+            
+            Returns the API schema and available methods for the specified platform
+            """
+            return await get_api_params(params)
+
+        @self.registry.action(
+            '',
+            param_model=CallApiAction,
+        )
+        async def call_website_api(
+                params: CallApiAction,
+                browser_manager: BrowserManager,
+                file_system: CustomFileSystem
+        ):
+            """
+            Call website platform API with unified handling
+            
+            Supports: Xiaohongshu (xhs), Weibo, Zhihu, Douyin, YouTube
+            """
+            return await call_api(params, browser_manager, file_system)
 
     def _register_extra_tools(self):
         """
