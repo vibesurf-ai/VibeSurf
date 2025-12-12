@@ -293,9 +293,9 @@ class DouyinApiClient(BaseAPIClient):
             self,
             keyword: str,
             offset: int = 0,
-            search_channel: SearchChannelType = SearchChannelType.GENERAL,
-            sort_type: SearchSortType = SearchSortType.GENERAL,
-            publish_time: PublishTimeType = PublishTimeType.UNLIMITED,
+            search_channel: str = 'aweme_general',
+            sort_type: str = 'MOST_LIKED',
+            publish_time: int = 0,
             search_id: str = "",
     ) -> List[Dict]:
         """
@@ -313,7 +313,7 @@ class DouyinApiClient(BaseAPIClient):
             List of simplified aweme data
         """
         query_params = {
-            'search_channel': search_channel.value,
+            'search_channel': search_channel,
             'enable_history': '1',
             'keyword': keyword,
             'search_source': 'tab_search',
@@ -327,10 +327,10 @@ class DouyinApiClient(BaseAPIClient):
         }
 
         # Add filters if not default
-        if sort_type.value != SearchSortType.GENERAL.value or publish_time.value != PublishTimeType.UNLIMITED.value:
+        if sort_type != SearchSortType.GENERAL.value or publish_time != PublishTimeType.UNLIMITED.value:
             query_params["filter_selected"] = json.dumps({
-                "sort_type": str(sort_type.value),
-                "publish_time": str(publish_time.value)
+                "sort_type": str(sort_type),
+                "publish_time": str(publish_time)
             })
             query_params["is_filter_search"] = 1
             query_params["search_source"] = "tab_search"

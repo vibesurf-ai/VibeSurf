@@ -341,6 +341,9 @@ class ZhiHuClient(BaseAPIClient):
         content_id: str,
         content_type: str,
         crawl_interval: float = 1.0,
+        limit: int = 10,
+        max_comments: int = 100,
+        include_sub_comments: bool = False,
         callback: Optional[Callable] = None,
     ) -> List[Dict]:
         """
@@ -358,7 +361,6 @@ class ZhiHuClient(BaseAPIClient):
         result: List[Dict] = []
         is_end: bool = False
         offset: str = ""
-        limit: int = 10
         
         # Create content dict for extractor
         content = {"content_id": content_id, "content_type": content_type}
@@ -380,7 +382,11 @@ class ZhiHuClient(BaseAPIClient):
                 await callback(comments)
 
             result.extend(comments)
-            await self._get_comments_all_sub_comments(content_id, content_type, comments, crawl_interval=crawl_interval, callback=callback)
+            if include_sub_comments:
+                sub_comments = await self._get_comments_all_sub_comments(content_id, content_type, comments, crawl_interval=crawl_interval, callback=callback)
+                result.extend(sub_comments)
+            if len(result) >= max_comments:
+                break
             await asyncio.sleep(crawl_interval)
             
         return result

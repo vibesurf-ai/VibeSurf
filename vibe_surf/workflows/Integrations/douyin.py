@@ -104,7 +104,7 @@ class DouyinComponent(Component):
         """Update dropdown options and create dynamic parameter inputs"""
 
         if field_name == "method" and field_value:
-            original_inputs = ['_type', 'browser_session', 'code', 'method']
+            original_inputs = ['_type', 'browser_session', 'code', 'method', 'api_client']
             for input_name in list(build_config.keys()):
                 if input_name not in original_inputs:
                     del build_config[input_name]
@@ -123,7 +123,7 @@ class DouyinComponent(Component):
             params = []
 
             for param_name, param in sig.parameters.items():
-                if param_name in ['self', 'browser_session']:
+                if param_name in ['self', 'browser_session', 'api_client']:
                     continue
 
                 # Determine parameter type and create appropriate input

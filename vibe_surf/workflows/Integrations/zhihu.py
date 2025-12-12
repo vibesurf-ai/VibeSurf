@@ -24,7 +24,7 @@ zhihu_methods = [
         "name": "get_all_comments",
         "display_name": "Get All Comments",
         "description": "Get all comments (root and child) for a specific content (answer, article, or video)",
-        "params": '{"content_id": "content ID", "content_type": "answer", "crawl_interval": 1.0}'
+        "params": '{"content_id": "content ID", "content_type": "answer", "crawl_interval": 1.0, "max_comments": 100}'
     },
     {
         "name": "get_creator_info",
