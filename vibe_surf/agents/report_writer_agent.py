@@ -145,6 +145,9 @@ class ReportWriterAgent:
             report_task = report_data.get('report_task', 'Generate a comprehensive report')
             report_information = report_data.get('report_information', 'No additional information provided')
 
+            if report_information and isinstance(report_information, Dict):
+                report_information = json.dumps(report_information, indent=2, ensure_ascii=False)
+
             # Create report file with timestamp
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             report_filename = f"reports/report-{timestamp}.html"
@@ -167,7 +170,7 @@ class ReportWriterAgent:
 {report_task}
 
 **Available Information:**
-{json.dumps(report_information, indent=2, ensure_ascii=False)}
+{report_information}
 
 **Report File:**
 {report_filename}
