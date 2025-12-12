@@ -45,12 +45,6 @@ youtube_methods = [
         "params": '{"channel_id": "YouTube channel ID", "max_videos": 20, "continuation_token": null, "sleep_time": 0.1}'
     },
     {
-        "name": "get_trending_videos",
-        "display_name": "Get Trending Videos",
-        "description": "Get trending YouTube videos",
-        "params": '{}'
-    },
-    {
         "name": "get_video_transcript",
         "display_name": "Get Video Transcript",
         "description": "Get transcript for a YouTube video",

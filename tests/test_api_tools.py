@@ -93,8 +93,10 @@ async def test_youtube_api(browser_session):
 
     try:
         await client.setup()
-        ret1 = await client.search_videos("browser-use")
-        ret2 = await client.get_trending_videos()
+        ret1 = await client.search_videos("browser-use-webui")
+        ret11 = await client.get_video_comments(ret1[0]["video_id"])
+        ret12 = await client.get_channel_videos(ret1[0]["channel_id"])
+        pdb.set_trace()
         ret3 = await client.get_video_transcript(video_id="LCEmiRjPEtQ")
         pdb.set_trace()
     except Exception as e:
@@ -146,8 +148,8 @@ async def main():
             # await test_xhs_api(browser_session=main_browser_session)
             # await test_weibo_api(browser_session=main_browser_session)
             # await test_douyin_api(browser_session=main_browser_session)
-            # await test_youtube_api(browser_session=main_browser_session)
-            await test_zhihu_api(browser_session=main_browser_session)
+            await test_youtube_api(browser_session=main_browser_session)
+            # await test_zhihu_api(browser_session=main_browser_session)
             # await test_yh_finance_api()
     except Exception as e:
         logging.error(f"An error occurred during tests: {e}", exc_info=True)

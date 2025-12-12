@@ -1033,8 +1033,6 @@ class VibeSurfTools:
                     result = await yt_client.get_channel_info(**method_params)
                 elif params.method == "get_channel_videos":
                     result = await yt_client.get_channel_videos(**method_params)
-                elif params.method == "get_trending_videos":
-                    result = await yt_client.get_trending_videos()
                 elif params.method == "get_video_transcript":
                     result = await yt_client.get_video_transcript(**method_params)
                 else:
