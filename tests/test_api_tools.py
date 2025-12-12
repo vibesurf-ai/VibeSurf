@@ -51,6 +51,26 @@ async def test_weibo_api(browser_session):
         pdb.set_trace()
 
 
+async def test_zhihu_api(browser_session):
+    from vibe_surf.tools.website_api.zhihu.client import ZhiHuClient
+
+    client = ZhiHuClient(browser_session)
+
+    try:
+        await client.setup()
+        ret1 = await client.get_note_by_keyword("deepseek")
+        ret3 = await client.get_current_user_info()
+        pdb.set_trace()
+        ret2 = await client.get_article_info(article_id=ret1[0]["content_id"])
+        # ret3 = await client.get_note_all_comments(ret1[0])
+        ret3 = await client.get_root_comments(ret1[0]["content_id"], ret1[0]["content_type"], limit=30)
+        ret4 = await client.get_creator_info('toyama')
+        pdb.set_trace()
+
+    except Exception as e:
+        print(e)
+        pdb.set_trace()
+
 async def test_douyin_api(browser_session):
     from vibe_surf.tools.website_api.douyin.client import DouyinApiClient
 
@@ -123,10 +143,11 @@ async def main():
         main_browser_session = AgentBrowserSession(browser_profile=browser_profile)
         await main_browser_session.start()
         async with BrowserManager(main_browser_session=main_browser_session) as manager:
-            await test_xhs_api(browser_session=main_browser_session)
+            # await test_xhs_api(browser_session=main_browser_session)
             # await test_weibo_api(browser_session=main_browser_session)
             # await test_douyin_api(browser_session=main_browser_session)
             # await test_youtube_api(browser_session=main_browser_session)
+            await test_zhihu_api(browser_session=main_browser_session)
             # await test_yh_finance_api()
     except Exception as e:
         logging.error(f"An error occurred during tests: {e}", exc_info=True)
