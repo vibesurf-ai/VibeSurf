@@ -100,6 +100,8 @@ class LoopComponent(Component):
                     current_item = data_list[current_index]
                 except IndexError:
                     current_item = Data(text="")
+            else:
+                self.stop("item")
             self.aggregated_output()
             self.update_ctx({f"{self._id}_index": current_index + 1})
 
