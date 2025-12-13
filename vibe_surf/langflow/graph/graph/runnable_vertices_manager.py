@@ -1,3 +1,4 @@
+import pdb
 from collections import defaultdict
 
 
@@ -9,6 +10,7 @@ class RunnableVerticesManager:
         self.vertices_being_run: set[str] = set()  # Set of vertices that are currently running
         self.cycle_vertices: set[str] = set()  # Set of vertices that are in a cycle
         self.ran_at_least_once: set[str] = set()  # Set of vertices that have been run at least once
+        self._graph_ref = None  # Reference to the graph for accessing vertex information
 
     def to_dict(self) -> dict:
         return {
@@ -71,6 +73,7 @@ class RunnableVerticesManager:
         1. It has no pending predecessors that need to complete first
         2. For vertices in cycles, none of its pending predecessors are also cycle vertices
            (which would create a circular dependency)
+        3. For non-cycle vertices, all predecessors must be truly complete (including loop done outputs)
 
         Args:
             vertex_id (str): The ID of the vertex to check
@@ -79,13 +82,37 @@ class RunnableVerticesManager:
             bool: True if all predecessor conditions are met, False otherwise
         """
         # Get pending predecessors, return True if none exist
+        graph = self._graph_ref
         pending = self.run_predecessors.get(vertex_id, [])
         if not pending:
-            return True
+            all_predecessors = self._get_all_edge_predecessors(graph.get_vertex(vertex_id), graph)
+            if is_loop:
+                all_ready = all([pred_vertex.built for pred_vertex in all_predecessors if
+                                 pred_vertex.id not in self.cycle_vertices or "Loop" in pred_vertex.id])
+            else:
+                all_ready = all([pred_vertex.built for pred_vertex in all_predecessors])
+            return all_ready
 
-        # For cycle vertices, check if any pending predecessors are also in cycle
-        # Using set intersection is faster than iteration
+        # For cycle vertices, we need special handling but also want to use the new edge-based checking
         if vertex_id in self.cycle_vertices:
+            if "Loop" in vertex_id:
+                target_vertex = graph.get_vertex(vertex_id)
+                all_predecessors = self._get_all_edge_predecessors(target_vertex, graph)
+                # Only check non-cycle predecessors to avoid circular dependencies
+                non_cycle_predecessors = [pred for pred in all_predecessors if
+                                          pred.id not in self.cycle_vertices or "Loop" in pred.id]
+
+                # Add detailed status for each predecessor
+                for pred_vertex in non_cycle_predecessors:
+                    if not pred_vertex.built:
+                        return False
+
+                    if "Loop" in pred_vertex.id:
+                        loop_done = self._check_loop_done_completion(pred_vertex)
+                        if not loop_done:
+                            return False
+                return True
+
             pending_set = set(pending)
             running_predecessors = pending_set & self.vertices_being_run
 
@@ -97,7 +124,183 @@ class RunnableVerticesManager:
             # FIRST execution of a cycle vertex
             # Allow running **only** if it's a loop AND *all* pending predecessors are cycle vertices
             return is_loop and pending_set <= self.cycle_vertices
+
+        # For non-cycle vertices, check if all predecessors are actually ready
+        # This fixes the issue where vertices dependent on loop outputs run too early
+        return self._check_predecessors_actually_complete(vertex_id)
+
+    def _check_predecessors_actually_complete(self, vertex_id: str) -> bool:
+        """Check if ALL predecessor vertices are actually complete for the requesting vertex.
+
+        This method implements edge-based predecessor checking: find all predecessor vertices
+        through incoming edges, not just the current pending_predecessors list.
+
+        Args:
+            vertex_id: The vertex requesting to run
+            pending_predecessors: List of predecessor vertex IDs that are still pending (for debugging)
+
+        Returns:
+            bool: True if ALL predecessors are actually complete for this vertex's needs
+        """
+        # If we don't have a graph reference, fall back to old behavior
+        if not self._graph_ref:
+            return False
+
+        graph = self._graph_ref
+
+        try:
+            target_vertex = graph.get_vertex(vertex_id)
+            # Get ALL predecessor vertices through incoming edges - this is the key fix!
+            all_predecessors = self._get_all_edge_predecessors(target_vertex, graph)
+
+            # Check each predecessor
+            for pred_vertex in all_predecessors:
+                if not self._is_predecessor_truly_complete(pred_vertex, target_vertex, graph):
+                    return False
+
+            return True
+
+        except (ValueError, AttributeError) as e:
+            return False
+
+    def _get_all_edge_predecessors(self, target_vertex, graph):
+        """Get all predecessor vertices through incoming edges."""
+        predecessors = []
+
+        # Get all incoming edges to this vertex
+        if hasattr(target_vertex, 'incoming_edges'):
+            incoming_edges = target_vertex.incoming_edges
+
+            for edge in incoming_edges:
+                try:
+                    pred_vertex = graph.get_vertex(edge.source_id)
+                    predecessors.append(pred_vertex)
+                except ValueError:
+                    continue
+
+        return predecessors
+
+    def _is_predecessor_truly_complete(self, pred_vertex, target_vertex, graph) -> bool:
+        """Check if a single predecessor is truly complete for the target vertex."""
+        # Basic check: predecessor must be built
+        if not pred_vertex.built:
+            return False
+
+        # Special handling for loop vertices
+        if pred_vertex.is_loop:
+            # For loop vertices, we need to check if the specific output this edge connects to is ready
+            is_done = self._is_loop_output_ready_for_target(pred_vertex, target_vertex, graph)
+            return is_done
+
+        return True
+
+    def _is_loop_output_ready_for_target(self, loop_vertex, target_vertex, graph) -> bool:
+        """Check if the loop's output that the target depends on is ready."""
+        # Find the edge connecting loop to target
+        connecting_edges = [
+            edge for edge in loop_vertex.outgoing_edges
+            if edge.target_id == target_vertex.id
+        ]
+
+        for edge in connecting_edges:
+            source_handle = edge.source_handle
+            if hasattr(source_handle, 'name'):
+                if 'done' in source_handle.name.lower():  # Check for 'done' in handle name
+                    return self._check_loop_done_completion(loop_vertex)
+                elif 'item' in source_handle.name.lower():
+                    return self._check_loop_has_data(loop_vertex)
+                else:
+                    return loop_vertex.built
+
+        return self._check_loop_done_completion(loop_vertex)
+
+    def _check_loop_has_data(self, loop_vertex) -> bool:
+        """Check if a loop component has data available for item output.
+
+        For components depending on 'item' output, they must wait until the loop
+        component has data loaded in its context.
+        """
+        # Basic check: loop must be built first
+        if not loop_vertex.built:
+            return False
+
+        # Check if the loop component has data loaded
+        if hasattr(loop_vertex, 'custom_component') and loop_vertex.custom_component:
+            component = loop_vertex.custom_component
+            if hasattr(component, 'ctx') and component.ctx:
+                loop_id = component._id
+                data_length = len(component.ctx.get(f"{loop_id}_data", []))
+                has_data = data_length > 0
+                return has_data
+
         return False
+
+    def _check_loop_done_completion(self, loop_vertex) -> bool:
+        """Check multiple indicators to determine if a loop has completed its 'done' output."""
+        # print("_check_loop_done_completion")
+        # Method 2: Check if the loop component has a context indicating completion
+        if hasattr(loop_vertex, 'custom_component') and loop_vertex.custom_component:
+            component = loop_vertex.custom_component
+            # For Loop components, check if the loop index exceeds data length
+            if hasattr(component, 'ctx') and component.ctx:
+                loop_id = component._id
+                current_index = component.ctx.get(f"{loop_id}_index", 0)
+                data_length = len(component.ctx.get(f"{loop_id}_data", []))
+                return data_length > 0 and current_index >= data_length
+
+        return False
+
+    def _has_new_loop_data_available(self, vertex_id: str) -> bool:
+        """Check if there's new loop data available for cycle vertices to process.
+
+        This method determines if cycle vertices should re-execute by checking:
+        1. If any loop vertex in the cycle has progressed its iteration
+        2. If there's new data that cycle vertices haven't processed yet
+
+        Args:
+            vertex_id: The cycle vertex to check
+
+        Returns:
+            bool: True if new loop data is available for processing
+        """
+        if not self._graph_ref:
+            return False
+
+        graph = self._graph_ref
+
+        try:
+            # Find loop vertices that this vertex depends on (directly or indirectly)
+            target_vertex = graph.get_vertex(vertex_id)
+            loop_predecessors = []
+
+            # Check all predecessors to find loop components
+            all_predecessors = self._get_all_edge_predecessors(target_vertex, graph)
+            for pred in all_predecessors:
+                if pred.is_loop and pred.id in self.cycle_vertices:
+                    loop_predecessors.append(pred)
+
+            # For each loop predecessor, check if it has new data
+            for loop_vertex in loop_predecessors:
+                if hasattr(loop_vertex, 'custom_component') and loop_vertex.custom_component:
+                    component = loop_vertex.custom_component
+                    if hasattr(component, 'ctx') and component.ctx:
+                        loop_id = component._id
+                        current_index = component.ctx.get(f"{loop_id}_current_index", 0)
+                        data_length = len(component.ctx.get(f"{loop_id}_data", []))
+
+                        # There's new data if the loop has progressed but hasn't finished
+                        # and the current iteration should trigger downstream processing
+                        if data_length > 0 and current_index < data_length:
+                            return True
+
+            return False
+
+        except (ValueError, AttributeError):
+            return False
+
+    def set_graph_reference(self, graph):
+        """Set a reference to the graph for predecessor checking."""
+        self._graph_ref = graph
 
     def remove_from_predecessors(self, vertex_id: str) -> None:
         """Removes a vertex from the predecessor list of its successors."""

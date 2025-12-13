@@ -966,12 +966,13 @@ class AgentBrowserSession(BrowserSession):
                 target_id = self.agent_focus.target_id
 
             # Direct CDP navigation - bypasses all event system overhead
-            await self.agent_focus.cdp_client.send.Page.navigate(
+            session = await self.get_or_create_cdp_session(target_id, focus=True)
+            await session.cdp_client.send.Page.navigate(
                 params={
                     'url': url,
                     'transitionType': 'address_bar',
                 },
-                session_id=self.agent_focus.session_id,
+                session_id=session.session_id,
             )
 
             # Minimal delay for navigation to start

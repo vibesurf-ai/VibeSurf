@@ -222,7 +222,7 @@ class WeiboApiClient(BaseAPIClient):
             self,
             keyword: str,
             page: int = 1,
-            search_type: str = "1",
+            search_type: str = "60",
     ) -> List[Dict]:
         """
         Search Weibo posts by keyword

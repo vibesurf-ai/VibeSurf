@@ -294,7 +294,7 @@ class DouyinApiClient(BaseAPIClient):
             keyword: str,
             offset: int = 0,
             search_channel: str = 'aweme_general',
-            sort_type: str = 'MOST_LIKED',
+            sort_type: int = 1,  # MOST_LIKED
             publish_time: int = 0,
             search_id: str = "",
     ) -> List[Dict]:

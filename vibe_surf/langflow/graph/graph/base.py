@@ -107,6 +107,7 @@ class Graph:
         self.edges: list[CycleEdge] = []
         self.vertices: list[Vertex] = []
         self.run_manager = RunnableVerticesManager()
+        self.run_manager.set_graph_reference(self)
         self._vertices: list[NodeData] = []
         self._edges: list[EdgeData] = []
 

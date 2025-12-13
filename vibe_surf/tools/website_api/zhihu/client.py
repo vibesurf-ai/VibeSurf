@@ -81,7 +81,8 @@ class ZhiHuClient(BaseAPIClient):
             # Navigate to search page to get proper cookies
             logger.info("[ZhiHuClient.setup] Zhihu navigating to search page to get cookies, this takes about 5 seconds")
             await self.browser_session.navigate_to_url(
-                f"{ZHIHU_URL}/search?q=python&search_source=Guess&utm_content=search_hot&type=content"
+                f"{ZHIHU_URL}/search?q=python&search_source=Guess&utm_content=search_hot&type=content",
+                new_tab=True,
             )
             await asyncio.sleep(5)
 
