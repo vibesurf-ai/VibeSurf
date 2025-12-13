@@ -100,7 +100,7 @@ class CustomFileSystem(FileSystem):
             if extension != 'pdf' and extension in self._file_types.keys():
                 with open(str(full_filepath), 'r', encoding="utf-8") as f:
                     content = f.read()
-                    return f'Read from file {full_filename}.\n<content>\n{content}\n</content>'
+                    return content
 
             elif extension == 'pdf':
                 import pypdf
@@ -113,7 +113,7 @@ class CustomFileSystem(FileSystem):
                 for page in reader.pages[:MAX_PDF_PAGES]:
                     extracted_text += page.extract_text()
                 extra_pages_text = f'{extra_pages} more pages...' if extra_pages > 0 else ''
-                return f'Read from file {full_filename}.\n<content>\n{extracted_text}\n{extra_pages_text}</content>'
+                return f'{extracted_text}\n{extra_pages_text}'
             else:
                 return f'Error: Cannot read content from file {full_filename}.'
         except FileNotFoundError:
