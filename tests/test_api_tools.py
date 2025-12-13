@@ -78,7 +78,6 @@ async def test_douyin_api(browser_session):
 
     try:
         await client.setup()
-        pdb.set_trace()
         ret1 = await client.search_content_by_keyword("browser-use")
         pdb.set_trace()
     except Exception as e:
@@ -146,8 +145,8 @@ async def main():
         await main_browser_session.start()
         async with BrowserManager(main_browser_session=main_browser_session) as manager:
             # await test_xhs_api(browser_session=main_browser_session)
-            await test_weibo_api(browser_session=main_browser_session)
-            # await test_douyin_api(browser_session=main_browser_session)
+            # await test_weibo_api(browser_session=main_browser_session)
+            await test_douyin_api(browser_session=main_browser_session)
             # await test_youtube_api(browser_session=main_browser_session)
             # await test_zhihu_api(browser_session=main_browser_session)
             # await test_yh_finance_api()

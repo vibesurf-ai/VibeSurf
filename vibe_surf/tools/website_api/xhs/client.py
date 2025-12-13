@@ -456,7 +456,7 @@ class XiaoHongShuApiClient(BaseAPIClient):
             content_id: str,
             xsec_token: str,
             fetch_interval: float = 1.0,
-            max_comments: int = 1000,
+            max_comments: int = 50,
     ) -> List[Dict]:
         """
         Fetch all comments for content (including pagination)
