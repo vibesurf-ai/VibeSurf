@@ -475,6 +475,9 @@ class VibeSurfSettingsWorkflow {
       // Load schedule information for workflows
       await this.loadWorkflowSchedules();
       
+      // Load skill states for workflows
+      await this.loadWorkflowSkillStates();
+      
       // Apply current search and filter
       this.filterWorkflows();
       
@@ -484,6 +487,42 @@ class VibeSurfSettingsWorkflow {
       this.state.filteredWorkflows = [];
       this.renderWorkflows();
       throw error;
+    }
+  }
+  
+  // Load workflow skill states from database
+  async loadWorkflowSkillStates() {
+    try {
+      const response = await this.apiClient.getEnabledSkills();
+      
+      if (response && response.success && Array.isArray(response.skills)) {
+        // Create a map of flow_id -> skill state
+        const skillMap = new Map();
+        response.skills.forEach(skill => {
+          if (skill.flow_id) {
+            skillMap.set(skill.flow_id, true);
+          }
+        });
+        
+        // Update workflows with skill state
+        this.state.workflows.forEach(workflow => {
+          workflow.add_to_skill = skillMap.has(workflow.flow_id);
+        });
+        
+        console.log(`[SettingsWorkflow] Loaded skill states for ${skillMap.size} workflows`);
+      } else {
+        // No skills enabled, set all to false
+        this.state.workflows.forEach(workflow => {
+          workflow.add_to_skill = false;
+        });
+      }
+      
+    } catch (error) {
+      console.error('[SettingsWorkflow] Failed to load workflow skill states:', error);
+      // Continue without skill state information - set all as disabled
+      this.state.workflows.forEach(workflow => {
+        workflow.add_to_skill = false;
+      });
     }
   }
   

@@ -3400,47 +3400,47 @@
 /* Dark Theme Support for Skill Components */
 [data-theme="dark"] .skill-expose-modal-content,
 .dark-theme .skill-expose-modal-content {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(30, 30, 30, 0.98);
 }
 
 [data-theme="dark"] .skill-component-section,
 .dark-theme .skill-component-section {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(40, 40, 40, 0.95);
 }
 
 [data-theme="dark"] .component-header,
 .dark-theme .component-header {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(59, 130, 246, 0.05) 100%);
+    background: rgba(50, 50, 50, 0.95);
 }
 
 [data-theme="dark"] .component-header:hover,
 .dark-theme .component-header:hover {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.12) 100%);
+    background: rgba(60, 70, 90, 0.95);
 }
 
 [data-theme="dark"] .skill-input-row:hover,
 .dark-theme .skill-input-row:hover {
-    background: rgba(59, 130, 246, 0.05);
+    background: rgba(59, 130, 246, 0.15);
 }
 
 [data-theme="dark"] .input-type,
 .dark-theme .input-type {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.4);
 }
 
 [data-theme="dark"] .skill-empty-state,
 .dark-theme .skill-empty-state {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(40, 40, 40, 0.95);
 }
 
 [data-theme="dark"] .workflow-skill-toggle,
 .dark-theme .workflow-skill-toggle {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(50, 50, 50, 0.95);
 }
 
 [data-theme="dark"] .workflow-skill-toggle:hover,
 .dark-theme .workflow-skill-toggle:hover {
-    background: rgba(59, 130, 246, 0.08);
+    background: rgba(59, 130, 246, 0.20);
 }
 
 /* Responsive Design for Skill Components */
