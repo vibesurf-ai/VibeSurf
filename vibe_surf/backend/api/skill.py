@@ -262,9 +262,10 @@ async def update_workflow_expose_config(
     If add_to_skill is True, save the configuration and sync to workflow_skills.
     """
     try:
-        # Fetch workflow data to get name and description
+        # Fetch workflow data to get name, description and fresh expose config
         workflow_name = ""
         workflow_description = ""
+        workflow_data = None
         
         try:
             # Convert flow_id to UUID
@@ -283,8 +284,45 @@ async def update_workflow_expose_config(
                 if db_flow:
                     workflow_name = db_flow.name or ""
                     workflow_description = db_flow.description or ""
+                    workflow_data = {
+                        "name": db_flow.name,
+                        "description": db_flow.description,
+                        "data": db_flow.data
+                    }
         except Exception as e:
-            logger.warning(f"Failed to fetch workflow data for name/description: {e}")
+            logger.warning(f"Failed to fetch workflow data: {e}")
+        
+        # Determine final workflow_expose_config
+        final_workflow_expose_config = request.workflow_expose_config
+        
+        # If request provides config, use it directly
+        # Otherwise, generate fresh config from workflow and merge with existing DB config
+        if final_workflow_expose_config is None and workflow_data:
+            # Extract fresh exposable inputs from workflow data
+            fresh_expose_config = extract_exposable_inputs(workflow_data)
+            
+            # Get existing skill configuration from database
+            existing_skill = await WorkflowSkillQueries.get_skill(db, request.flow_id)
+            
+            if existing_skill and existing_skill.workflow_expose_config:
+                # Merge: use fresh structure but preserve is_expose values from DB
+                db_config = existing_skill.workflow_expose_config
+                
+                for component_id, component_data in fresh_expose_config.items():
+                    if component_id in db_config:
+                        # Component exists in DB, merge input configurations
+                        db_inputs = db_config[component_id].get("inputs", {})
+                        fresh_inputs = component_data.get("inputs", {})
+                        
+                        for input_name, input_data in fresh_inputs.items():
+                            if input_name in db_inputs:
+                                # Preserve is_expose from database
+                                input_data["is_expose"] = db_inputs[input_name].get("is_expose", False)
+                
+                final_workflow_expose_config = fresh_expose_config
+            else:
+                # No existing config, use fresh config
+                final_workflow_expose_config = fresh_expose_config
         
         # Create or update skill configuration
         skill_data = await WorkflowSkillQueries.create_or_update_skill(
@@ -293,7 +331,7 @@ async def update_workflow_expose_config(
             name=workflow_name,
             description=workflow_description,
             add_to_skill=request.add_to_skill,
-            workflow_expose_config=request.workflow_expose_config
+            workflow_expose_config=final_workflow_expose_config
         )
         
         await db.commit()
@@ -305,7 +343,7 @@ async def update_workflow_expose_config(
             workflow_skills[request.flow_id] = {
                 "name": workflow_name,
                 "description": workflow_description,
-                "workflow_expose_config": request.workflow_expose_config or {}
+                "workflow_expose_config": final_workflow_expose_config or {}
             }
             logger.info(f"✅ Added workflow {request.flow_id} to workflow_skills")
         else:
@@ -319,7 +357,7 @@ async def update_workflow_expose_config(
             message="Workflow skill configuration updated successfully",
             flow_id=request.flow_id,
             add_to_skill=request.add_to_skill,
-            workflow_expose_config=request.workflow_expose_config
+            workflow_expose_config=final_workflow_expose_config
         )
         
     except Exception as e:

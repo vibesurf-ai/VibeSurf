@@ -1072,13 +1072,18 @@ class VibeSurfTools:
                     result_text = f"# Workflow Execution Result\n\n"
                     result_text += f"**Workflow:** @flow-{params.workflow_id}: {workflow_name}\n\n"
                     result_text += f"**Status:** ✅ Completed\n\n"
-
+                    
                     if result.outputs:
-                        result_text += "**Outputs:**\n\n"
-                        for idx, output in enumerate(result.outputs, 1):
-                            result_text += f"### Output {idx}\n\n"
-                            result_text += f"```json\n{json.dumps(output.model_dump(), indent=2, ensure_ascii=False)}\n```\n\n"
-
+                        result_text += "**Results:**\n\n"
+                        # result.outputs is list[RunOutputs]
+                        for outer_idx, run_output in enumerate(result.outputs, 1):
+                            # run_output.outputs is list[ResultData]
+                            for inner_idx, result_data in enumerate(run_output.outputs, 1):
+                                # Extract results from ResultData
+                                results_data = result_data.results
+                                result_text += f"### Result {outer_idx}.{inner_idx}\n\n"
+                                result_text += f"```json\n{results_data}\n```\n\n"
+                    
                     logger.info(f'✅ Successfully executed workflow: {full_flow_id}')
                     return ActionResult(
                         extracted_content=result_text,
