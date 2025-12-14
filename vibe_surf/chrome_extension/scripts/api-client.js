@@ -758,6 +758,10 @@ class VibeSurfAPIClient {
   async getEnabledSkills() {
     return this.get('/skill/enabled-skills');
   }
+
+  async getWorkflowSkills() {
+    return this.get('/skill/workflow-skills');
+  }
 }
 
 // Custom error class for API errors

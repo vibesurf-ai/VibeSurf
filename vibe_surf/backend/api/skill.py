@@ -180,6 +180,10 @@ async def get_workflow_expose_config(
             
             workflow_data = workflow_response.json()
         
+        # Extract workflow name and description
+        workflow_name = workflow_data.get("name", "")
+        workflow_description = workflow_data.get("description", "")
+        
         # Extract exposable inputs from workflow data
         fresh_expose_config = extract_exposable_inputs(workflow_data)
         
@@ -201,10 +205,12 @@ async def get_workflow_expose_config(
                             # Preserve is_expose from database
                             input_data["is_expose"] = db_inputs[input_name].get("is_expose", False)
             
-            # Update database with merged config
+            # Update database with merged config and workflow info
             await WorkflowSkillQueries.create_or_update_skill(
                 db=db,
                 flow_id=flow_id,
+                name=workflow_name,
+                description=workflow_description,
                 add_to_skill=existing_skill.add_to_skill,
                 workflow_expose_config=fresh_expose_config
             )
@@ -245,18 +251,58 @@ async def update_workflow_expose_config(
     """
     Update workflow expose configuration.
     If add_to_skill is False, set it to False in database.
-    If add_to_skill is True, save the configuration.
+    If add_to_skill is True, save the configuration and sync to workflow_skills.
     """
     try:
+        # Fetch workflow data to get name and description
+        backend_port = os.getenv("VIBESURF_BACKEND_PORT", "9335")
+        backend_base_url = f'http://localhost:{backend_port}'
+        
+        workflow_name = ""
+        workflow_description = ""
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                workflow_response = await client.get(
+                    f"{backend_base_url}/api/v1/flows/{request.flow_id}",
+                    headers={"accept": "application/json"},
+                    timeout=30.0
+                )
+                
+                if workflow_response.status_code == 200:
+                    workflow_data = workflow_response.json()
+                    workflow_name = workflow_data.get("name", "")
+                    workflow_description = workflow_data.get("description", "")
+        except Exception as e:
+            logger.warning(f"Failed to fetch workflow data for name/description: {e}")
+        
         # Create or update skill configuration
         skill_data = await WorkflowSkillQueries.create_or_update_skill(
             db=db,
             flow_id=request.flow_id,
+            name=workflow_name,
+            description=workflow_description,
             add_to_skill=request.add_to_skill,
             workflow_expose_config=request.workflow_expose_config
         )
         
         await db.commit()
+        
+        # Sync to shared_state.workflow_skills
+        from ..shared_state import workflow_skills
+        if request.add_to_skill:
+            # Add or update in workflow_skills
+            workflow_skills[request.flow_id] = {
+                "name": workflow_name,
+                "description": workflow_description,
+                "workflow_expose_config": request.workflow_expose_config or {}
+            }
+            logger.info(f"✅ Added workflow {request.flow_id} to workflow_skills")
+        else:
+            # Remove from workflow_skills if exists
+            if request.flow_id in workflow_skills:
+                del workflow_skills[request.flow_id]
+                logger.info(f"✅ Removed workflow {request.flow_id} from workflow_skills")
         
         return WorkflowExposeConfigResponse(
             success=True,
@@ -288,6 +334,8 @@ async def get_enabled_skills(db: AsyncSession = Depends(get_db_session)):
         for skill in skills:
             result.append({
                 "flow_id": skill.flow_id,
+                "name": skill.name,
+                "description": skill.description,
                 "workflow_expose_config": skill.workflow_expose_config,
                 "created_at": skill.created_at.isoformat() if skill.created_at else None,
                 "updated_at": skill.updated_at.isoformat() if skill.updated_at else None
@@ -303,4 +351,34 @@ async def get_enabled_skills(db: AsyncSession = Depends(get_db_session)):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get enabled skills: {str(e)}"
+        )
+
+
+@router.get("/workflow-skills")
+async def get_workflow_skills():
+    """Get all workflow skills from shared state (cached)"""
+    try:
+        from ..shared_state import workflow_skills
+        
+        # Format the response similar to /flow-{flow_id[-4:]}: {flow name}
+        result = []
+        for flow_id, skill_data in workflow_skills.items():
+            result.append({
+                "flow_id": flow_id,
+                "display_name": f"/flow-{flow_id[-4:]}: {skill_data.get('name', flow_id)}",
+                "name": skill_data.get("name", ""),
+                "description": skill_data.get("description", ""),
+                "workflow_expose_config": skill_data.get("workflow_expose_config", {})
+            })
+        
+        return {
+            "success": True,
+            "workflow_skills": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting workflow skills: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get workflow skills: {str(e)}"
         )

@@ -30,6 +30,7 @@ class VibeSurfUIManager {
     this.bindElements();
     this.initializeTabSelector(); // Initialize tab selector before binding events
     this.initializeSkillSelector(); // Initialize skill selector
+    this.initializeFlowSelector(); // Initialize flow selector
     this.initializeManagers();
     this.bindEvents();
     this.setupSessionListeners();
@@ -75,6 +76,10 @@ class VibeSurfUIManager {
       // Skill selector elements
       skillSelectorDropdown: document.getElementById('skill-selector-dropdown'),
       skillOptionsList: document.getElementById('skill-options-list'),
+
+      // Flow selector elements
+      flowSelectorDropdown: document.getElementById('flow-selector-dropdown'),
+      flowOptionsList: document.getElementById('flow-options-list'),
 
       // Loading
       loadingOverlay: document.getElementById('loading-overlay')
@@ -1222,6 +1227,11 @@ class VibeSurfUIManager {
         event.preventDefault();
         return;
       }
+      // Also handle flow token deletion
+      if (this.handleFlowTokenDeletion(event)) {
+        event.preventDefault();
+        return;
+      }
     }
 
     // Handle Tab key for skill auto-completion when only one skill matches
@@ -1229,6 +1239,14 @@ class VibeSurfUIManager {
       if (this.skillSelectorState.filteredSkills.length === 1) {
         event.preventDefault();
         this.selectSkill(this.skillSelectorState.filteredSkills[0]);
+      }
+    }
+    
+    // Handle Tab key for flow auto-completion when only one flow matches
+    if (event.key === 'Tab' && this.flowSelectorState.isVisible) {
+      if (this.flowSelectorState.filteredFlows.length === 1) {
+        event.preventDefault();
+        this.selectFlow(this.flowSelectorState.filteredFlows[0]);
       }
     }
   }
@@ -1418,8 +1436,9 @@ class VibeSurfUIManager {
     // Check for @ character to trigger tab selector
     this.handleTabSelectorInput(event);
 
-    // Check for / character to trigger skill selector
+    // Check for / character to trigger skill selector or flow selector
     this.handleSkillSelectorInput(event);
+    this.handleFlowSelectorInput(event);
 
     // Update send button state - special handling for pause state
     if (this.elements.sendBtn) {
@@ -3639,6 +3658,362 @@ class VibeSurfUIManager {
     }
 
     return skills.length > 0 ? skills : null;
+  }
+
+  // Flow Selector Methods (for workflow selection)
+  initializeFlowSelector() {
+    // Initialize flow selector state
+    this.flowSelectorState = {
+      isVisible: false,
+      selectedFlows: [],
+      allFlows: [],
+      slashPosition: -1, // Position where /flow was typed
+      currentFilter: '', // Current filter text after /flow
+      filteredFlows: [] // Filtered flows based on current input
+    };
+
+    // Bind flow selector events
+    this.bindFlowSelectorEvents();
+  }
+
+  bindFlowSelectorEvents() {
+    // Hide on click outside
+    document.addEventListener('click', (event) => {
+      if (this.flowSelectorState.isVisible &&
+          this.elements.flowSelectorDropdown &&
+          !this.elements.flowSelectorDropdown.contains(event.target) &&
+          !this.elements.taskInput?.contains(event.target)) {
+        this.hideFlowSelector();
+      }
+    });
+  }
+
+  handleFlowSelectorInput(event) {
+    // Safety check - ensure flow selector state is initialized
+    if (!this.flowSelectorState) {
+      console.warn('[UIManager] Flow selector state not initialized');
+      return;
+    }
+
+    const inputValue = event.target.value;
+    const cursorPosition = event.target.selectionStart;
+
+    // Check if /flow pattern was just typed (case-insensitive)
+    const beforeCursor = inputValue.substring(0, cursorPosition);
+    const flowMatch = beforeCursor.match(/\/flow$/i);
+    
+    if (flowMatch) {
+      this.flowSelectorState.slashPosition = flowMatch.index;
+      this.flowSelectorState.currentFilter = '';
+      this.showFlowSelector();
+    } else if (this.flowSelectorState.isVisible) {
+      // Check if /flow was deleted - hide flow selector immediately
+      if (this.flowSelectorState.slashPosition >= 0) {
+        const flowPattern = inputValue.substring(this.flowSelectorState.slashPosition, cursorPosition);
+        if (!flowPattern.toLowerCase().startsWith('/flow')) {
+          this.hideFlowSelector();
+          return;
+        }
+      }
+
+      // Update filter based on text after /flow
+      const textAfterFlow = inputValue.substring(this.flowSelectorState.slashPosition + 5, cursorPosition); // +5 for '/flow'
+      
+      // Only consider text up to the next space or special character
+      const filterText = textAfterFlow.split(/[\s@]/)[0];
+
+      if (this.flowSelectorState.currentFilter !== filterText) {
+        this.flowSelectorState.currentFilter = filterText;
+        this.filterFlows();
+      }
+
+      // Hide flow selector if user typed a space or moved past the flow context
+      if (textAfterFlow.includes(' ') || textAfterFlow.includes('@')) {
+        this.hideFlowSelector();
+      }
+    }
+  }
+
+  async showFlowSelector() {
+    if (!this.elements.flowSelectorDropdown || !this.elements.taskInput) {
+      console.error('[UIManager] Flow selector elements not found', {
+        dropdown: this.elements.flowSelectorDropdown,
+        taskInput: this.elements.taskInput
+      });
+      return;
+    }
+
+    try {
+      // Fetch flow data from backend if not already cached
+      if (this.flowSelectorState.allFlows.length === 0) {
+        await this.populateFlowSelector();
+      }
+
+      // Filter flows based on current input
+      this.filterFlows();
+
+      // Position the dropdown relative to the input
+      this.positionFlowSelector();
+
+      // Show the dropdown with explicit visibility
+      this.elements.flowSelectorDropdown.classList.remove('hidden');
+      this.elements.flowSelectorDropdown.style.display = 'block';
+      this.elements.flowSelectorDropdown.style.visibility = 'visible';
+      this.elements.flowSelectorDropdown.style.opacity = '1';
+      this.flowSelectorState.isVisible = true;
+
+    } catch (error) {
+      console.error('[UIManager] Failed to show flow selector:', error);
+      this.showNotification('Failed to load workflow flows', 'error');
+    }
+  }
+
+  hideFlowSelector() {
+    if (this.elements.flowSelectorDropdown) {
+      this.elements.flowSelectorDropdown.classList.add('hidden');
+      this.elements.flowSelectorDropdown.style.display = 'none';
+    }
+    this.flowSelectorState.isVisible = false;
+    this.flowSelectorState.slashPosition = -1;
+    this.flowSelectorState.currentFilter = '';
+    this.flowSelectorState.filteredFlows = [];
+  }
+
+  positionFlowSelector() {
+    if (!this.elements.flowSelectorDropdown || !this.elements.taskInput) return;
+
+    const inputRect = this.elements.taskInput.getBoundingClientRect();
+    const dropdown = this.elements.flowSelectorDropdown;
+
+    // Calculate 90% width of input
+    const dropdownWidth = inputRect.width * 0.9;
+
+    // Position dropdown ABOVE the input (not below)
+    dropdown.style.position = 'fixed';
+    dropdown.style.bottom = `${window.innerHeight - inputRect.top + 5}px`; // Above the input
+    dropdown.style.left = `${inputRect.left + (inputRect.width - dropdownWidth) / 2}px`; // Centered
+    dropdown.style.width = `${dropdownWidth}px`; // 90% of input width
+    dropdown.style.zIndex = '9999';
+    dropdown.style.maxHeight = '300px';
+    dropdown.style.overflowY = 'auto';
+  }
+
+  async populateFlowSelector() {
+    try {
+      console.log('[UIManager] Fetching workflow flows from backend...');
+      // Get all workflow flows from backend
+      const response = await this.apiClient.getWorkflowSkills();
+
+      console.log('[UIManager] Workflow flows received from backend:', response);
+
+      if (!response || !response.workflow_skills || !Array.isArray(response.workflow_skills)) {
+        console.warn('[UIManager] No workflow flows returned from backend');
+        this.flowSelectorState.allFlows = [];
+        return;
+      }
+
+      this.flowSelectorState.allFlows = response.workflow_skills.map(flow => ({
+        flow_id: flow.flow_id,
+        name: flow.name || flow.flow_id,
+        description: flow.description || '',
+        displayName: flow.display_name || `/flow-${flow.flow_id.slice(-4)}: ${flow.name || flow.flow_id}`
+      }));
+      console.log('[UIManager] Processed workflow flows:', this.flowSelectorState.allFlows);
+
+    } catch (error) {
+      console.error('[UIManager] Failed to populate flow selector:', error);
+      console.error('[UIManager] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response,
+        data: error.data
+      });
+
+      // Show error to user
+      this.showNotification(`Failed to load workflow flows: ${error.message}`, 'error');
+
+      // Set empty array
+      this.flowSelectorState.allFlows = [];
+    }
+  }
+
+  filterFlows() {
+    const filter = this.flowSelectorState.currentFilter.toLowerCase();
+
+    if (!filter) {
+      this.flowSelectorState.filteredFlows = this.flowSelectorState.allFlows;
+    } else {
+      this.flowSelectorState.filteredFlows = this.flowSelectorState.allFlows.filter(flow =>
+        flow.flow_id.toLowerCase().includes(filter) ||
+        flow.name.toLowerCase().includes(filter) ||
+        flow.displayName.toLowerCase().includes(filter)
+      );
+    }
+
+    this.renderFlowOptions();
+  }
+
+  renderFlowOptions() {
+    if (!this.elements.flowOptionsList) return;
+
+    // Clear existing options
+    this.elements.flowOptionsList.innerHTML = '';
+
+    if (this.flowSelectorState.filteredFlows.length === 0) {
+      const noResults = document.createElement('div');
+      noResults.className = 'flow-option';
+      noResults.innerHTML = '<span class="flow-name">No workflow flows found</span>';
+      noResults.style.opacity = '0.6';
+      noResults.style.cursor = 'not-allowed';
+      this.elements.flowOptionsList.appendChild(noResults);
+      return;
+    }
+
+    // Add flow options
+    this.flowSelectorState.filteredFlows.forEach((flow, index) => {
+      const option = this.createFlowOption(flow, index);
+      this.elements.flowOptionsList.appendChild(option);
+    });
+  }
+
+  createFlowOption(flow, index) {
+    const option = document.createElement('div');
+    option.className = 'flow-option';
+    option.dataset.flowId = flow.flow_id;
+    option.dataset.flowIndex = index;
+
+    option.innerHTML = `
+      <span class="flow-name">${this.escapeHtml(flow.displayName)}</span>
+      ${flow.description ? `<span class="flow-description">${this.escapeHtml(flow.description)}</span>` : ''}
+    `;
+
+    // Add click event for flow selection
+    option.addEventListener('click', () => {
+      this.selectFlow(flow);
+    });
+
+    return option;
+  }
+
+  selectFlow(flow) {
+    if (!this.elements.taskInput) return;
+
+    const input = this.elements.taskInput;
+    const currentValue = input.value;
+    const slashPosition = this.flowSelectorState.slashPosition;
+
+    // Use special Unicode characters as boundaries for easy deletion (different from skill tokens)
+    const FLOW_START_MARKER = '\u2060'; // Word joiner
+    const FLOW_END_MARKER = '\u2061';   // Function application
+
+    // Create flow information string using display name
+    const flowInfo = `${FLOW_START_MARKER}${flow.displayName}${FLOW_END_MARKER}`;
+
+    // Replace /flow with flow selection
+    const beforeSlash = currentValue.substring(0, slashPosition);
+    const afterSlash = currentValue.substring(slashPosition + 5 + this.flowSelectorState.currentFilter.length); // +5 for '/flow'
+    const newValue = `${beforeSlash}${flowInfo} ${afterSlash}`;
+
+    input.value = newValue;
+
+    // Trigger input change event for validation
+    this.handleTaskInputChange({ target: input });
+
+    // Set cursor position after the inserted text
+    const newCursorPosition = beforeSlash.length + flowInfo.length + 1;
+    input.setSelectionRange(newCursorPosition, newCursorPosition);
+    input.focus();
+
+    // Hide the selector
+    this.hideFlowSelector();
+  }
+
+  handleFlowTokenDeletion(event) {
+    const input = event.target;
+    const cursorPos = input.selectionStart;
+    const text = input.value;
+
+    // Unicode markers for flow tokens
+    const startMarker = '\u2060'; // Word joiner
+    const endMarker = '\u2061';   // Function application
+
+    let tokenStart = -1;
+    let tokenEnd = -1;
+
+    if (event.key === 'Backspace') {
+      // Only delete if cursor is directly adjacent to end of token
+      if (cursorPos > 0 && text[cursorPos - 1] === endMarker) {
+        tokenEnd = cursorPos; // Include the marker
+        // Find the corresponding start marker backwards
+        for (let j = cursorPos - 2; j >= 0; j--) {
+          if (text[j] === startMarker) {
+            tokenStart = j;
+            break;
+          }
+        }
+      }
+    } else if (event.key === 'Delete') {
+      // Only delete if cursor is directly adjacent to start of token
+      if (cursorPos < text.length && text[cursorPos] === startMarker) {
+        tokenStart = cursorPos;
+        // Find the corresponding end marker forwards
+        for (let j = cursorPos + 1; j < text.length; j++) {
+          if (text[j] === endMarker) {
+            tokenEnd = j + 1; // Include the marker
+            break;
+          }
+        }
+      }
+    }
+
+    // If we found a complete token, delete it
+    if (tokenStart !== -1 && tokenEnd !== -1) {
+      const beforeToken = text.substring(0, tokenStart);
+      const afterToken = text.substring(tokenEnd);
+      input.value = beforeToken + afterToken;
+      input.setSelectionRange(tokenStart, tokenStart);
+
+      // Trigger input change event for validation
+      this.handleTaskInputChange({ target: input });
+
+      return true; // Prevent default behavior
+    }
+
+    return false; // Allow default behavior
+  }
+
+  getSelectedFlowsForTask() {
+    if (!this.elements.taskInput) return null;
+
+    const inputValue = this.elements.taskInput.value;
+    const FLOW_START_MARKER = '\u2060'; // Word joiner
+    const FLOW_END_MARKER = '\u2061';   // Function application
+
+    const flows = [];
+    let startIndex = 0;
+
+    while ((startIndex = inputValue.indexOf(FLOW_START_MARKER, startIndex)) !== -1) {
+      const endIndex = inputValue.indexOf(FLOW_END_MARKER, startIndex);
+      if (endIndex !== -1) {
+        const flowText = inputValue.substring(startIndex + 1, endIndex);
+        // Extract flow_id from the display name format: /flow-{id}: {name}
+        const flowMatch = flowText.match(/\/flow-(\w+):/);
+        if (flowMatch) {
+          // Find the full flow_id from cached flows
+          const fullFlow = this.flowSelectorState.allFlows.find(f =>
+            f.flow_id.endsWith(flowMatch[1])
+          );
+          if (fullFlow) {
+            flows.push(fullFlow.flow_id);
+          }
+        }
+        startIndex = endIndex + 1;
+      } else {
+        break;
+      }
+    }
+
+    return flows.length > 0 ? flows : null;
   }
 
   // Initialize social links from config

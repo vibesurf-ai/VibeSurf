@@ -4,6 +4,8 @@
 CREATE TABLE IF NOT EXISTS workflow_skills (
     id VARCHAR(36) PRIMARY KEY,
     flow_id VARCHAR(36) NOT NULL UNIQUE,
+    name VARCHAR(255),
+    description TEXT,
     add_to_skill BOOLEAN NOT NULL DEFAULT 0,
     workflow_expose_config TEXT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
