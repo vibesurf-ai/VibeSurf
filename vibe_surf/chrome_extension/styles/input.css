@@ -758,3 +758,128 @@ select.task-running-disabled {
   pointer-events: none;
   z-index: 2;
 }
+
+/* Flow/Workflow Selection Dropdown - Similar to Tab Selector */
+.flow-selector-dropdown {
+  position: fixed !important;
+  z-index: 1000;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 300px;
+  overflow: hidden;
+  display: none;
+}
+
+.flow-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.flow-selector-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: white;
+}
+
+.flow-selector-content {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: var(--spacing-xs);
+}
+
+.flow-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.flow-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+  background: var(--bg-primary);
+}
+
+.flow-option:hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border-color: rgba(102, 126, 234, 0.3);
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+}
+
+.flow-option:active {
+  transform: translateX(2px);
+}
+
+.flow-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.flow-name::before {
+  content: '⚡';
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.flow-description {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  padding-left: 20px;
+  line-height: 1.4;
+}
+
+/* Flow selection indicator in textarea */
+.task-input.has-selected-flows {
+  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.02) 0%, rgba(118, 75, 162, 0.02) 100%);
+}
+
+/* Selected flows display */
+.selected-flows-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Scrollbar styling for flow selector */
+.flow-selector-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.flow-selector-content::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.flow-selector-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: var(--radius-sm);
+}
+
+.flow-selector-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #5568d3 0%, #65398b 100%);
+}

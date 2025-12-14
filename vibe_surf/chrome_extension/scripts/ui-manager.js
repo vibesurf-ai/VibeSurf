@@ -3414,9 +3414,14 @@ class VibeSurfUIManager {
 
     // Check if / was just typed
     if (inputValue[cursorPosition - 1] === '/') {
-      this.skillSelectorState.slashPosition = cursorPosition - 1;
-      this.skillSelectorState.currentFilter = '';
-      this.showSkillSelector();
+      // Check if this might be /flow pattern - if so, don't show skill selector
+      const beforeCursor = inputValue.substring(0, cursorPosition);
+      const possibleFlow = beforeCursor.substring(cursorPosition - 5, cursorPosition); // last 5 chars
+      if (!possibleFlow.toLowerCase().startsWith('/flow')) {
+        this.skillSelectorState.slashPosition = cursorPosition - 1;
+        this.skillSelectorState.currentFilter = '';
+        this.showSkillSelector();
+      }
     } else if (this.skillSelectorState.isVisible) {
       // Check if / was deleted - hide skill selector immediately
       if (this.skillSelectorState.slashPosition >= 0 &&
@@ -3667,8 +3672,8 @@ class VibeSurfUIManager {
       isVisible: false,
       selectedFlows: [],
       allFlows: [],
-      slashPosition: -1, // Position where /flow was typed
-      currentFilter: '', // Current filter text after /flow
+      slashPosition: -1, // Position where @flow was typed
+      currentFilter: '', // Current filter text after @flow
       filteredFlows: [] // Filtered flows based on current input
     };
 
@@ -3698,26 +3703,30 @@ class VibeSurfUIManager {
     const inputValue = event.target.value;
     const cursorPosition = event.target.selectionStart;
 
-    // Check if /flow pattern was just typed (case-insensitive)
+    // Check if @flow pattern was just typed (case-insensitive)
     const beforeCursor = inputValue.substring(0, cursorPosition);
-    const flowMatch = beforeCursor.match(/\/flow$/i);
+    const flowMatch = beforeCursor.match(/@flow$/i);
     
     if (flowMatch) {
+      // Hide tab selector if it's visible
+      if (this.tabSelectorState.isVisible) {
+        this.hideTabSelector();
+      }
       this.flowSelectorState.slashPosition = flowMatch.index;
       this.flowSelectorState.currentFilter = '';
       this.showFlowSelector();
     } else if (this.flowSelectorState.isVisible) {
-      // Check if /flow was deleted - hide flow selector immediately
+      // Check if @flow was deleted - hide flow selector immediately
       if (this.flowSelectorState.slashPosition >= 0) {
         const flowPattern = inputValue.substring(this.flowSelectorState.slashPosition, cursorPosition);
-        if (!flowPattern.toLowerCase().startsWith('/flow')) {
+        if (!flowPattern.toLowerCase().startsWith('@flow')) {
           this.hideFlowSelector();
           return;
         }
       }
 
-      // Update filter based on text after /flow
-      const textAfterFlow = inputValue.substring(this.flowSelectorState.slashPosition + 5, cursorPosition); // +5 for '/flow'
+      // Update filter based on text after @flow
+      const textAfterFlow = inputValue.substring(this.flowSelectorState.slashPosition + 5, cursorPosition); // +5 for '@flow'
       
       // Only consider text up to the next space or special character
       const filterText = textAfterFlow.split(/[\s@]/)[0];
@@ -3816,7 +3825,7 @@ class VibeSurfUIManager {
         flow_id: flow.flow_id,
         name: flow.name || flow.flow_id,
         description: flow.description || '',
-        displayName: flow.display_name || `/flow-${flow.flow_id.slice(-4)}: ${flow.name || flow.flow_id}`
+        displayName: flow.display_name || `@flow-${flow.flow_id.slice(-4)}: ${flow.name || flow.flow_id}`
       }));
       console.log('[UIManager] Processed workflow flows:', this.flowSelectorState.allFlows);
 
@@ -3909,9 +3918,9 @@ class VibeSurfUIManager {
     // Create flow information string using display name
     const flowInfo = `${FLOW_START_MARKER}${flow.displayName}${FLOW_END_MARKER}`;
 
-    // Replace /flow with flow selection
+    // Replace @flow with flow selection
     const beforeSlash = currentValue.substring(0, slashPosition);
-    const afterSlash = currentValue.substring(slashPosition + 5 + this.flowSelectorState.currentFilter.length); // +5 for '/flow'
+    const afterSlash = currentValue.substring(slashPosition + 5 + this.flowSelectorState.currentFilter.length); // +5 for '@flow'
     const newValue = `${beforeSlash}${flowInfo} ${afterSlash}`;
 
     input.value = newValue;
@@ -3996,8 +4005,8 @@ class VibeSurfUIManager {
       const endIndex = inputValue.indexOf(FLOW_END_MARKER, startIndex);
       if (endIndex !== -1) {
         const flowText = inputValue.substring(startIndex + 1, endIndex);
-        // Extract flow_id from the display name format: /flow-{id}: {name}
-        const flowMatch = flowText.match(/\/flow-(\w+):/);
+        // Extract flow_id from the display name format: @flow-{id}: {name}
+        const flowMatch = flowText.match(/@flow-(\w+):/);
         if (flowMatch) {
           // Find the full flow_id from cached flows
           const fullFlow = this.flowSelectorState.allFlows.find(f =>

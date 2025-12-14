@@ -370,12 +370,12 @@ async def get_workflow_skills():
     try:
         from ..shared_state import workflow_skills
         
-        # Format the response similar to /flow-{flow_id[-4:]}: {flow name}
+        # Format the response similar to @flow-{flow_id[-4:]}: {flow name}
         result = []
         for flow_id, skill_data in workflow_skills.items():
             result.append({
                 "flow_id": flow_id,
-                "display_name": f"/flow-{flow_id[-4:]}: {skill_data.get('name', flow_id)}",
+                "display_name": f"@flow-{flow_id[-4:]}: {skill_data.get('name', flow_id)}",
                 "name": skill_data.get("name", ""),
                 "description": skill_data.get("description", ""),
                 "workflow_expose_config": skill_data.get("workflow_expose_config", {})
