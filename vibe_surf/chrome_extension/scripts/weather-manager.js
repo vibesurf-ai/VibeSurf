@@ -57,22 +57,26 @@ class WeatherManager {
   }
 
   getWeatherIcon(condition) {
-    // Map weather conditions to icons
+    // Map weather conditions to icons (updated for open-meteo.com conditions)
     const conditionLower = condition.toLowerCase();
     
-    if (conditionLower.includes('sunny') || conditionLower.includes('clear')) {
+    if (conditionLower.includes('clear sky')) {
       return '☀️';
+    } else if (conditionLower.includes('mainly clear')) {
+      return '🌤️';
     } else if (conditionLower.includes('partly cloudy')) {
       return '⛅';
-    } else if (conditionLower.includes('cloud')) {
+    } else if (conditionLower.includes('overcast') || conditionLower.includes('cloud')) {
       return '☁️';
-    } else if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) {
+    } else if (conditionLower.includes('drizzle')) {
+      return '🌦️';
+    } else if (conditionLower.includes('rain')) {
       return '🌧️';
-    } else if (conditionLower.includes('thunder') || conditionLower.includes('storm')) {
-      return '⛈️';
     } else if (conditionLower.includes('snow')) {
       return '❄️';
-    } else if (conditionLower.includes('fog') || conditionLower.includes('mist')) {
+    } else if (conditionLower.includes('thunderstorm') || conditionLower.includes('thunder')) {
+      return '⛈️';
+    } else if (conditionLower.includes('fog')) {
       return '🌫️';
     } else {
       return '🌡️'; // Default
@@ -110,10 +114,9 @@ class WeatherManager {
   renderWeather(data) {
     if (!this.container) return;
     
-    const { location, temp_c, condition, humidity, wind_speed } = data;
+    const { location, temp_c, condition, wind_speed } = data;
     const icon = this.getWeatherIcon(condition);
     
-    // Reorganized layout: humidity and wind are now IN the weather-main section
     this.container.innerHTML = `
       <div class="weather-card">
         <div class="weather-header">
@@ -137,10 +140,6 @@ class WeatherManager {
           </div>
           <div class="weather-condition-text">${condition}</div>
           <div class="weather-details">
-            <div class="weather-detail-item">
-              <span class="detail-label">💧</span>
-              <span class="detail-value">${humidity}%</span>
-            </div>
             <div class="weather-detail-item">
               <span class="detail-label">💨</span>
               <span class="detail-value">${wind_speed} km/h</span>

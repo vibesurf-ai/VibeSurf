@@ -8,7 +8,6 @@ import uuid
 import json
 import re
 import httpx
-import geocoder
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, List
@@ -480,7 +479,6 @@ async def get_vibesurf_version():
         logger.error(f"Error getting VibeSurf version: {e}")
         raise HTTPException(status_code=500, detail="Failed to get version")
 
-@router.get("/extension-path", response_model=ExtensionPathResponse)
 @router.post("/workflows/save-recording", response_model=SaveWorkflowRecordingResponse)
 async def save_workflow_recording(request: SaveWorkflowRecordingRequest):
     """Save workflow recording to workdir/workflows/raws/ directory and convert to Langflow format"""
@@ -626,48 +624,109 @@ class WeatherResponse(BaseModel):
     location: str
     temp_c: str
     condition: str
-    humidity: str
     wind_speed: str
     details: Dict[str, Any]
 
 @router.get("/weather", response_model=WeatherResponse)
 async def get_weather():
-    """Get weather information based on IP location"""
+    """Get weather information based on IP location using open-meteo.com"""
     try:
-        # Get location
-        try:
-            g = geocoder.ip('me')
-            if g.city:
-                location_query = g.city
-                display_location = f"{g.city}, {g.country}"
-            elif g.country:
-                location_query = g.country
-                display_location = g.country
-            else:
-                location_query = "Beijing"
-                display_location = "Beijing, CN"
-        except Exception as e:
-            logger.warning(f"Error getting location: {e}")
-            location_query = "Beijing"
-            display_location = "Beijing, CN"
+        # Default to San Francisco coordinates if geolocation fails
+        latitude = 37.7749
+        longitude = -122.4194
+        display_location = "San Francisco, US"
         
-        # Get weather
-        weather_url = f"https://wttr.in/{location_query}?format=j1"
-        async with httpx.AsyncClient() as client:
-            response = await client.get(weather_url)
+        # Get location from IP using ipinfo.io (disable proxy to get real IP)
+        try:
+            # trust_env=False prevents httpx from using system proxy settings
+            async with httpx.AsyncClient(trust_env=False) as client:
+                response = await client.get("http://ipinfo.io/json", timeout=2.0)
+                if response.status_code == 200:
+                    ip_data = response.json()
+                    city = ip_data.get("city", "")
+                    country = ip_data.get("country", "")
+                    loc = ip_data.get("loc", "")
+                    
+                    if loc and "," in loc:
+                        # loc format is "latitude,longitude"
+                        lat_str, lon_str = loc.split(",")
+                        latitude = float(lat_str.strip())
+                        longitude = float(lon_str.strip())
+                        
+                        if city and country:
+                            display_location = f"{city}, {country}"
+                        elif country:
+                            display_location = country
+                        
+                        logger.debug(f"Location detected: {display_location} ({latitude}, {longitude})")
+        except (httpx.TimeoutException, httpx.RequestError, ValueError) as e:
+            logger.warning(f"Error getting IP location (using San Francisco as default): {e}")
+        except Exception as e:
+            logger.warning(f"Unexpected error getting IP location (using San Francisco as default): {e}")
+        
+        # Get weather from open-meteo.com
+        weather_url = "https://api.open-meteo.com/v1/forecast"
+        params = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "current_weather": "true"
+        }
+        
+        async with httpx.AsyncClient(trust_env=False) as client:
+            response = await client.get(weather_url, params=params, timeout=3.0)
             if response.status_code != 200:
                 raise HTTPException(status_code=response.status_code, detail="Failed to fetch weather data")
             weather_data = response.json()
-            
-        current = weather_data['current_condition'][0]
+        
+        # Extract current weather data
+        current = weather_data.get("current_weather", {})
+        temp_c = current.get("temperature", 0)
+        wind_speed = current.get("windspeed", 0)
+        weather_code = current.get("weathercode", 0)
+        
+        # Map WMO weather codes to descriptions
+        # https://open-meteo.com/en/docs
+        weather_code_map = {
+            0: "Clear sky",
+            1: "Mainly clear",
+            2: "Partly cloudy",
+            3: "Overcast",
+            45: "Foggy",
+            48: "Depositing rime fog",
+            51: "Light drizzle",
+            53: "Moderate drizzle",
+            55: "Dense drizzle",
+            61: "Slight rain",
+            63: "Moderate rain",
+            65: "Heavy rain",
+            71: "Slight snow",
+            73: "Moderate snow",
+            75: "Heavy snow",
+            77: "Snow grains",
+            80: "Slight rain showers",
+            81: "Moderate rain showers",
+            82: "Violent rain showers",
+            85: "Slight snow showers",
+            86: "Heavy snow showers",
+            95: "Thunderstorm",
+            96: "Thunderstorm with slight hail",
+            99: "Thunderstorm with heavy hail"
+        }
+        
+        condition = weather_code_map.get(weather_code, "Unknown")
         
         return WeatherResponse(
             location=display_location,
-            temp_c=current['temp_C'],
-            condition=current['weatherDesc'][0]['value'],
-            humidity=current['humidity'],
-            wind_speed=current['windspeedKmph'],
-            details=current
+            temp_c=str(int(temp_c)),
+            condition=condition,
+            wind_speed=str(int(wind_speed)),
+            details={
+                "temperature": temp_c,
+                "windspeed": wind_speed,
+                "weathercode": weather_code,
+                "time": current.get("time", ""),
+                "winddirection": current.get("winddirection", 0)
+            }
         )
         
     except Exception as e:

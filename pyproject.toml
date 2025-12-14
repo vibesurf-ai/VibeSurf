@@ -247,7 +247,6 @@ dependencies = [
     "matplotlib>=3.10.7",
     "seaborn>=0.13.2",
     "openpyxl>=3.1.5",
-    "geocoder==1.38.1",
     "parsel==1.10.0"
 ]
 

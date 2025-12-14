@@ -125,10 +125,10 @@ class SkillSearchAction(BaseModel):
     query: str = Field(
         description='Search query to generate multiple search tasks and find relevant information',
     )
-    rank: bool = Field(
-        default=False,
-        description='Whether to use LLM ranking for results.',
-    )
+    # rank: bool = Field(
+    #     default=False,
+    #     description='Whether to use LLM ranking for results.',
+    # )
 
 
 class SkillCrawlAction(BaseModel):
