@@ -2,15 +2,17 @@
 Workflow Skill API
 Handles workflow skill configuration for exposing workflow inputs as skills
 """
-import httpx
-import os
 from typing import Optional, Dict, Any, List
+from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database.manager import get_db_session
 from ..database.queries import WorkflowSkillQueries
+from vibe_surf.langflow.services.deps import session_scope, get_settings_service
+from vibe_surf.langflow.services.auth.utils import create_super_user
+from vibe_surf.langflow.api.v1.flows import _read_flow
 from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
@@ -160,25 +162,31 @@ async def get_workflow_expose_config(
     If exists in DB, merge with fresh data from workflow.
     """
     try:
-        # Get backend base URL
-        backend_port = os.getenv("VIBESURF_BACKEND_PORT", "9335")
-        backend_base_url = f'http://localhost:{backend_port}'
+        # Convert flow_id to UUID
+        try:
+            flow_uuid = UUID(flow_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid flow ID format")
         
-        # Fetch workflow data from langflow API
-        async with httpx.AsyncClient() as client:
-            workflow_response = await client.get(
-                f"{backend_base_url}/api/v1/flows/{flow_id}",
-                headers={"accept": "application/json"},
-                timeout=30.0
-            )
+        # Get settings for authentication
+        settings_service = get_settings_service()
+        username = settings_service.auth_settings.SUPERUSER
+        password = settings_service.auth_settings.SUPERUSER_PASSWORD
+        
+        # Fetch workflow from langflow database using session_scope
+        async with session_scope() as langflow_session:
+            current_user = await create_super_user(db=langflow_session, username=username, password=password)
+            db_flow = await _read_flow(session=langflow_session, flow_id=flow_uuid, user_id=current_user.id)
             
-            if workflow_response.status_code != 200:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Workflow not found: {flow_id}"
-                )
+            if not db_flow:
+                raise HTTPException(status_code=404, detail=f"Workflow not found: {flow_id}")
             
-            workflow_data = workflow_response.json()
+            # Convert to dict to work with existing logic
+            workflow_data = {
+                "name": db_flow.name,
+                "description": db_flow.description,
+                "data": db_flow.data
+            }
         
         # Extract workflow name and description
         workflow_name = workflow_data.get("name", "")
@@ -255,24 +263,26 @@ async def update_workflow_expose_config(
     """
     try:
         # Fetch workflow data to get name and description
-        backend_port = os.getenv("VIBESURF_BACKEND_PORT", "9335")
-        backend_base_url = f'http://localhost:{backend_port}'
-        
         workflow_name = ""
         workflow_description = ""
         
         try:
-            async with httpx.AsyncClient() as client:
-                workflow_response = await client.get(
-                    f"{backend_base_url}/api/v1/flows/{request.flow_id}",
-                    headers={"accept": "application/json"},
-                    timeout=30.0
-                )
+            # Convert flow_id to UUID
+            flow_uuid = UUID(request.flow_id)
+            
+            # Get settings for authentication
+            settings_service = get_settings_service()
+            username = settings_service.auth_settings.SUPERUSER
+            password = settings_service.auth_settings.SUPERUSER_PASSWORD
+            
+            # Fetch workflow from langflow database using session_scope
+            async with session_scope() as langflow_session:
+                current_user = await create_super_user(db=langflow_session, username=username, password=password)
+                db_flow = await _read_flow(session=langflow_session, flow_id=flow_uuid, user_id=current_user.id)
                 
-                if workflow_response.status_code == 200:
-                    workflow_data = workflow_response.json()
-                    workflow_name = workflow_data.get("name", "")
-                    workflow_description = workflow_data.get("description", "")
+                if db_flow:
+                    workflow_name = db_flow.name or ""
+                    workflow_description = db_flow.description or ""
         except Exception as e:
             logger.warning(f"Failed to fetch workflow data for name/description: {e}")
         

@@ -296,6 +296,10 @@ class WorkflowSkill(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
     flow_id = Column(String(36), nullable=False, unique=True)  # One skill config per flow
     
+    # Workflow metadata
+    name = Column(String(255), nullable=True)  # Workflow name
+    description = Column(Text, nullable=True)  # Workflow description
+    
     # Skill Configuration
     add_to_skill = Column(Boolean, default=False, nullable=False)
     workflow_expose_config = Column(JSON, nullable=True)  # Component input exposure configuration
@@ -305,7 +309,7 @@ class WorkflowSkill(Base):
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
     
     def __repr__(self):
-        return f"<WorkflowSkill(flow_id={self.flow_id}, add_to_skill={self.add_to_skill})>"
+        return f"<WorkflowSkill(flow_id={self.flow_id}, name={self.name}, add_to_skill={self.add_to_skill})>"
 
 # WorkflowSkill indexes
 Index('idx_workflow_skills_flow_id', WorkflowSkill.flow_id)

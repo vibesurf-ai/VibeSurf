@@ -1690,6 +1690,8 @@ class WorkflowSkillQueries:
             db: AsyncSession,
             flow_id: str,
             add_to_skill: bool,
+            name: Optional[str] = None,
+            description: Optional[str] = None,
             workflow_expose_config: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Create or update workflow skill configuration"""
@@ -1706,6 +1708,8 @@ class WorkflowSkillQueries:
                     update(WorkflowSkill)
                     .where(WorkflowSkill.flow_id == flow_id)
                     .values(
+                        name=name,
+                        description=description,
                         add_to_skill=add_to_skill,
                         workflow_expose_config=workflow_expose_config,
                         updated_at=func.now()
@@ -1716,6 +1720,8 @@ class WorkflowSkillQueries:
                 skill_data = {
                     "id": existing_skill.id,
                     "flow_id": existing_skill.flow_id,
+                    "name": name,
+                    "description": description,
                     "add_to_skill": add_to_skill,
                     "workflow_expose_config": workflow_expose_config,
                     "created_at": existing_skill.created_at,
@@ -1725,6 +1731,8 @@ class WorkflowSkillQueries:
                 # Create new skill config
                 skill = WorkflowSkill(
                     flow_id=flow_id,
+                    name=name,
+                    description=description,
                     add_to_skill=add_to_skill,
                     workflow_expose_config=workflow_expose_config
                 )
@@ -1736,6 +1744,8 @@ class WorkflowSkillQueries:
                 skill_data = {
                     "id": skill.id,
                     "flow_id": skill.flow_id,
+                    "name": skill.name,
+                    "description": skill.description,
                     "add_to_skill": skill.add_to_skill,
                     "workflow_expose_config": skill.workflow_expose_config,
                     "created_at": skill.created_at,
