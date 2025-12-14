@@ -9,15 +9,17 @@ if TYPE_CHECKING:
     from vibe_surf.langflow.components.input_output.chat_output import ChatOutput
     from vibe_surf.langflow.components.input_output.text import TextInputComponent
     from vibe_surf.langflow.components.input_output.text_output import TextOutputComponent
+    from vibe_surf.langflow.components.input_output.data_output import DataOutputComponent
 
 _dynamic_imports = {
     "ChatInput": "chat",
     "ChatOutput": "chat_output",
     "TextInputComponent": "text",
     "TextOutputComponent": "text_output",
+    "DataOutputComponent": "data_output",
 }
 
-__all__ = ["ChatInput", "ChatOutput", "TextInputComponent", "TextOutputComponent"]
+__all__ = ["ChatInput", "ChatOutput", "TextInputComponent", "TextOutputComponent", "DataOutputComponent"]
 
 
 def __getattr__(attr_name: str) -> Any:
