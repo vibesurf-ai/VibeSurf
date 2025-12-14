@@ -41,7 +41,7 @@ def _launch_with_exec():
     # Set environment variables before exec
     os.environ["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
     # Additional fix for gunicorn compatibility
-    os.environ["no_proxy"] = "*"
+    # os.environ["no_proxy"] = "*"
 
     try:
         os.execv(sys.executable, [sys.executable, "-m", "vibe_surf.langflow.__main__", *sys.argv[1:]])  # noqa: S606

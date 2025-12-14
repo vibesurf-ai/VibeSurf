@@ -40,6 +40,7 @@ class ProductTelemetry:
         self.debug_logging = os.getenv("VIBESURF_DEBUG", "false").lower() in ("true", "1", "yes", "on")
 
         telemetry_disabled = not telemetry_enabled
+        self._ensure_no_proxy()
 
         if telemetry_disabled:
             self._posthog_client = None
@@ -58,6 +59,18 @@ class ProductTelemetry:
 
         if self._posthog_client is None:
             logger.debug('Telemetry disabled')
+
+    def _ensure_no_proxy(self):
+        current_no_proxy = os.environ.get('no_proxy', '')
+        required_hosts = ['us.i.posthog.com']
+
+        for host in required_hosts:
+            if host not in current_no_proxy:
+                if current_no_proxy:
+                    os.environ['no_proxy'] = f"{current_no_proxy},{host}"
+                else:
+                    os.environ['no_proxy'] = host
+                current_no_proxy = os.environ['no_proxy']
 
     def capture(self, event: BaseTelemetryEvent) -> None:
         if self._posthog_client is None:

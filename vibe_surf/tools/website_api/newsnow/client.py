@@ -300,7 +300,7 @@ class NewsNowClient:
         url = f"{self.base_url}/api/s/entire"
         
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            async with httpx.AsyncClient(timeout=self.timeout, trust_env=False) as client:
                 logger.info(f"POST request to {url} with {len(source_ids)} sources")
                 # API expects {"sources": [...]} format, not just an array
                 payload = {"sources": source_ids}

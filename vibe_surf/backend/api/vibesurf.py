@@ -636,9 +636,10 @@ async def get_weather():
         longitude = -122.4194
         display_location = "San Francisco, US"
         
-        # Get location from IP using ipinfo.io
+        # Get location from IP using ipinfo.io (disable proxy to get real IP)
         try:
-            async with httpx.AsyncClient() as client:
+            # trust_env=False prevents httpx from using system proxy settings
+            async with httpx.AsyncClient(trust_env=False) as client:
                 response = await client.get("http://ipinfo.io/json", timeout=2.0)
                 if response.status_code == 200:
                     ip_data = response.json()
@@ -657,7 +658,7 @@ async def get_weather():
                         elif country:
                             display_location = country
                         
-                        logger.info(f"Location detected: {display_location} ({latitude}, {longitude})")
+                        logger.debug(f"Location detected: {display_location} ({latitude}, {longitude})")
         except (httpx.TimeoutException, httpx.RequestError, ValueError) as e:
             logger.warning(f"Error getting IP location (using San Francisco as default): {e}")
         except Exception as e:
@@ -671,7 +672,7 @@ async def get_weather():
             "current_weather": "true"
         }
         
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(trust_env=False) as client:
             response = await client.get(weather_url, params=params, timeout=3.0)
             if response.status_code != 200:
                 raise HTTPException(status_code=response.status_code, detail="Failed to fetch weather data")
