@@ -93,7 +93,7 @@
 }
 
 .weather-condition-text {
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     color: var(--text-secondary);
     text-align: right;
     text-transform: capitalize;
@@ -128,7 +128,7 @@
 .detail-value {
     font-weight: 500;
     color: var(--text-primary);
-    font-size: 0.75rem;
+    font-size: 0.85rem;
 }
 
 /* Loading State */

@@ -148,41 +148,20 @@ class VibeSurfTools:
                 ai_response = search_result_dict.get('response', '')
                 all_results = search_result_dict.get('sources', [])
 
-                # Step 3: Process results based on rank parameter
-                if params.rank and all_results and len(all_results) > 10:
-                    logger.info(f'🔄 Using LLM ranking for {len(all_results)} results')
+                if used_fallback:
+                    tab_groups = {'all': [], 'news': [], 'videos': [], 'other': []}
 
-                    if not page_extraction_llm:
-                        logger.warning("LLM not available for ranking, returning unranked results")
-                        top_results = all_results[:15]
-                    else:
-                        # Use LLM ranking when rank=True and we have many results
-                        top_results = await _rank_search_results_with_llm(
-                            all_results, params.query, page_extraction_llm
-                        )
-                elif params.rank and all_results and len(all_results) <= 10:
-                    logger.info(f'⭐ Skipping LLM ranking for {len(all_results)} results (≤10)')
-                    top_results = all_results
+                    for result in all_results:
+                        source_tab = result.get('source_tab', 'other')
+                        tab_groups[source_tab].append(result)
+
+                    # Take up to 5 results from each tab
+                    top_results = []
+                    for tab_name in ['all', 'news', 'videos', 'other']:
+                        top_results.extend(tab_groups[tab_name][:5])
                 else:
-                    # When rank=False, return results from different tabs (5 each from all, news, videos)
-                    if hasattr(all_results, '__iter__') and all_results:
-                        # Group results by source_tab if available, otherwise take first 15
-                        tab_groups = {'all': [], 'news': [], 'videos': [], 'other': []}
+                    top_results = all_results[:15]
 
-                        for result in all_results:
-                            source_tab = result.get('source_tab', 'other')
-                            tab_groups[source_tab].append(result)
-
-                        # Take up to 5 results from each tab
-                        top_results = []
-                        for tab_name in ['all', 'news', 'videos', 'other']:
-                            top_results.extend(tab_groups[tab_name][:5])
-
-                        # If we don't have enough results from tabs, take the first 15 overall
-                        if len(top_results) < 15:
-                            top_results = all_results[:15]
-                    else:
-                        top_results = all_results[:15] if all_results else []
 
                 # Step 4: Format results for display - AI response first, then sources
                 results_text = f"# 🔍 Search Results for '{params.query}'\n\n"

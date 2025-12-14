@@ -549,7 +549,7 @@ async def initialize_vibesurf_components():
         if mcp_server_config and mcp_server_config.get("mcpServers"):
             await vibesurf_tools.register_mcp_clients()
             logger.info(f"✅ Registered {len(mcp_server_config['mcpServers'])} MCP servers")
-
+        load_composio_task = asyncio.create_task(load_composio())   
         # Initialize browser manager
         if browser_manager:
             main_browser_session = browser_manager.main_browser_session
@@ -575,7 +575,7 @@ async def initialize_vibesurf_components():
         browser_manager = BrowserManager(
             main_browser_session=main_browser_session
         )
-        load_composio_task = asyncio.create_task(load_composio())
+        
         # Initialize VibeSurfAgent
         vibesurf_agent = VibeSurfAgent(
             llm=llm,

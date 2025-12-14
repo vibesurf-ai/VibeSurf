@@ -56,6 +56,7 @@ logger = get_logger(__name__)
 
 # Global variables to control background tasks
 browser_monitor_task = None
+schedule_monitor_task = None
 langflow_init_task = None
 sync_flows_from_fs_task = None
 mcp_init_task = None
@@ -347,15 +348,13 @@ def get_lifespan():
             # Initialize VibeSurf components and update shared state
             await shared_state.initialize_vibesurf_components()
 
-            await shared_state.initialize_schedule_manager()
-
             # Start browser monitoring task
             browser_monitor_task = asyncio.create_task(monitor_browser_connection())
             logger.info("🔍 Started browser connection monitor")
 
             # Initialize and start schedule manager
             if shared_state.schedule_manager:
-                schedule_manager_task = asyncio.create_task(shared_state.schedule_manager.start())
+                schedule_manager_task = asyncio.create_task(shared_state.initialize_schedule_manager())
                 logger.info("📅 Started schedule manager")
 
             logger.info("🚀 VibeSurf Backend API started with single-task execution model")
