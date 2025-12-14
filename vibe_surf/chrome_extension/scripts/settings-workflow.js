@@ -1134,6 +1134,13 @@ class VibeSurfSettingsWorkflow {
           <div class="workflow-status">
             ${workflow.scheduled ? '<span class="status-badge scheduled">Scheduled</span>' : ''}
             ${isRunning ? '<span class="status-badge running">Running</span>' : ''}
+            <div class="workflow-skill-toggle" title="Add to Skill">
+              <label class="toggle-switch">
+                <input type="checkbox" class="skill-toggle-input" data-flow-id="${workflow.flow_id}" ${workflow.add_to_skill ? 'checked' : ''}>
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-label">Add to Skill</span>
+            </div>
           </div>
         </div>
         <div class="workflow-actions">
@@ -1263,6 +1270,14 @@ class VibeSurfSettingsWorkflow {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.handleWorkflowDelete(btn.dataset.workflowId);
+      });
+    });
+    
+    // Skill toggle checkboxes
+    this.elements.workflowsList.querySelectorAll('.skill-toggle-input').forEach(checkbox => {
+      checkbox.addEventListener('change', (e) => {
+        e.stopPropagation();
+        this.handleSkillToggle(checkbox.dataset.flowId, checkbox.checked);
       });
     });
   }
@@ -3508,6 +3523,297 @@ class VibeSurfSettingsWorkflow {
     
     // Reload workflows to show new one
     this.loadWorkflows();
+  }
+
+  // Handle skill toggle
+  async handleSkillToggle(flowId, isEnabled) {
+    try {
+      if (isEnabled) {
+        // Show skill configuration modal
+        await this.showSkillConfigModal(flowId);
+      } else {
+        // Disable skill
+        await this.apiClient.updateWorkflowExposeConfig(flowId, false, null);
+        
+        // Update workflow state
+        const workflow = this.state.workflows.find(w => w.flow_id === flowId);
+        if (workflow) {
+          workflow.add_to_skill = false;
+        }
+        
+        this.emit('notification', {
+          message: 'Workflow removed from skills',
+          type: 'success'
+        });
+      }
+    } catch (error) {
+      console.error('[SettingsWorkflow] Failed to toggle skill:', error);
+      this.emit('notification', {
+        message: `Failed to update skill: ${error.message}`,
+        type: 'error'
+      });
+      
+      // Revert checkbox state
+      const checkbox = document.querySelector(`.skill-toggle-input[data-flow-id="${flowId}"]`);
+      if (checkbox) {
+        checkbox.checked = !isEnabled;
+      }
+    }
+  }
+  
+  // Show skill configuration modal
+  async showSkillConfigModal(flowId) {
+    try {
+      // Get workflow expose config from backend
+      const response = await this.apiClient.getWorkflowExposeConfig(flowId);
+      
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to get workflow configuration');
+      }
+      
+      const workflow = this.state.workflows.find(w => w.flow_id === flowId);
+      const workflowName = workflow ? workflow.name : flowId;
+      
+      // Create and show modal
+      this.showSkillExposeModal(flowId, workflowName, response.workflow_expose_config);
+      
+    } catch (error) {
+      console.error('[SettingsWorkflow] Failed to load skill config:', error);
+      this.emit('notification', {
+        message: `Failed to load skill configuration: ${error.message}`,
+        type: 'error'
+      });
+      
+      // Revert checkbox
+      const checkbox = document.querySelector(`.skill-toggle-input[data-flow-id="${flowId}"]`);
+      if (checkbox) {
+        checkbox.checked = false;
+      }
+    }
+  }
+  
+  // Show skill expose modal
+  showSkillExposeModal(flowId, workflowName, exposeConfig) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('skill-expose-modal');
+    if (!modal) {
+      modal = this.createSkillExposeModal();
+    }
+    
+    // Update modal content
+    const modalTitle = modal.querySelector('.skill-expose-title');
+    const modalWorkflowName = modal.querySelector('.skill-expose-workflow-name');
+    const modalContent = modal.querySelector('.skill-expose-content');
+    
+    if (modalTitle) modalTitle.textContent = 'Input Schema';
+    if (modalWorkflowName) modalWorkflowName.textContent = workflowName;
+    
+    // Render expose configuration
+    if (modalContent) {
+      modalContent.innerHTML = this.renderExposeConfig(exposeConfig);
+    }
+    
+    // Store current flow ID for saving
+    modal.dataset.flowId = flowId;
+    modal.dataset.exposeConfig = JSON.stringify(exposeConfig);
+    
+    // Show modal
+    modal.classList.remove('hidden');
+  }
+  
+  // Create skill expose modal
+  createSkillExposeModal() {
+    const modalHTML = `
+      <div id="skill-expose-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content skill-expose-modal-content">
+          <div class="modal-header">
+            <h3 class="skill-expose-title">Input Schema</h3>
+            <button class="modal-close">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="skill-expose-workflow-name-container">
+              <strong>Workflow:</strong>
+              <span class="skill-expose-workflow-name"></span>
+            </div>
+            <div class="skill-expose-content"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="skill-expose-cancel">Cancel</button>
+            <button type="button" class="btn btn-primary" id="skill-expose-save">Save</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modal = document.getElementById('skill-expose-modal');
+    
+    // Bind events
+    const closeBtn = modal.querySelector('.modal-close');
+    const cancelBtn = modal.querySelector('#skill-expose-cancel');
+    const saveBtn = modal.querySelector('#skill-expose-save');
+    const overlay = modal.querySelector('.modal-overlay');
+    
+    if (closeBtn) closeBtn.addEventListener('click', () => this.hideSkillExposeModal());
+    if (cancelBtn) cancelBtn.addEventListener('click', () => this.hideSkillExposeModal());
+    if (saveBtn) saveBtn.addEventListener('click', () => this.saveSkillExposeConfig());
+    if (overlay) overlay.addEventListener('click', () => this.hideSkillExposeModal());
+    
+    return modal;
+  }
+  
+  // Render expose configuration with table layout
+  renderExposeConfig(exposeConfig) {
+    if (!exposeConfig || Object.keys(exposeConfig).length === 0) {
+      return '<div class="empty-state"><p>No exposable inputs found in this workflow.</p></div>';
+    }
+    
+    let html = '';
+    
+    for (const [componentId, componentData] of Object.entries(exposeConfig)) {
+      const componentName = componentData.component_name || componentId;
+      const inputs = componentData.inputs || {};
+      
+      if (Object.keys(inputs).length === 0) continue;
+      
+      html += `
+        <div class="skill-component-section">
+          <div class="component-header" data-component-id="${componentId}">
+            <span class="component-name">${this.escapeHtml(componentName)}</span>
+            <span class="component-collapse-icon">▼</span>
+          </div>
+          <div class="component-inputs">
+            <table class="skill-inputs-table">
+              <thead>
+                <tr>
+                  <th class="col-expose">Expose Input</th>
+                  <th class="col-field-name">Field Name</th>
+                  <th class="col-description">Description</th>
+                  <th class="col-current-value">Current Value</th>
+                </tr>
+              </thead>
+              <tbody>
+      `;
+      
+      for (const [inputName, inputData] of Object.entries(inputs)) {
+        const displayName = inputData.display_name || inputName;
+        const info = inputData.info || '';
+        const type = inputData.type || 'str';
+        const isExpose = inputData.is_expose || false;
+        const required = inputData.required;
+        
+        // Format current value
+        let currentValue = '';
+        if (inputData.value !== undefined && inputData.value !== null && inputData.value !== '') {
+          if (typeof inputData.value === 'boolean') {
+            currentValue = `<span class="value-toggle">${inputData.value ? '✓' : '✗'}</span>`;
+          } else {
+            currentValue = this.escapeHtml(String(inputData.value));
+          }
+        } else {
+          currentValue = '<span class="value-empty">-</span>';
+        }
+        
+        html += `
+          <tr class="input-row">
+            <td class="col-expose">
+              <label class="toggle-switch">
+                <input type="checkbox"
+                       class="skill-expose-checkbox"
+                       data-component-id="${componentId}"
+                       data-input-name="${inputName}"
+                       ${isExpose ? 'checked' : ''}>
+                <span class="toggle-slider"></span>
+              </label>
+            </td>
+            <td class="col-field-name">
+              <div class="field-name-wrapper">
+                <span class="field-name">${this.escapeHtml(displayName)}</span>
+                <span class="field-type">${this.escapeHtml(type)}</span>
+                ${required ? '<span class="required-badge">(required)</span>' : ''}
+              </div>
+            </td>
+            <td class="col-description">${this.escapeHtml(info)}</td>
+            <td class="col-current-value">${currentValue}</td>
+          </tr>
+        `;
+      }
+      
+      html += `
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+    
+    return html;
+  }
+  
+  // Hide skill expose modal
+  hideSkillExposeModal() {
+    const modal = document.getElementById('skill-expose-modal');
+    if (!modal) return;
+    
+    // Revert checkbox if canceling
+    const flowId = modal.dataset.flowId;
+    const checkbox = document.querySelector(`.skill-toggle-input[data-flow-id="${flowId}"]`);
+    if (checkbox) {
+      const workflow = this.state.workflows.find(w => w.flow_id === flowId);
+      checkbox.checked = workflow ? workflow.add_to_skill : false;
+    }
+    
+    modal.classList.add('hidden');
+  }
+  
+  // Save skill expose configuration
+  async saveSkillExposeConfig() {
+    const modal = document.getElementById('skill-expose-modal');
+    if (!modal) return;
+    
+    const flowId = modal.dataset.flowId;
+    const exposeConfig = JSON.parse(modal.dataset.exposeConfig || '{}');
+    
+    // Update expose config based on checkbox states
+    const checkboxes = modal.querySelectorAll('.skill-expose-checkbox');
+    checkboxes.forEach(checkbox => {
+      const componentId = checkbox.dataset.componentId;
+      const inputName = checkbox.dataset.inputName;
+      
+      if (exposeConfig[componentId] && exposeConfig[componentId].inputs && exposeConfig[componentId].inputs[inputName]) {
+        exposeConfig[componentId].inputs[inputName].is_expose = checkbox.checked;
+      }
+    });
+    
+    try {
+      // Save to backend
+      await this.apiClient.updateWorkflowExposeConfig(flowId, true, exposeConfig);
+      
+      // Update workflow state
+      const workflow = this.state.workflows.find(w => w.flow_id === flowId);
+      if (workflow) {
+        workflow.add_to_skill = true;
+      }
+      
+      this.emit('notification', {
+        message: 'Workflow skill configuration saved',
+        type: 'success'
+      });
+      
+      modal.classList.add('hidden');
+      
+    } catch (error) {
+      console.error('[SettingsWorkflow] Failed to save skill config:', error);
+      this.emit('notification', {
+        message: `Failed to save configuration: ${error.message}`,
+        type: 'error'
+      });
+    }
   }
 
   // Utility function to escape HTML

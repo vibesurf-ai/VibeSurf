@@ -291,9 +291,10 @@
     border: 1px solid var(--border-color);
     border-radius: 16px;
     padding: 24px;
+    padding-top: 56px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     width: 100%;
     box-sizing: border-box;
 }
@@ -3004,6 +3005,508 @@
     .workflow-id-display {
         font-size: 12px;
         padding: 10px 12px;
+    }
+}
+
+/* Add to Skill Toggle Styles */
+.workflow-skill-toggle {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg-secondary);
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.workflow-skill-toggle:hover {
+    background: rgba(59, 130, 246, 0.05);
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.skill-toggle-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-color);
+    white-space: nowrap;
+    user-select: none;
+}
+
+/* Toggle Switch Component - Compact Version */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input[type="checkbox"] {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: all 0.3s ease;
+    border-radius: 20px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: white;
+    transition: all 0.3s ease;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background: var(--primary-color);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translate(16px, -50%);
+}
+
+.toggle-switch input:focus + .toggle-slider {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.toggle-slider:hover {
+    opacity: 0.95;
+}
+
+[data-theme="dark"] .toggle-slider,
+.dark-theme .toggle-slider {
+    background-color: #555;
+}
+
+/* Skill Expose Modal Styles */
+.skill-expose-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    animation: fadeIn 0.3s ease;
+}
+
+.skill-expose-modal-content {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 0;
+    max-width: 700px;
+    width: 90%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.3s ease;
+}
+
+.skill-expose-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.skill-expose-modal-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.skill-expose-modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    line-height: 1;
+}
+
+.skill-expose-modal-close:hover {
+    background: var(--bg-secondary);
+    color: var(--text-color);
+}
+
+.skill-expose-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.skill-expose-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 20px 24px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    border-radius: 0 0 16px 16px;
+}
+
+/* Skill Component Section */
+.skill-component-section {
+    margin-bottom: 24px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.component-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.component-header:hover {
+    background: var(--bg-hover, #f0f0f0);
+}
+
+[data-theme="dark"] .component-header:hover,
+.dark-theme .component-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.component-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.component-collapse-icon {
+    font-size: 14px;
+    color: var(--text-muted);
+    transition: transform 0.3s ease;
+}
+
+.component-header.collapsed .component-collapse-icon {
+    transform: rotate(-90deg);
+}
+
+.component-inputs {
+    overflow-x: auto;
+}
+
+.component-inputs.collapsed {
+    display: none;
+}
+
+/* Skill Inputs Table */
+.skill-inputs-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+}
+
+.skill-inputs-table thead {
+    background: var(--bg-secondary);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.skill-inputs-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.skill-inputs-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+.skill-inputs-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.skill-inputs-table tbody tr:hover {
+    background: var(--bg-hover, #f5f5f5);
+}
+
+[data-theme="dark"] .skill-inputs-table tbody tr:hover,
+.dark-theme .skill-inputs-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Table Columns */
+.col-expose {
+    width: 120px;
+    text-align: center;
+}
+
+.col-field-name {
+    width: 200px;
+}
+
+.col-description {
+    min-width: 250px;
+}
+
+.col-current-value {
+    width: 150px;
+}
+
+/* Field Name Wrapper */
+.field-name-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.field-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.field-type {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 3px;
+    width: fit-content;
+}
+
+.required-badge {
+    font-size: 10px;
+    font-weight: 600;
+    color: #dc3545;
+    background: rgba(220, 53, 69, 0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    width: fit-content;
+}
+
+/* Current Value Display */
+.value-toggle {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.value-empty {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.col-current-value {
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 13px;
+    color: var(--text-color);
+}
+
+/* Loading State for Skill Modal */
+.skill-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 16px;
+}
+
+.skill-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--border-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.skill-loading-text {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* Empty State for Skill Modal */
+.skill-empty-state {
+    text-align: center;
+    padding: 60px 40px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 2px dashed var(--border-color);
+}
+
+.skill-empty-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    opacity: 0.6;
+}
+
+.skill-empty-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 8px;
+}
+
+.skill-empty-description {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+/* Dark Theme Support for Skill Components */
+[data-theme="dark"] .skill-expose-modal-content,
+.dark-theme .skill-expose-modal-content {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .skill-component-section,
+.dark-theme .skill-component-section {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .component-header,
+.dark-theme .component-header {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(59, 130, 246, 0.05) 100%);
+}
+
+[data-theme="dark"] .component-header:hover,
+.dark-theme .component-header:hover {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.12) 100%);
+}
+
+[data-theme="dark"] .skill-input-row:hover,
+.dark-theme .skill-input-row:hover {
+    background: rgba(59, 130, 246, 0.05);
+}
+
+[data-theme="dark"] .input-type,
+.dark-theme .input-type {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .skill-empty-state,
+.dark-theme .skill-empty-state {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .workflow-skill-toggle,
+.dark-theme .workflow-skill-toggle {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .workflow-skill-toggle:hover,
+.dark-theme .workflow-skill-toggle:hover {
+    background: rgba(59, 130, 246, 0.08);
+}
+
+/* Responsive Design for Skill Components */
+@media (max-width: 768px) {
+    .skill-expose-modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .skill-expose-modal-header {
+        padding: 20px;
+    }
+    
+    .skill-expose-modal-header h3 {
+        font-size: 18px;
+    }
+    
+    .skill-expose-modal-body {
+        padding: 20px;
+    }
+    
+    .skill-expose-modal-footer {
+        padding: 16px 20px;
+        flex-direction: column;
+    }
+    
+    .skill-expose-modal-footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .skill-input-row {
+        padding: 10px 16px;
+    }
+    
+    .component-header {
+        padding: 14px 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .skill-expose-modal-content {
+        width: 98%;
+        border-radius: 12px;
+    }
+    
+    .skill-expose-modal-header {
+        padding: 16px;
+    }
+    
+    .skill-expose-modal-header h3 {
+        font-size: 16px;
+    }
+    
+    .skill-expose-modal-body {
+        padding: 16px;
+    }
+    
+    .component-inputs {
+        padding: 2px;
+    }
+    
+    .input-details {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
     }
 }
 

@@ -741,6 +741,23 @@ class VibeSurfAPIClient {
   async getWeather() {
     return this.get('/vibesurf/weather');
   }
+
+  // Workflow Skill APIs
+  async getWorkflowExposeConfig(flowId) {
+    return this.get(`/skill/workflow-expose-config/${encodeURIComponent(flowId)}`);
+  }
+
+  async updateWorkflowExposeConfig(flowId, addToSkill, workflowExposeConfig) {
+    return this.post('/skill/workflow-expose-config', {
+      flow_id: flowId,
+      add_to_skill: addToSkill,
+      workflow_expose_config: workflowExposeConfig
+    });
+  }
+
+  async getEnabledSkills() {
+    return this.get('/skill/enabled-skills');
+  }
 }
 
 // Custom error class for API errors

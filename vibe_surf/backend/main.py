@@ -45,6 +45,7 @@ from vibe_surf.backend.api.agent import router as agent_router
 from vibe_surf.backend.api.composio import router as composio_router
 from vibe_surf.backend.api.schedule import router as schedule_router
 from vibe_surf.backend.api.vibesurf import router as vibesurf_router
+from vibe_surf.backend.api.skill import router as skill_router
 from vibe_surf.backend import shared_state
 
 # Configure logging
@@ -353,9 +354,8 @@ def get_lifespan():
             logger.info("🔍 Started browser connection monitor")
 
             # Initialize and start schedule manager
-            if shared_state.schedule_manager:
-                schedule_manager_task = asyncio.create_task(shared_state.initialize_schedule_manager())
-                logger.info("📅 Started schedule manager")
+            schedule_manager_task = asyncio.create_task(shared_state.initialize_schedule_manager())
+            logger.info("📅 Started schedule manager")
 
             logger.info("🚀 VibeSurf Backend API started with single-task execution model")
 
@@ -587,6 +587,7 @@ def create_app() -> FastAPI:
     app.include_router(composio_router, prefix="/api", tags=["composio"])
     app.include_router(schedule_router, prefix="/api", tags=["schedule"])
     app.include_router(vibesurf_router, prefix="/api", tags=["vibesurf"])
+    app.include_router(skill_router, prefix="/api", tags=["skill"])
 
     @app.middleware("http")
     async def check_boundary(request: Request, call_next):

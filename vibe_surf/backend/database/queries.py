@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func, desc, and_, or_
 from sqlalchemy.orm import selectinload
-from .models import Task, TaskStatus, LLMProfile, UploadedFile, McpProfile, VoiceProfile, VoiceModelType, ComposioToolkit, Credential, Schedule
+from .models import Task, TaskStatus, LLMProfile, UploadedFile, McpProfile, VoiceProfile, VoiceModelType, ComposioToolkit, Credential, Schedule, WorkflowSkill
 from ..utils.encryption import encrypt_api_key, decrypt_api_key
 import logging
 import json
@@ -1679,4 +1679,154 @@ class ScheduleQueries:
             return result.rowcount > 0
         except Exception as e:
             logger.error(f"Failed to increment execution count for schedule {schedule_id}: {e}")
+            raise
+
+
+class WorkflowSkillQueries:
+    """Query operations for WorkflowSkill model"""
+
+    @staticmethod
+    async def create_or_update_skill(
+            db: AsyncSession,
+            flow_id: str,
+            add_to_skill: bool,
+            workflow_expose_config: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Create or update workflow skill configuration"""
+        try:
+            # Check if skill config exists
+            result = await db.execute(
+                select(WorkflowSkill).where(WorkflowSkill.flow_id == flow_id)
+            )
+            existing_skill = result.scalar_one_or_none()
+            
+            if existing_skill:
+                # Update existing skill config
+                await db.execute(
+                    update(WorkflowSkill)
+                    .where(WorkflowSkill.flow_id == flow_id)
+                    .values(
+                        add_to_skill=add_to_skill,
+                        workflow_expose_config=workflow_expose_config,
+                        updated_at=func.now()
+                    )
+                )
+                await db.refresh(existing_skill)
+                
+                skill_data = {
+                    "id": existing_skill.id,
+                    "flow_id": existing_skill.flow_id,
+                    "add_to_skill": add_to_skill,
+                    "workflow_expose_config": workflow_expose_config,
+                    "created_at": existing_skill.created_at,
+                    "updated_at": existing_skill.updated_at
+                }
+            else:
+                # Create new skill config
+                skill = WorkflowSkill(
+                    flow_id=flow_id,
+                    add_to_skill=add_to_skill,
+                    workflow_expose_config=workflow_expose_config
+                )
+                
+                db.add(skill)
+                await db.flush()
+                await db.refresh(skill)
+                
+                skill_data = {
+                    "id": skill.id,
+                    "flow_id": skill.flow_id,
+                    "add_to_skill": skill.add_to_skill,
+                    "workflow_expose_config": skill.workflow_expose_config,
+                    "created_at": skill.created_at,
+                    "updated_at": skill.updated_at
+                }
+            
+            return skill_data
+        except Exception as e:
+            logger.error(f"Failed to create/update workflow skill for flow {flow_id}: {e}")
+            raise
+
+    @staticmethod
+    async def get_skill(db: AsyncSession, flow_id: str) -> Optional[WorkflowSkill]:
+        """Get workflow skill configuration by flow ID"""
+        try:
+            result = await db.execute(
+                select(WorkflowSkill).where(WorkflowSkill.flow_id == flow_id)
+            )
+            skill = result.scalar_one_or_none()
+            if skill:
+                _ = (skill.id, skill.created_at, skill.updated_at)
+            return skill
+        except Exception as e:
+            logger.error(f"Failed to get workflow skill for flow {flow_id}: {e}")
+            raise
+
+    @staticmethod
+    async def list_skills(
+            db: AsyncSession,
+            add_to_skill_only: bool = False,
+            limit: int = -1,
+            offset: int = 0
+    ) -> List[WorkflowSkill]:
+        """List all workflow skill configurations"""
+        try:
+            query = select(WorkflowSkill)
+
+            if add_to_skill_only:
+                query = query.where(WorkflowSkill.add_to_skill == True)
+
+            query = query.order_by(desc(WorkflowSkill.updated_at))
+
+            # Handle -1 as "get all records"
+            if limit != -1:
+                query = query.limit(limit)
+
+            # Always apply offset if provided
+            if offset > 0:
+                query = query.offset(offset)
+
+            result = await db.execute(query)
+            skills = result.scalars().all()
+
+            # Ensure all attributes are loaded for each skill
+            for skill in skills:
+                _ = (skill.id, skill.created_at, skill.updated_at)
+
+            return skills
+        except Exception as e:
+            logger.error(f"Failed to list workflow skills: {e}")
+            raise
+
+    @staticmethod
+    async def delete_skill(db: AsyncSession, flow_id: str) -> bool:
+        """Delete workflow skill configuration"""
+        try:
+            result = await db.execute(
+                delete(WorkflowSkill).where(WorkflowSkill.flow_id == flow_id)
+            )
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to delete workflow skill for flow {flow_id}: {e}")
+            raise
+
+    @staticmethod
+    async def update_expose_config(
+            db: AsyncSession,
+            flow_id: str,
+            workflow_expose_config: Dict[str, Any]
+    ) -> bool:
+        """Update workflow expose configuration"""
+        try:
+            result = await db.execute(
+                update(WorkflowSkill)
+                .where(WorkflowSkill.flow_id == flow_id)
+                .values(
+                    workflow_expose_config=workflow_expose_config,
+                    updated_at=func.now()
+                )
+            )
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to update expose config for flow {flow_id}: {e}")
             raise
