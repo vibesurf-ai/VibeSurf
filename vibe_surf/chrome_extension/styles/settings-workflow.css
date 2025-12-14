@@ -3119,7 +3119,7 @@
     background: var(--card-bg);
     border-radius: 16px;
     padding: 0;
-    max-width: 700px;
+    max-width: min(700px, 95vw);
     width: 90%;
     max-height: 85vh;
     display: flex;
@@ -3227,6 +3227,7 @@
 
 .component-inputs {
     overflow-x: auto;
+    width: 100%;
 }
 
 .component-inputs.collapsed {
@@ -3236,8 +3237,10 @@
 /* Skill Inputs Table */
 .skill-inputs-table {
     width: 100%;
+    min-width: 600px;
     border-collapse: collapse;
     background: var(--card-bg);
+    table-layout: fixed;
 }
 
 .skill-inputs-table thead {
@@ -3259,6 +3262,10 @@
     padding: 12px 16px;
     border-bottom: 1px solid var(--border-color);
     vertical-align: middle;
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
 }
 
 .skill-inputs-table tbody tr:last-child td {
@@ -3274,22 +3281,22 @@
     background: rgba(255, 255, 255, 0.05);
 }
 
-/* Table Columns */
+/* Table Columns - Responsive widths */
 .col-expose {
-    width: 120px;
+    width: 15%;
     text-align: center;
 }
 
 .col-field-name {
-    width: 200px;
+    width: 25%;
 }
 
 .col-description {
-    min-width: 250px;
+    width: 40%;
 }
 
 .col-current-value {
-    width: 150px;
+    width: 20%;
 }
 
 /* Field Name Wrapper */
@@ -3303,6 +3310,8 @@
     font-size: 14px;
     font-weight: 600;
     color: var(--text-color);
+    word-wrap: break-word;
+    word-break: break-word;
 }
 
 .field-type {
@@ -3342,6 +3351,9 @@
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
     font-size: 13px;
     color: var(--text-color);
+    word-wrap: break-word;
+    word-break: break-all;
+    overflow-wrap: break-word;
 }
 
 /* Loading State for Skill Modal */
@@ -3447,6 +3459,7 @@
 @media (max-width: 768px) {
     .skill-expose-modal-content {
         width: 95%;
+        max-width: 95vw;
         max-height: 90vh;
     }
     
@@ -3479,11 +3492,33 @@
     .component-header {
         padding: 14px 16px;
     }
+    
+    /* Adjust table for smaller screens */
+    .skill-inputs-table {
+        min-width: 500px;
+    }
+    
+    .col-expose {
+        min-width: 80px;
+    }
+    
+    .col-field-name {
+        min-width: 120px;
+    }
+    
+    .col-description {
+        min-width: 150px;
+    }
+    
+    .col-current-value {
+        min-width: 100px;
+    }
 }
 
 @media (max-width: 480px) {
     .skill-expose-modal-content {
         width: 98%;
+        max-width: 98vw;
         border-radius: 12px;
     }
     
@@ -3507,6 +3542,24 @@
         flex-direction: column;
         align-items: flex-start;
         gap: 4px;
+    }
+    
+    /* Further reduce table for very small screens */
+    .skill-inputs-table {
+        min-width: 400px;
+        font-size: 12px;
+    }
+    
+    .col-expose {
+        min-width: 70px;
+    }
+    
+    .col-field-name {
+        min-width: 100px;
+    }
+    
+    .col-description {
+        min-width: 120px;
     }
 }
 

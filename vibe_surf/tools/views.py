@@ -402,3 +402,30 @@ class CallApiAction(BaseModel):
     params: str = Field(
         description='JSON string of method parameters'
     )
+
+
+class SearchWorkflowsAction(BaseModel):
+    """Parameters for search_workflows action - Search available workflows"""
+    key_words: str | None = Field(
+        default=None,
+        description='Comma-separated keywords to search in workflow name and description. Use empty string, None, or "*" to return all workflows. Example: "search,data,analysis"'
+    )
+    workflow_id: str | None = Field(
+        default=None,
+        min_length=4,
+        max_length=4,
+        description='Optional last 4 digits of workflow ID for direct lookup.'
+    )
+
+
+class ExecuteWorkflowAction(BaseModel):
+    """Parameters for execute_workflow action - Execute a workflow with tweaks"""
+    workflow_id: str = Field(
+        min_length=4,
+        max_length=4,
+        description='Last 4 digits of the workflow ID to execute'
+    )
+    tweak_params: str | None = Field(
+        default=None,
+        description='JSON string containing tweak parameters in format: {"component_id": {"input_name": "input_value"}}. Example: {"TextInput-uU4Rl": {"input_value": "vibesurf"}}. Only include parameters that need to be adjusted; others will use default values.'
+    )
