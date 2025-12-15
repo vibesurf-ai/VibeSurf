@@ -1078,11 +1078,22 @@ class VibeSurfTools:
                         # result.outputs is list[RunOutputs]
                         for outer_idx, run_output in enumerate(result.outputs, 1):
                             # run_output.outputs is list[ResultData]
-                            for inner_idx, result_data in enumerate(run_output.outputs, 1):
+                            for inner_idx, result_data_org in enumerate(run_output.outputs, 1):
                                 # Extract results from ResultData
-                                results_data = result_data.results
-                                result_text += f"### Result {outer_idx}.{inner_idx}\n\n"
-                                result_text += f"```json\n{results_data}\n```\n\n"
+                                results_data = result_data_org.results
+                                component_display_name = result_data_org.component_display_name
+                                component_id = result_data_org.component_id
+                                try:
+                                    if "text" in results_data:
+                                        results_data_str = results_data["text"].data["text"]
+                                    elif "output_data" in results_data:
+                                        results_data_str = results_data["output_data"].data
+                                    else:
+                                        results_data_str = results_data
+                                except Exception as e:
+                                    results_data_str = results_data
+                                result_text += f"### Result of {component_id}-{component_display_name}\n\n"
+                                result_text += f"{results_data_str}\n\n"
                     
                     logger.info(f'✅ Successfully executed workflow: {full_flow_id}')
                     return ActionResult(
