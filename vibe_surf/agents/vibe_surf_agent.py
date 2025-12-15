@@ -112,6 +112,7 @@ class VibeSurfState:
     # Browser task execution
     browser_tasks: List[Dict[str, Any]] = field(default_factory=list)
     browser_results: List[BrowserTaskResult] = field(default_factory=list)
+    prev_browser_results: List[BrowserTaskResult] = field(default_factory=list)
 
     generated_report_result: Optional[ReportTaskResult] = None
     
@@ -135,9 +136,9 @@ def format_browser_results(browser_results: List[BrowserTaskResult]) -> str:
         status = "✅ Success" if result.success else "❌ Failed"
         result_text.append(f"{status}: {result.task}")
         if result.result:
-            result_text.append(f"  Result: {result.result}...")
+            result_text.append(f"  Browser Work Relative Dir: {result.agent_workdir}\n\nResult: {result.result}...")
         if result.error:
-            result_text.append(f"  Error: {result.error}")
+            result_text.append(f"  Browser Work Relative Dir: {result.agent_workdir}\n\nError: {result.error}")
     return "\n".join(result_text)
 
 
@@ -159,26 +160,29 @@ def process_agent_msg_file_links(agent_msg: str, agent_name: str, base_dir: Path
     def replace_link(match):
         text = match.group(1)
         path = match.group(2)
-        
+
         # Skip if already an absolute path or URL
         if path.startswith(('http://', 'https://', 'file:///', '/')):
             return match.group(0)
-        
-        # Build absolute path
-        if agent_name.startswith('browser_use_agent-'):
-            # Extract task_id and index from agent_name
-            # Format: browser_use_agent-{task_id}-{i + 1:03d}
-            parts = agent_name.split('-')
-            if len(parts) >= 3:
-                task_id = parts[1]
-                index = parts[2]
-                # Add the special sub-path for browser_use_agent
-                sub_path = f"bu_agents/{task_id}-{index}"
-                absolute_path = base_dir / sub_path / path
+
+        if os.path.isabs(path):
+            absolute_path = path
+        else:
+            # Build absolute path
+            if agent_name.startswith('browser_use_agent-'):
+                # Extract task_id and index from agent_name
+                # Format: browser_use_agent-{task_id}-{i + 1:03d}
+                parts = agent_name.split('-')
+                if len(parts) >= 3:
+                    task_id = parts[1]
+                    index = parts[2]
+                    # Add the special sub-path for browser_use_agent
+                    sub_path = f"bu_agents/{task_id}-{index}"
+                    absolute_path = base_dir / sub_path / path
+                else:
+                    absolute_path = base_dir / path
             else:
                 absolute_path = base_dir / path
-        else:
-            absolute_path = base_dir / path
         
         # Convert to string and normalize separators
         abs_path_str = str(absolute_path).replace(os.path.sep, '/')
@@ -383,9 +387,10 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
             f"Current Available Browser Tabs:\n{json.dumps(browser_tabs_info, ensure_ascii=False, indent=2)}\n")
     if active_browser_tab:
         context_info.append(f"Current Active Browser Tab:{active_browser_tab.target_id[-4:]}\n")
-    if state.browser_results:
-        results_md = format_browser_results(state.browser_results)
+    if state.prev_browser_results:
+        results_md = format_browser_results(state.prev_browser_results)
         context_info.append(f"Previous Browser Results:\n{results_md}\n")
+        state.prev_browser_results = []
     if state.generated_report_result:
         if state.generated_report_result.success:
             context_info.append(f"Generated Report: ✅ Success - {state.generated_report_result.report_path}\n")
@@ -470,7 +475,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
             response_content = params.get('response', 'Task completed!')
             follow_tasks = params.get('suggestion_follow_tasks', [])
             state.current_step = "END"
-
+            state.current_action = 'task_done'
             # Format final response
             final_response = f"{response_content}"
             await log_agent_activity(state, agent_name, "result", final_response)
@@ -507,7 +512,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
             )
 
             state.current_step = "vibesurf_agent"
-
+            state.current_action = 'vibesurf_action'
             if result.extracted_content:
                 vibesurf_agent.message_history.append(
                     UserMessage(content=f'Action result:\n{result.extracted_content}'))
@@ -561,6 +566,7 @@ async def _browser_task_execution_node_impl(state: VibeSurfState) -> VibeSurfSta
             raise ValueError("No browser tasks assigned. Please assign 1 task at least.")
         if not state.browser_results:
             state.browser_results = []
+            state.prev_browser_results = []
         if task_count <= 1:
             # Single task execution
             logger.info("📝 Using single execution for single task")
@@ -568,12 +574,14 @@ async def _browser_task_execution_node_impl(state: VibeSurfState) -> VibeSurfSta
             results = [result]
             # Update browser results
             state.browser_results.extend(results)
+            state.prev_browser_results = results
         else:
             # Multiple tasks execution - parallel approach
             logger.info(f"🚀 Using parallel execution for {task_count} tasks")
             results = await execute_parallel_browser_tasks(state)
             # Update browser results
             state.browser_results.extend(results)
+            state.prev_browser_results = results
 
         # Return to vibesurf agent for next decision
         state.current_step = "vibesurf_agent"
