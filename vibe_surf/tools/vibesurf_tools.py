@@ -930,14 +930,14 @@ class VibeSurfTools:
                     result_text += f"**Description:** {workflow_desc}\n\n"
 
                     # List adjustable parameters
-                    if workflow_expose_config:
-                        result_text += "**Adjustable Parameters:**\n\n"
+                    if len(filtered_workflows) < 5:
+                        if workflow_expose_config:
+                            result_text += "**Adjustable Parameters:**\n\n"
 
-                        for component_id, component_data in workflow_expose_config.items():
-                            component_name = component_data.get('component_name', component_id)
-                            inputs = component_data.get('inputs', {})
+                            for component_id, component_data in workflow_expose_config.items():
+                                component_name = component_data.get('component_name', component_id)
+                                inputs = component_data.get('inputs', {})
 
-                            if len(filtered_workflows) < 5:
                                 # Only show exposed inputs
                                 exposed_inputs = {k: v for k, v in inputs.items() if v.get('is_expose', False)}
 
@@ -955,8 +955,8 @@ class VibeSurfTools:
                                         if info:
                                             result_text += f"    - Description: {info}\n"
                                         result_text += f"    - Current/Default Value: {current_value}\n"[:100]
-                    else:
-                        result_text += "**No adjustable parameters configured**\n\n"
+                        else:
+                            result_text += "**No adjustable parameters configured**\n\n"
 
                 logger.info(f'🔍 Found {len(filtered_workflows)} workflows')
                 return ActionResult(
@@ -1012,6 +1012,67 @@ class VibeSurfTools:
                         return ActionResult(
                             error=f'Invalid tweak_params JSON: {str(e)}',
                             extracted_content=f'Invalid tweak_params JSON: {str(e)}'
+                        )
+                
+                # Validate tweak_params against workflow expose config
+                if tweaks:
+                    # Get workflow expose config
+                    workflow_data = workflow_skills.get(full_flow_id, {})
+                    workflow_expose_config = workflow_data.get('workflow_expose_config', {})
+                    
+                    # Build valid exposed inputs map
+                    valid_components = {}
+                    for component_id, component_data in workflow_expose_config.items():
+                        inputs = component_data.get('inputs', {})
+                        exposed_inputs = {k: v for k, v in inputs.items() if v.get('is_expose', False)}
+                        if exposed_inputs:
+                            valid_components[component_id] = exposed_inputs
+                    
+                    # Validate tweak keys
+                    invalid_tweaks = []
+                    for component_id, component_tweaks in tweaks.items():
+                        if component_id not in valid_components:
+                            invalid_tweaks.append(f"Component '{component_id}' is not found in exposed components")
+                        else:
+                            for input_name in component_tweaks.keys():
+                                if input_name not in valid_components[component_id]:
+                                    invalid_tweaks.append(f"Input '{input_name}' in component '{component_id}' is not exposed")
+                    
+                    # If invalid tweaks found, return error with adjustable parameters
+                    if invalid_tweaks:
+                        result_text = "**Invalid tweak parameters:**\n\n"
+                        for error in invalid_tweaks:
+                            result_text += f"- {error}\n"
+                        result_text += "\n---\n\n"
+                        
+                        result_text += "**Adjustable Parameters:**\n\n"
+                        
+                        for component_id, component_data in workflow_expose_config.items():
+                            component_name = component_data.get('component_name', component_id)
+                            inputs = component_data.get('inputs', {})
+                            
+                            # Only show exposed inputs
+                            exposed_inputs = {k: v for k, v in inputs.items() if v.get('is_expose', False)}
+                            
+                            if exposed_inputs:
+                                result_text += f"- **{component_name}** (`{component_id}`):\n"
+                                
+                                for input_name, input_data in exposed_inputs.items():
+                                    display_name = input_data.get('display_name', input_name)
+                                    input_type = input_data.get('type', 'str')
+                                    info = input_data.get('info', '')
+                                    current_value = input_data.get('value', '')
+                                    
+                                    result_text += f"  - `{input_name}` ({display_name})\n"
+                                    result_text += f"    - Type: {input_type}\n"
+                                    if info:
+                                        result_text += f"    - Description: {info}\n"
+                                    value_str = str(current_value)[:100]
+                                    result_text += f"    - Current/Default Value: {value_str}\n"
+                        
+                        return ActionResult(
+                            error=result_text,
+                            extracted_content=result_text
                         )
 
                 # Get the flow from database
@@ -1077,6 +1138,8 @@ class VibeSurfTools:
                                         results_data_str = results_data["text"].data["text"]
                                     elif "output_data" in results_data:
                                         results_data_str = results_data["output_data"].data
+                                    elif "message" in results_data:
+                                        results_data_str = results_data["message"].data["text"]
                                     else:
                                         results_data_str = results_data
                                 except Exception as e:

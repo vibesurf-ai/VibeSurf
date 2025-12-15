@@ -3459,10 +3459,9 @@ class VibeSurfUIManager {
     }
 
     try {
-      // Fetch skill data from backend if not already cached
-      if (this.skillSelectorState.allSkills.length === 0) {
-        await this.populateSkillSelector();
-      }
+      // Always fetch skill data from backend to ensure freshness
+      // This ensures backend changes (name modifications, etc.) are immediately reflected
+      await this.populateSkillSelector();
 
       // Filter skills based on current input
       this.filterSkills();
@@ -3515,14 +3514,12 @@ class VibeSurfUIManager {
 
   async populateSkillSelector() {
     try {
-      console.log('[UIManager] Fetching skills from backend...');
-      // Get all skills from backend
+      const timestamp = new Date().toISOString();
+      
+      // Get all skills from backend (always fetch to ensure backend changes are reflected)
       const skills = await this.apiClient.getAllSkills();
 
-      console.log('[UIManager] Skills received from backend:', skills);
-
       if (!skills || !Array.isArray(skills) || skills.length === 0) {
-        console.warn('[UIManager] No skills returned from backend');
         this.skillSelectorState.allSkills = [];
         return;
       }
@@ -3531,8 +3528,6 @@ class VibeSurfUIManager {
         name: skillName,
         displayName: skillName // Keep original skill name without transformation
       }));
-      console.log('[UIManager] Processed skills:', this.skillSelectorState.allSkills);
-
     } catch (error) {
       console.error('[UIManager] Failed to populate skill selector:', error);
       console.error('[UIManager] Error details:', {
@@ -3753,10 +3748,9 @@ class VibeSurfUIManager {
     }
 
     try {
-      // Fetch flow data from backend if not already cached
-      if (this.flowSelectorState.allFlows.length === 0) {
-        await this.populateFlowSelector();
-      }
+      // Always fetch flow data from backend to ensure freshness
+      // This ensures backend changes (name modifications, etc.) are immediately reflected
+      await this.populateFlowSelector();
 
       // Filter flows based on current input
       this.filterFlows();
@@ -3809,14 +3803,11 @@ class VibeSurfUIManager {
 
   async populateFlowSelector() {
     try {
-      console.log('[UIManager] Fetching workflow flows from backend...');
-      // Get all workflow flows from backend
+      const timestamp = new Date().toISOString();
+
+      // Get all workflow flows from backend (always fetch to ensure backend changes are reflected)
       const response = await this.apiClient.getWorkflowSkills();
-
-      console.log('[UIManager] Workflow flows received from backend:', response);
-
       if (!response || !response.workflow_skills || !Array.isArray(response.workflow_skills)) {
-        console.warn('[UIManager] No workflow flows returned from backend');
         this.flowSelectorState.allFlows = [];
         return;
       }
@@ -3827,8 +3818,6 @@ class VibeSurfUIManager {
         description: flow.description || '',
         displayName: flow.display_name || `@flow-${flow.flow_id.slice(-4)}: ${flow.name || flow.flow_id}`
       }));
-      console.log('[UIManager] Processed workflow flows:', this.flowSelectorState.allFlows);
-
     } catch (error) {
       console.error('[UIManager] Failed to populate flow selector:', error);
       console.error('[UIManager] Error details:', {
