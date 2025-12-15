@@ -341,6 +341,7 @@ class InterfaceVertex(ComponentVertex):
             ValueError: If an element in the list is not an instance of `Data` and
                 `ignore_errors` is set to `False`.
         """
+        artifacts = []
         if isinstance(self.built_object, Data):
             artifacts = [self.built_object.data]
         elif isinstance(self.built_object, list):

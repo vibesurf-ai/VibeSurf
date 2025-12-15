@@ -373,7 +373,8 @@
   height: 20px;
   width: 20px;
   left: 2px;
-  bottom: 2px;
+  top: 50%;
+  transform: translateY(-50%);
   background-color: white;
   transition: all 0.3s ease;
   border-radius: 50%;
@@ -386,7 +387,7 @@
 }
 
 .toolkit-toggle input:checked + .toggle-slider:before {
-  transform: translateX(22px);
+  transform: translate(22px, -50%);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 

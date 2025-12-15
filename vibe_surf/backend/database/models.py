@@ -287,3 +287,30 @@ Index('idx_schedules_flow_id', Schedule.flow_id)
 Index('idx_schedules_enabled', Schedule.is_enabled)
 Index('idx_schedules_next_execution', Schedule.next_execution_at)
 Index('idx_schedules_cron', Schedule.cron_expression)
+
+class WorkflowSkill(Base):
+    """WorkflowSkill model for managing workflow skill configurations"""
+    __tablename__ = 'workflow_skills'
+    
+    # Primary identifier
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    flow_id = Column(String(36), nullable=False, unique=True)  # One skill config per flow
+    
+    # Workflow metadata
+    name = Column(String(255), nullable=True)  # Workflow name
+    description = Column(Text, nullable=True)  # Workflow description
+    
+    # Skill Configuration
+    add_to_skill = Column(Boolean, default=False, nullable=False)
+    workflow_expose_config = Column(JSON, nullable=True)  # Component input exposure configuration
+    
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    
+    def __repr__(self):
+        return f"<WorkflowSkill(flow_id={self.flow_id}, name={self.name}, add_to_skill={self.add_to_skill})>"
+
+# WorkflowSkill indexes
+Index('idx_workflow_skills_flow_id', WorkflowSkill.flow_id)
+Index('idx_workflow_skills_add_to_skill', WorkflowSkill.add_to_skill)

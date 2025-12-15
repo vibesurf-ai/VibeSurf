@@ -55,6 +55,9 @@ envs: Dict[str, str] = {}
 # MCP server management
 active_mcp_server: Dict[str, str] = {}  # Dict[mcp_id: mcp_server_name]
 
+# Workflow skills management - workflow_id: {name, description, workflow_expose_config}
+workflow_skills: Dict[str, Dict[str, Any]] = {}
+
 # Single task execution tracking
 active_task: Optional[Dict[str, Any]] = None
 
@@ -62,7 +65,7 @@ active_task: Optional[Dict[str, Any]] = None
 def get_all_components():
     """Get all components as a dictionary"""
     global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager, current_llm_profile_name
-    global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs, composio_instance, schedule_manager
+    global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs, composio_instance, schedule_manager, workflow_skills
 
     return {
         "vibesurf_agent": vibesurf_agent,
@@ -78,6 +81,7 @@ def get_all_components():
         "current_llm_profile_name": current_llm_profile_name,
         "composio_instance": composio_instance,
         "schedule_manager": schedule_manager,
+        "workflow_skills": workflow_skills,
         "envs": envs
     }
 
@@ -85,7 +89,7 @@ def get_all_components():
 def set_components(**kwargs):
     """Update global components"""
     global vibesurf_agent, browser_manager, vibesurf_tools, llm, db_manager, current_llm_profile_name
-    global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs, composio_instance, schedule_manager
+    global workspace_dir, browser_execution_path, browser_user_data, active_mcp_server, envs, composio_instance, schedule_manager, workflow_skills
 
     if "vibesurf_agent" in kwargs:
         vibesurf_agent = kwargs["vibesurf_agent"]
@@ -113,6 +117,8 @@ def set_components(**kwargs):
         composio_instance = kwargs["composio_instance"]
     if "schedule_manager" in kwargs:
         schedule_manager = kwargs["schedule_manager"]
+    if "workflow_skills" in kwargs:
+        workflow_skills = kwargs["workflow_skills"]
 
 
 async def execute_task_background(
@@ -425,6 +431,50 @@ async def _load_enabled_composio_toolkits():
         return {}
 
 
+async def _load_workflow_skills():
+    """Load workflow skills from database and return workflow_skills dict"""
+    global db_manager, workflow_skills
+
+    try:
+        if not db_manager:
+            logger.info("Database manager not available, returning empty workflow skills")
+            return {}
+
+        from .database.queries import WorkflowSkillQueries
+
+        async for db in db_manager.get_session():
+            try:
+                # Get all workflow skills with add_to_skill=True
+                enabled_skills = await WorkflowSkillQueries.list_skills(
+                    db=db,
+                    add_to_skill_only=True
+                )
+
+                # Build workflow_skills dict
+                loaded_skills = {}
+                for skill in enabled_skills:
+                    loaded_skills[skill.flow_id] = {
+                        "name": skill.name or "",
+                        "description": skill.description or "",
+                        "workflow_expose_config": skill.workflow_expose_config or {}
+                    }
+
+                # Update shared state
+                workflow_skills = loaded_skills.copy()
+
+                logger.info(f"✅ Loaded {len(workflow_skills)} workflow skills: {list(workflow_skills.keys())}")
+
+                return workflow_skills
+
+            except Exception as e:
+                logger.warning(f"Failed to load workflow skills from database: {e}")
+                return {}
+
+    except Exception as e:
+        logger.warning(f"Database not available for workflow skills loading: {e}")
+        return {}
+
+
 async def load_composio():
     # Load and register Composio tools from enabled toolkits
     global composio_instance
@@ -549,7 +599,11 @@ async def initialize_vibesurf_components():
         if mcp_server_config and mcp_server_config.get("mcpServers"):
             await vibesurf_tools.register_mcp_clients()
             logger.info(f"✅ Registered {len(mcp_server_config['mcpServers'])} MCP servers")
-        load_composio_task = asyncio.create_task(load_composio())   
+        load_composio_task = asyncio.create_task(load_composio())
+        
+        # Load workflow skills from database in background
+        load_skills_task = asyncio.create_task(_load_workflow_skills())
+        
         # Initialize browser manager
         if browser_manager:
             main_browser_session = browser_manager.main_browser_session

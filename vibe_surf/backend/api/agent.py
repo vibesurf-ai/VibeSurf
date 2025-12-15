@@ -31,7 +31,7 @@ async def get_all_skills():
             for action_name in all_actions 
             if action_name.startswith('skill_')
         ]
-        logger.info(skill_names)
+        logger.debug(skill_names)
         return skill_names
         
     except Exception as e:

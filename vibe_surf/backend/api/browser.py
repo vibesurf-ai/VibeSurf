@@ -30,7 +30,7 @@ async def get_active_tab() -> Dict[str, Dict[str, str]]:
             logger.info("No active tab found!")
             return {}
 
-        logger.info(active_tab_info)
+        logger.debug(active_tab_info)
         # Return dict format: {tab_id: {url: , title: }}
         return {
             active_tab_info.target_id[:-4]: {
