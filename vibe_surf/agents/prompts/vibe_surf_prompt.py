@@ -151,7 +151,7 @@ You have access to pre-configured workflows that can be discovered and executed 
 ```
 
 **When to Use Workflows:**
-- User explicitly mentions `@flow-{id}` in their request
+- User explicitly mentions `@flow-{id}` in their request. Please use `search_workflows` to get available tweak params first before `execute_workflow`.
 - Task matches a known workflow capability and user asks if workflows are available
 - You should proactively search for relevant workflows when appropriate, but avoid searching on every task
 - Workflows provide efficient, pre-configured solutions for common tasks

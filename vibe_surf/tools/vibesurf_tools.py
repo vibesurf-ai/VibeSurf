@@ -859,7 +859,7 @@ class VibeSurfTools:
         """
 
         @self.registry.action(
-            'Search available workflows by keywords or workflow ID. Returns workflow information including adjustable parameters.',
+            'Search available workflows by keywords or workflow ID. Returns workflow information including adjustable tweak parameters.',
             param_model=SearchWorkflowsAction,
         )
         async def search_workflows(params: SearchWorkflowsAction):
@@ -937,37 +937,26 @@ class VibeSurfTools:
                             component_name = component_data.get('component_name', component_id)
                             inputs = component_data.get('inputs', {})
 
-                            # Only show exposed inputs
-                            exposed_inputs = {k: v for k, v in inputs.items() if v.get('is_expose', False)}
+                            if len(filtered_workflows) < 5:
+                                # Only show exposed inputs
+                                exposed_inputs = {k: v for k, v in inputs.items() if v.get('is_expose', False)}
 
-                            if exposed_inputs:
-                                result_text += f"- **{component_name}** (`{component_id}`):\n"
+                                if exposed_inputs:
+                                    result_text += f"- **{component_name}** (`{component_id}`):\n"
 
-                                for input_name, input_data in exposed_inputs.items():
-                                    display_name = input_data.get('display_name', input_name)
-                                    input_type = input_data.get('type', 'str')
-                                    info = input_data.get('info', '')
-                                    current_value = input_data.get('value', '')
+                                    for input_name, input_data in exposed_inputs.items():
+                                        display_name = input_data.get('display_name', input_name)
+                                        input_type = input_data.get('type', 'str')
+                                        info = input_data.get('info', '')
+                                        current_value = input_data.get('value', '')
 
-                                    result_text += f"  - `{input_name}` ({display_name})\n"
-                                    result_text += f"    - Type: {input_type}\n"
-                                    if info:
-                                        result_text += f"    - Description: {info}\n"
-                                    result_text += f"    - Current/Default Value: {current_value}\n"[:100]
+                                        result_text += f"  - `{input_name}` ({display_name})\n"
+                                        result_text += f"    - Type: {input_type}\n"
+                                        if info:
+                                            result_text += f"    - Description: {info}\n"
+                                        result_text += f"    - Current/Default Value: {current_value}\n"[:100]
                     else:
                         result_text += "**No adjustable parameters configured**\n\n"
-
-                    result_text += "\n---\n\n"
-
-                # Add usage example
-                result_text += "\n### Usage Example\n\n"
-                result_text += "To execute a workflow, use `execute_workflow` with:\n"
-                result_text += "```json\n"
-                result_text += "{\n"
-                result_text += '  "workflow_id": "1234",  // Last 4 digits\n'
-                result_text += '  "tweak_params": "{\\"TextInput-uU4Rl\\": {\\"input_value\\": \\"VibeSurf\\"}}"\n'
-                result_text += "}\n"
-                result_text += "```\n"
 
                 logger.info(f'🔍 Found {len(filtered_workflows)} workflows')
                 return ActionResult(

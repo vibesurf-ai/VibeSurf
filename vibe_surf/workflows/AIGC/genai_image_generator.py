@@ -31,11 +31,11 @@ class GoogleGenAIImageGeneratorComponent(Component):
             value=False,
             info="Whether to use Vertex AI via the GenAI client (requires vertexai=True init).",
         ),
-        MessageTextInput(
+        MultilineInput(
             name="prompt",
             display_name="Prompt",
             info="Text description for the image",
-            required=True,
+            required=True
         ),
         FileInput(
             name="image_file",
