@@ -111,13 +111,22 @@ class GeminiASR:
             audio_file = self.client.files.upload(file=file_path)
             
             # Generate content with the audio file
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=[
-                    "Please transcribe the audio to text. Only return the transcribed text without any additional commentary.",
-                    audio_file
-                ]
+                response_stream = self.client.models.generate_content(
+                    model=self.model,
+                    contents=[
+                        "Please return the text content in this audio file:",
+                        audio_file
+                    ],
             )
+                    stream=True  # Enable streaming
+                )
+                
+                # Aggregate streaming chunks
+                full_text = ""
+                for chunk in response_stream:
+                    if chunk.text:
+                        full_text += chunk.text
+                return full_text if full_text else ""
             
             return response.text if response.text else ""
         except Exception as e:
