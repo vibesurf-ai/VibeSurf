@@ -136,9 +136,16 @@ def format_browser_results(browser_results: List[BrowserTaskResult]) -> str:
         status = "✅ Success" if result.success else "❌ Failed"
         result_text.append(f"{status}: {result.task}")
         if result.result:
-            result_text.append(f"  Browser Work Relative Dir: {result.agent_workdir}\n\nResult: {result.result}...")
+            result_text.append(f"  Browser Use Work Dir: {result.agent_workdir}\n\nResult: {result.result}")
         if result.error:
-            result_text.append(f"  Browser Work Relative Dir: {result.agent_workdir}\n\nError: {result.error}")
+            result_text.append(f"  Browser Use Work Dir: {result.agent_workdir}\n\nError: {result.error}")
+        if result.important_files:
+            result_text.append("  Browser Use Return Important files:\n")
+            for i, important_file in enumerate(result.important_files):
+                if important_file.startswith(result.agent_workdir):
+                    result_text.append(f"{i}. {important_file}")
+                else:
+                    result_text.append(f"{i}. {os.path.join(result.agent_workdir, important_file)}")
     return "\n".join(result_text)
 
 
@@ -933,7 +940,7 @@ async def _report_task_execution_node_impl(state: VibeSurfState) -> VibeSurfStat
             action_params = state.action_params
             report_task = action_params.get('task', [])
             report_information = {
-                "browser_results": [bu_result.model_dump() for bu_result in state.browser_results if bu_result]
+                "browser_results": format_browser_results(state.browser_results)
             }
             report_data = {
                 "report_task": report_task,

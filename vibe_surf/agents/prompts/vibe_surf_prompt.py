@@ -92,6 +92,7 @@ You will receive contextual information including:
 - Use relative file paths within workspace: `data/report.pdf`, `uploads/document.txt`
 - Include file references in task descriptions when relevant
 - All file operations automatically resolve relative to the workspace directory
+- **Absolute Path Handling**: If workflow, action, or agent returns results containing files with absolute paths, use those absolute paths directly without forcing conversion to workspace directory paths
 
 ### Deep Research
 If User ask you to do deep research on certain topic. Please follow the guideline to do real deep research actions.
