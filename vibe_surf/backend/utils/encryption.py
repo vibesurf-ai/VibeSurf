@@ -98,6 +98,7 @@ def encrypt_api_key(api_key: str) -> str:
 def decrypt_api_key(encrypted_api_key: str) -> str:
     """
     Decrypt API key using machine-specific key.
+    Tries multiple network interfaces before falling back to local user ID.
     
     Args:
         encrypted_api_key: Base64 encoded encrypted API key
@@ -108,22 +109,47 @@ def decrypt_api_key(encrypted_api_key: str) -> str:
     if not encrypted_api_key or encrypted_api_key.strip() == "":
         return ""
     
-    try:
-        key = get_encryption_key()
-        fernet = Fernet(key)
-        encrypted_data = base64.urlsafe_b64decode(encrypted_api_key.encode('utf-8'))
-        decrypted_data = fernet.decrypt(encrypted_data)
-        return decrypted_data.decode('utf-8')
-    except Exception as e:
+    # List of network interfaces to try (covers Linux, macOS, Windows)
+    interfaces = [
+        None,  # Default (auto-detect)
+        'eth0', 'eth1', 'eth2',  # Ethernet on Linux
+        'wlan0', 'wlan1',  # WiFi on Linux
+        'en0', 'en1', 'en2',  # macOS
+        'Ethernet', 'Wi-Fi',  # Windows
+    ]
+    
+    # Try each network interface
+    for interface in interfaces:
         try:
-            key = get_encryption_key(use_local_userid=True)
+            # Get MAC address for this interface
+            mac = get_mac_address(interface=interface) if interface else get_mac_address()
+            
+            if not mac:
+                continue
+            
+            # Derive key from MAC address and attempt decryption
+            key = derive_key(mac)
             fernet = Fernet(key)
             encrypted_data = base64.urlsafe_b64decode(encrypted_api_key.encode('utf-8'))
             decrypted_data = fernet.decrypt(encrypted_data)
+            logger.debug(f"Successfully decrypted with interface: {interface or 'default'}")
             return decrypted_data.decode('utf-8')
-        except Exception as e:
-            logger.error(f"Failed to decrypt API key: {e}")
-            raise ValueError("Decryption failed")
+        except Exception:
+            # Continue to next interface
+            continue
+    
+    # Try with local userid as final fallback
+    try:
+        machine_id = get_local_user_id()
+        key = derive_key(machine_id)
+        fernet = Fernet(key)
+        encrypted_data = base64.urlsafe_b64decode(encrypted_api_key.encode('utf-8'))
+        decrypted_data = fernet.decrypt(encrypted_data)
+        logger.debug("Successfully decrypted with local user ID")
+        return decrypted_data.decode('utf-8')
+    except Exception as e:
+        logger.error(f"Failed to decrypt API key after trying all methods: {e}")
+        raise ValueError("Decryption failed")
 
 def is_encrypted(value: str) -> bool:
     """
