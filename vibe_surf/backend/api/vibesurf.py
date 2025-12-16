@@ -15,11 +15,17 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from ..database.manager import get_db_session
 from ..database.queries import CredentialQueries
 from vibe_surf.logger import get_logger
 from vibe_surf.tools.website_api.newsnow.client import NewsNowClient
+from vibe_surf.langflow.services.deps import session_scope, get_settings_service
+from vibe_surf.langflow.services.auth.utils import create_super_user
+from vibe_surf.langflow.api.v1.flows import _read_flow, _new_flow
+from vibe_surf.langflow.services.database.models.folder.model import Folder
+from vibe_surf.langflow.services.database.models.flow.model import FlowCreate
 
 logger = get_logger(__name__)
 
@@ -266,19 +272,6 @@ async def import_workflow(
                 success=False,
                 message="'data' must contain 'nodes' and 'edges' fields"
             )
-
-        # for edge in data["edges"]:
-        #     if "sourceHandle" in edge:
-        #         edge_before = edge["sourceHandle"]
-        #         edge["sourceHandle"] = re.sub(r'\s+', '', edge_before).strip()
-        #         edge_after = edge["sourceHandle"]
-        #         print(f"{edge_before} -> {edge_after}")
-        #
-        #     if "targetHandle" in edge:
-        #         edge_before = edge["targetHandle"]
-        #         edge["targetHandle"] = re.sub(r'\s+', '', edge_before).strip()
-        #         edge_after = edge["targetHandle"]
-        #         print(f"{edge_before} -> {edge_after}")
         
         # Get VibeSurf API key
         api_key = await CredentialQueries.get_credential(db, VIBESURF_API_KEY_NAME)
@@ -288,55 +281,61 @@ async def import_workflow(
                 message="Valid VibeSurf API key required"
             )
         
-        # Get backend base URL (assuming local langflow instance)
-        backend_port = os.getenv("VIBESURF_BACKEND_PORT", "9335")
-        backend_base_url = f'http://localhost:{backend_port}'
+        # Get settings for authentication
+        settings_service = get_settings_service()
+        username = settings_service.auth_settings.SUPERUSER
+        password = settings_service.auth_settings.SUPERUSER_PASSWORD
         
-        # Get projects to obtain folder_id
+        # Use direct database calls instead of HTTP
         try:
-            async with httpx.AsyncClient() as client:
-                projects_response = await client.get(
-                    f"{backend_base_url}/api/v1/projects/",
-                    timeout=30.0
-                )
+            async with session_scope() as langflow_session:
+                current_user = await create_super_user(db=langflow_session, username=username, password=password)
                 
-                if projects_response.status_code != 200:
-                    return ImportWorkflowResponse(
-                        success=False,
-                        message="Failed to fetch projects"
+                # Get projects to obtain folder_id
+                projects = (
+                    await langflow_session.exec(
+                        select(Folder).where(Folder.user_id == current_user.id)
                     )
-                
-                projects = projects_response.json()
+                ).all()
                 
                 # Use the first project's ID as folder_id
-                if isinstance(projects, list) and len(projects) > 0:
-                    folder_id = projects[0].get("id")
+                if projects and len(projects) > 0:
+                    folder_id = projects[0].id
                 else:
-                    folder_id = ""
+                    # Create a default folder if none exists
+                    from vibe_surf.langflow.services.database.models.folder.model import FolderCreate
+                    default_folder = Folder.model_validate(
+                        FolderCreate(name="My Projects", description="Default folder"),
+                        from_attributes=True
+                    )
+                    default_folder.user_id = current_user.id
+                    langflow_session.add(default_folder)
+                    await langflow_session.commit()
+                    await langflow_session.refresh(default_folder)
+                    folder_id = default_folder.id
 
-                import_data = copy.deepcopy(workflow_data)
-                import_data["folder_id"] = folder_id
-
-                if "user_id" in import_data:
-                    del import_data["user_id"]
-                
-                # Create workflow
-                create_response = await client.post(
-                    f"{backend_base_url}/api/v1/flows/",
-                    json=import_data,
-                    timeout=30.0
+                # Prepare flow data
+                flow_data = FlowCreate(
+                    name=workflow_data["name"],
+                    description=workflow_data.get("description", ""),
+                    data=workflow_data["data"],
+                    folder_id=folder_id,
+                    user_id=current_user.id
                 )
                 
-                if create_response.status_code not in [200, 201]:
-                    error_detail = create_response.text
-                    return ImportWorkflowResponse(
-                        success=False,
-                        message=f"Failed to create workflow: {error_detail}"
-                    )
+                # Create workflow using direct function call
+                db_flow = await _new_flow(
+                    session=langflow_session,
+                    flow=flow_data,
+                    user_id=current_user.id
+                )
                 
-                created_workflow = create_response.json()
-                workflow_id = created_workflow.get("id")
-                edit_url = f"{backend_base_url}/flow/{workflow_id}"
+                await langflow_session.commit()
+                await langflow_session.refresh(db_flow)
+                
+                workflow_id = str(db_flow.id)
+                backend_port = os.getenv("VIBESURF_BACKEND_PORT", "9335")
+                edit_url = f"http://localhost:{backend_port}/flow/{workflow_id}"
                 
                 logger.info(f"Successfully imported workflow: {workflow_id}")
                 return ImportWorkflowResponse(
@@ -346,14 +345,10 @@ async def import_workflow(
                     edit_url=edit_url
                 )
                 
-        except httpx.RequestError as e:
-            logger.error(f"HTTP request failed during workflow import: {e}")
-            return ImportWorkflowResponse(
-                success=False,
-                message="Failed to communicate with workflow service"
-            )
         except Exception as e:
             logger.error(f"Error during workflow creation: {e}")
+            import traceback
+            traceback.print_exc()
             return ImportWorkflowResponse(
                 success=False,
                 message=f"Failed to create workflow: {str(e)}"
@@ -361,6 +356,8 @@ async def import_workflow(
             
     except Exception as e:
         logger.error(f"Error importing workflow: {e}")
+        import traceback
+        traceback.print_exc()
         return ImportWorkflowResponse(
             success=False,
             message="Failed to import workflow"
@@ -381,30 +378,41 @@ async def export_workflow(
                 message="Valid VibeSurf API key required"
             )
         
-        # Get backend base URL (assuming local langflow instance)
-        backend_port = os.getenv("VIBESURF_BACKEND_PORT", "9335")
-        backend_base_url = f'http://localhost:{backend_port}'
+        # Get settings for authentication
+        settings_service = get_settings_service()
+        username = settings_service.auth_settings.SUPERUSER
+        password = settings_service.auth_settings.SUPERUSER_PASSWORD
         
         try:
-            async with httpx.AsyncClient() as client:
-                # Fetch workflow data
-                workflow_response = await client.get(
-                    f"{backend_base_url}/api/v1/flows/{flow_id}",
-                    headers={"accept": "application/json"},
-                    timeout=30.0
+            # Convert flow_id to UUID
+            from uuid import UUID
+            try:
+                flow_uuid = UUID(flow_id)
+            except ValueError:
+                return ExportWorkflowResponse(
+                    success=False,
+                    message="Invalid flow ID format"
                 )
+            
+            # Use direct database calls instead of HTTP
+            async with session_scope() as langflow_session:
+                current_user = await create_super_user(db=langflow_session, username=username, password=password)
                 
-                if workflow_response.status_code != 200:
+                # Fetch workflow from database
+                db_flow = await _read_flow(session=langflow_session, flow_id=flow_uuid, user_id=current_user.id)
+                
+                if not db_flow:
                     return ExportWorkflowResponse(
                         success=False,
-                        message=f"Failed to fetch workflow: {workflow_response.status_code}"
+                        message=f"Workflow not found: {flow_id}"
                     )
                 
-                workflow_data = workflow_response.json()
-                if "user_id" in workflow_data:
-                    del workflow_data["user_id"]
-                if "folder_id" in workflow_data:
-                    del workflow_data["folder_id"]
+                # Convert to dict and prepare for export
+                workflow_data = {
+                    "name": db_flow.name,
+                    "description": db_flow.description,
+                    "data": db_flow.data
+                }
                 
                 # Remove API keys (password fields) to match frontend behavior
                 if "data" in workflow_data and "nodes" in workflow_data["data"]:
@@ -418,7 +426,7 @@ async def export_workflow(
                     except Exception as e:
                         logger.warning(f"Error filtering API keys during export: {e}")
 
-                # Get workflow name from the response
+                # Get workflow name
                 flow_name = workflow_data.get("name", "workflow")
                 # Sanitize filename by removing invalid characters
                 safe_flow_name = "".join(c for c in flow_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
@@ -447,14 +455,10 @@ async def export_workflow(
                     file_path=str(file_path)
                 )
                 
-        except httpx.RequestError as e:
-            logger.error(f"HTTP request failed during workflow export: {e}")
-            return ExportWorkflowResponse(
-                success=False,
-                message="Failed to communicate with workflow service"
-            )
         except Exception as e:
             logger.error(f"Error during workflow export: {e}")
+            import traceback
+            traceback.print_exc()
             return ExportWorkflowResponse(
                 success=False,
                 message=f"Failed to export workflow: {str(e)}"
@@ -462,6 +466,8 @@ async def export_workflow(
             
     except Exception as e:
         logger.error(f"Error exporting workflow: {e}")
+        import traceback
+        traceback.print_exc()
         return ExportWorkflowResponse(
             success=False,
             message="Failed to export workflow"
