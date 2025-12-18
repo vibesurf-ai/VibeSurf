@@ -14,7 +14,6 @@ import time
 import random
 import requests
 import dashscope
-import librosa
 import subprocess
 import numpy as np
 import soundfile as sf
@@ -238,45 +237,35 @@ class Qwen3ASRProcessor:
     def _load_audio(self, file_path: str) -> np.ndarray:
         """Load audio file and convert to 16kHz mono WAV"""
         try:
-            if file_path.startswith(("http://", "https://")):
-                raise ValueError("Using ffmpeg to load remote file.")
-            # Try librosa first
-            wav_data, _ = librosa.load(file_path, sr=WAV_SAMPLE_RATE, mono=True)
-            return wav_data
-        except Exception as e:
-            if not self.silence:
-                print(f"Librosa failed, trying ffmpeg: {e}")
-            # Use ffmpeg as backup
-            try:
-                command = [
-                    'ffmpeg',
-                    '-i', file_path,
-                    '-ar', str(WAV_SAMPLE_RATE),
-                    '-ac', '1',
-                    '-c:a', 'pcm_s16le',
-                    '-f', 'wav',
-                    '-'
-                ]
-                process = subprocess.Popen(
-                    command,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
-                )
-                stdout_data, stderr_data = process.communicate()
-                
-                if process.returncode != 0:
-                    raise RuntimeError(
-                        f"FFmpeg error: {stderr_data.decode('utf-8', errors='ignore')}"
-                    )
-                
-                with io.BytesIO(stdout_data) as data_io:
-                    wav_data, sr = sf.read(data_io, dtype='float32')
-                
-                return wav_data
-            except Exception as ffmpeg_e:
+            command = [
+                'ffmpeg',
+                '-i', file_path,
+                '-ar', str(WAV_SAMPLE_RATE),
+                '-ac', '1',
+                '-c:a', 'pcm_s16le',
+                '-f', 'wav',
+                '-'
+            ]
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            stdout_data, stderr_data = process.communicate()
+
+            if process.returncode != 0:
                 raise RuntimeError(
-                    f"Failed to load audio from '{file_path}'. Error: {ffmpeg_e}"
+                    f"FFmpeg error: {stderr_data.decode('utf-8', errors='ignore')}"
                 )
+
+            with io.BytesIO(stdout_data) as data_io:
+                wav_data, sr = sf.read(data_io, dtype='float32')
+
+            return wav_data
+        except Exception as ffmpeg_e:
+            raise RuntimeError(
+                f"Failed to load audio from '{file_path}'. Error: {ffmpeg_e}"
+            )
     
     def _process_vad(
         self,

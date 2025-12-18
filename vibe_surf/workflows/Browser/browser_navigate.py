@@ -41,7 +41,7 @@ class BrowserNavigateComponent(Component):
     async def browser_navigation(self) -> AgentBrowserSession:
         try:
             await self.browser_session.navigate_to_url(self.url)
-            await asyncio.sleep(2)
+            await self.browser_session._wait_for_stable_network()
         except Exception as e:
             import traceback
             traceback.print_exc()

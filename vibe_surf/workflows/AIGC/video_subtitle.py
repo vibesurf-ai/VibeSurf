@@ -44,7 +44,7 @@ class VideoSubtitleComponent(Component):
             display_name="Subtitle Background",
             info="Add semi-transparent background to subtitles for better readability",
             options=["none", "light", "dark"],
-            value="dark",
+            value="none",
         ),
         MessageTextInput(
             name="font_size",
@@ -63,6 +63,27 @@ class VideoSubtitleComponent(Component):
             display_name="Secondary Subtitle Margin",
             info="Distance from bottom for secondary subtitle in pixels (default: 10)",
             value="10",
+        ),
+        DropdownInput(
+            name="primary_font_color",
+            display_name="Primary Font Color",
+            info="Font color for primary subtitle",
+            options=["白色-White", "黑色-Black", "红色-Red", "绿色-Green", "蓝色-Blue", "黄色-Yellow", "青色-Cyan", "品红-Magenta"],
+            value="白色-White",
+        ),
+        DropdownInput(
+            name="secondary_font_color",
+            display_name="Secondary Font Color",
+            info="Font color for secondary subtitle",
+            options=["白色-White", "黑色-Black", "红色-Red", "绿色-Green", "蓝色-Blue", "黄色-Yellow", "青色-Cyan", "品红-Magenta"],
+            value="白色-White",
+        ),
+        DropdownInput(
+            name="background_color",
+            display_name="Background Color",
+            info="Background color for subtitle box (when background mode is not 'none')",
+            options=["黑色-Black", "白色-White", "灰色-Gray", "红色-Red", "绿色-Green", "蓝色-Blue"],
+            value="黑色-Black",
         ),
     ]
 
@@ -181,6 +202,23 @@ class VideoSubtitleComponent(Component):
         except Exception as e:
             raise RuntimeError(f"Error embedding soft subtitles: {str(e)}")
 
+    def _get_color_hex(self, color_name):
+        """Convert color name to hex value for FFmpeg ASS subtitles
+        Format: &HAABBGGRR (AA=alpha, BB=blue, GG=green, RR=red)
+        """
+        color_map = {
+            "白色-White": "&HFFFFFF",    # White
+            "黑色-Black": "&H000000",    # Black
+            "红色-Red": "&H0000FF",      # Red
+            "绿色-Green": "&H00FF00",    # Green
+            "蓝色-Blue": "&HFF0000",     # Blue
+            "黄色-Yellow": "&H00FFFF",   # Yellow
+            "青色-Cyan": "&HFFFF00",     # Cyan
+            "品红-Magenta": "&HFF00FF",  # Magenta
+            "灰色-Gray": "&H808080",     # Gray
+        }
+        return color_map.get(color_name, "&HFFFFFF")  # Default to white
+
     def _embed_hard_subtitles(self, video_path, output_path, primary_exists, secondary_exists):
         """Embed subtitles as hard-burned (permanent) subtitles"""
         try:
@@ -214,33 +252,44 @@ class VideoSubtitleComponent(Component):
             except (ValueError, TypeError):
                 secondary_margin = 10
             
+            # Get color preferences
+            primary_font_color = getattr(self, 'primary_font_color', '白色-White')
+            secondary_font_color = getattr(self, 'secondary_font_color', '白色-White')
+            background_color = getattr(self, 'background_color', '黑色-Black')
+            
+            # Convert colors to hex
+            primary_color_hex = self._get_color_hex(primary_font_color)
+            secondary_color_hex = self._get_color_hex(secondary_font_color)
+            bg_color_hex = self._get_color_hex(background_color)
+            
             # Build style based on background preference
             # BackColour format: &HAABBGGRR (AA=alpha, BB=blue, GG=green, RR=red)
             # BorderStyle: 1=outline, 3=box background, 4=no border
             # &H00000000 = completely transparent background
-            if background_mode == "dark":
-                # Dark semi-transparent background (80% opacity black) - no outline
-                base_style = f"FontSize={font_size},BorderStyle=4,BackColour=&H80000000,Outline=0,Shadow=0,Spacing=0.2"
-            elif background_mode == "light":
-                # Light semi-transparent background (80% opacity white) - no outline
-                base_style = f"FontSize={font_size},BorderStyle=4,BackColour=&H80FFFFFF,Outline=0,Shadow=0,Spacing=0.2"
+            if background_mode == "dark" or background_mode == "light":
+                # Semi-transparent background (80% opacity) - no outline
+                # Use the selected background color with 80 alpha (0x80)
+                bg_with_alpha = bg_color_hex.replace("&H", "&H80")
+                base_style_template = f"FontSize={font_size},BorderStyle=4,BackColour={bg_with_alpha},Outline=0,Shadow=0,Spacing=0.2,PrimaryColour={{}}"
             else:
-                # No background - pure white text with completely transparent background
-                base_style = f"FontSize={font_size},BorderStyle=1,PrimaryColour=&HFFFFFF,BackColour=&H00000000,Outline=0,Shadow=0,Spacing=0.2"
+                # No background - text with completely transparent background
+                base_style_template = f"FontSize={font_size},BorderStyle=1,BackColour=&H00000000,Outline=0,Shadow=0,Spacing=0.2,PrimaryColour={{}}"
             
             # Apply subtitle filter to video
             # Use filename parameter to avoid path/filter argument conflicts on Windows
             if primary_exists:
                 primary_path = fix_path_for_ffmpeg(self.primary_subtitle)
-                # Primary subtitle positioned using user-defined margin
-                primary_style = f"Alignment=2,MarginV={primary_margin},{base_style}"
+                # Primary subtitle positioned using user-defined margin with primary color
+                primary_base_style = base_style_template.format(primary_color_hex)
+                primary_style = f"Alignment=2,MarginV={primary_margin},{primary_base_style}"
                 video_with_subs = video.filter('subtitles',
                                                filename=primary_path,
                                                force_style=primary_style)
             else:
                 secondary_path = fix_path_for_ffmpeg(self.secondary_subtitle)
-                # Single subtitle uses secondary margin
-                single_style = f"Alignment=2,MarginV={secondary_margin},{base_style}"
+                # Single subtitle uses secondary margin and secondary color
+                secondary_base_style = base_style_template.format(secondary_color_hex)
+                single_style = f"Alignment=2,MarginV={secondary_margin},{secondary_base_style}"
                 video_with_subs = video.filter('subtitles',
                                                filename=secondary_path,
                                                force_style=single_style)
@@ -248,8 +297,9 @@ class VideoSubtitleComponent(Component):
             # If dual subtitles, apply second subtitle filter for secondary subtitle at bottom
             if primary_exists and secondary_exists:
                 secondary_path = fix_path_for_ffmpeg(self.secondary_subtitle)
-                # Secondary subtitle using user-defined margin
-                secondary_style = f"Alignment=2,MarginV={secondary_margin},{base_style}"
+                # Secondary subtitle using user-defined margin and secondary color
+                secondary_base_style = base_style_template.format(secondary_color_hex)
+                secondary_style = f"Alignment=2,MarginV={secondary_margin},{secondary_base_style}"
                 video_with_subs = video_with_subs.filter('subtitles',
                                                          filename=secondary_path,
                                                          force_style=secondary_style)

@@ -251,9 +251,9 @@ dependencies = [
     "silero-vad==6.2.0",
     "srt==3.5.3",
     "soundfile==0.13.1",
-    "librosa==0.11.0",
     "pydub==0.25.1",
     "ffmpeg-python>=0.2.0",
+    "curl_cffi>=0.13.0,<0.14.0"
 ]
 
 [project.urls]

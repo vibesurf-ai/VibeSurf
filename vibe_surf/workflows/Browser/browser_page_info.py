@@ -61,5 +61,3 @@ class BrowserPageInfoComponent(Component):
             import traceback
             traceback.print_exc()
             raise e
-        finally:
-            return Data(data={})
