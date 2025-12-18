@@ -11,7 +11,7 @@ from vibe_surf.langflow.inputs import MessageTextInput, HandleInput
 from vibe_surf.langflow.io import Output
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.tools.utils import _detect_file_format, _format_file_size
-
+from vibe_surf.langflow.schema.data import Data
 
 class BrowserDownloadMediaComponent(Component):
     display_name = "Download Media"
@@ -115,7 +115,7 @@ class BrowserDownloadMediaComponent(Component):
                         "autoPlay": False,
                         "loop": False,
                     }
-                    return media_data
+                    return Data(data=media_data)
 
         except Exception as e:
             import traceback
