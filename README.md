@@ -39,6 +39,8 @@ If you're as excited about open-source AI browsing as I am, give it a star! ⭐
 
 **For Windows users**: You can also download and run our one-click installer: [VibeSurf-Installer.exe](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/VibeSurf-Installer.exe)
 
+> **Note**: If you encounter DLL errors related to torch c10.so or onnxruntime during installation, please download and install the [Microsoft Visual C++ Redistributable](https://aka.ms/vc14/vc_redist.x64.exe).
+
 Get VibeSurf up and running in just three simple steps. No complex configuration required.
 
 ### 1. Install uv
