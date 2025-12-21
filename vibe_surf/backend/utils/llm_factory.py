@@ -99,9 +99,13 @@ def create_llm_from_profile(llm_profile) -> BaseChatModel:
             )
 
         elif provider == "google":
+            http_options = {}
+            if base_url:
+                http_options["base_url"] = base_url
             return ChatGoogle(
                 model=model,
                 api_key=api_key,
+                http_options=http_options,
                 **common_params
             )
 
