@@ -91,7 +91,12 @@ class ChatOpenAICompatible(ChatOpenAI):
         """Check if the current model is a Kimi/Moonshot model."""
         model_str = str(self.model).lower()
         return 'deepseek' in model_str
-    
+
+    def _is_glm_model(self) -> bool:
+        """Check if the current model is a Kimi/Moonshot model."""
+        model_str = str(self.model).lower()
+        return 'glm' in model_str
+
     def _is_qwen_model(self) -> bool:
         """Check if the current model is a Qwen model."""
         model_str = str(self.model).lower()
@@ -189,7 +194,7 @@ class ChatOpenAICompatible(ChatOpenAI):
             if isinstance(obj, dict):
                 cleaned = {}
                 has_any_of = 'anyOf' in obj
-                
+
                 for key, value in obj.items():
                     # Remove unsupported keywords for Moonshot
                     if key in ['min_items', 'minItems']:
@@ -224,10 +229,10 @@ class ChatOpenAICompatible(ChatOpenAI):
         """
         # If this is not a special model or no structured output is requested,
         # use the parent implementation directly
-        if self._is_qwen_model() or self._is_kimi_model() or self._is_deepseek_model() :
+        if self._is_qwen_model() or self._is_kimi_model() or self._is_deepseek_model() or self._is_glm_model():
             self.add_schema_to_system_prompt = True
 
-        if not (self._is_gemini_model() or self._is_kimi_model() or self._is_qwen_model() or self._is_deepseek_model()) or output_format is None:
+        if not (self._is_gemini_model() or self._is_kimi_model() or self._is_qwen_model() or self._is_deepseek_model() or self._is_glm_model()) or output_format is None:
             return await super().ainvoke(messages, output_format)
         openai_messages = OpenAIMessageSerializer.serialize_messages(messages)
 

@@ -52,9 +52,13 @@ async def run_single_bu_agent():
     #                            base_url=os.getenv("MOONSHOT_ENDPOINT"),
     #                            api_key=os.getenv("MOONSHOT_API_KEY"))
 
-    llm = ChatOpenAICompatible(model='deepseek-reasoner',
-                               base_url=os.getenv("DEEPSEEK_ENDPOINT"),
-                               api_key=os.getenv("DEEPSEEK_API_KEY"))
+    # llm = ChatOpenAICompatible(model='deepseek-reasoner',
+    #                            base_url=os.getenv("DEEPSEEK_ENDPOINT"),
+    #                            api_key=os.getenv("DEEPSEEK_API_KEY"))
+
+    llm = ChatOpenAICompatible(model='glm-4.7',
+                               base_url=os.getenv("OPENAI_ENDPOINT"),
+                               api_key=os.getenv("OPENAI_API_KEY"))
 
     task = "Search Google for 'Elon Mask' and tell me the top 3 results"
 
@@ -384,7 +388,7 @@ async def test_vibe_surf_agent_control():
 
 
 if __name__ == "__main__":
-    # asyncio.run(run_single_bu_agent())
+    asyncio.run(run_single_bu_agent())
     # asyncio.run(run_multi_bu_agents())
-    asyncio.run(test_vibe_surf_agent())
+    # asyncio.run(test_vibe_surf_agent())
     # asyncio.run(test_vibe_surf_agent_control())
