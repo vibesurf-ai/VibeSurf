@@ -189,6 +189,14 @@ def create_llm_from_profile(llm_profile) -> BaseChatModel:
                 **common_params
             )
 
+        elif provider == "glm":
+            return ChatOpenAICompatible(
+                model=model,
+                base_url="https://open.bigmodel.cn/api/paas/v4" or base_url,
+                api_key=api_key,
+                **common_params
+            )
+
         elif provider == "kimi":
             return ChatOpenAICompatible(
                 model=model,

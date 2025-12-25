@@ -37,6 +37,11 @@ LLM_PROVIDERS = {
         "qwen3-vl-plus",
         "qwen3-vl-flash"
     ],
+    "glm": [
+        "glm-4.7",
+        "glm-4.6",
+        "glm-4.6v",
+    ],
     "azure_openai": [
         "gpt-4o",
         "gpt-4o-mini",

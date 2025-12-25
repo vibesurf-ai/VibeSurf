@@ -36,6 +36,7 @@ vibe_surf/frontend/build
 *.pyd
 *.manifest
 *.spec.backup
+.claude
 
 # Build artifacts
 vibesurf.exe

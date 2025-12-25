@@ -269,6 +269,10 @@ class BrowserUseAgent(Agent):
             self.logger.warning("⚠️ Qwen without VL doesn't support vision. Ignore Vision input.")
             self.settings.use_vision = False
 
+        if "glm" in self.llm.model.lower() and "v" not in self.llm.model.lower():
+            self.logger.warning("⚠️ GLM without VL doesn't support vision. Ignore Vision input.")
+            self.settings.use_vision = False
+
         # Handle users trying to use use_vision=True with XAI models
         if 'grok' in self.llm.model.lower():
             self.logger.warning('⚠️ XAI models do not support use_vision=True yet. Setting use_vision=False for now...')
