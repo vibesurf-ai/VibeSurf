@@ -57,19 +57,14 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-### 2. 设置环境
-安装 VibeSurf
-
-```bash
-uv pip install vibesurf -U
-```
-
-### 3. 启动 VibeSurf
+### 2. 启动 VibeSurf
 启动 VibeSurf 浏览器助手
 
 ```bash
-uv run vibesurf
+uvx vibesurf
 ```
+
+> **提示**：使用 `uvx --refresh vibesurf` 可强制更新到最新版本。
 
 **注意**：从 Chrome 142 开始，不再支持 `--load-extension` 标志，这意味着 VibeSurf 无法自动加载扩展。如果启动 VibeSurf 后找不到 VibeSurf 扩展，请从[这里](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip)手动下载并按照以下步骤操作：
 
@@ -78,7 +73,7 @@ uv run vibesurf
 - 启用开发者模式
 - 点击"加载已解压的扩展程序"并选择解压后的文件夹
 
-### 4. 开始使用
+### 3. 开始使用
 
 <video src="https://github.com/user-attachments/assets/86dba2e4-3f33-4ccf-b400-d07cf1a481a0" controls="controls">Your browser does not support playing this video!</video>
 
