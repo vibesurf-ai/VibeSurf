@@ -19,25 +19,25 @@
             justify-content: center;
             text-align: center;
         }
-        
+
         .logo {
             font-size: 32px;
             margin-bottom: 10px;
         }
-        
+
         h1 {
             font-size: 24px;
             margin: 0 0 10px 0;
             font-weight: 600;
         }
-        
+
         p {
             font-size: 14px;
             margin: 0 0 20px 0;
             opacity: 0.9;
             line-height: 1.4;
         }
-        
+
         .open-panel-btn {
             background: rgba(255, 255, 255, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.3);
@@ -49,12 +49,12 @@
             font-weight: 500;
             transition: all 0.2s ease;
         }
-        
+
         .open-panel-btn:hover {
             background: rgba(255, 255, 255, 0.3);
             border-color: rgba(255, 255, 255, 0.5);
         }
-        
+
         .status {
             position: absolute;
             bottom: 10px;
@@ -62,7 +62,7 @@
             font-size: 12px;
             opacity: 0.7;
         }
-        
+
         .status-dot {
             width: 8px;
             height: 8px;
@@ -71,7 +71,7 @@
             display: inline-block;
             margin-right: 5px;
         }
-        
+
         .status-dot.disconnected {
             background: #dc3545;
         }
@@ -79,53 +79,56 @@
 </head>
 <body>
     <div class="logo">🌊</div>
-    <h1>VibeSurf</h1>
-    <p>AI-powered browsing automation at your fingertips</p>
-    <button class="open-panel-btn" id="openPanelBtn">Open Side Panel</button>
-    
+    <h1>__MSG_appName__</h1>
+    <p>__MSG_popupDescription__</p>
+    <button class="open-panel-btn" id="openPanelBtn">__MSG_openSidePanel__</button>
+
     <div class="status">
         <span class="status-dot" id="statusDot"></span>
-        <span id="statusText">Ready</span>
+        <span id="statusText" data-i18n="ready">__MSG_ready__</span>
     </div>
-    
+
     <script>
+        // i18n helper for popup
+        const getMsg = (key) => chrome.i18n.getMessage(key);
+
         document.addEventListener('DOMContentLoaded', async () => {
             const openPanelBtn = document.getElementById('openPanelBtn');
             const statusDot = document.getElementById('statusDot');
             const statusText = document.getElementById('statusText');
-            
+
             // Handle open panel button click
             openPanelBtn.addEventListener('click', async () => {
                 try {
                     // Get current tab
                     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                    
+
                     // Open side panel
                     await chrome.sidePanel.open({ tabId: tab.id });
-                    
+
                     // Close popup
                     window.close();
                 } catch (error) {
                     console.error('Failed to open side panel:', error);
-                    statusText.textContent = 'Error';
+                    statusText.textContent = getMsg('error');
                     statusDot.classList.add('disconnected');
                 }
             });
-            
+
             // Check backend status
             try {
                 const response = await chrome.runtime.sendMessage({ type: 'GET_BACKEND_STATUS' });
-                
+
                 if (response.status === 'connected') {
-                    statusText.textContent = 'Connected';
+                    statusText.textContent = getMsg('connected');
                     statusDot.classList.remove('disconnected');
                 } else {
-                    statusText.textContent = 'Disconnected';
+                    statusText.textContent = getMsg('disconnected');
                     statusDot.classList.add('disconnected');
                 }
             } catch (error) {
                 console.error('Failed to check backend status:', error);
-                statusText.textContent = 'Error';
+                statusText.textContent = getMsg('error');
                 statusDot.classList.add('disconnected');
             }
         });

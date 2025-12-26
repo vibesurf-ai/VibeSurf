@@ -96,6 +96,53 @@
   border-top: 1px solid var(--border-color);
 }
 
+/* Inline Action Button - Center aligned, no border */
+.env-var-actions-inline {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.save-env-vars-btn-large {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 3px 10px rgba(0, 122, 204, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.save-env-vars-btn-large svg {
+  flex-shrink: 0;
+}
+
+.save-env-vars-btn-large:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 122, 204, 0.3);
+  background: linear-gradient(135deg, var(--primary-hover), var(--primary-color));
+}
+
+.save-env-vars-btn-large:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(0, 122, 204, 0.2);
+}
+
+.save-env-vars-btn-large:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: 0 3px 10px rgba(0, 122, 204, 0.1) !important;
+}
+
 .save-env-vars-btn-modern {
   display: flex;
   align-items: center;

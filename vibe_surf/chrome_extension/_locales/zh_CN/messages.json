@@ -1,0 +1,2460 @@
+{
+  "appName": {
+    "message": "VibeSurf",
+    "description": "应用程序名称"
+  },
+  "appTagline": {
+    "message": "让 AI 自动化带你冲浪世界",
+    "description": "欢迎消息中显示的应用标语"
+  },
+  "appDescription": {
+    "message": "AI 驱动的浏览器自动化，触手可及",
+    "description": "弹出窗口中显示的应用描述"
+  },
+  "extensionName": {
+    "message": "VibeSurf：您的浏览器冲浪智能助手",
+    "description": "Chrome 扩展程序中显示的扩展名称"
+  },
+  "extensionDescription": {
+    "message": "让我们一起冲浪世界",
+    "description": "扩展描述"
+  },
+  "extensionUpdateAvailable": {
+    "message": "VibeSurf 扩展更新可用",
+    "description": "更新通知工具提示的标题"
+  },
+  "extensionUpdateDescription": {
+    "message": "有更新版本的 VibeSurf 扩展可用。请下载并安装以获得最佳体验：",
+    "description": "更新通知的描述"
+  },
+  "extensionUpdateStep1": {
+    "message": "打开 chrome://extensions",
+    "description": "更新步骤 1"
+  },
+  "extensionUpdateStep2": {
+    "message": "启用开发者模式",
+    "description": "更新步骤 2"
+  },
+  "extensionUpdateStep3": {
+    "message": "点击\"加载已解压的扩展程序\"并选择扩展路径",
+    "description": "更新步骤 3"
+  },
+
+  "session": {
+    "message": "会话",
+    "description": "会话标签"
+  },
+  "copySessionId": {
+    "message": "复制会话 ID",
+    "description": "复制会话 ID 按钮的工具提示"
+  },
+
+  "newSession": {
+    "message": "新建会话",
+    "description": "创建新会话按钮"
+  },
+  "chatHistory": {
+    "message": "聊天历史",
+    "description": "打开聊天历史按钮"
+  },
+  "settings": {
+    "message": "设置",
+    "description": "设置按钮"
+  },
+
+  "welcomeTitle": {
+    "message": "欢迎使用 VibeSurf",
+    "description": "欢迎消息标题"
+  },
+
+  "welcomeSubtitle": {
+    "message": "让我们一起用 AI 自动化冲浪世界吧",
+    "description": "欢迎消息副标题"
+  },
+
+  "pause": {
+    "message": "暂停",
+    "description": "暂停按钮标签"
+  },
+  "resume": {
+    "message": "继续",
+    "description": "继续按钮标签"
+  },
+  "terminate": {
+    "message": "终止",
+    "description": "终止按钮标签"
+  },
+
+  "inputPlaceholder": {
+    "message": "输入任何内容（/ 使用技能，@ 指定标签页）",
+    "description": "主输入框的占位符文本"
+  },
+  "voiceInput": {
+    "message": "语音输入",
+    "description": "语音输入按钮工具提示"
+  },
+  "attachFiles": {
+    "message": "附加文件",
+    "description": "附加文件按钮工具提示"
+  },
+  "sendTask": {
+    "message": "发送任务",
+    "description": "发送任务按钮工具提示"
+  },
+
+  "agentModeThinking": {
+    "message": "思考模式",
+    "description": "代理模式：思考"
+  },
+  "agentModeNoThinking": {
+    "message": "快速模式",
+    "description": "代理模式：不思考"
+  },
+  "agentModeFlash": {
+    "message": "闪速模式",
+    "description": "代理模式：闪速"
+  },
+
+  "selectTabs": {
+    "message": "选择标签页",
+    "description": "标签选择器下拉标题"
+  },
+  "selectAll": {
+    "message": "全选",
+    "description": "全选选项"
+  },
+  "selectSkills": {
+    "message": "选择技能",
+    "description": "技能选择器下拉标题"
+  },
+  "selectWorkflows": {
+    "message": "选择工作流",
+    "description": "工作流选择器下拉标题"
+  },
+
+  "connectingToVibesurf": {
+    "message": "正在连接到 VibeSurf...",
+    "description": "加载消息"
+  },
+
+  "statusReady": {
+    "message": "就绪",
+    "description": "后端状态：就绪"
+  },
+  "statusConnected": {
+    "message": "已连接",
+    "description": "后端状态：已连接"
+  },
+  "statusDisconnected": {
+    "message": "已断开",
+    "description": "后端状态：已断开"
+  },
+  "statusError": {
+    "message": "错误",
+    "description": "后端状态：错误"
+  },
+  "openSidePanel": {
+    "message": "打开侧边栏",
+    "description": "打开侧边栏按钮"
+  },
+
+  "historyTitle": {
+    "message": "聊天历史",
+    "description": "历史模态框标题"
+  },
+  "recentTasks": {
+    "message": "最近任务",
+    "description": "最近任务部分标题"
+  },
+  "last3Sessions": {
+    "message": "最近 3 次会话",
+    "description": "最近任务的副标题"
+  },
+  "viewMoreTasks": {
+    "message": "查看更多任务",
+    "description": "查看更多任务按钮"
+  },
+  "allSessions": {
+    "message": "所有会话",
+    "description": "所有会话部分标题"
+  },
+  "backToRecent": {
+    "message": "返回最近",
+    "description": "返回最近任务按钮"
+  },
+  "searchSessions": {
+    "message": "搜索会话...",
+    "description": "搜索占位符"
+  },
+  "filterAllSessions": {
+    "message": "所有会话",
+    "description": "筛选选项：所有会话"
+  },
+  "filterActive": {
+    "message": "进行中",
+    "description": "筛选选项：进行中"
+  },
+  "filterCompleted": {
+    "message": "已完成",
+    "description": "筛选选项：已完成"
+  },
+  "filterError": {
+    "message": "错误",
+    "description": "筛选选项：错误"
+  },
+  "previous": {
+    "message": "上一页",
+    "description": "上一页按钮"
+  },
+  "next": {
+    "message": "下一页",
+    "description": "下一页按钮"
+  },
+  "pageOf": {
+    "message": "第 {current} 页，共 {total} 页",
+    "description": "页面信息，例如'第 1 页，共 5 页'",
+    "placeholders": {
+      "current": {
+        "content": "$1",
+        "example": "1"
+      },
+      "total": {
+        "content": "$2",
+        "example": "5"
+      }
+    }
+  },
+  "noRecentTasks": {
+    "message": "暂无最近任务",
+    "description": "空状态消息"
+  },
+  "startNewTask": {
+    "message": "开始新任务以在此处查看。",
+    "description": "空状态描述"
+  },
+  "noSessionsFound": {
+    "message": "未找到会话",
+    "description": "无会话的空状态"
+  },
+  "adjustSearchCriteria": {
+    "message": "请尝试调整搜索或筛选条件。",
+    "description": "空状态建议"
+  },
+  "lastActivity": {
+    "message": "最后活动",
+    "description": "最后活动时间的标签"
+  },
+  "clickToLoadSession": {
+    "message": "点击加载会话",
+    "description": "会话项的工具提示"
+  },
+  "tasks": {
+    "message": "{count} 个任务",
+    "description": "任务的复数形式",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "loadingRecentTasks": {
+    "message": "正在加载最近任务...",
+    "description": "最近任务的加载消息"
+  },
+  "loadingAllSessions": {
+    "message": "正在加载所有会话...",
+    "description": "所有会话的加载消息"
+  },
+
+  "settingsTitle": {
+    "message": "VibeSurf 设置",
+    "description": "设置模态框标题"
+  },
+  "tabGeneral": {
+    "message": "通用",
+    "description": "设置选项卡：通用"
+  },
+  "tabWorkflows": {
+    "message": "工作流",
+    "description": "设置选项卡：工作流"
+  },
+  "tabIntegrations": {
+    "message": "集成",
+    "description": "设置选项卡：集成"
+  },
+  "tabLLM": {
+    "message": "语言模型",
+    "description": "设置选项卡：LLM"
+  },
+  "tabMCP": {
+    "message": "MCP",
+    "description": "设置选项卡：MCP"
+  },
+  "tabVoice": {
+    "message": "语音",
+    "description": "设置选项卡：语音"
+  },
+
+  "generalSettings": {
+    "message": "通用设置",
+    "description": "通用设置部分标题"
+  },
+  "generalSettingsDescription": {
+    "message": "配置应用程序范围的设置",
+    "description": "通用设置描述"
+  },
+  "applicationTheme": {
+    "message": "应用主题",
+    "description": "主题设置标签"
+  },
+  "themeAuto": {
+    "message": "自动（跟随系统）",
+    "description": "主题选项：自动"
+  },
+  "themeLight": {
+    "message": "浅色",
+    "description": "主题选项：浅色"
+  },
+  "themeDark": {
+    "message": "深色",
+    "description": "主题选项：深色"
+  },
+  "themeHelp": {
+    "message": "选择您喜欢的主题",
+    "description": "主题设置帮助文本"
+  },
+  "themeChanged": {
+    "message": "主题已更改为 {theme}",
+    "description": "主题更改时的通知",
+    "placeholders": {
+      "theme": {
+        "content": "$1",
+        "example": "深色"
+      }
+    }
+  },
+  "themeChangeFailed": {
+    "message": "主题更改失败",
+    "description": "主题更改失败时的错误消息"
+  },
+
+  "language": {
+    "message": "语言",
+    "description": "语言设置标签"
+  },
+  "languageHelp": {
+    "message": "选择您喜欢的语言",
+    "description": "语言设置帮助文本"
+  },
+  "languageChanged": {
+    "message": "语言已更改。请重新加载扩展程序以应用更改。",
+    "description": "语言更改时的通知"
+  },
+
+  "defaultAsrProfile": {
+    "message": "默认 ASR 配置",
+    "description": "ASR 配置标签"
+  },
+  "noAsrProfileSelected": {
+    "message": "未选择 ASR 配置",
+    "description": "ASR 配置的空选项"
+  },
+  "asrProfileHelp": {
+    "message": "语音转文字的默认语音识别配置",
+    "description": "ASR 配置帮助文本"
+  },
+  "defaultTtsProfile": {
+    "message": "默认 TTS 配置",
+    "description": "TTS 配置标签"
+  },
+  "noTtsProfileSelected": {
+    "message": "未选择 TTS 配置",
+    "description": "TTS 配置的空选项"
+  },
+  "ttsProfileHelp": {
+    "message": "语音输出的默认文字转语音配置",
+    "description": "TTS 配置帮助文本"
+  },
+  "failedToLoadVoiceProfiles": {
+    "message": "加载 ASR/TTS 配置失败",
+    "description": "加载语音配置时的错误"
+  },
+  "defaultAsrProfileSet": {
+    "message": "默认 ASR 配置已设置为 {profile}",
+    "description": "设置 ASR 配置时的通知",
+    "placeholders": {
+      "profile": {
+        "content": "$1",
+        "example": "whisper"
+      }
+    }
+  },
+  "defaultAsrProfileCleared": {
+    "message": "已清除默认 ASR 配置",
+    "description": "清除 ASR 配置时的通知"
+  },
+  "defaultTtsProfileSet": {
+    "message": "默认 TTS 配置已设置为 {profile}",
+    "description": "设置 TTS 配置时的通知",
+    "placeholders": {
+      "profile": {
+        "content": "$1",
+        "example": "elevenlabs"
+      }
+    }
+  },
+  "defaultTtsProfileCleared": {
+    "message": "已清除默认 TTS 配置",
+    "description": "清除 TTS 配置时的通知"
+  },
+  "failedToChangeVoiceProfile": {
+    "message": "更改默认 ASR/TTS 配置失败",
+    "description": "更改语音配置时的错误"
+  },
+  "autoSelectedLatestAsrProfile": {
+    "message": "已自动选择最新的 ASR 配置：{profile}",
+    "description": "自动选择 ASR 配置时的通知",
+    "placeholders": {
+      "profile": {
+        "content": "$1",
+        "example": "whisper"
+      }
+    }
+  },
+  "autoSelectedLatestTtsProfile": {
+    "message": "已自动选择最新的 TTS 配置：{profile}",
+    "description": "自动选择 TTS 配置时的通知",
+    "placeholders": {
+      "profile": {
+        "content": "$1",
+        "example": "elevenlabs"
+      }
+    }
+  },
+
+  "environmentVariables": {
+    "message": "环境变量",
+    "description": "环境变量部分标题"
+  },
+  "noEnvironmentVariables": {
+    "message": "无环境变量",
+    "description": "环境变量的空状态"
+  },
+  "envVarHelp": {
+    "message": "环境变量在后端配置。根据需要添加或更新变量。",
+    "description": "环境变量帮助文本"
+  },
+  "variableName": {
+    "message": "变量名称",
+    "description": "变量名称输入占位符"
+  },
+  "variableValue": {
+    "message": "变量值",
+    "description": "变量值输入占位符"
+  },
+  "updateVariables": {
+    "message": "更新变量",
+    "description": "更新环境变量按钮"
+  },
+  "environmentVariablesDescription": {
+    "message": "管理应用程序的环境变量",
+    "description": "环境变量部分描述"
+  },
+  "applicationThemeHelp": {
+    "message": "选择您喜欢的主题",
+    "description": "应用主题设置帮助文本"
+  },
+  "defaultAsrProfileHelp": {
+    "message": "语音转文字的默认语音识别配置",
+    "description": "ASR 配置帮助文本"
+  },
+  "defaultTtsProfileHelp": {
+    "message": "语音输出的默认文字转语音配置",
+    "description": "TTS 配置帮助文本"
+  },
+  "languageHelp": {
+    "message": "选择您喜欢的语言。需要重新加载才能应用。",
+    "description": "语言设置帮助文本"
+  },
+  "envVarUpdated": {
+    "message": "环境变量更新成功",
+    "description": "环境变量成功消息"
+  },
+  "envVarUpdateFailed": {
+    "message": "更新环境变量失败：{error}",
+    "description": "环境变量错误消息",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "网络错误"
+      }
+    }
+  },
+
+  "backendUrl": {
+    "message": "后端 URL",
+    "description": "后端 URL 设置标签"
+  },
+  "backendUrlCannotBeEmpty": {
+    "message": "后端 URL 不能为空",
+    "description": "后端 URL 验证错误"
+  },
+  "invalidBackendUrl": {
+    "message": "无效的后端 URL：{error}",
+    "description": "无效后端 URL 的验证错误",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "URL 格式无效"
+      }
+    }
+  },
+  "backendUrlUpdated": {
+    "message": "后端 URL 更新成功",
+    "description": "后端 URL 更新成功消息"
+  },
+
+  "createWorkflow": {
+    "message": "创建工作流",
+    "description": "创建工作流按钮"
+  },
+  "importWorkflow": {
+    "message": "导入工作流",
+    "description": "导入工作流按钮"
+  },
+  "workflowTemplates": {
+    "message": "工作流模板",
+    "description": "工作流模板按钮"
+  },
+  "recordWorkflow": {
+    "message": "录制工作流",
+    "description": "录制工作流按钮"
+  },
+  "searchWorkflows": {
+    "message": "搜索工作流...",
+    "description": "搜索工作流占位符"
+  },
+  "filterAllWorkflows": {
+    "message": "所有工作流",
+    "description": "筛选选项：所有工作流"
+  },
+  "filterScheduled": {
+    "message": "已计划",
+    "description": "筛选选项：已计划"
+  },
+  "filterUnscheduled": {
+    "message": "未计划",
+    "description": "筛选选项：未计划"
+  },
+  "filterRunning": {
+    "message": "运行中",
+    "description": "筛选选项：运行中"
+  },
+  "loadingWorkflows": {
+    "message": "正在加载工作流...",
+    "description": "工作流的加载消息"
+  },
+  "noWorkflowsFound": {
+    "message": "未找到工作流",
+    "description": "工作流的空状态"
+  },
+
+  "composioIntegration": {
+    "message": "Composio 集成",
+    "description": "Composio 集成部分标题"
+  },
+  "composioIntegrationDescription": {
+    "message": "连接您的 Composio 账户以访问外部工具包",
+    "description": "Composio 集成描述"
+  },
+  "apiKeyRequired": {
+    "message": "需要 API 密钥",
+    "description": "API 密钥状态标题"
+  },
+  "apiKeyRequiredHelp": {
+    "message": "请配置您的 Composio API 密钥以继续",
+    "description": "需要 API 密钥的帮助文本"
+  },
+  "setup": {
+    "message": "设置",
+    "description": "设置按钮"
+  },
+  "checkingConnection": {
+    "message": "检查连接",
+    "description": "检查连接状态"
+  },
+  "verifyingComposioStatus": {
+    "message": "正在验证 Composio 集成状态...",
+    "description": "验证消息"
+  },
+  "composioConnected": {
+    "message": "Composio 已连接",
+    "description": "已连接状态"
+  },
+  "composioConnectedHelp": {
+    "message": "API 密钥有效且可以使用",
+    "description": "已连接状态帮助文本"
+  },
+  "updateKey": {
+    "message": "更新密钥",
+    "description": "更新密钥按钮"
+  },
+  "searchToolkits": {
+    "message": "搜索工具包...",
+    "description": "搜索工具包占位符"
+  },
+  "filterAllToolkits": {
+    "message": "所有工具包",
+    "description": "筛选选项：所有工具包"
+  },
+  "filterEnabledOnly": {
+    "message": "仅已启用",
+    "description": "筛选选项：仅已启用"
+  },
+  "filterDisabledOnly": {
+    "message": "仅已禁用",
+    "description": "筛选选项：仅已禁用"
+  },
+  "filterConnectedOnly": {
+    "message": "仅已连接",
+    "description": "筛选选项：仅已连接"
+  },
+  "loadingToolkits": {
+    "message": "正在加载工具包...",
+    "description": "工具包的加载消息"
+  },
+
+  "setupComposioApiKey": {
+    "message": "设置 Composio API 密钥",
+    "description": "API 密钥模态框标题"
+  },
+  "composioApiKey": {
+    "message": "Composio API 密钥",
+    "description": "API 密钥标签"
+  },
+  "enterComposioApiKey": {
+    "message": "输入您的 Composio API 密钥",
+    "description": "API 密钥输入占位符"
+  },
+  "getApiKeyFrom": {
+    "message": "从以下位置获取您的 API 密钥",
+    "description": "帮助文本前缀"
+  },
+  "composioDev": {
+    "message": "composio.dev",
+    "description": "Composio 网站"
+  },
+  "composioApiKeyLocation": {
+    "message": "（项目设置 → API 密钥）",
+    "description": "API 密钥位置帮助"
+  },
+  "composioApiKeyHelp": {
+    "message": "您的 Composio API 密钥，用于访问外部集成",
+    "description": "API 密钥帮助文本"
+  },
+  "verifyAndSave": {
+    "message": "验证并保存",
+    "description": "验证并保存按钮"
+  },
+  "validatingApiKey": {
+    "message": "正在验证 API 密钥...",
+    "description": "验证消息"
+  },
+  "apiKeyValid": {
+    "message": "API 密钥有效！",
+    "description": "验证成功消息"
+  },
+  "invalidApiKey": {
+    "message": "API 密钥无效。请检查后重试。",
+    "description": "验证错误消息"
+  },
+  "enterApiKey": {
+    "message": "请输入 API 密钥",
+    "description": "空 API 密钥的验证错误"
+  },
+  "failedToVerifyApiKey": {
+    "message": "验证 API 密钥失败",
+    "description": "API 密钥验证错误"
+  },
+  "composioApiKeySaved": {
+    "message": "Composio API 密钥验证并保存成功",
+    "description": "API 密钥保存成功消息"
+  },
+  "syncedNewToolkits": {
+    "message": "已从 Composio 同步 {count} 个新工具包",
+    "description": "工具包同步成功消息",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+
+  "manageTools": {
+    "message": "管理工具",
+    "description": "工具管理模态框标题"
+  },
+  "deselectAll": {
+    "message": "取消全选",
+    "description": "取消全选按钮"
+  },
+  "saveSelection": {
+    "message": "保存选择",
+    "description": "保存选择按钮"
+  },
+  "loadingTools": {
+    "message": "正在加载工具...",
+    "description": "加载工具消息"
+  },
+
+  "oauthAuthorizationRequired": {
+    "message": "需要 OAuth 授权",
+    "description": "OAuth 模态框标题"
+  },
+  "oauthTabOpened": {
+    "message": "已为新浏览器标签页打开 OAuth 授权。",
+    "description": "OAuth 模态框消息"
+  },
+  "oauthCompleteInstructions": {
+    "message": "请完成授权流程然后返回此处。",
+    "description": "OAuth 模态框说明"
+  },
+  "oauthCompletedQuestion": {
+    "message": "您是否已完成 OAuth 授权？",
+    "description": "OAuth 完成问题"
+  },
+  "notYet": {
+    "message": "尚未完成",
+    "description": "未完成 OAuth 按钮"
+  },
+  "yesCompleted": {
+    "message": "是的，已完成",
+    "description": "已完成 OAuth 按钮"
+  },
+
+  "scheduleWorkflow": {
+    "message": "计划工作流",
+    "description": "计划工作流模态框标题"
+  },
+  "workflowName": {
+    "message": "工作流名称",
+    "description": "工作流名称标签"
+  },
+  "scheduleConfiguration": {
+    "message": "计划配置",
+    "description": "计划配置部分"
+  },
+  "scheduleType": {
+    "message": "计划类型",
+    "description": "计划类型标签"
+  },
+  "scheduleTypeDaily": {
+    "message": "每天",
+    "description": "计划类型：每天"
+  },
+  "scheduleTypeEveryXMinutes": {
+    "message": "每 X 分钟",
+    "description": "计划类型：每 X 分钟"
+  },
+  "scheduleTypeEveryXHours": {
+    "message": "每 X 小时",
+    "description": "计划类型：每 X 小时"
+  },
+  "scheduleTypeWeekly": {
+    "message": "每周",
+    "description": "计划类型：每周"
+  },
+  "scheduleTypeMonthly": {
+    "message": "每月",
+    "description": "计划类型：每月"
+  },
+  "minuteInterval": {
+    "message": "分钟间隔",
+    "description": "分钟间隔标签"
+  },
+  "everyXMinutes": {
+    "message": "每 {count} 分钟",
+    "description": "每 X 分钟标签",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "hourInterval": {
+    "message": "小时间隔",
+    "description": "小时间隔标签"
+  },
+  "everyXHours": {
+    "message": "每 {count} 小时",
+    "description": "每 X 小时标签",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "time": {
+    "message": "时间",
+    "description": "时间标签"
+  },
+  "dayOfWeek": {
+    "message": "星期",
+    "description": "星期标签"
+  },
+  "dayOfMonth": {
+    "message": "日期",
+    "description": "月份日期标签"
+  },
+  "dayOfMonthHelp": {
+    "message": "日期 1-31（每月第一天使用 1）",
+    "description": "月份日期帮助文本"
+  },
+  "enableSchedule": {
+    "message": "启用计划",
+    "description": "启用计划复选框标签"
+  },
+  "enableScheduleHelp": {
+    "message": "取消选中可禁用计划而不删除它",
+    "description": "启用计划帮助文本"
+  },
+  "scheduleDescription": {
+    "message": "计划描述（可选）",
+    "description": "计划描述标签"
+  },
+  "scheduleDescriptionPlaceholder": {
+    "message": "例如：每日数据同步、每周报告生成",
+    "description": "计划描述占位符"
+  },
+  "saveSchedule": {
+    "message": "保存计划",
+    "description": "保存计划按钮"
+  },
+  "saving": {
+    "message": "正在保存...",
+    "description": "保存状态文本"
+  },
+  "cancel": {
+    "message": "取消",
+    "description": "取消按钮"
+  },
+  "close": {
+    "message": "关闭",
+    "description": "关闭按钮"
+  },
+
+  "monday": {
+    "message": "星期一",
+    "description": "星期：星期一"
+  },
+  "tuesday": {
+    "message": "星期二",
+    "description": "星期：星期二"
+  },
+  "wednesday": {
+    "message": "星期三",
+    "description": "星期：星期三"
+  },
+  "thursday": {
+    "message": "星期四",
+    "description": "星期：星期四"
+  },
+  "friday": {
+    "message": "星期五",
+    "description": "星期：星期五"
+  },
+  "saturday": {
+    "message": "星期六",
+    "description": "星期：星期六"
+  },
+  "sunday": {
+    "message": "星期日",
+    "description": "星期：星期日"
+  },
+
+  "workflowLogs": {
+    "message": "工作流日志",
+    "description": "工作流日志模态框标题"
+  },
+  "refreshLogs": {
+    "message": "刷新日志",
+    "description": "刷新日志按钮工具提示"
+  },
+  "clearLogs": {
+    "message": "清除日志",
+    "description": "清除日志按钮工具提示"
+  },
+  "loadingLogs": {
+    "message": "正在加载日志...",
+    "description": "加载日志消息"
+  },
+  "noLogsAvailable": {
+    "message": "没有可用日志",
+    "description": "日志的空状态"
+  },
+
+  "deleteWorkflow": {
+    "message": "删除工作流",
+    "description": "删除工作流模态框标题"
+  },
+  "deleteWorkflowConfirmation": {
+    "message": "确定要删除此工作流吗？",
+    "description": "删除工作流确认消息"
+  },
+  "deleteWorkflowWarning": {
+    "message": "此操作无法撤销。所有计划信息也将被删除。",
+    "description": "删除工作流警告消息"
+  },
+  "deleteWorkflowConfirm": {
+    "message": "删除工作流",
+    "description": "删除工作流确认按钮"
+  },
+
+  "setupVibesurfApiKey": {
+    "message": "设置 VibeSurf API 密钥",
+    "description": "VibeSurf API 密钥模态框标题"
+  },
+  "vibesurfApiKey": {
+    "message": "VibeSurf API 密钥",
+    "description": "VibeSurf API 密钥标签"
+  },
+  "enterVibesurfApiKey": {
+    "message": "输入您的 VibeSurf API 密钥",
+    "description": "VibeSurf API 密钥输入占位符"
+  },
+  "vibesurfApiKeyHelp": {
+    "message": "您的 VibeSurf API 密钥，用于访问工作流功能",
+    "description": "VibeSurf API 密钥帮助文本"
+  },
+  "getVibesurfApiKeyFrom": {
+    "message": "从以下位置获取您的 API 密钥",
+    "description": "VibeSurf API 密钥帮助前缀"
+  },
+  "vibesurfCom": {
+    "message": "vibe-surf.com",
+    "description": "VibeSurf 网站"
+  },
+  "vibesurfApiKeyLocation": {
+    "message": "然后登录并在个人资料中创建 API 密钥",
+    "description": "VibeSurf API 密钥位置帮助"
+  },
+  "vibesurfApiKeySaved": {
+    "message": "VibeSurf API 密钥验证并保存成功",
+    "description": "VibeSurf API 密钥成功消息"
+  },
+  "invalidVibesurfApiKey": {
+    "message": "VibeSurf API 密钥无效。请检查后重试。",
+    "description": "VibeSurf API 密钥无效错误"
+  },
+  "enterVibesurfApiKeyError": {
+    "message": "请输入 VibeSurf API 密钥",
+    "description": "VibeSurf API 密钥为空错误"
+  },
+  "validatingVibesurfApiKey": {
+    "message": "正在验证 API 密钥...",
+    "description": "VibeSurf API 密钥验证消息"
+  },
+
+  "createNewWorkflow": {
+    "message": "创建新工作流",
+    "description": "创建工作流模态框标题"
+  },
+  "workflowNameInput": {
+    "message": "工作流名称",
+    "description": "工作流名称输入标签"
+  },
+  "enterWorkflowName": {
+    "message": "输入工作流名称",
+    "description": "工作流名称输入占位符"
+  },
+  "chooseWorkflowNameHelp": {
+    "message": "为工作流选择一个描述性名称",
+    "description": "工作流名称帮助文本"
+  },
+  "workflowDescription": {
+    "message": "描述（可选）",
+    "description": "工作流描述标签"
+  },
+  "enterWorkflowDescription": {
+    "message": "输入工作流描述",
+    "description": "工作流描述占位符"
+  },
+  "workflowDescriptionHelp": {
+    "message": "描述此工作流的功能",
+    "description": "工作流描述帮助文本"
+  },
+  "creatingWorkflow": {
+    "message": "正在创建...",
+    "description": "创建工作流状态"
+  },
+  "createWorkflowConfirm": {
+    "message": "创建工作流",
+    "description": "创建工作流确认按钮"
+  },
+
+  "importWorkflowTitle": {
+    "message": "导入工作流",
+    "description": "导入工作流模态框标题"
+  },
+  "importFromJsonFile": {
+    "message": "从 JSON 文件导入",
+    "description": "导入方式：JSON 文件"
+  },
+  "importFromFileDescription": {
+    "message": "从您的计算机中选择 JSON 文件",
+    "description": "从文件导入描述"
+  },
+  "importFromJsonText": {
+    "message": "从 JSON 文本导入",
+    "description": "导入方式：JSON 文本"
+  },
+  "importFromTextDescription": {
+    "message": "直接粘贴工作流 JSON",
+    "description": "从文本导入描述"
+  },
+  "selectJsonFile": {
+    "message": "选择 JSON 文件",
+    "description": "选择 JSON 文件标签"
+  },
+  "chooseJsonFile": {
+    "message": "选择 JSON 文件",
+    "description": "选择 JSON 文件按钮"
+  },
+  "selectedFileName": {
+    "message": "{fileName}",
+    "description": "已选文件名",
+    "placeholders": {
+      "fileName": {
+        "content": "$1",
+        "example": "workflow.json"
+      }
+    }
+  },
+  "selectJsonFileHelp": {
+    "message": "选择包含工作流配置的 .json 文件",
+    "description": "选择 JSON 文件帮助文本"
+  },
+  "workflowJson": {
+    "message": "工作流 JSON",
+    "description": "工作流 JSON 标签"
+  },
+  "pasteWorkflowJson": {
+    "message": "在此处粘贴您的工作流 JSON，例如：",
+    "description": "工作流 JSON 占位符"
+  },
+  "pasteWorkflowJsonHelp": {
+    "message": "粘贴完整的工作流 JSON 配置",
+    "description": "工作流 JSON 帮助文本"
+  },
+  "importingWorkflow": {
+    "message": "正在导入...",
+    "description": "导入工作流状态"
+  },
+  "importWorkflowConfirm": {
+    "message": "导入工作流",
+    "description": "导入工作流确认按钮"
+  },
+
+  "addLlm": {
+    "message": "添加语言模型",
+    "description": "添加 LLM 按钮"
+  },
+  "addMcp": {
+    "message": "添加 MCP",
+    "description": "添加 MCP 按钮"
+  },
+  "addVoice": {
+    "message": "添加语音",
+    "description": "添加语音按钮"
+  },
+  "editLlm": {
+    "message": "编辑语言模型",
+    "description": "编辑 LLM 模态框标题"
+  },
+  "editMcp": {
+    "message": "编辑 MCP",
+    "description": "编辑 MCP 模态框标题"
+  },
+  "editVoice": {
+    "message": "编辑语音",
+    "description": "编辑语音模态框标题"
+  },
+  "saveProfile": {
+    "message": "保存配置",
+    "description": "保存配置按钮"
+  },
+
+  "profileName": {
+    "message": "配置名称",
+    "description": "配置名称标签"
+  },
+  "enterProfileName": {
+    "message": "输入此配置的唯一名称",
+    "description": "配置名称占位符"
+  },
+  "profileNameHelp": {
+    "message": "此配置的唯一标识符",
+    "description": "配置名称帮助文本"
+  },
+  "provider": {
+    "message": "提供商",
+    "description": "提供商标签"
+  },
+  "selectProvider": {
+    "message": "选择提供商",
+    "description": "提供商占位符"
+  },
+  "chooseProviderHelp": {
+    "message": "选择您的 LLM 提供商（OpenAI、Anthropic 等）",
+    "description": "提供商帮助文本"
+  },
+  "model": {
+    "message": "模型",
+    "description": "模型标签"
+  },
+  "selectModel": {
+    "message": "选择模型或输入自定义模型名称",
+    "description": "模型占位符"
+  },
+  "chooseModelHelp": {
+    "message": "从列表中选择或输入自定义模型名称",
+    "description": "模型帮助文本"
+  },
+  "apiKey": {
+    "message": "API 密钥",
+    "description": "API 密钥标签"
+  },
+  "enterApiKey": {
+    "message": "输入您的 API 密钥",
+    "description": "API 密钥占位符"
+  },
+  "keepExistingKeyHelp": {
+    "message": "留空以保留现有密钥",
+    "description": "编辑时的 API 密钥帮助"
+  },
+  "apiKeyProfileHelp": {
+    "message": "您提供商的 API 密钥，用于身份验证",
+    "description": "API 密钥帮助文本"
+  },
+  "baseUrl": {
+    "message": "基础 URL",
+    "description": "基础 URL 标签"
+  },
+  "customBaseUrlHelp": {
+    "message": "自定义 API 端点（留空使用提供商默认值）",
+    "description": "基础 URL 帮助文本"
+  },
+  "temperature": {
+    "message": "温度",
+    "description": "温度标签"
+  },
+  "temperatureHelp": {
+    "message": "控制随机性（0.0-2.0，数值越低越聚焦）",
+    "description": "温度帮助文本"
+  },
+  "maxTokens": {
+    "message": "最大令牌数",
+    "description": "最大令牌数标签"
+  },
+  "maxTokensHelp": {
+    "message": "响应中的最大令牌数",
+    "description": "最大令牌数帮助文本"
+  },
+  "description": {
+    "message": "描述",
+    "description": "描述标签"
+  },
+  "descriptionHelp": {
+    "message": "此配置的可选描述",
+    "description": "描述帮助文本"
+  },
+  "setAsDefaultProfile": {
+    "message": "设为默认配置",
+    "description": "设为默认复选框标签"
+  },
+  "setAsDefaultHelp": {
+    "message": "新任务将默认选择此配置",
+    "description": "设为默认帮助文本"
+  },
+
+  "voiceModelType": {
+    "message": "模型类型",
+    "description": "语音模型类型标签"
+  },
+  "voiceModelTypeAsr": {
+    "message": "ASR（语音识别）",
+    "description": "语音模型类型：ASR"
+  },
+  "voiceModelTypeTts": {
+    "message": "TTS（文字转语音）",
+    "description": "语音模型类型：TTS"
+  },
+  "chooseVoiceModelTypeHelp": {
+    "message": "选择语音模型的类型",
+    "description": "语音模型类型帮助文本"
+  },
+  "voiceModel": {
+    "message": "语音模型",
+    "description": "语音模型标签"
+  },
+  "selectVoiceModel": {
+    "message": "选择模型",
+    "description": "语音模型占位符"
+  },
+  "chooseVoiceModelHelp": {
+    "message": "选择您的语音模型",
+    "description": "语音模型帮助文本"
+  },
+  "modelParameters": {
+    "message": "模型参数（JSON）",
+    "description": "模型参数标签"
+  },
+  "modelParametersHelp": {
+    "message": "输入模型参数的 JSON 配置（可选）",
+    "description": "模型参数帮助文本"
+  },
+  "modelParametersOptionalHelp": {
+    "message": "模型特定参数的可选 JSON 配置",
+    "description": "模型参数可选帮助"
+  },
+  "active": {
+    "message": "启用",
+    "description": "启用复选框标签"
+  },
+  "activeHelp": {
+    "message": "此配置是否处于活动状态并可供使用",
+    "description": "启用帮助文本"
+  },
+
+  "displayName": {
+    "message": "显示名称",
+    "description": "MCP 的显示名称标签"
+  },
+  "displayNameHelp": {
+    "message": "输入此 MCP 配置的友好名称",
+    "description": "显示名称占位符"
+  },
+  "displayNameHelpText": {
+    "message": "此 MCP 配置的用户友好名称",
+    "description": "显示名称帮助文本"
+  },
+  "serverName": {
+    "message": "服务器名称",
+    "description": "MCP 的服务器名称标签"
+  },
+  "serverNameHelp": {
+    "message": "例如：filesystem、markitdown、brave-search",
+    "description": "服务器名称占位符"
+  },
+  "serverNameHelpText": {
+    "message": "MCP 服务器标识符",
+    "description": "服务器名称帮助文本"
+  },
+  "mcpServerParameters": {
+    "message": "MCP 服务器参数（JSON）",
+    "description": "MCP 参数标签"
+  },
+  "mcpServerParametersHelp": {
+    "message": "输入 MCP 服务器参数的 JSON 配置",
+    "description": "MCP 参数占位符"
+  },
+  "mcpServerParametersHelpText": {
+    "message": "包含命令和参数的 JSON 配置",
+    "description": "MCP 参数帮助文本"
+  },
+
+  "invalidJsonFormat": {
+    "message": "JSON 格式无效",
+    "description": "JSON 验证错误"
+  },
+  "jsonMustBeValidObject": {
+    "message": "JSON 必须是有效的对象",
+    "description": "JSON 验证错误详情"
+  },
+
+  "confirm": {
+    "message": "确认",
+    "description": "确认按钮"
+  },
+  "ok": {
+    "message": "确定",
+    "description": "确定按钮"
+  },
+
+  "uploadingFiles": {
+    "message": "正在上传 {count} 个文件...",
+    "description": "上传文件消息",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "filesUploadedSuccessfully": {
+    "message": "成功上传 {count} 个文件",
+    "description": "文件上传成功消息",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "fileUploadFailed": {
+    "message": "文件上传失败：{error}",
+    "description": "文件上传错误消息",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "网络错误"
+      }
+    }
+  },
+  "fileRemoved": {
+    "message": "文件已从上传列表中移除",
+    "description": "文件移除消息"
+  },
+  "errorDisplayingFiles": {
+    "message": "显示文件时出错",
+    "description": "显示文件错误消息"
+  },
+  "removeFile": {
+    "message": "移除文件",
+    "description": "移除文件按钮工具提示"
+  },
+  "unknownFile": {
+    "message": "未知文件",
+    "description": "未知文件类型"
+  },
+  "unknownPath": {
+    "message": "未知路径",
+    "description": "未知路径错误"
+  },
+  "invalidFilePath": {
+    "message": "提供的文件路径无效",
+    "description": "无效文件路径错误"
+  },
+  "failedToDecodeFilePath": {
+    "message": "解码文件路径失败",
+    "description": "解码文件路径错误"
+  },
+  "fileAccessDenied": {
+    "message": "文件访问被拒绝",
+    "description": "文件访问被拒绝错误"
+  },
+  "fileNotFound": {
+    "message": "文件未找到",
+    "description": "文件未找到错误"
+  },
+  "failedToOpenFileLink": {
+    "message": "打开文件链接失败",
+    "description": "打开文件链接失败错误"
+  },
+
+  "newsCarouselTitle": {
+    "message": "热点资讯",
+    "description": "新闻轮播标题"
+  },
+  "loadingNews": {
+    "message": "加载新闻中...",
+    "description": "加载新闻消息"
+  },
+  "latestNews": {
+    "message": "最新资讯",
+    "description": "最新新闻标签"
+  },
+  "refreshNews": {
+    "message": "刷新",
+    "description": "刷新新闻按钮工具提示"
+  },
+  "noNewsAvailable": {
+    "message": "暂无可用新闻",
+    "description": "无可用新闻消息"
+  },
+  "noTitle": {
+    "message": "无标题",
+    "description": "新闻的无标题占位符"
+  },
+  "minutesAgo": {
+    "message": "{count} 分钟前",
+    "description": "时间：分钟前",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "hoursAgo": {
+    "message": "{count} 小时前",
+    "description": "时间：小时前",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "failedToLoadNews": {
+    "message": "加载新闻失败",
+    "description": "加载新闻失败错误"
+  },
+
+  "hottest": {
+    "message": "最热",
+    "description": "新闻类型：最热"
+  },
+  "realtime": {
+    "message": "实时",
+    "description": "新闻类型：实时"
+  },
+
+  "loadingWeather": {
+    "message": "加载天气中...",
+    "description": "加载天气消息"
+  },
+  "unableToLoadWeather": {
+    "message": "无法加载天气",
+    "description": "天气加载错误"
+  },
+  "retry": {
+    "message": "重试",
+    "description": "重试按钮"
+  },
+  "refreshWeather": {
+    "message": "刷新天气",
+    "description": "刷新天气按钮工具提示"
+  },
+  "clearSky": {
+    "message": "晴朗",
+    "description": "天气状况：晴朗"
+  },
+  "mainlyClear": {
+    "message": "基本晴朗",
+    "description": "天气状况：基本晴朗"
+  },
+  "partlyCloudy": {
+    "message": "多云",
+    "description": "天气状况：多云"
+  },
+  "overcast": {
+    "message": "阴天",
+    "description": "天气状况：阴天"
+  },
+  "drizzle": {
+    "message": "毛毛雨",
+    "description": "天气状况：毛毛雨"
+  },
+  "rain": {
+    "message": "雨",
+    "description": "天气状况：雨"
+  },
+  "snow": {
+    "message": "雪",
+    "description": "天气状况：雪"
+  },
+  "thunderstorm": {
+    "message": "雷暴",
+    "description": "天气状况：雷暴"
+  },
+  "fog": {
+    "message": "雾",
+    "description": "天气状况：雾"
+  },
+
+  "microphonePermissionDenied": {
+    "message": "麦克风权限被拒绝",
+    "description": "麦克风权限错误标题"
+  },
+  "microphoneDeniedDescription": {
+    "message": "麦克风访问被拒绝。请允许访问后重试。",
+    "description": "麦克风权限被拒绝描述"
+  },
+  "noMicrophoneFound": {
+    "message": "未找到麦克风。请连接麦克风。",
+    "description": "无麦克风错误"
+  },
+  "microphoneInUse": {
+    "message": "麦克风正在被其他应用程序使用。",
+    "description": "麦克风使用中错误"
+  },
+  "voiceRecordingNotSupported": {
+    "message": "您的浏览器不支持语音录制",
+    "description": "不支持语音录制错误"
+  },
+  "noAsrProfilesFound": {
+    "message": "未找到 ASR 配置",
+    "description": "无 ASR 配置错误"
+  },
+  "configureAsrProfileFirst": {
+    "message": "请先在设置中配置 ASR 配置",
+    "description": "配置 ASR 配置消息"
+  },
+  "startingVoiceRecording": {
+    "message": "开始语音录制...",
+    "description": "开始录制消息"
+  },
+  "stoppingRecording": {
+    "message": "停止录制...",
+    "description": "停止录制消息"
+  },
+  "processingAudio": {
+    "message": "处理音频中...",
+    "description": "处理音频消息"
+  },
+  "transcribing": {
+    "message": "转录中...",
+    "description": "转录消息"
+  },
+  "failedToStartRecording": {
+    "message": "启动录制失败",
+    "description": "启动录制失败错误"
+  },
+  "failedToTranscribe": {
+    "message": "转录音频失败",
+    "description": "转录失败错误"
+  },
+  "recording": {
+    "message": "录制中...",
+    "description": "录制状态文本"
+  },
+
+  "notificationReady": {
+    "message": "VibeSurf 已就绪",
+    "description": "通知标题：就绪"
+  },
+  "notificationReadyDescription": {
+    "message": "扩展程序已准备好自动化您的浏览任务！",
+    "description": "通知消息：就绪"
+  },
+  "notificationConnected": {
+    "message": "VibeSurf 后端已连接",
+    "description": "通知标题：已连接"
+  },
+  "notificationConnectedDescription": {
+    "message": "已成功连接到 VibeSurf 后端服务器",
+    "description": "通知消息：已连接"
+  },
+  "notificationDisconnected": {
+    "message": "VibeSurf 后端不可用",
+    "description": "通知标题：已断开"
+  },
+  "notificationDisconnectedDescription": {
+    "message": "无法连接到后端。请确保 VibeSurf 服务器正在运行。",
+    "description": "通知消息：已断开"
+  },
+  "notificationError": {
+    "message": "VibeSurf 错误",
+    "description": "通知标题：错误"
+  },
+  "notificationErrorDescription": {
+    "message": "发生意外错误。请查看控制台了解详情。",
+    "description": "通知消息：错误"
+  },
+  "initializationFailed": {
+    "message": "VibeSurf 初始化失败",
+    "description": "初始化失败标题"
+  },
+
+  "failedToLoadHistory": {
+    "message": "加载历史失败",
+    "description": "加载历史失败错误"
+  },
+  "failedToLoadSessions": {
+    "message": "加载会话失败",
+    "description": "加载会话失败错误"
+  },
+  "failedToLoadTaskSession": {
+    "message": "加载任务会话失败",
+    "description": "加载任务会话失败错误"
+  },
+  "invalidTaskNoSession": {
+    "message": "无效任务 - 未找到会话 ID",
+    "description": "无效任务错误"
+  },
+  "invalidSessionNoId": {
+    "message": "无效会话 - 未找到会话 ID",
+    "description": "无效会话错误"
+  },
+  "failedToLoadSettings": {
+    "message": "加载设置数据失败",
+    "description": "加载设置失败错误"
+  },
+
+  "taskStatusCompleted": {
+    "message": "已完成",
+    "description": "任务状态：已完成"
+  },
+  "taskStatusRunning": {
+    "message": "运行中",
+    "description": "任务状态：运行中"
+  },
+  "taskStatusPending": {
+    "message": "待处理",
+    "description": "任务状态：待处理"
+  },
+  "taskStatusFailed": {
+    "message": "失败",
+    "description": "任务状态：失败"
+  },
+  "taskStatusActive": {
+    "message": "进行中",
+    "description": "任务状态：进行中"
+  },
+  "taskStatusError": {
+    "message": "错误",
+    "description": "任务状态：错误"
+  },
+
+  "apiKeyValidAndReady": {
+    "message": "API 密钥有效且可使用",
+    "description": "API 密钥验证成功消息"
+  },
+  "apiKeyValidatedAndSaved": {
+    "message": "API 密钥验证并保存成功",
+    "description": "API 密钥保存通知"
+  },
+  "pleaseEnterApiKey": {
+    "message": "请输入 API 密钥",
+    "description": "API 密钥输入验证错误"
+  },
+  "failedToLoadIntegrations": {
+    "message": "加载集成数据失败",
+    "description": "加载集成失败错误"
+  },
+  "syncedToolkitsFromComposio": {
+    "message": "已从 Composio 同步 $1 个新工具包",
+    "description": "工具包同步通知",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "failedToLoadComposioToolkits": {
+    "message": "加载 Composio 工具包失败",
+    "description": "加载工具包失败错误"
+  },
+  "noToolkitsAvailable": {
+    "message": "暂无可用工具包",
+    "description": "无工具包空状态标题"
+  },
+  "noToolkitsAvailableDesc": {
+    "message": "目前没有可用的工具包。",
+    "description": "无工具包空状态描述"
+  },
+  "noMatchingToolkits": {
+    "message": "没有匹配的工具包",
+    "description": "无匹配工具包空状态标题"
+  },
+  "noMatchingToolkitsDesc": {
+    "message": "请尝试调整您的搜索或筛选条件。",
+    "description": "无匹配工具包空状态描述"
+  },
+  "connected": {
+    "message": "已连接",
+    "description": "连接状态：已连接"
+  },
+  "notConnected": {
+    "message": "未连接",
+    "description": "连接状态：未连接"
+  },
+  "toolkitEnabledDisabled": {
+    "message": "工具包 $1 $2",
+    "description": "工具包已启用/已禁用通知",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Gmail"
+      },
+      "status": {
+        "content": "$2",
+        "example": "已启用"
+      }
+    }
+  },
+  "enable": {
+    "message": "启用",
+    "description": "启用操作"
+  },
+  "disable": {
+    "message": "禁用",
+    "description": "禁用操作"
+  },
+  "enabled": {
+    "message": "已启用",
+    "description": "已启用状态"
+  },
+  "disabled": {
+    "message": "已禁用",
+    "description": "已禁用状态"
+  },
+  "toolkit": {
+    "message": "工具包",
+    "description": "工具包标签"
+  },
+  "failedToStartOAuth": {
+    "message": "启动 OAuth 流程失败",
+    "description": "OAuth 流程启动失败错误"
+  },
+  "connectedSuccessfully": {
+    "message": "$1 连接成功！",
+    "description": "连接成功通知",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Gmail"
+      }
+    }
+  },
+  "oauthConnectionNotDetected": {
+    "message": "未检测到 OAuth 连接。请重试。",
+    "description": "OAuth 未完成警告"
+  },
+  "failedToVerifyOAuth": {
+    "message": "验证 OAuth 连接失败",
+    "description": "OAuth 验证失败错误"
+  },
+  "toolkitNotFound": {
+    "message": "未找到工具包",
+    "description": "未找到工具包错误"
+  },
+  "failedToLoadToolkitTools": {
+    "message": "加载工具包工具失败",
+    "description": "加载工具失败错误"
+  },
+  "failedToLoadTools": {
+    "message": "加载工具失败",
+    "description": "加载工具失败空状态标题"
+  },
+  "unableToFetchTools": {
+    "message": "无法获取此工具包的工具。",
+    "description": "无法获取工具描述"
+  },
+  "noToolsAvailable": {
+    "message": "暂无可用工具",
+    "description": "无工具空状态标题"
+  },
+  "noToolsAvailableDesc": {
+    "message": "此工具包没有可用的工具。",
+    "description": "无工具空状态描述"
+  },
+  "toolName": {
+    "message": "工具名称",
+    "description": "工具名称列标题"
+  },
+  "noDescriptionAvailable": {
+    "message": "暂无描述",
+    "description": "无描述可用文本"
+  },
+  "toolsConfigSavedSuccessfully": {
+    "message": "工具配置保存成功",
+    "description": "工具配置保存通知"
+  },
+  "failedToSaveToolsConfig": {
+    "message": "保存工具配置失败",
+    "description": "保存工具失败错误"
+  },
+
+  "failedToShow": {
+    "message": "显示失败",
+    "description": "显示失败错误前缀"
+  },
+  "profileForm": {
+    "message": " 配置文件表单",
+    "description": "配置文件表单后缀"
+  },
+  "edit": {
+    "message": "编辑",
+    "description": "编辑操作"
+  },
+  "add": {
+    "message": "添加",
+    "description": "添加操作"
+  },
+  "profileName": {
+    "message": "配置文件名称",
+    "description": "配置文件名称标签"
+  },
+  "enterUniqueName": {
+    "message": "为此配置文件输入唯一名称",
+    "description": "配置文件名称占位符"
+  },
+  "uniqueIdentifierConfig": {
+    "message": "此 LLM 配置的唯一标识符",
+    "description": "配置文件名称帮助文本"
+  },
+  "selectProvider": {
+    "message": "选择提供商",
+    "description": "提供商选择占位符"
+  },
+  "chooseLLMProvider": {
+    "message": "选择您的 LLM 提供商（OpenAI、Anthropic 等）",
+    "description": "提供商帮助文本"
+  },
+  "selectModelOrCustom": {
+    "message": "选择模型或输入自定义模型名称",
+    "description": "模型输入占位符"
+  },
+  "chooseFromListOrCustom": {
+    "message": "从列表中选择或输入自定义模型名称",
+    "description": "模型帮助文本"
+  },
+  "leaveEmptyKeepKey": {
+    "message": "留空以保留现有密钥",
+    "description": "编辑时的 API 密钥占位符"
+  },
+  "enterYourApiKey": {
+    "message": "输入您的 API 密钥",
+    "description": "API 密钥占位符"
+  },
+  "toggleVisibility": {
+    "message": "切换可见性",
+    "description": "切换密码可见性提示"
+  },
+  "providerApiKeyAuth": {
+    "message": "您提供商的用于身份验证的 API 密钥",
+    "description": "API 密钥帮助文本"
+  },
+  "baseUrl": {
+    "message": "基础 URL",
+    "description": "基础 URL 标签"
+  },
+  "customApiEndpoint": {
+    "message": "自定义 API 端点（留空使用提供商默认值）",
+    "description": "基础 URL 帮助文本"
+  },
+  "temperature": {
+    "message": "温度",
+    "description": "温度标签"
+  },
+  "temperatureHelp": {
+    "message": "控制随机性（0.0-2.0，越低越专注）",
+    "description": "温度帮助文本"
+  },
+  "maxTokens": {
+    "message": "最大令牌数",
+    "description": "最大令牌数标签"
+  },
+  "maxTokensHelp": {
+    "message": "响应中的最大令牌数",
+    "description": "最大令牌数帮助文本"
+  },
+  "description": {
+    "message": "描述",
+    "description": "描述标签"
+  },
+  "optionalDescription": {
+    "message": "此配置文件的可选描述",
+    "description": "描述占位符"
+  },
+  "optionalDescriptionHelp": {
+    "message": "用于帮助识别此配置文件的可选描述",
+    "description": "描述帮助文本"
+  },
+  "setAsDefaultProfile": {
+    "message": "设为默认配置文件",
+    "description": "设为默认复选框标签"
+  },
+  "defaultProfileHelp": {
+    "message": "此配置文件将默认用于新任务",
+    "description": "默认配置文件帮助文本"
+  },
+  "loading": {
+    "message": "加载中...",
+    "description": "加载文本"
+  },
+  "selectModel": {
+    "message": "选择模型",
+    "description": "选择模型占位符"
+  },
+  "failedToLoadModels": {
+    "message": "加载模型失败",
+    "description": "加载模型失败错误"
+  },
+  "modelType": {
+    "message": "模型类型",
+    "description": "模型类型标签"
+  },
+  "voiceModel": {
+    "message": "语音模型",
+    "description": "语音模型标签"
+  },
+  "modelParameters": {
+    "message": "模型参数 (JSON)",
+    "description": "模型参数标签"
+  },
+  "modelParametersHelp": {
+    "message": "模型特定参数的可选 JSON 配置",
+    "description": "模型参数帮助文本"
+  },
+  "active": {
+    "message": "活动",
+    "description": "活动状态/标签"
+  },
+  "activeProfileHelp": {
+    "message": "此语音配置文件是否活动可用",
+    "description": "活动复选框帮助"
+  },
+  "displayName": {
+    "message": "显示名称",
+    "description": "显示名称标签"
+  },
+  "serverName": {
+    "message": "服务器名称",
+    "description": "服务器名称标签"
+  },
+  "serverParameters": {
+    "message": "服务器参数 (JSON)",
+    "description": "服务器参数标签"
+  },
+  "saving": {
+    "message": "保存中...",
+    "description": "保存按钮文本"
+  },
+  "saveProfile": {
+    "message": "保存配置文件",
+    "description": "保存配置文件按钮文本"
+  },
+  "validJson": {
+    "message": "✓ 有效的 JSON 配置",
+    "description": "有效的 JSON 反馈"
+  },
+  "invalidJson": {
+    "message": "✗ 无效的 JSON: ",
+    "description": "无效的 JSON 前缀"
+  },
+  "deleting": {
+    "message": "正在删除",
+    "description": "删除操作前缀"
+  },
+  "deletedSuccessfully": {
+    "message": "删除成功",
+    "description": "删除成功消息"
+  },
+  "profileNotFound": {
+    "message": " 配置文件未找到。请检查是否仍然存在。",
+    "description": "配置文件未找到错误"
+  },
+  "createdUpdatedSuccessfully": {
+    "message": " 配置文件$1成功",
+    "description": "配置文件已创建/已更新通知",
+    "placeholders": {
+      "action": {
+        "content": "$1",
+        "example": "已创建"
+      }
+    }
+  },
+  "created": {
+    "message": "已创建",
+    "description": "已创建操作"
+  },
+  "updated": {
+    "message": "已更新",
+    "description": "已更新操作"
+  },
+  "noLLMProfiles": {
+    "message": "暂无 LLM 配置文件",
+    "description": "无 LLM 配置文件空状态标题"
+  },
+  "createFirstLLMProfile": {
+    "message": "创建您的第一个 LLM 配置文件以开始使用",
+    "description": "无 LLM 配置文件空状态描述"
+  },
+  "default": {
+    "message": "默认",
+    "description": "默认徽章"
+  },
+  "editProfile": {
+    "message": "编辑配置文件",
+    "description": "编辑配置文件按钮提示"
+  },
+  "deleteProfile": {
+    "message": "删除配置文件",
+    "description": "删除配置文件按钮提示"
+  },
+  "base_url": {
+    "message": "基础 URL",
+    "description": "基础 URL 详情标签"
+  },
+  "temperature_detail": {
+    "message": "温度",
+    "description": "温度详情标签"
+  },
+  "max_tokens_detail": {
+    "message": "最大令牌数",
+    "description": "最大令牌数详情标签"
+  },
+  "command": {
+    "message": "命令",
+    "description": "命令标签"
+  },
+  "args": {
+    "message": "参数",
+    "description": "参数标签"
+  },
+  "modelDetail": {
+    "message": "模型",
+    "description": "模型详情标签"
+  },
+  "typeDetail": {
+    "message": "类型",
+    "description": "类型详情标签"
+  },
+  "parameters": {
+    "message": "参数",
+    "description": "参数标签"
+  },
+  "customSettings": {
+    "message": "自定义设置",
+    "description": "自定义设置文本"
+  },
+  "noMCPProfiles": {
+    "message": "暂无 MCP 配置文件",
+    "description": "无 MCP 配置文件空状态标题"
+  },
+  "createFirstMCPProfile": {
+    "message": "创建您的第一个 MCP 配置文件以启用服务器集成",
+    "description": "无 MCP 配置文件空状态描述"
+  },
+  "inactive": {
+    "message": "未活动",
+    "description": "未活动状态"
+  },
+  "noVoiceProfiles": {
+    "message": "暂无语音配置文件",
+    "description": "无语音配置文件空状态标题"
+  },
+  "createFirstVoiceProfile": {
+    "message": "创建您的第一个语音配置文件以启用语音功能",
+    "description": "无语音配置文件空状态描述"
+  },
+  "onlyLLMProfileError": {
+    "message": "这是唯一配置的 LLM 配置文件。您必须至少有一个其他配置文件才能删除它。",
+    "description": "唯一配置文件错误消息"
+  },
+  "onlyLLMProfileErrorDetails": {
+    "message": "请先创建另一个 LLM 配置文件，然后才能删除此文件。",
+    "description": "唯一配置文件错误详情"
+  },
+  "createNewProfile": {
+    "message": "创建新配置文件",
+    "description": "创建新配置文件按钮"
+  },
+  "updatingDefaultProfile": {
+    "message": "正在更新默认配置文件...",
+    "description": "更新默认配置文件加载消息"
+  },
+  "deletingProfile": {
+    "message": "正在删除配置文件...",
+    "description": "删除配置文件加载消息"
+  },
+  "profileDeletedSetDefault": {
+    "message": "配置文件 \"$1\" 已删除，\"$2\" 已设为默认",
+    "description": "配置文件已删除并设置新默认通知",
+    "placeholders": {
+      "deleted": {
+        "content": "$1",
+        "example": "old-profile"
+      },
+      "newDefault": {
+        "content": "$2",
+        "example": "new-profile"
+      }
+    }
+  },
+  "failedToUpdateProfiles": {
+    "message": "更新配置文件失败",
+    "description": "更新配置文件失败错误"
+  },
+  "chooseVoiceModelType": {
+    "message": "选择语音模型的类型",
+    "description": "语音模型类型帮助文本"
+  },
+  "chooseYourVoiceModel": {
+    "message": "选择您的语音模型",
+    "description": "语音模型帮助文本"
+  },
+  "voiceProviderApiKeyAuth": {
+    "message": "您语音提供商的用于身份验证的 API 密钥",
+    "description": "语音 API 密钥帮助文本"
+  },
+  "enterJsonModelParams": {
+    "message": "输入模型参数的 JSON 配置（可选）",
+    "description": "模型参数占位符"
+  },
+  "enterFriendlyName": {
+    "message": "为此 MCP 配置文件输入一个友好名称",
+    "description": "显示名称占位符"
+  },
+  "userFriendlyNameMcp": {
+    "message": "此 MCP 配置的用户友好名称",
+    "description": "显示名称帮助文本"
+  },
+  "serverNamePlaceholder": {
+    "message": "例如：filesystem、markitdown、brave-search",
+    "description": "服务器名称占位符"
+  },
+  "mcpServerIdentifier": {
+    "message": "MCP 服务器标识符",
+    "description": "服务器名称帮助文本"
+  },
+  "enterJsonMcpParams": {
+    "message": "输入 MCP 服务器参数的 JSON 配置",
+    "description": "MCP 参数占位符"
+  },
+  "mcpParamsHelp": {
+    "message": "包括命令和参数的 JSON 配置。示例：",
+    "description": "MCP 参数帮助文本"
+  },
+  "optionalDescriptionMcp": {
+    "message": "此 MCP 配置文件的可选描述",
+    "description": "MCP 描述占位符"
+  },
+  "activeMcpProfileHelp": {
+    "message": "此 MCP 配置文件是否活动可用",
+    "description": "活动 MCP 配置文件帮助文本"
+  },
+  "failedToLoadModelsForType": {
+    "message": "加载 $1 的模型失败。请重试。",
+    "description": "加载类型模型失败错误",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "asr"
+      }
+    }
+  },
+  "loadingProviderModels": {
+    "message": "正在加载 $1 模型...",
+    "description": "加载模型占位符",
+    "placeholders": {
+      "provider": {
+        "content": "$1",
+        "example": "openai"
+      }
+    }
+  },
+  "selectProviderModelOrCustom": {
+    "message": "选择 $1 模型或输入自定义模型名称",
+    "description": "带有提供商的模型输入占位符",
+    "placeholders": {
+      "provider": {
+        "content": "$1",
+        "example": "openai"
+      }
+    }
+  },
+  "enterProviderModelManually": {
+    "message": "手动输入 $1 模型名称",
+    "description": "手动输入模型占位符",
+    "placeholders": {
+      "provider": {
+        "content": "$1",
+        "example": "openai"
+      }
+    }
+  },
+  "failedToLoadModelsManually": {
+    "message": "加载 $1 的模型失败。您可以手动输入模型名称。",
+    "description": "加载模型失败警告",
+    "placeholders": {
+      "provider": {
+        "content": "$1",
+        "example": "openai"
+      }
+    }
+  },
+  "validJsonMcp": {
+    "message": "✓ 有效的 JSON 配置",
+    "description": "有效的 JSON MCP 反馈"
+  },
+  "invalidJsonMcp": {
+    "message": "MCP 服务器参数必须是 JSON 对象",
+    "description": "无效的 JSON MCP 错误"
+  },
+  "missingInvalidCommand": {
+    "message": "缺失或无效的 \"command\" 字段（必须是字符串）",
+    "description": "无效命令字段错误"
+  },
+  "argsMustBeArray": {
+    "message": "\"args\" 字段必须是数组（如果提供）",
+    "description": "无效参数字段错误"
+  },
+  "invalidJsonVoice": {
+    "message": "语音元参数必须是 JSON 对象",
+    "description": "无效的 JSON 语音错误"
+  },
+  "failedToDelete": {
+    "message": "删除 $1 配置文件失败",
+    "description": "删除配置文件失败错误",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "llm"
+      }
+    }
+  },
+  "profile": {
+    "message": "配置文件",
+    "description": "配置文件标签（小写）"
+  },
+  "failedToLoadSettings": {
+    "message": "加载设置数据失败",
+    "description": "加载设置失败错误"
+  },
+  "latestNews": {
+    "message": "最新资讯",
+    "description": "最新资讯副标题"
+  },
+  "refresh": {
+    "message": "刷新",
+    "description": "刷新按钮提示"
+  },
+  "noTitle": {
+    "message": "无标题",
+    "description": "无标题占位符"
+  },
+  "justNow": {
+    "message": "刚刚",
+    "description": "时间：刚刚"
+  },
+  "minutesAgo": {
+    "message": "$1分钟前",
+    "description": "时间：分钟前",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "hoursAgo": {
+    "message": "$1小时前",
+    "description": "时间：小时前",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "daysAgo": {
+    "message": "$1天前",
+    "description": "时间：天前",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "monthDay": {
+    "message": "$1月$2日",
+    "description": "日期格式月/日",
+    "placeholders": {
+      "month": {
+        "content": "$1",
+        "example": "12"
+      },
+      "day": {
+        "content": "$2",
+        "example": "25"
+      }
+    }
+  },
+  "loadingNews": {
+    "message": "加载新闻中...",
+    "description": "加载新闻文本"
+  },
+  "noNewsData": {
+    "message": "暂无新闻数据",
+    "description": "无新闻数据空状态"
+  },
+  "loadingFailedRetry": {
+    "message": "加载失败，请稍后重试",
+    "description": "加载失败错误消息"
+  },
+  "popupDescription": {
+    "message": "AI 驱动的浏览器自动化触手可及",
+    "description": "弹窗描述"
+  },
+  "openSidePanel": {
+    "message": "打开侧边栏",
+    "description": "打开侧边栏按钮"
+  },
+  "ready": {
+    "message": "就绪",
+    "description": "状态：就绪"
+  },
+  "error": {
+    "message": "错误",
+    "description": "状态：错误"
+  },
+  "connected": {
+    "message": "已连接",
+    "description": "状态：已连接"
+  },
+  "disconnected": {
+    "message": "未连接",
+    "description": "状态：未连接"
+  },
+  "microphonePermissionRequired": {
+    "message": "需要麦克风权限",
+    "description": "麦克风权限标题"
+  },
+  "microphonePermissionDescription": {
+    "message": "VibeSurf 需要访问您的麦克风以启用语音输入。此权限仅在您点击麦克风按钮时使用。",
+    "description": "麦克风权限描述"
+  },
+  "allowMicrophone": {
+    "message": "允许麦克风",
+    "description": "允许麦克风按钮"
+  },
+  "deny": {
+    "message": "拒绝",
+    "description": "拒绝按钮"
+  },
+
+  "addToSkill": {
+    "message": "添加到技能",
+    "description": "添加到技能按钮标签"
+  },
+  "flowId": {
+    "message": "工作流 ID",
+    "description": "工作流 ID 标签"
+  },
+  "copyFlowId": {
+    "message": "复制工作流 ID",
+    "description": "复制工作流 ID 按钮工具提示"
+  },
+  "clickToCopy": {
+    "message": "点击复制",
+    "description": "点击复制工具提示"
+  },
+  "runWorkflow": {
+    "message": "运行",
+    "description": "运行工作流按钮"
+  },
+  "download": {
+    "message": "下载",
+    "description": "下载按钮"
+  },
+  "createFirstWorkflowHelp": {
+    "message": "创建您的第一个工作流以开始使用并解锁自动化工作流的力量。",
+    "description": "工作流空状态帮助"
+  },
+  "configureApiKeyMessage": {
+    "message": "请配置您的 Composio API 密钥以继续",
+    "description": "需要 API 密钥消息"
+  },
+  "clearSelection": {
+    "message": "清除选择",
+    "description": "清除选择按钮工具提示"
+  },
+  "composioApiKeyLabel": {
+    "message": "Composio API 密钥",
+    "description": "Composio API 密钥标签"
+  },
+  "projectSettingsApiKeys": {
+    "message": "(项目设置 → API 密钥)",
+    "description": "项目设置 API 密钥路径"
+  },
+  "workflowNameHelp": {
+    "message": "为工作流选择一个描述性名称",
+    "description": "工作流名称帮助文本"
+  },
+  "descriptionOptional": {
+    "message": "描述（可选）",
+    "description": "可选描述标签"
+  },
+  "workflowNameRequired": {
+    "message": "工作流名称 *",
+    "description": "工作流名称必填标签"
+  },
+  "describeWorkflow": {
+    "message": "描述此工作流的功能",
+    "description": "工作流描述占位符"
+  },
+
+  "recording": {
+    "message": "录制",
+    "description": "录制标签"
+  },
+  "startRecording": {
+    "message": "开始录制",
+    "description": "开始录制按钮标签"
+  },
+  "recordedSteps": {
+    "message": "录制步骤",
+    "description": "录制步骤部分标题"
+  },
+  "clickStartRecordingToBegin": {
+    "message": "点击「开始录制」开始",
+    "description": "未录制步骤时的消息"
+  },
+  "noStepsRecordedYet": {
+    "message": "尚未录制任何步骤",
+    "description": "步骤空状态消息"
+  },
+  "inputSchema": {
+    "message": "输入架构",
+    "description": "输入架构模态框标题"
+  },
+  "workflow": {
+    "message": "工作流",
+    "description": "工作流标签"
+  },
+  "save": {
+    "message": "保存",
+    "description": "保存按钮"
+  },
+  "exposeInput": {
+    "message": "暴露输入",
+    "description": "暴露输入列标题"
+  },
+  "fieldName": {
+    "message": "字段名称",
+    "description": "字段名称列标题"
+  },
+  "currentValue": {
+    "message": "当前值",
+    "description": "当前值列标题"
+  },
+  "required": {
+    "message": "必填",
+    "description": "必填徽章文本"
+  },
+  "useMainSession": {
+    "message": "使用主浏览器会话",
+    "description": "使用主会话字段标签"
+  },
+  "browserTabId": {
+    "message": "浏览器标签页 ID",
+    "description": "浏览器标签页 ID 字段标签"
+  },
+  "targetId": {
+    "message": "目标 ID",
+    "description": "目标 ID 字段标签"
+  },
+  "noExposableInputs": {
+    "message": "此工作流中没有可暴露的输入。",
+    "description": "输入架构空状态"
+  },
+
+  "selectLlmProfile": {
+    "message": "选择 LLM 配置...",
+    "description": "LLM 配置选择占位符"
+  },
+  "noLlmProfilesConfigured": {
+    "message": "未配置 LLM 配置 - 前往设置",
+    "description": "无 LLM 配置消息"
+  }
+}

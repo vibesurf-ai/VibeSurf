@@ -124,13 +124,13 @@ class VibeSurfSettingsManager {
   handleTabSwitch(event) {
     const clickedTab = event.currentTarget;
     const targetTabId = clickedTab.dataset.tab;
-    
+
     // Update tab buttons
     this.elements.settingsTabs?.forEach(tab => {
       tab.classList.remove('active');
     });
     clickedTab.classList.add('active');
-    
+
     // Update tab content
     this.elements.settingsTabContents?.forEach(content => {
       content.classList.remove('active');
@@ -138,20 +138,28 @@ class VibeSurfSettingsManager {
     const targetContent = document.getElementById(`${targetTabId}-tab`);
     if (targetContent) {
       targetContent.classList.add('active');
+
+      // Re-translate the tab content after it becomes visible
+      // This ensures dynamically loaded content is translated
+      setTimeout(() => {
+        if (typeof window.i18n !== 'undefined') {
+          window.i18n.translatePage(targetContent);
+        }
+      }, 10);
     }
-    
+
     // If switching to general tab, ensure environment variables are loaded
     if (targetTabId === 'general') {
       this.settingsGeneral.loadEnvironmentVariables();
     }
-    
+
     // If switching to integrations tab, load integrations data
     if (targetTabId === 'integrations') {
       if (this.settingsIntegrations) {
         this.settingsIntegrations.loadIntegrationsData();
       }
     }
-    
+
     // If switching to workflow tab, load workflow content
     if (targetTabId === 'workflow') {
       if (this.settingsWorkflow) {
@@ -185,7 +193,7 @@ class VibeSurfSettingsManager {
       
     } catch (error) {
       console.error('[SettingsManager] Failed to load settings data:', error);
-      this.emit('error', { message: 'Failed to load settings data', error });
+      this.emit('error', { message: window.i18n.getMessage('failedToLoadSettings'), error });
     }
   }
 

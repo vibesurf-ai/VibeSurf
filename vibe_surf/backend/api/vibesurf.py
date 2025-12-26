@@ -70,6 +70,11 @@ class ExportWorkflowResponse(BaseModel):
     message: str
     file_path: Optional[str] = None
 
+class LocationLanguageResponse(BaseModel):
+    country: str
+    suggested_language: str
+    detected_from_ip: bool = True
+
 class SaveWorkflowRecordingRequest(BaseModel):
     name: str
     description: Optional[str] = None
@@ -633,6 +638,59 @@ class WeatherResponse(BaseModel):
     wind_speed: str
     details: Dict[str, Any]
 
+class IPLocationData(BaseModel):
+    """IP location data returned by ipinfo.io"""
+    city: str = ""
+    country: str = ""
+    loc: str = ""  # Format: "latitude,longitude"
+    latitude: float = None
+    longitude: float = None
+    detected: bool = False
+
+async def get_ip_location() -> IPLocationData:
+    """
+    Get IP location information using ipinfo.io
+
+    Returns:
+        IPLocationData with city, country, and coordinates
+        If detection fails, returns empty location with detected=False
+
+    Example:
+        location = await get_ip_location()
+        if location.detected:
+            print(f"City: {location.city}, Country: {location.country}")
+    """
+    result = IPLocationData()
+
+    try:
+        # trust_env=False prevents httpx from using system proxy settings
+        async with httpx.AsyncClient(trust_env=False) as client:
+            response = await client.get("http://ipinfo.io/json", timeout=2.0)
+            if response.status_code == 200:
+                ip_data = response.json()
+                result.city = ip_data.get("city", "")
+                result.country = ip_data.get("country", "")
+                result.loc = ip_data.get("loc", "")
+
+                # Parse coordinates
+                if result.loc and "," in result.loc:
+                    lat_str, lon_str = result.loc.split(",")
+                    try:
+                        result.latitude = float(lat_str.strip())
+                        result.longitude = float(lon_str.strip())
+                    except ValueError:
+                        logger.warning(f"Invalid coordinates format: {result.loc}")
+
+                result.detected = bool(result.country)
+                logger.debug(f"IP location detected: city={result.city}, country={result.country}")
+
+    except (httpx.TimeoutException, httpx.RequestError, ValueError) as e:
+        logger.warning(f"Error getting IP location (using defaults): {e}")
+    except Exception as e:
+        logger.warning(f"Unexpected error getting IP location (using defaults): {e}")
+
+    return result
+
 @router.get("/weather", response_model=WeatherResponse)
 async def get_weather():
     """Get weather information based on IP location using open-meteo.com"""
@@ -641,34 +699,22 @@ async def get_weather():
         latitude = 37.7749
         longitude = -122.4194
         display_location = "San Francisco, US"
-        
-        # Get location from IP using ipinfo.io (disable proxy to get real IP)
-        try:
-            # trust_env=False prevents httpx from using system proxy settings
-            async with httpx.AsyncClient(trust_env=False) as client:
-                response = await client.get("http://ipinfo.io/json", timeout=2.0)
-                if response.status_code == 200:
-                    ip_data = response.json()
-                    city = ip_data.get("city", "")
-                    country = ip_data.get("country", "")
-                    loc = ip_data.get("loc", "")
-                    
-                    if loc and "," in loc:
-                        # loc format is "latitude,longitude"
-                        lat_str, lon_str = loc.split(",")
-                        latitude = float(lat_str.strip())
-                        longitude = float(lon_str.strip())
-                        
-                        if city and country:
-                            display_location = f"{city}, {country}"
-                        elif country:
-                            display_location = country
-                        
-                        logger.debug(f"Location detected: {display_location} ({latitude}, {longitude})")
-        except (httpx.TimeoutException, httpx.RequestError, ValueError) as e:
-            logger.warning(f"Error getting IP location (using San Francisco as default): {e}")
-        except Exception as e:
-            logger.warning(f"Unexpected error getting IP location (using San Francisco as default): {e}")
+
+        # Get location from IP using shared function
+        ip_location = await get_ip_location()
+
+        if ip_location.detected:
+            # Use detected location
+            if ip_location.latitude is not None and ip_location.longitude is not None:
+                latitude = ip_location.latitude
+                longitude = ip_location.longitude
+
+            if ip_location.city and ip_location.country:
+                display_location = f"{ip_location.city}, {ip_location.country}"
+            elif ip_location.country:
+                display_location = ip_location.country
+
+            logger.debug(f"Location detected: {display_location} ({latitude}, {longitude})")
         
         # Get weather from open-meteo.com
         weather_url = "https://api.open-meteo.com/v1/forecast"
@@ -761,7 +807,7 @@ async def get_news(
     count: int = 10
 ):
     """Get news from sources
-    
+
     Args:
         source_id: Optional source ID. If None, fetches from all sources based on news_type
         news_type: Optional news type filter ("realtime", "hottest", or None for both)
@@ -769,14 +815,14 @@ async def get_news(
     """
     try:
         client = NewsNowClient()
-        
+
         # Client handles all filtering logic internally
         news_data = await client.get_news(
             source_id=source_id,
             news_type=news_type,
             count=count
         )
-        
+
         # Get metadata for the sources that have news
         sources_metadata = {}
         for sid in news_data.keys():
@@ -789,7 +835,7 @@ async def get_news(
                     "title": metadata.get("title", ""),
                     "type": metadata.get("type", "all")
                 }
-        
+
         return NewsResponse(
             news=news_data,
             sources_metadata=sources_metadata
@@ -797,3 +843,43 @@ async def get_news(
     except Exception as e:
         logger.error(f"Error getting news: {e}")
         raise HTTPException(status_code=500, detail="Failed to get news")
+
+@router.get("/location-language", response_model=LocationLanguageResponse)
+async def get_location_language():
+    """Get suggested language based on user's IP location.
+
+    Returns:
+        - China (CN): zh_CN
+        - All other countries: en (English)
+    """
+    try:
+        # Default to English if detection fails
+        country = "US"
+        suggested_language = "en"
+
+        # Get location from IP using shared function
+        ip_location = await get_ip_location()
+
+        if ip_location.detected:
+            country = ip_location.country
+            if country == "CN":
+                suggested_language = "zh_CN"
+            else:
+                suggested_language = "en"
+
+            logger.info(f"Location language detection: country={country}, suggested_language={suggested_language}")
+
+        return LocationLanguageResponse(
+            country=country,
+            suggested_language=suggested_language,
+            detected_from_ip=ip_location.detected
+        )
+
+    except Exception as e:
+        logger.error(f"Error getting location language: {e}")
+        # Return default English on any error
+        return LocationLanguageResponse(
+            country="US",
+            suggested_language="en",
+            detected_from_ip=False
+        )

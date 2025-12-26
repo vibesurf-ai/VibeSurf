@@ -14,6 +14,7 @@ class VibeSurfSettingsGeneral {
     this.elements = {
       // General Settings
       themeSelect: document.getElementById('theme-select'),
+      languageSelect: document.getElementById('language-select'),
       defaultAsrSelect: document.getElementById('default-asr-select'),
       defaultTtsSelect: document.getElementById('default-tts-select'),
       
@@ -30,6 +31,7 @@ class VibeSurfSettingsGeneral {
   bindEvents() {
     // General settings
     this.elements.themeSelect?.addEventListener('change', this.handleThemeChange.bind(this));
+    this.elements.languageSelect?.addEventListener('change', this.handleLanguageChange.bind(this));
     this.elements.defaultAsrSelect?.addEventListener('change', this.handleDefaultAsrChange.bind(this));
     this.elements.defaultTtsSelect?.addEventListener('change', this.handleDefaultTtsChange.bind(this));
     
@@ -49,6 +51,13 @@ class VibeSurfSettingsGeneral {
         this.elements.themeSelect.value = savedTheme;
       }
       this.applyTheme(savedTheme);
+
+      // Load and apply language setting from chrome.storage.local
+      const savedLocale = await this.getStoredLocale();
+      if (this.elements.languageSelect) {
+        this.elements.languageSelect.value = savedLocale;
+      }
+      await this.applyLanguage(savedLocale);
       
       // Voice profile defaults will be handled by autoSelectLatestVoiceProfiles
       // after voice profiles are loaded in loadVoiceProfilesForGeneral
@@ -80,7 +89,7 @@ class VibeSurfSettingsGeneral {
       
       // Populate ASR dropdown
       if (this.elements.defaultAsrSelect) {
-        this.elements.defaultAsrSelect.innerHTML = '<option value="">No ASR profile selected</option>';
+        this.elements.defaultAsrSelect.innerHTML = `<option value="">${window.i18n.getMessage('noAsrProfileSelected')}</option>`;
         asrProfiles.forEach(profile => {
           const option = document.createElement('option');
           option.value = profile.voice_profile_name;
@@ -88,10 +97,10 @@ class VibeSurfSettingsGeneral {
           this.elements.defaultAsrSelect.appendChild(option);
         });
       }
-      
+
       // Populate TTS dropdown
       if (this.elements.defaultTtsSelect) {
-        this.elements.defaultTtsSelect.innerHTML = '<option value="">No TTS profile selected</option>';
+        this.elements.defaultTtsSelect.innerHTML = `<option value="">${window.i18n.getMessage('noTtsProfileSelected')}</option>`;
         ttsProfiles.forEach(profile => {
           const option = document.createElement('option');
           option.value = profile.voice_profile_name;
@@ -274,6 +283,66 @@ class VibeSurfSettingsGeneral {
     }
   }
 
+  async handleLanguageChange(event) {
+    const selectedLocale = event.target.value;
+
+    try {
+      // Store language preference in chrome.storage.local
+      await window.i18n.setLocale(selectedLocale);
+
+      // Apply language changes immediately to the current page
+      // Translate all elements with data-i18n attributes
+      window.i18n.translatePage();
+
+      // Also translate the settings modal if it exists
+      const settingsModal = document.getElementById('settings-modal');
+      if (settingsModal) {
+        window.i18n.translatePage(settingsModal);
+      }
+
+      // Update any language-specific select options
+      this.updateLanguageDependentElements(selectedLocale);
+
+      // Emit event to re-render profile lists (which use window.i18n.getMessage() directly)
+      this.emit('languageChanged', { locale: selectedLocale });
+
+      // Show success message
+      const localeName = selectedLocale === 'zh_CN' ? '简体中文' : 'English';
+      const successMessage = selectedLocale === 'zh_CN'
+        ? `语言已切换为${localeName}`
+        : `Language changed to ${localeName}`;
+
+      this.emit('notification', {
+        message: successMessage,
+        type: 'success'
+      });
+
+    } catch (error) {
+      console.error('[SettingsGeneral] Failed to change language:', error);
+      this.emit('notification', {
+        message: 'Failed to change language',
+        type: 'error'
+      });
+    }
+  }
+
+  updateLanguageDependentElements(locale) {
+    // Update any UI elements that depend on language
+    // This is called after language change to update dynamic content
+
+    // Update language select placeholder text
+    if (this.elements.languageSelect) {
+      // Preserve the current selection
+      this.elements.languageSelect.value = locale;
+    }
+
+    // Re-render voice profile dropdowns with new language
+    this.loadVoiceProfilesForGeneral();
+
+    // Re-render environment variables with new language
+    this.loadEnvironmentVariables();
+  }
+
   applyTheme(theme) {
     const root = document.documentElement;
     
@@ -393,8 +462,8 @@ class VibeSurfSettingsGeneral {
       container.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">🔧</div>
-          <div class="empty-state-title">No Environment Variables</div>
-          <div class="empty-state-description">Environment variables are configured on the backend. Add or update variables as needed.</div>
+          <div class="empty-state-title">${window.i18n.getMessage('noEnvironmentVariables')}</div>
+          <div class="empty-state-description">${window.i18n.getMessage('envVarHelp')}</div>
         </div>
       `;
       return;
@@ -404,13 +473,13 @@ class VibeSurfSettingsGeneral {
     Object.entries(envVars).forEach(([key, value]) => {
       const envVarItem = document.createElement('div');
       envVarItem.className = 'env-var-item';
-      
+
       envVarItem.innerHTML = `
         <div class="env-var-key">
-          <input type="text" class="form-input" placeholder="Variable name" value="${this.escapeHtml(key)}" readonly>
+          <input type="text" class="form-input" placeholder="${window.i18n.getMessage('variableName')}" value="${this.escapeHtml(key)}" readonly>
         </div>
         <div class="env-var-value">
-          <input type="text" class="form-input" placeholder="Variable value" value="${this.escapeHtml(value)}">
+          <input type="text" class="form-input" placeholder="${window.i18n.getMessage('variableValue')}" value="${this.escapeHtml(value)}">
         </div>
       `;
 
@@ -467,6 +536,24 @@ class VibeSurfSettingsGeneral {
     if (this.elements.backendUrl) {
       this.elements.backendUrl.value = url;
     }
+  }
+
+  async applyLanguage(locale) {
+    // Store locale preference
+    await window.i18n.setLocale(locale);
+
+    // Note: Chrome Extension requires page reload to change locale
+    // The i18n API caches messages based on the browser/extension locale
+    // For a full language switch, the extension would need to reload
+    console.log('[SettingsGeneral] Language preference saved:', locale);
+  }
+
+  async getStoredLocale() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['vibesurf_locale'], (result) => {
+        resolve(result.vibesurf_locale || 'en');
+      });
+    });
   }
 
   escapeHtml(text) {

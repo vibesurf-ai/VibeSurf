@@ -1123,11 +1123,11 @@ class VibeSurfSettingsWorkflow {
       this.elements.workflowsList.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">⚡</div>
-          <div class="empty-state-title">${isEmpty ? 'No Workflows Available' : 'No Matching Workflows'}</div>
+          <div class="empty-state-title">${isEmpty ? window.i18n.getMessage('noWorkflowsFound') : window.i18n.getMessage('noMatchingWorkflows')}</div>
           <div class="empty-state-description">
-            ${isEmpty ? 'Create your first workflow to get started and unlock the power of automated workflows.' : 'Try adjusting your search or filter criteria to find what you\'re looking for.'}
+            ${isEmpty ? window.i18n.getMessage('createFirstWorkflowHelp') : window.i18n.getMessage('adjustSearchCriteria')}
           </div>
-          ${isEmpty ? '<button class="btn btn-primary create-workflow-empty-btn">Create Your First Workflow</button>' : ''}
+          ${isEmpty ? `<button class="btn btn-primary create-workflow-empty-btn">${window.i18n.getMessage('createNewWorkflow')}</button>` : ''}
         </div>
       `;
       
@@ -1152,7 +1152,17 @@ class VibeSurfSettingsWorkflow {
   renderWorkflowCard(workflow) {
     const isRunning = this.state.runningJobs.has(workflow.flow_id);
     const jobInfo = this.state.runningJobs.get(workflow.flow_id);
-    
+    const addToSkillLabel = window.i18n.getMessage('addToSkill');
+    const flowIdLabel = window.i18n.getMessage('flowId');
+    const copyFlowIdTitle = window.i18n.getMessage('copyFlowId');
+    const scheduledLabel = window.i18n.getMessage('filterScheduled');
+    const runningLabel = window.i18n.getMessage('filterRunning');
+    const runLabel = window.i18n.getMessage('runWorkflow');
+    const pauseLabel = window.i18n.getMessage('pause');
+    const logsLabel = window.i18n.getMessage('workflowLogs');
+    const scheduleLabel = window.i18n.getMessage('scheduleWorkflow');
+    const deleteLabel = window.i18n.getMessage('deleteWorkflow');
+
     return `
       <div class="workflow-card" data-workflow-id="${workflow.flow_id}">
         <div class="workflow-header">
@@ -1160,9 +1170,9 @@ class VibeSurfSettingsWorkflow {
             <div class="workflow-name">${this.escapeHtml(workflow.name)}</div>
             <div class="workflow-description">${this.escapeHtml(workflow.description)}</div>
             <div class="workflow-flow-id">
-              <span class="flow-id-label">Flow ID:</span>
-              <code class="flow-id-value" title="Click to copy">${workflow.flow_id}</code>
-              <button class="btn btn-icon copy-flow-id" data-flow-id="${workflow.flow_id}" title="Copy Flow ID">
+              <span class="flow-id-label">${flowIdLabel}:</span>
+              <code class="flow-id-value" title="${window.i18n.getMessage('clickToCopy')}">${workflow.flow_id}</code>
+              <button class="btn btn-icon copy-flow-id" data-flow-id="${workflow.flow_id}" title="${copyFlowIdTitle}">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M16 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6C4 4.89543 4.89543 4 6 4H8" stroke="currentColor" stroke-width="2"/>
                   <rect x="8" y="2" width="8" height="4" rx="1" stroke="currentColor" stroke-width="2"/>
@@ -1171,14 +1181,14 @@ class VibeSurfSettingsWorkflow {
             </div>
           </div>
           <div class="workflow-status">
-            ${workflow.scheduled ? '<span class="status-badge scheduled">Scheduled</span>' : ''}
-            ${isRunning ? '<span class="status-badge running">Running</span>' : ''}
-            <div class="workflow-skill-toggle" title="Add to Skill">
+            ${workflow.scheduled ? `<span class="status-badge scheduled">${scheduledLabel}</span>` : ''}
+            ${isRunning ? `<span class="status-badge running">${runningLabel}</span>` : ''}
+            <div class="workflow-skill-toggle" title="${addToSkillLabel}">
               <label class="toggle-switch">
                 <input type="checkbox" class="skill-toggle-input" data-flow-id="${workflow.flow_id}" ${workflow.add_to_skill ? 'checked' : ''}>
                 <span class="toggle-slider"></span>
               </label>
-              <span class="toggle-label">Add to Skill</span>
+              <span class="toggle-label">${addToSkillLabel}</span>
             </div>
           </div>
         </div>
@@ -1188,7 +1198,7 @@ class VibeSurfSettingsWorkflow {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <polygon points="5,3 19,12 5,21" stroke="currentColor" stroke-width="2" fill="currentColor"/>
             </svg>
-            Run
+            ${runLabel}
           </button>
           <button class="btn btn-secondary workflow-pause-btn" data-workflow-id="${workflow.flow_id}" data-job-id="${jobInfo?.job_id || ''}"
                   ${!isRunning ? 'style="display: none;"' : ''}>
@@ -1196,7 +1206,7 @@ class VibeSurfSettingsWorkflow {
               <rect x="6" y="4" width="4" height="16" stroke="currentColor" stroke-width="2" fill="currentColor"/>
               <rect x="14" y="4" width="4" height="16" stroke="currentColor" stroke-width="2" fill="currentColor"/>
             </svg>
-            Pause
+            ${pauseLabel}
           </button>
           <button class="btn btn-secondary workflow-logs-btn" data-workflow-id="${workflow.flow_id}" data-job-id="${jobInfo?.job_id || ''}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -1206,7 +1216,7 @@ class VibeSurfSettingsWorkflow {
               <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2"/>
               <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2"/>
             </svg>
-            Logs
+            ${logsLabel}
           </button>
           <button class="btn btn-secondary workflow-schedule-btn" data-workflow-id="${workflow.flow_id}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -1215,14 +1225,14 @@ class VibeSurfSettingsWorkflow {
               <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2"/>
               <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2"/>
             </svg>
-            Schedule
+            ${scheduleLabel}
           </button>
           <button class="btn btn-secondary workflow-edit-btn" data-workflow-id="${workflow.flow_id}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2"/>
               <path d="M18.5 2.5C18.8978 2.10217 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10217 21.5 2.5C21.8978 2.89783 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10217 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2"/>
             </svg>
-            Edit
+            ${window.i18n.getMessage('edit')}
           </button>
           <button class="btn btn-secondary workflow-download-btn" data-workflow-id="${workflow.flow_id}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -1230,20 +1240,29 @@ class VibeSurfSettingsWorkflow {
               <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2"/>
               <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2"/>
             </svg>
-            Download
+            ${window.i18n.getMessage('download')}
           </button>
           <button class="btn btn-danger workflow-delete-btn" data-workflow-id="${workflow.flow_id}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <path d="M3 6H5H21" stroke="currentColor" stroke-width="2"/>
               <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2"/>
             </svg>
-            Delete
+            ${deleteLabel}
           </button>
         </div>
       </div>
     `;
   }
-  
+
+  /**
+   * Re-render all workflows with current language
+   * This should be called when language changes to update dynamically rendered content
+   */
+  rerenderAllWorkflows() {
+    console.log('[SettingsWorkflow] Re-rendering all workflows for language change');
+    this.renderWorkflows();
+  }
+
   // Bind workflow event listeners
   bindWorkflowEvents() {
     if (!this.elements.workflowsList) return;
@@ -2916,7 +2935,7 @@ class VibeSurfSettingsWorkflow {
         <div class="modal-overlay"></div>
         <div class="modal-content record-workflow-dialog-content">
           <div class="modal-header">
-            <h3>Record Workflow</h3>
+            <h3 data-i18n="recordWorkflow">Record Workflow</h3>
             <button class="modal-close">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -2925,32 +2944,32 @@ class VibeSurfSettingsWorkflow {
           </div>
           <div class="modal-body">
             <div class="form-group">
-              <label class="form-label" for="record-workflow-name-input">Workflow Name <span class="required">*</span></label>
-              <input type="text" id="record-workflow-name-input" class="form-input" placeholder="Enter workflow name" required />
+              <label class="form-label" for="record-workflow-name-input" data-i18n="workflowNameRequired">Workflow Name <span class="required">*</span></label>
+              <input type="text" id="record-workflow-name-input" class="form-input" data-i18n-placeholder="enterWorkflowName" placeholder="Enter workflow name" required />
             </div>
             <div class="form-group">
-              <label class="form-label" for="record-workflow-desc-input">Description (optional)</label>
-              <textarea id="record-workflow-desc-input" class="form-textarea" placeholder="Describe what this workflow does" rows="3"></textarea>
+              <label class="form-label" for="record-workflow-desc-input" data-i18n="descriptionOptional">Description (optional)</label>
+              <textarea id="record-workflow-desc-input" class="form-textarea" data-i18n-placeholder="describeWorkflow" placeholder="Describe what this workflow does" rows="3"></textarea>
             </div>
             <div id="record-workflow-validation" style="display: none;"></div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="form-btn secondary" id="record-workflow-cancel">Cancel</button>
-            <button type="button" class="form-btn primary" id="record-workflow-start">Confirm</button>
+            <button type="button" class="form-btn secondary" id="record-workflow-cancel"><span data-i18n="cancel">Cancel</span></button>
+            <button type="button" class="form-btn primary" id="record-workflow-start"><span data-i18n="confirm">Confirm</span></button>
           </div>
         </div>
       </div>
     `;
-    
+
     document.body.insertAdjacentHTML('beforeend', dialogHTML);
-    
+
     this.elements.recordWorkflowDialog = document.getElementById('record-workflow-dialog');
     this.elements.recordWorkflowNameInput = document.getElementById('record-workflow-name-input');
     this.elements.recordWorkflowDescInput = document.getElementById('record-workflow-desc-input');
     this.elements.recordWorkflowValidation = document.getElementById('record-workflow-validation');
     this.elements.recordWorkflowCancel = document.getElementById('record-workflow-cancel');
     this.elements.recordWorkflowStart = document.getElementById('record-workflow-start');
-    
+
     // Bind events
     if (this.elements.recordWorkflowCancel) {
       this.elements.recordWorkflowCancel.addEventListener('click', this.hideRecordWorkflowDialog.bind(this));
@@ -2958,18 +2977,23 @@ class VibeSurfSettingsWorkflow {
     if (this.elements.recordWorkflowStart) {
       this.elements.recordWorkflowStart.addEventListener('click', this.handleStartRecording.bind(this));
     }
-    
+
     const modalClose = this.elements.recordWorkflowDialog?.querySelector('.modal-close');
     if (modalClose) {
       modalClose.addEventListener('click', this.hideRecordWorkflowDialog.bind(this));
     }
-    
+
     const modalOverlay = this.elements.recordWorkflowDialog?.querySelector('.modal-overlay');
     if (modalOverlay) {
       modalOverlay.addEventListener('click', this.hideRecordWorkflowDialog.bind(this));
     }
+
+    // Translate the dialog content
+    if (window.i18n && window.i18n.translatePage) {
+      window.i18n.translatePage(this.elements.recordWorkflowDialog);
+    }
   }
-  
+
   // Hide record workflow dialog
   hideRecordWorkflowDialog() {
     if (this.elements.recordWorkflowDialog) {
@@ -3038,7 +3062,8 @@ class VibeSurfSettingsWorkflow {
 
     // Clear previous steps
     if (this.elements.recordingStepsList) {
-      this.elements.recordingStepsList.innerHTML = '<div class="no-steps-message">Click "Start Recording" to begin</div>';
+      const clickToBeginLabel = window.i18n?.getMessage('clickStartRecordingToBegin') || 'Click "Start Recording" to begin';
+      this.elements.recordingStepsList.innerHTML = `<div class="no-steps-message">${clickToBeginLabel}</div>`;
     }
     
     // Show page
@@ -3049,12 +3074,17 @@ class VibeSurfSettingsWorkflow {
   
   // Create recording page
   createRecordingPage() {
+    const recordingLabel = window.i18n?.getMessage('recording') || 'Recording';
+    const startRecordingLabel = window.i18n?.getMessage('startRecording') || 'Start Recording';
+    const recordedStepsLabel = window.i18n?.getMessage('recordedSteps') || 'Recorded Steps';
+    const clickToBeginLabel = window.i18n?.getMessage('clickStartRecordingToBegin') || 'Click "Start Recording" to begin';
+
     const pageHTML = `
       <div id="recording-page" class="modal hidden">
         <div class="modal-overlay"></div>
         <div class="modal-content recording-page-content">
           <div class="modal-header">
-            <h3>Recording: <span id="recording-workflow-title">Workflow</span></h3>
+            <h3>${recordingLabel}: <span id="recording-workflow-title">Workflow</span></h3>
             <button class="modal-close" id="recording-page-close">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -3064,34 +3094,34 @@ class VibeSurfSettingsWorkflow {
           <div class="modal-body">
             <div class="recording-controls">
               <button id="recording-toggle-btn" class="recording-toggle-btn">
-                <span class="recording-btn-text">Start Recording</span>
+                <span class="recording-btn-text">${startRecordingLabel}</span>
                 <div class="recording-indicator hidden"></div>
               </button>
             </div>
             <div class="recording-steps-container">
-              <h4>Recorded Steps</h4>
+              <h4 data-i18n="recordedSteps">${recordedStepsLabel}</h4>
               <div id="recording-steps-list" class="recording-steps-list">
-                <div class="no-steps-message">Click "Start Recording" to begin</div>
+                <div class="no-steps-message">${clickToBeginLabel}</div>
               </div>
             </div>
           </div>
         </div>
       </div>
     `;
-    
+
     document.body.insertAdjacentHTML('beforeend', pageHTML);
-    
+
     this.elements.recordingPage = document.getElementById('recording-page');
     this.elements.recordingWorkflowTitle = document.getElementById('recording-workflow-title');
     this.elements.recordingToggleBtn = document.getElementById('recording-toggle-btn');
     this.elements.recordingStepsList = document.getElementById('recording-steps-list');
     this.elements.recordingPageClose = document.getElementById('recording-page-close');
-    
+
     // Set workflow name
     if (this.elements.recordingWorkflowTitle && this.recordingWorkflowInfo) {
       this.elements.recordingWorkflowTitle.textContent = this.recordingWorkflowInfo.name;
     }
-    
+
     // Bind events
     if (this.elements.recordingToggleBtn) {
       this.elements.recordingToggleBtn.addEventListener('click', this.handleRecordingToggle.bind(this));
@@ -3099,7 +3129,7 @@ class VibeSurfSettingsWorkflow {
     if (this.elements.recordingPageClose) {
       this.elements.recordingPageClose.addEventListener('click', this.handleRecordingPageClose.bind(this));
     }
-    
+
     const modalOverlay = this.elements.recordingPage?.querySelector('.modal-overlay');
     if (modalOverlay) {
       modalOverlay.addEventListener('click', this.handleRecordingPageClose.bind(this));
@@ -3292,10 +3322,12 @@ class VibeSurfSettingsWorkflow {
   // Update recording button appearance
   updateRecordingButton(isRecording, isSaving = false) {
     if (!this.elements.recordingToggleBtn) return;
-    
+
     const btnText = this.elements.recordingToggleBtn.querySelector('.recording-btn-text');
     const indicator = this.elements.recordingToggleBtn.querySelector('.recording-indicator');
-    
+    const startRecordingLabel = window.i18n?.getMessage('startRecording') || 'Start Recording';
+    const savingLabel = window.i18n?.getMessage('saving') || 'Saving...';
+
     if (isRecording) {
       this.elements.recordingToggleBtn.classList.add('recording');
       this.elements.recordingToggleBtn.disabled = false;
@@ -3305,7 +3337,7 @@ class VibeSurfSettingsWorkflow {
       this.elements.recordingToggleBtn.classList.remove('recording');
       this.elements.recordingToggleBtn.disabled = true;
       if (btnText) {
-        btnText.textContent = 'Saving...';
+        btnText.textContent = savingLabel;
         btnText.style.display = 'block';
       }
       if (indicator) indicator.classList.add('hidden');
@@ -3313,7 +3345,7 @@ class VibeSurfSettingsWorkflow {
       this.elements.recordingToggleBtn.classList.remove('recording');
       this.elements.recordingToggleBtn.disabled = false;
       if (btnText) {
-        btnText.textContent = 'Start Recording';
+        btnText.textContent = startRecordingLabel;
         btnText.style.display = 'block';
       }
       if (indicator) indicator.classList.add('hidden');
@@ -3351,12 +3383,14 @@ class VibeSurfSettingsWorkflow {
   // Update steps display
   updateStepsDisplay(steps) {
     if (!this.elements.recordingStepsList) return;
-    
+
+    const noStepsLabel = window.i18n?.getMessage('noStepsRecordedYet') || 'No steps recorded yet';
+
     if (steps.length === 0) {
-      this.elements.recordingStepsList.innerHTML = '<div class="no-steps-message">No steps recorded yet</div>';
+      this.elements.recordingStepsList.innerHTML = `<div class="no-steps-message">${noStepsLabel}</div>`;
       return;
     }
-    
+
     const stepsHTML = steps.map((step, index) => {
       const time = new Date(step.timestamp).toLocaleTimeString();
       return `
@@ -3370,7 +3404,7 @@ class VibeSurfSettingsWorkflow {
         </div>
       `;
     }).join('');
-    
+
     this.elements.recordingStepsList.innerHTML = stepsHTML;
     // Auto-scroll to bottom
     this.elements.recordingStepsList.scrollTop = this.elements.recordingStepsList.scrollHeight;
@@ -3638,36 +3672,46 @@ class VibeSurfSettingsWorkflow {
     if (!modal) {
       modal = this.createSkillExposeModal();
     }
-    
+
+    const inputSchemaLabel = window.i18n?.getMessage('inputSchema') || 'Input Schema';
+    const workflowLabel = window.i18n?.getMessage('workflow') || 'Workflow';
+
     // Update modal content
     const modalTitle = modal.querySelector('.skill-expose-title');
     const modalWorkflowName = modal.querySelector('.skill-expose-workflow-name');
     const modalContent = modal.querySelector('.skill-expose-content');
-    
-    if (modalTitle) modalTitle.textContent = 'Input Schema';
+    const modalWorkflowLabel = modal.querySelector('.skill-expose-workflow-label');
+
+    if (modalTitle) modalTitle.textContent = inputSchemaLabel;
+    if (modalWorkflowLabel) modalWorkflowLabel.textContent = workflowLabel;
     if (modalWorkflowName) modalWorkflowName.textContent = workflowName;
-    
+
     // Render expose configuration
     if (modalContent) {
       modalContent.innerHTML = this.renderExposeConfig(exposeConfig);
     }
-    
+
     // Store current flow ID for saving
     modal.dataset.flowId = flowId;
     modal.dataset.exposeConfig = JSON.stringify(exposeConfig);
-    
+
     // Show modal
     modal.classList.remove('hidden');
   }
   
   // Create skill expose modal
   createSkillExposeModal() {
+    const inputSchemaLabel = window.i18n?.getMessage('inputSchema') || 'Input Schema';
+    const workflowLabel = window.i18n?.getMessage('workflow') || 'Workflow';
+    const cancelLabel = window.i18n?.getMessage('cancel') || 'Cancel';
+    const saveLabel = window.i18n?.getMessage('save') || 'Save';
+
     const modalHTML = `
       <div id="skill-expose-modal" class="modal hidden">
         <div class="modal-overlay"></div>
         <div class="modal-content skill-expose-modal-content">
           <div class="modal-header">
-            <h3 class="skill-expose-title">Input Schema</h3>
+            <h3 class="skill-expose-title">${inputSchemaLabel}</h3>
             <button class="modal-close">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -3676,50 +3720,60 @@ class VibeSurfSettingsWorkflow {
           </div>
           <div class="modal-body">
             <div class="skill-expose-workflow-name-container">
-              <strong>Workflow:</strong>
+              <strong class="skill-expose-workflow-label">${workflowLabel}:</strong>
               <span class="skill-expose-workflow-name"></span>
             </div>
             <div class="skill-expose-content"></div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" id="skill-expose-cancel">Cancel</button>
-            <button type="button" class="btn btn-primary" id="skill-expose-save">Save</button>
+            <button type="button" class="btn btn-secondary" id="skill-expose-cancel">${cancelLabel}</button>
+            <button type="button" class="btn btn-primary" id="skill-expose-save">${saveLabel}</button>
           </div>
         </div>
       </div>
     `;
-    
+
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     const modal = document.getElementById('skill-expose-modal');
-    
+
     // Bind events
     const closeBtn = modal.querySelector('.modal-close');
     const cancelBtn = modal.querySelector('#skill-expose-cancel');
     const saveBtn = modal.querySelector('#skill-expose-save');
     const overlay = modal.querySelector('.modal-overlay');
-    
+
     if (closeBtn) closeBtn.addEventListener('click', () => this.hideSkillExposeModal());
     if (cancelBtn) cancelBtn.addEventListener('click', () => this.hideSkillExposeModal());
     if (saveBtn) saveBtn.addEventListener('click', () => this.saveSkillExposeConfig());
     if (overlay) overlay.addEventListener('click', () => this.hideSkillExposeModal());
-    
+
     return modal;
   }
   
   // Render expose configuration with table layout
   renderExposeConfig(exposeConfig) {
     if (!exposeConfig || Object.keys(exposeConfig).length === 0) {
-      return '<div class="empty-state"><p>No exposable inputs found in this workflow.</p></div>';
+      const noInputsLabel = window.i18n?.getMessage('noExposableInputs') || 'No exposable inputs found in this workflow.';
+      return `<div class="empty-state"><p>${noInputsLabel}</p></div>`;
     }
-    
+
+    const exposeInputLabel = window.i18n?.getMessage('exposeInput') || 'Expose Input';
+    const fieldNameLabel = window.i18n?.getMessage('fieldName') || 'Field Name';
+    const descriptionLabel = window.i18n?.getMessage('description') || 'Description';
+    const currentValueLabel = window.i18n?.getMessage('currentValue') || 'Current Value';
+    const requiredLabel = window.i18n?.getMessage('required') || 'required';
+    const useMainSessionLabel = window.i18n?.getMessage('useMainSession') || 'Use the main browser session';
+    const browserTabIdLabel = window.i18n?.getMessage('browserTabId') || 'Browser tab id';
+    const targetIdLabel = window.i18n?.getMessage('targetId') || 'Target ID';
+
     let html = '';
-    
+
     for (const [componentId, componentData] of Object.entries(exposeConfig)) {
       const componentName = componentData.component_name || componentId;
       const inputs = componentData.inputs || {};
-      
+
       if (Object.keys(inputs).length === 0) continue;
-      
+
       html += `
         <div class="skill-component-section">
           <div class="component-header" data-component-id="${componentId}">
@@ -3730,22 +3784,37 @@ class VibeSurfSettingsWorkflow {
             <table class="skill-inputs-table">
               <thead>
                 <tr>
-                  <th class="col-expose">Expose Input</th>
-                  <th class="col-field-name">Field Name</th>
-                  <th class="col-description">Description</th>
-                  <th class="col-current-value">Current Value</th>
+                  <th class="col-expose">${exposeInputLabel}</th>
+                  <th class="col-field-name">${fieldNameLabel}</th>
+                  <th class="col-description">${descriptionLabel}</th>
+                  <th class="col-current-value">${currentValueLabel}</th>
                 </tr>
               </thead>
               <tbody>
       `;
-      
+
       for (const [inputName, inputData] of Object.entries(inputs)) {
-        const displayName = inputData.display_name || inputName;
-        const info = inputData.info || '';
+        let displayName = inputData.display_name || inputName;
+        let info = inputData.info || '';
+
+        // Translate common field names
+        if (displayName === 'Target ID') {
+          displayName = targetIdLabel;
+        } else if (displayName === 'Browser tab id') {
+          displayName = browserTabIdLabel;
+        } else if (displayName === 'Use Main Session') {
+          displayName = useMainSessionLabel;
+        }
+
+        // Translate common descriptions
+        if (info === 'Use the main browser session') {
+          info = useMainSessionLabel;
+        }
+
         const type = inputData.type || 'str';
         const isExpose = inputData.is_expose || false;
         const required = inputData.required;
-        
+
         // Format current value
         let currentValue = '';
         if (inputData.value !== undefined && inputData.value !== null && inputData.value !== '') {
@@ -3757,7 +3826,7 @@ class VibeSurfSettingsWorkflow {
         } else {
           currentValue = '<span class="value-empty">-</span>';
         }
-        
+
         html += `
           <tr class="input-row">
             <td class="col-expose">
@@ -3774,7 +3843,7 @@ class VibeSurfSettingsWorkflow {
               <div class="field-name-wrapper">
                 <span class="field-name">${this.escapeHtml(displayName)}</span>
                 <span class="field-type">${this.escapeHtml(type)}</span>
-                ${required ? '<span class="required-badge">(required)</span>' : ''}
+                ${required ? `<span class="required-badge">(${requiredLabel})</span>` : ''}
               </div>
             </td>
             <td class="col-description">${this.escapeHtml(info)}</td>
@@ -3782,7 +3851,7 @@ class VibeSurfSettingsWorkflow {
           </tr>
         `;
       }
-      
+
       html += `
               </tbody>
             </table>
@@ -3790,7 +3859,7 @@ class VibeSurfSettingsWorkflow {
         </div>
       `;
     }
-    
+
     return html;
   }
   

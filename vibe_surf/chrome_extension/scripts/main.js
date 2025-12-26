@@ -17,13 +17,16 @@ class VibeSurfApp {
   async initialize() {
     try {
       console.log('[VibeSurf] Initializing application...');
-      
+
       // Load settings from storage
       await this.loadSettings();
-      
+
       // Initialize API client
       this.initializeAPIClient();
-      
+
+      // Initialize locale from location if not already set
+      await this.initializeLocale();
+
       // Non-blocking backend check - don't prevent UI from loading
       const backendReady = await this.checkBackendConnection();
       if (!backendReady) {
@@ -31,23 +34,26 @@ class VibeSurfApp {
         // Start background retry mechanism
         this.retryBackendConnection();
       }
-      
+
       // Initialize session manager (continue even if backend not ready)
       this.initializeSessionManager();
-      
+
       // Initialize UI manager
       await this.initializeUIManager();
-      
+
+      // Translate the page with the loaded locale (after UI is ready)
+      window.i18n.translatePage();
+
       // Setup global error handling
       this.setupErrorHandling();
-      
+
       // Setup periodic health checks
       this.setupHealthChecks();
-      
+
       this.isInitialized = true;
-      
+
       console.log('[VibeSurf] Application initialized successfully');
-      
+
       // Show success notification
       chrome.runtime.sendMessage({
         type: 'SHOW_NOTIFICATION',
@@ -56,7 +62,7 @@ class VibeSurfApp {
           message: 'Extension is ready to automate your browsing tasks!'
         }
       });
-      
+
     } catch (error) {
       console.error('[VibeSurf] Initialization failed:', error);
       this.handleInitializationError(error);
@@ -101,8 +107,26 @@ class VibeSurfApp {
   initializeAPIClient() {
     const backendUrl = this.settings.backendUrl || 'http://localhost:8000';
     this.apiClient = new VibeSurfAPIClient(backendUrl);
-    
+
     console.log('[VibeSurf] API client initialized with URL:', backendUrl);
+  }
+
+  async initializeLocale() {
+    try {
+      console.log('[VibeSurf] Initializing locale from location...');
+
+      // Use the i18n helper to initialize locale from location
+      // This will only detect and set locale if user hasn't already selected one
+      const locale = await window.i18n.initializeLocaleFromLocation(
+        () => this.apiClient
+      );
+
+      console.log('[VibeSurf] Locale initialized:', locale);
+      // Note: translatePage() will be called after UI is initialized
+    } catch (error) {
+      console.warn('[VibeSurf] Failed to initialize locale from location, using default:', error);
+      // Continue with default locale on error
+    }
   }
 
   async checkBackendConnection() {
@@ -475,10 +499,17 @@ class VibeSurfApp {
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('[VibeSurf] DOM loaded, initializing application...');
-  
+
+  // Check if i18n is available
+  if (typeof window.i18n === 'undefined') {
+    console.error('[VibeSurf] ERROR: window.i18n is not defined! i18n-helper.js may not have loaded properly.');
+  } else {
+    console.log('[VibeSurf] window.i18n is available:', typeof window.i18n);
+  }
+
   // Create global app instance
   window.vibeSurfApp = new VibeSurfApp();
-  
+
   try {
     await window.vibeSurfApp.initialize();
   } catch (error) {

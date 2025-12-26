@@ -157,13 +157,13 @@ class VibeSurfSettingsProfiles {
       this.showProfileForm(type);
     } catch (error) {
       console.error(`[SettingsProfiles] Failed to show ${type} profile form:`, error);
-      this.emit('error', { message: `Failed to show ${type} profile form` });
+      this.emit('error', { message: `${window.i18n.getMessage('failedToShow')}${type} ${window.i18n.getMessage('profileForm')}` });
     }
   }
 
   async showProfileForm(type, profile = null) {
     const isEdit = profile !== null;
-    const title = isEdit ? `Edit ${type.toUpperCase()}` : `Add ${type.toUpperCase()}`;
+    const title = isEdit ? `${window.i18n.getMessage('edit')} ${type.toUpperCase()}` : `${window.i18n.getMessage('add')} ${type.toUpperCase()}`;
     
     if (this.elements.profileFormTitle) {
       this.elements.profileFormTitle.textContent = title;
@@ -217,79 +217,79 @@ class VibeSurfSettingsProfiles {
     
     return `
       <div class="form-group">
-        <label class="form-label required">Profile Name</label>
+        <label class="form-label required">${window.i18n.getMessage('profileName')}</label>
         <input type="text" name="profile_name" class="form-input" value="${profile?.profile_name || ''}"
-               placeholder="Enter a unique name for this profile" required ${profile ? 'readonly' : ''}>
-        <div class="form-help">A unique identifier for this LLM configuration</div>
+               placeholder="${window.i18n.getMessage('enterUniqueName')}" required ${profile ? 'readonly' : ''}>
+        <div class="form-help">${window.i18n.getMessage('uniqueIdentifierConfig')}</div>
       </div>
-      
+
       <div class="form-group">
-        <label class="form-label required">Provider</label>
+        <label class="form-label required">${window.i18n.getMessage('provider')}</label>
         <select name="provider" class="form-select" required>
-          <option value="">Select a provider</option>
+          <option value="">${window.i18n.getMessage('selectProvider')}</option>
           ${providersOptions}
         </select>
-        <div class="form-help">Choose your LLM provider (OpenAI, Anthropic, etc.)</div>
+        <div class="form-help">${window.i18n.getMessage('chooseLLMProvider')}</div>
       </div>
-      
+
       <div class="form-group">
-        <label class="form-label required">Model</label>
+        <label class="form-label required">${window.i18n.getMessage('model')}</label>
         <input type="text" name="model" class="form-input model-input" value="${profile?.model || ''}"
-               list="model-options" placeholder="Select a model or type custom model name" required
+               list="model-options" placeholder="${window.i18n.getMessage('selectModelOrCustom')}" required
                autocomplete="off">
         <datalist id="model-options">
           ${models.map(model => `<option value="${model}">${model}</option>`).join('')}
         </datalist>
-        <div class="form-help">Choose from the list or enter a custom model name</div>
+        <div class="form-help">${window.i18n.getMessage('chooseFromListOrCustom')}</div>
       </div>
-      
+
       <div class="form-group api-key-field">
-        <label class="form-label required">API Key</label>
+        <label class="form-label required">${window.i18n.getMessage('apiKey')}</label>
         <input type="password" name="api_key" class="form-input api-key-input"
-               placeholder="${profile ? 'Leave empty to keep existing key' : 'Enter your API key'}"
+               placeholder="${profile ? window.i18n.getMessage('leaveEmptyKeepKey') : window.i18n.getMessage('enterYourApiKey')}"
                ${profile ? '' : 'required'}>
-        <button type="button" class="api-key-toggle" title="Toggle visibility">
+        <button type="button" class="api-key-toggle" title="${window.i18n.getMessage('toggleVisibility')}">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" stroke-width="2"/>
             <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
           </svg>
         </button>
-        <div class="form-help">Your provider's API key for authentication</div>
+        <div class="form-help">${window.i18n.getMessage('providerApiKeyAuth')}</div>
       </div>
-      
+
       <div class="form-group">
-        <label class="form-label">Base URL</label>
+        <label class="form-label">${window.i18n.getMessage('baseUrl')}</label>
         <input type="url" name="base_url" class="form-input" value="${profile?.base_url || ''}"
                placeholder="https://api.openai.com/v1">
-        <div class="form-help">Custom API endpoint (leave empty for provider default)</div>
+        <div class="form-help">${window.i18n.getMessage('customApiEndpoint')}</div>
       </div>
-      
+
       <div class="form-group">
-        <label class="form-label">Temperature</label>
+        <label class="form-label">${window.i18n.getMessage('temperature')}</label>
         <input type="number" name="temperature" class="form-input" value="${profile?.temperature || ''}"
                min="0" max="2" step="0.1" placeholder="0.7">
-        <div class="form-help">Controls randomness (0.0-2.0, lower = more focused)</div>
+        <div class="form-help">${window.i18n.getMessage('temperatureHelp')}</div>
       </div>
-      
+
       <div class="form-group">
-        <label class="form-label">Max Tokens</label>
+        <label class="form-label">${window.i18n.getMessage('maxTokens')}</label>
         <input type="number" name="max_tokens" class="form-input" value="${profile?.max_tokens || ''}"
                min="1" max="128000" placeholder="4096">
-        <div class="form-help">Maximum tokens in the response</div>
+        <div class="form-help">${window.i18n.getMessage('maxTokensHelp')}</div>
       </div>
-      
+
       <div class="form-group">
-        <label class="form-label">Description</label>
-        <textarea name="description" class="form-textarea" placeholder="Optional description for this profile">${profile?.description || ''}</textarea>
-        <div class="form-help">Optional description to help identify this profile</div>
+        <label class="form-label">${window.i18n.getMessage('description')}</label>
+        <textarea name="description" class="form-textarea" placeholder="${window.i18n.getMessage('optionalDescription')}">${profile?.description || ''}</textarea>
+        <div class="form-help">${window.i18n.getMessage('optionalDescriptionHelp')}</div>
       </div>
-      
+
       <div class="form-group">
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
           <input type="checkbox" name="is_default" ${profile?.is_default ? 'checked' : ''}>
-          <span class="form-label" style="margin: 0;">Set as default profile</span>
+          <span class="form-label" style="margin: 0;">${window.i18n.getMessage('setAsDefaultProfile')}</span>
         </label>
-        <div class="form-help">This profile will be selected by default for new tasks</div>
+        <div class="form-help">${window.i18n.getMessage('defaultProfileHelp')}</div>
       </div>
     `;
   }
@@ -327,67 +327,67 @@ class VibeSurfSettingsProfiles {
     
     return `
       <div class="form-group">
-        <label class="form-label required">Profile Name</label>
+        <label class="form-label required">${window.i18n.getMessage('profileName')}</label>
         <input type="text" name="voice_profile_name" class="form-input" value="${profile?.voice_profile_name || ''}"
-               placeholder="Enter a unique name for this profile" required ${profile ? 'readonly' : ''}>
-        <div class="form-help">A unique identifier for this voice configuration</div>
+               placeholder="${window.i18n.getMessage('enterUniqueName')}" required ${profile ? 'readonly' : ''}>
+        <div class="form-help">${window.i18n.getMessage('uniqueIdentifierConfig').replace('LLM', 'voice')}</div>
       </div>
-      
+
       <div class="form-group">
-        <label class="form-label required">Model Type</label>
+        <label class="form-label required">${window.i18n.getMessage('modelType')}</label>
         <select name="voice_model_type" class="form-select" required>
           <option value="asr" ${selectedModelType === 'asr' ? 'selected' : ''}>ASR (Speech Recognition)</option>
           <option value="tts" ${selectedModelType === 'tts' ? 'selected' : ''}>TTS (Text to Speech)</option>
         </select>
-        <div class="form-help">Choose the type of voice model</div>
+        <div class="form-help">${window.i18n.getMessage('chooseVoiceModelType')}</div>
       </div>
-      
+
       <div class="form-group">
-        <label class="form-label required">Voice Model</label>
+        <label class="form-label required">${window.i18n.getMessage('voiceModel')}</label>
         <select name="voice_model_name" class="form-select voice-model-select" required>
-          <option value="">Select a model</option>
+          <option value="">${window.i18n.getMessage('selectModel')}</option>
           ${modelsOptions}
         </select>
-        <div class="form-help">Choose your voice model</div>
+        <div class="form-help">${window.i18n.getMessage('chooseYourVoiceModel')}</div>
       </div>
-      
+
       <div class="form-group api-key-field">
-        <label class="form-label required">API Key</label>
+        <label class="form-label required">${window.i18n.getMessage('apiKey')}</label>
         <input type="password" name="api_key" class="form-input api-key-input"
-               placeholder="${profile ? 'Leave empty to keep existing key' : 'Enter your API key'}"
+               placeholder="${profile ? window.i18n.getMessage('leaveEmptyKeepKey') : window.i18n.getMessage('enterYourApiKey')}"
                ${profile ? '' : 'required'}>
-        <button type="button" class="api-key-toggle" title="Toggle visibility">
+        <button type="button" class="api-key-toggle" title="${window.i18n.getMessage('toggleVisibility')}">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" stroke-width="2"/>
             <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
           </svg>
         </button>
-        <div class="form-help">Your voice provider's API key for authentication</div>
+        <div class="form-help">${window.i18n.getMessage('voiceProviderApiKeyAuth')}</div>
       </div>
-      
+
       <div class="form-group">
-        <label class="form-label">Model Parameters (JSON)</label>
+        <label class="form-label">${window.i18n.getMessage('modelParameters')}</label>
         <textarea name="voice_meta_params_json" class="form-textarea json-input" rows="4"
-                  placeholder="Enter JSON configuration for model parameters (optional)">${defaultMetaJson}</textarea>
+                  placeholder="${window.i18n.getMessage('enterJsonModelParams')}">${defaultMetaJson}</textarea>
         <div class="json-validation-feedback"></div>
         <div class="form-help">
-          Optional JSON configuration for model-specific parameters. Example:
+          ${window.i18n.getMessage('modelParametersHelp')}
           <br><code>{"language": "zh", "sample_rate": 16000}</code>
         </div>
       </div>
-      
+
       <div class="form-group">
-        <label class="form-label">Description</label>
-        <textarea name="description" class="form-textarea" placeholder="Optional description for this profile">${profile?.description || ''}</textarea>
-        <div class="form-help">Optional description to help identify this profile</div>
+        <label class="form-label">${window.i18n.getMessage('description')}</label>
+        <textarea name="description" class="form-textarea" placeholder="${window.i18n.getMessage('optionalDescription')}">${profile?.description || ''}</textarea>
+        <div class="form-help">${window.i18n.getMessage('optionalDescriptionHelp')}</div>
       </div>
-      
+
       <div class="form-group">
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
           <input type="checkbox" name="is_active" ${profile?.is_active !== false ? 'checked' : ''}>
-          <span class="form-label" style="margin: 0;">Active</span>
+          <span class="form-label" style="margin: 0;">${window.i18n.getMessage('active')}</span>
         </label>
-        <div class="form-help">Whether this voice profile is active and available for use</div>
+        <div class="form-help">${window.i18n.getMessage('activeProfileHelp')}</div>
       </div>
     `;
   }
@@ -406,42 +406,42 @@ class VibeSurfSettingsProfiles {
     
     return `
       <div class="form-group">
-        <label class="form-label required">Display Name</label>
+        <label class="form-label required">${window.i18n.getMessage('displayName')}</label>
         <input type="text" name="display_name" class="form-input" value="${profile?.display_name || ''}"
-               placeholder="Enter a friendly name for this MCP profile" required ${profile ? 'readonly' : ''}>
-        <div class="form-help">A user-friendly name for this MCP configuration</div>
+               placeholder="${window.i18n.getMessage('enterFriendlyName')}" required ${profile ? 'readonly' : ''}>
+        <div class="form-help">${window.i18n.getMessage('userFriendlyNameMcp')}</div>
       </div>
-      
+
       <div class="form-group">
-        <label class="form-label required">Server Name</label>
+        <label class="form-label required">${window.i18n.getMessage('serverName')}</label>
         <input type="text" name="mcp_server_name" class="form-input" value="${profile?.mcp_server_name || ''}"
-               placeholder="e.g., filesystem, markitdown, brave-search" required>
-        <div class="form-help">The MCP server identifier</div>
+               placeholder="${window.i18n.getMessage('serverNamePlaceholder')}" required>
+        <div class="form-help">${window.i18n.getMessage('mcpServerIdentifier')}</div>
       </div>
-      
+
       <div class="form-group">
-        <label class="form-label required">MCP Server Parameters (JSON)</label>
+        <label class="form-label required">${window.i18n.getMessage('serverParameters')}</label>
         <textarea name="mcp_server_params_json" class="form-textarea json-input" rows="8"
-                  placeholder="Enter JSON configuration for MCP server parameters" required>${defaultJson}</textarea>
+                  placeholder="${window.i18n.getMessage('enterJsonMcpParams')}" required>${defaultJson}</textarea>
         <div class="json-validation-feedback"></div>
         <div class="form-help">
-          JSON configuration including command and arguments. Example:
+          ${window.i18n.getMessage('mcpParamsHelp')}
           <br><code>{"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path"]}</code>
         </div>
       </div>
-      
+
       <div class="form-group">
-        <label class="form-label">Description</label>
-        <textarea name="description" class="form-textarea" placeholder="Optional description for this MCP profile">${profile?.description || ''}</textarea>
-        <div class="form-help">Optional description to help identify this profile</div>
+        <label class="form-label">${window.i18n.getMessage('description')}</label>
+        <textarea name="description" class="form-textarea" placeholder="${window.i18n.getMessage('optionalDescriptionMcp')}">${profile?.description || ''}</textarea>
+        <div class="form-help">${window.i18n.getMessage('optionalDescriptionHelp')}</div>
       </div>
-      
+
       <div class="form-group">
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
           <input type="checkbox" name="is_active" ${profile?.is_active !== false ? 'checked' : ''}>
-          <span class="form-label" style="margin: 0;">Active</span>
+          <span class="form-label" style="margin: 0;">${window.i18n.getMessage('active')}</span>
         </label>
-        <div class="form-help">Whether this MCP profile is active and available for use</div>
+        <div class="form-help">${window.i18n.getMessage('activeMcpProfileHelp')}</div>
       </div>
     `;
   }
@@ -503,49 +503,49 @@ class VibeSurfSettingsProfiles {
   handleJsonInputValidation(event) {
     const textarea = event.target;
     const feedbackElement = textarea.parentElement.querySelector('.json-validation-feedback');
-    
+
     if (!feedbackElement) return;
-    
+
     const jsonText = textarea.value.trim();
-    
+
     if (!jsonText) {
       feedbackElement.innerHTML = '';
       textarea.classList.remove('json-valid', 'json-invalid');
       return;
     }
-    
+
     try {
       const parsed = JSON.parse(jsonText);
-      
+
       // Validate that it's an object (not array, string, etc.)
       if (typeof parsed !== 'object' || Array.isArray(parsed) || parsed === null) {
-        throw new Error('MCP server parameters must be a JSON object');
+        throw new Error(window.i18n.getMessage('invalidJsonMcp'));
       }
-      
+
       // Validate required fields
       if (!parsed.command || typeof parsed.command !== 'string') {
-        throw new Error('Missing or invalid "command" field (must be a string)');
+        throw new Error(window.i18n.getMessage('missingInvalidCommand'));
       }
-      
+
       // Validate args if present
       if (parsed.args && !Array.isArray(parsed.args)) {
-        throw new Error('"args" field must be an array if provided');
+        throw new Error(window.i18n.getMessage('argsMustBeArray'));
       }
-      
+
       // Success
-      feedbackElement.innerHTML = '<span class="json-success">✓ Valid JSON configuration</span>';
+      feedbackElement.innerHTML = `<span class="json-success">${window.i18n.getMessage('validJson')}</span>`;
       textarea.classList.remove('json-invalid');
       textarea.classList.add('json-valid');
-      
+
       // Store valid state for form submission
       textarea.dataset.isValid = 'true';
-      
+
     } catch (error) {
       const errorMessage = error.message;
-      feedbackElement.innerHTML = `<span class="json-error">✗ Invalid JSON: ${errorMessage}</span>`;
+      feedbackElement.innerHTML = `<span class="json-error">${window.i18n.getMessage('invalidJson')}${errorMessage}</span>`;
       textarea.classList.remove('json-valid');
       textarea.classList.add('json-invalid');
-      
+
       // Store invalid state for form submission
       textarea.dataset.isValid = 'false';
       textarea.dataset.errorMessage = errorMessage;
@@ -555,39 +555,39 @@ class VibeSurfSettingsProfiles {
   handleVoiceJsonInputValidation(event) {
     const textarea = event.target;
     const feedbackElement = textarea.parentElement.querySelector('.json-validation-feedback');
-    
+
     if (!feedbackElement) return;
-    
+
     const jsonText = textarea.value.trim();
-    
+
     if (!jsonText) {
       feedbackElement.innerHTML = '';
       textarea.classList.remove('json-valid', 'json-invalid');
       return;
     }
-    
+
     try {
       const parsed = JSON.parse(jsonText);
-      
+
       // Validate that it's an object (not array, string, etc.)
       if (typeof parsed !== 'object' || Array.isArray(parsed) || parsed === null) {
-        throw new Error('Voice meta parameters must be a JSON object');
+        throw new Error(window.i18n.getMessage('invalidJsonVoice'));
       }
-      
+
       // Success - no specific validation required for voice meta params (flexible structure)
-      feedbackElement.innerHTML = '<span class="json-success">✓ Valid JSON configuration</span>';
+      feedbackElement.innerHTML = `<span class="json-success">${window.i18n.getMessage('validJson')}</span>`;
       textarea.classList.remove('json-invalid');
       textarea.classList.add('json-valid');
-      
+
       // Store valid state for form submission
       textarea.dataset.isValid = 'true';
-      
+
     } catch (error) {
       const errorMessage = error.message;
-      feedbackElement.innerHTML = `<span class="json-error">✗ Invalid JSON: ${errorMessage}</span>`;
+      feedbackElement.innerHTML = `<span class="json-error">${window.i18n.getMessage('invalidJson')}${errorMessage}</span>`;
       textarea.classList.remove('json-valid');
       textarea.classList.add('json-invalid');
-      
+
       // Store invalid state for form submission
       textarea.dataset.isValid = 'false';
       textarea.dataset.errorMessage = errorMessage;
@@ -609,33 +609,33 @@ class VibeSurfSettingsProfiles {
   async handleVoiceModelTypeChange(event) {
     const selectedType = event.target.value;
     const modelSelect = this.elements.profileForm?.querySelector('select[name="voice_model_name"]');
-    
+
     if (!selectedType || !modelSelect) {
       return;
     }
-    
+
     // Clear current options
-    modelSelect.innerHTML = '<option value="">Loading...</option>';
-    
+    modelSelect.innerHTML = `<option value="">${window.i18n.getMessage('loading')}</option>`;
+
     try {
       const response = await this.apiClient.getVoiceModels(selectedType);
       const models = response.models || response || [];
-      
+
       // Models are already filtered by the API, no need to filter again
-      
+
       // Update select options
-      modelSelect.innerHTML = '<option value="">Select a model</option>' +
+      modelSelect.innerHTML = `<option value="">${window.i18n.getMessage('selectModel')}</option>` +
         models.map(model =>
           `<option value="${model.model_name}">${model.model_name}</option>`
         ).join('');
-        
+
     } catch (error) {
       console.error('[SettingsProfiles] Failed to fetch voice models for type:', error);
-      modelSelect.innerHTML = '<option value="">Failed to load models</option>';
-      
+      modelSelect.innerHTML = `<option value="">${window.i18n.getMessage('failedToLoadModels')}</option>`;
+
       // Show user-friendly error notification
       this.emit('notification', {
-        message: `Failed to load models for ${selectedType}. Please try again.`,
+        message: window.i18n.getMessage('failedToLoadModelsForType', [selectedType]),
         type: 'warning'
       });
     }
@@ -645,38 +645,38 @@ class VibeSurfSettingsProfiles {
     const selectedProvider = event.target.value;
     const modelInput = this.elements.profileForm?.querySelector('input[name="model"]');
     const modelDatalist = this.elements.profileForm?.querySelector('#model-options');
-    
+
     if (!selectedProvider || !modelInput || !modelDatalist) {
       return;
     }
-    
+
     // Always clear the model input when provider changes
     modelInput.value = '';
-    modelInput.placeholder = `Loading ${selectedProvider} models...`;
-    modelDatalist.innerHTML = '<option value="">Loading...</option>';
-    
+    modelInput.placeholder = window.i18n.getMessage('loadingProviderModels', [selectedProvider]);
+    modelDatalist.innerHTML = `<option value="">${window.i18n.getMessage('loading')}</option>`;
+
     try {
       const response = await this.apiClient.getLLMProviderModels(selectedProvider);
       const models = response.models || response || [];
-      
+
       // Update datalist options
       modelDatalist.innerHTML = models.map(model =>
         `<option value="${model}">${model}</option>`
       ).join('');
-      
+
       // Update placeholder to reflect the new provider
       modelInput.placeholder = models.length > 0
-        ? `Select a ${selectedProvider} model or type custom model name`
-        : `Enter ${selectedProvider} model name`;
-        
+        ? window.i18n.getMessage('selectProviderModelOrCustom', [selectedProvider])
+        : window.i18n.getMessage('enterProviderModelManually', [selectedProvider]);
+
     } catch (error) {
       console.error('[SettingsProfiles] Failed to fetch models for provider:', error);
-      modelDatalist.innerHTML = '<option value="">Failed to load models</option>';
-      modelInput.placeholder = `Enter ${selectedProvider} model name manually`;
-      
+      modelDatalist.innerHTML = `<option value="">${window.i18n.getMessage('failedToLoadModels')}</option>`;
+      modelInput.placeholder = window.i18n.getMessage('enterProviderModelManually', [selectedProvider]);
+
       // Show user-friendly error notification
       this.emit('notification', {
-        message: `Failed to load models for ${selectedProvider}. You can enter the model name manually.`,
+        message: window.i18n.getMessage('failedToLoadModelsManually', [selectedProvider]),
         type: 'warning'
       });
     }
@@ -885,21 +885,21 @@ class VibeSurfSettingsProfiles {
     const form = this.elements.profileForm;
     const submitButton = this.elements.profileFormSubmit;
     const cancelButton = this.elements.profileFormCancel;
-    
+
     if (!form) return;
-    
+
     // Disable/enable form inputs
     const inputs = form.querySelectorAll('input, select, textarea');
     inputs.forEach(input => {
       input.disabled = isSubmitting;
     });
-    
+
     // Update submit button
     if (submitButton) {
       submitButton.disabled = isSubmitting;
-      submitButton.textContent = isSubmitting ? 'Saving...' : 'Save Profile';
+      submitButton.textContent = isSubmitting ? window.i18n.getMessage('saving') : window.i18n.getMessage('saveProfile');
     }
-    
+
     // Update cancel button
     if (cancelButton) {
       cancelButton.disabled = isSubmitting;
@@ -950,8 +950,8 @@ class VibeSurfSettingsProfiles {
             <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <h3>No LLM Profiles</h3>
-          <p>Create your first LLM profile to get started</p>
+          <h3>${window.i18n.getMessage('noLLMProfiles')}</h3>
+          <p>${window.i18n.getMessage('createFirstLLMProfile')}</p>
         </div>
       `;
       return;
@@ -959,20 +959,20 @@ class VibeSurfSettingsProfiles {
 
     const profilesHTML = profiles.map(profile => `
       <div class="profile-card ${profile.is_default ? 'default' : ''}" data-profile-id="${profile.profile_name}">
-        ${profile.is_default ? '<div class="profile-badge">Default</div>' : ''}
+        ${profile.is_default ? `<div class="profile-badge">${window.i18n.getMessage('default')}</div>` : ''}
         <div class="profile-header">
           <div class="profile-title">
             <h3>${this.escapeHtml(profile.profile_name)}</h3>
             <span class="profile-provider">${this.escapeHtml(profile.provider)}</span>
           </div>
           <div class="profile-actions">
-            <button class="profile-action-btn edit" title="Edit Profile" data-profile='${JSON.stringify(profile)}'>
+            <button class="profile-action-btn edit" title="${window.i18n.getMessage('editProfile')}" data-profile='${JSON.stringify(profile)}'>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M18.5 2.5C18.8978 2.10217 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10217 21.5 2.5C21.8978 2.89783 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10217 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
-            <button class="profile-action-btn delete" title="Delete Profile" data-profile-id="${profile.profile_name}">
+            <button class="profile-action-btn delete" title="${window.i18n.getMessage('deleteProfile')}" data-profile-id="${profile.profile_name}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -986,9 +986,9 @@ class VibeSurfSettingsProfiles {
             ${profile.description ? `<p class="profile-description">${this.escapeHtml(profile.description)}</p>` : ''}
           </div>
           <div class="profile-details">
-            ${profile.base_url ? `<div class="profile-detail"><strong>Base URL:</strong> ${this.escapeHtml(profile.base_url)}</div>` : ''}
-            ${profile.temperature !== undefined ? `<div class="profile-detail"><strong>Temperature:</strong> ${profile.temperature}</div>` : ''}
-            ${profile.max_tokens ? `<div class="profile-detail"><strong>Max Tokens:</strong> ${profile.max_tokens}</div>` : ''}
+            ${profile.base_url ? `<div class="profile-detail"><strong>${window.i18n.getMessage('base_url')}:</strong> ${this.escapeHtml(profile.base_url)}</div>` : ''}
+            ${profile.temperature !== undefined ? `<div class="profile-detail"><strong>${window.i18n.getMessage('temperature_detail')}:</strong> ${profile.temperature}</div>` : ''}
+            ${profile.max_tokens ? `<div class="profile-detail"><strong>${window.i18n.getMessage('max_tokens_detail')}:</strong> ${profile.max_tokens}</div>` : ''}
           </div>
         </div>
       </div>
@@ -1023,8 +1023,8 @@ class VibeSurfSettingsProfiles {
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M8 2V8M16 2V8M3 10H21M5 4H19C20.1046 4 21 4.89543 21 6V20C21 21.1046 20.1046 22 19 22H5C3.89543 22 3 21.1046 3 20V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <h3>No MCP Profiles</h3>
-          <p>Create your first MCP profile to enable server integrations</p>
+          <h3>${window.i18n.getMessage('noMCPProfiles')}</h3>
+          <p>${window.i18n.getMessage('createFirstMCPProfile')}</p>
         </div>
       `;
       return;
@@ -1033,7 +1033,7 @@ class VibeSurfSettingsProfiles {
     const profilesHTML = profiles.map(profile => `
       <div class="profile-card ${profile.is_active ? 'active' : 'inactive'}" data-profile-id="${profile.mcp_id}">
         <div class="profile-status ${profile.is_active ? 'active' : 'inactive'}">
-          ${profile.is_active ? 'Active' : 'Inactive'}
+          ${profile.is_active ? window.i18n.getMessage('active') : window.i18n.getMessage('inactive')}
         </div>
         <div class="profile-header">
           <div class="profile-title">
@@ -1041,13 +1041,13 @@ class VibeSurfSettingsProfiles {
             <span class="profile-provider">${this.escapeHtml(profile.mcp_server_name)}</span>
           </div>
           <div class="profile-actions">
-            <button class="profile-action-btn edit" title="Edit Profile" data-profile='${JSON.stringify(profile)}'>
+            <button class="profile-action-btn edit" title="${window.i18n.getMessage('editProfile')}" data-profile='${JSON.stringify(profile)}'>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M18.5 2.5C18.8978 2.10217 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10217 21.5 2.5C21.8978 2.89783 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10217 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
-            <button class="profile-action-btn delete" title="Delete Profile" data-profile-id="${profile.mcp_id}">
+            <button class="profile-action-btn delete" title="${window.i18n.getMessage('deleteProfile')}" data-profile-id="${profile.mcp_id}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1058,8 +1058,8 @@ class VibeSurfSettingsProfiles {
         <div class="profile-content">
           ${profile.description ? `<p class="profile-description">${this.escapeHtml(profile.description)}</p>` : ''}
           <div class="profile-details">
-            <div class="profile-detail"><strong>Command:</strong> ${this.escapeHtml(profile.mcp_server_params?.command || 'N/A')}</div>
-            ${profile.mcp_server_params?.args?.length ? `<div class="profile-detail"><strong>Args:</strong> ${profile.mcp_server_params.args.join(', ')}</div>` : ''}
+            <div class="profile-detail"><strong>${window.i18n.getMessage('command')}:</strong> ${this.escapeHtml(profile.mcp_server_params?.command || 'N/A')}</div>
+            ${profile.mcp_server_params?.args?.length ? `<div class="profile-detail"><strong>${window.i18n.getMessage('args')}:</strong> ${profile.mcp_server_params.args.join(', ')}</div>` : ''}
           </div>
         </div>
       </div>
@@ -1095,8 +1095,8 @@ class VibeSurfSettingsProfiles {
             <path d="M19 14C19 18.5 15.5 22 11 22C6.5 22 3 18.5 3 14V12C3 7.5 6.5 4 11 4S19 7.5 19 12V14ZM11 8C8.8 8 7 9.8 7 12V14C7 16.2 8.8 18 11 18S15 16.2 15 14V12C15 9.8 13.2 8 11 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <circle cx="11" cy="11" r="2" stroke="currentColor" stroke-width="2"/>
           </svg>
-          <h3>No Voice Profiles</h3>
-          <p>Create your first voice profile to enable speech features</p>
+          <h3>${window.i18n.getMessage('noVoiceProfiles')}</h3>
+          <p>${window.i18n.getMessage('createFirstVoiceProfile')}</p>
         </div>
       `;
       return;
@@ -1105,7 +1105,7 @@ class VibeSurfSettingsProfiles {
     const profilesHTML = profiles.map(profile => `
       <div class="profile-card ${profile.is_active ? 'active' : 'inactive'}" data-profile-id="${profile.voice_profile_name}">
         <div class="profile-status ${profile.is_active ? 'active' : 'inactive'}">
-          ${profile.is_active ? 'Active' : 'Inactive'}
+          ${profile.is_active ? window.i18n.getMessage('active') : window.i18n.getMessage('inactive')}
         </div>
         <div class="profile-header">
           <div class="profile-title">
@@ -1113,13 +1113,13 @@ class VibeSurfSettingsProfiles {
             <span class="profile-provider">${this.escapeHtml(profile.voice_model_name)} (${profile.voice_model_type.toUpperCase()})</span>
           </div>
           <div class="profile-actions">
-            <button class="profile-action-btn edit" title="Edit Profile" data-profile='${JSON.stringify(profile)}'>
+            <button class="profile-action-btn edit" title="${window.i18n.getMessage('editProfile')}" data-profile='${JSON.stringify(profile)}'>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M18.5 2.5C18.8978 2.10217 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10217 21.5 2.5C21.8978 2.89783 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10217 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
-            <button class="profile-action-btn delete" title="Delete Profile" data-profile-id="${profile.voice_profile_name}">
+            <button class="profile-action-btn delete" title="${window.i18n.getMessage('deleteProfile')}" data-profile-id="${profile.voice_profile_name}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1130,9 +1130,9 @@ class VibeSurfSettingsProfiles {
         <div class="profile-content">
           ${profile.description ? `<p class="profile-description">${this.escapeHtml(profile.description)}</p>` : ''}
           <div class="profile-details">
-            <div class="profile-detail"><strong>Model:</strong> ${this.escapeHtml(profile.voice_model_name)}</div>
-            <div class="profile-detail"><strong>Type:</strong> ${profile.voice_model_type.toUpperCase()}</div>
-            ${profile.voice_meta_params ? `<div class="profile-detail"><strong>Parameters:</strong> ${Object.keys(profile.voice_meta_params).length} custom settings</div>` : ''}
+            <div class="profile-detail"><strong>${window.i18n.getMessage('modelDetail')}:</strong> ${this.escapeHtml(profile.voice_model_name)}</div>
+            <div class="profile-detail"><strong>${window.i18n.getMessage('typeDetail')}:</strong> ${profile.voice_model_type.toUpperCase()}</div>
+            ${profile.voice_meta_params ? `<div class="profile-detail"><strong>${window.i18n.getMessage('parameters')}:</strong> ${Object.keys(profile.voice_meta_params).length} ${window.i18n.getMessage('customSettings')}</div>` : ''}
           </div>
         </div>
       </div>
@@ -1178,22 +1178,22 @@ class VibeSurfSettingsProfiles {
   async handleDeleteDefaultProfile(profileId) {
     // Get other available profiles
     const otherProfiles = this.state.llmProfiles.filter(p => p.profile_name !== profileId);
-    
+
     if (otherProfiles.length === 0) {
       // No other profiles available - cannot delete
       this.emit('error', {
-        message: 'This is the only LLM profile configured. You cannot delete it without having at least one other profile.',
-        details: 'Please create another LLM profile first, then you can delete this one.',
+        message: window.i18n.getMessage('onlyLLMProfileError'),
+        details: window.i18n.getMessage('onlyLLMProfileErrorDetails'),
         buttons: [
           {
-            text: 'Create New Profile',
+            text: window.i18n.getMessage('createNewProfile'),
             action: () => this.handleAddProfile('llm')
           }
         ]
       });
       return false;
     }
-    
+
     // Show modal to select new default profile
     this.emit('selectNewDefault', {
       profileId,
@@ -1204,37 +1204,37 @@ class VibeSurfSettingsProfiles {
 
   async setNewDefaultAndDelete(newDefaultProfileId, profileToDelete) {
     try {
-      this.emit('loading', { message: 'Updating default profile...' });
-      
+      this.emit('loading', { message: window.i18n.getMessage('updatingDefaultProfile') });
+
       // First, set the new default profile
       await this.apiClient.updateLLMProfile(newDefaultProfileId, { is_default: true });
-      
-      this.emit('loading', { message: 'Deleting profile...' });
-      
+
+      this.emit('loading', { message: window.i18n.getMessage('deletingProfile') });
+
       // Then delete the old default profile
       await this.apiClient.deleteLLMProfile(profileToDelete);
-      
+
       this.emit('notification', {
-        message: `Profile "${profileToDelete}" deleted and "${newDefaultProfileId}" set as default`,
+        message: window.i18n.getMessage('profileDeletedSetDefault', [profileToDelete, newDefaultProfileId]),
         type: 'success'
       });
-      
+
       // Refresh the profiles data
       await this.loadAllProfiles();
-      
+
       // Emit event for profile updates
       this.emit('profilesUpdated', {
         llmProfiles: this.state.llmProfiles,
         mcpProfiles: this.state.mcpProfiles,
         voiceProfiles: this.state.voiceProfiles
       });
-      
+
       this.emit('loading', { hide: true });
     } catch (error) {
       this.emit('loading', { hide: true });
       console.error('[SettingsProfiles] Failed to set new default and delete profile:', error);
       this.emit('notification', {
-        message: `Failed to update profiles: ${error.message}`,
+        message: `${window.i18n.getMessage('failedToUpdateProfiles')}: ${error.message}`,
         type: 'error'
       });
       throw error;
@@ -1243,8 +1243,8 @@ class VibeSurfSettingsProfiles {
 
   async performDeleteProfile(type, profileId) {
     try {
-      this.emit('loading', { message: `Deleting ${type} profile...` });
-      
+      this.emit('loading', { message: `${window.i18n.getMessage('deleting')} ${type} ${window.i18n.getMessage('profile').toLowerCase()}...` });
+
       if (type === 'llm') {
         await this.apiClient.deleteLLMProfile(profileId);
       } else if (type === 'voice') {
@@ -1252,28 +1252,28 @@ class VibeSurfSettingsProfiles {
       } else {
         await this.apiClient.deleteMCPProfile(profileId);
       }
-      
+
       this.emit('notification', {
-        message: `${type.toUpperCase()} profile deleted successfully`,
+        message: `${type.toUpperCase()} ${window.i18n.getMessage('deletedSuccessfully')}`,
         type: 'success'
       });
-      
+
       // Refresh the profiles data
       await this.loadAllProfiles();
-      
+
       // Emit event for profile updates
       this.emit('profilesUpdated', {
         llmProfiles: this.state.llmProfiles,
         mcpProfiles: this.state.mcpProfiles,
         voiceProfiles: this.state.voiceProfiles
       });
-      
+
       this.emit('loading', { hide: true });
     } catch (error) {
       this.emit('loading', { hide: true });
       console.error(`[SettingsProfiles] Failed to delete ${type} profile:`, error);
       this.emit('notification', {
-        message: `Failed to delete ${type} profile: ${error.message}`,
+        message: `${window.i18n.getMessage('failedToDelete', [type])}: ${error.message}`,
         type: 'error'
       });
     }
@@ -1282,10 +1282,10 @@ class VibeSurfSettingsProfiles {
   // Navigate to specific LLM profile for editing
   async navigateToLLMProfile(profileName) {
     console.log('[SettingsProfiles] Navigating to LLM profile:', profileName);
-    
+
     // Find the profile in the current state
     const profile = this.state.llmProfiles.find(p => p.profile_name === profileName);
-    
+
     if (profile) {
       // Show the edit form for this profile
       await this.showProfileForm('llm', profile);
@@ -1293,7 +1293,7 @@ class VibeSurfSettingsProfiles {
     } else {
       console.warn('[SettingsProfiles] Profile not found:', profileName);
       this.emit('notification', {
-        message: `LLM profile "${profileName}" not found. Please check if it still exists.`,
+        message: `LLM ${window.i18n.getMessage('profileNotFound').replace(' profile', '')} "${profileName}".`,
         type: 'warning'
       });
     }
@@ -1321,6 +1321,17 @@ class VibeSurfSettingsProfiles {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  /**
+   * Re-render all profile lists with current language
+   * This should be called when language changes to update dynamically rendered content
+   */
+  rerenderAllProfiles() {
+    console.log('[SettingsProfiles] Re-rendering all profiles for language change');
+    this.renderLLMProfiles(this.state.llmProfiles);
+    this.renderMCPProfiles(this.state.mcpProfiles);
+    this.renderVoiceProfiles(this.state.voiceProfiles);
   }
 }
 

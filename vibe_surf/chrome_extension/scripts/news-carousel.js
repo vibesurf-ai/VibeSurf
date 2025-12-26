@@ -132,27 +132,27 @@ class NewsCarouselManager {
     
     createNewsCard(sourceData, index) {
         const { sourceId, items, metadata } = sourceData;
-        
+
         const card = document.createElement('div');
         card.className = `news-card ${this.currentType}-type`;
-        
+
         const color = metadata.color || 'gray';
         const sourceName = metadata.name || sourceId;
-        const sourceTitle = metadata.title || '';
+        const sourceTitle = metadata.title || window.i18n.getMessage('latestNews');
         const sourceHome = metadata.home || '#';
-        
+
         // Create source logo (first character of source name)
         const logoText = sourceName.charAt(0).toUpperCase();
-        
+
         const cardHTML = `
             <div class="news-card-inner color-${color}">
                 <div class="news-card-header">
                     <div class="news-source-logo">${logoText}</div>
                     <div class="news-source-info">
                         <div class="news-source-name">${sourceName}</div>
-                        <div class="news-source-subtitle">${sourceTitle || '最新资讯'}</div>
+                        <div class="news-source-subtitle">${sourceTitle}</div>
                     </div>
-                    <button class="news-refresh-btn" data-source-id="${sourceId}" title="刷新">
+                    <button class="news-refresh-btn" data-source-id="${sourceId}" title="${window.i18n.getMessage('refresh')}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M1 4v6h6M23 20v-6h-6"/>
                             <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
@@ -164,22 +164,22 @@ class NewsCarouselManager {
                 </ul>
             </div>
         `;
-        
+
         card.innerHTML = cardHTML;
-        
+
         // Add refresh button listener
         const refreshBtn = card.querySelector('.news-refresh-btn');
         refreshBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
             this.refreshSource(sourceId);
         });
-        
+
         return card;
     }
-    
+
     createNewsItem(item, index, sourceHome) {
         const number = index + 1;
-        const title = item.title || '无标题';
+        const title = item.title || window.i18n.getMessage('noTitle');
         const url = item.url || item.mobileUrl || sourceHome;
         const pubDate = item.pubDate;
         const extra = item.extra;
@@ -242,31 +242,31 @@ class NewsCarouselManager {
     
     formatTime(pubDate) {
         if (!pubDate) return '';
-        
+
         try {
             const now = new Date();
             const newsTime = new Date(pubDate);
-            
+
             if (isNaN(newsTime.getTime())) return '';
-            
+
             const diffMs = now - newsTime;
             const diffMins = Math.floor(diffMs / 60000);
             const diffHours = Math.floor(diffMs / 3600000);
             const diffDays = Math.floor(diffMs / 86400000);
-            
+
             if (diffMins < 1) {
-                return '刚刚';
+                return window.i18n.getMessage('justNow');
             } else if (diffMins < 60) {
-                return `${diffMins}分钟前`;
+                return window.i18n.getMessage('minutesAgo', [diffMins.toString()]);
             } else if (diffHours < 24) {
-                return `${diffHours}小时前`;
+                return window.i18n.getMessage('hoursAgo', [diffHours.toString()]);
             } else if (diffDays < 7) {
-                return `${diffDays}天前`;
+                return window.i18n.getMessage('daysAgo', [diffDays.toString()]);
             } else {
                 // Format as date
                 const month = newsTime.getMonth() + 1;
                 const day = newsTime.getDate();
-                return `${month}月${day}日`;
+                return window.i18n.getMessage('monthDay', [month.toString(), day.toString()]);
             }
         } catch (error) {
             console.error('[NewsCarousel] Error formatting time:', error);
@@ -375,42 +375,42 @@ class NewsCarouselManager {
         this.slidesContainer.innerHTML = `
             <div class="news-loading">
                 <div class="news-loading-spinner"></div>
-                <div class="news-loading-text">加载新闻中...</div>
+                <div class="news-loading-text">${window.i18n.getMessage('loadingNews')}</div>
             </div>
         `;
-        
+
         if (this.indicatorsContainer) {
             this.indicatorsContainer.innerHTML = '';
         }
-        
+
         if (this.prevBtn) this.prevBtn.disabled = true;
         if (this.nextBtn) this.nextBtn.disabled = true;
     }
-    
+
     showEmpty() {
         this.slidesContainer.innerHTML = `
             <div class="news-empty">
                 <div class="news-empty-icon">📰</div>
-                <div class="news-empty-text">暂无新闻数据</div>
+                <div class="news-empty-text">${window.i18n.getMessage('noNewsData')}</div>
             </div>
         `;
-        
+
         if (this.indicatorsContainer) {
             this.indicatorsContainer.innerHTML = '';
         }
-        
+
         if (this.prevBtn) this.prevBtn.disabled = true;
         if (this.nextBtn) this.nextBtn.disabled = true;
     }
-    
+
     showError() {
         this.slidesContainer.innerHTML = `
             <div class="news-empty">
                 <div class="news-empty-icon">⚠️</div>
-                <div class="news-empty-text">加载失败，请稍后重试</div>
+                <div class="news-empty-text">${window.i18n.getMessage('loadingFailedRetry')}</div>
             </div>
         `;
-        
+
         if (this.indicatorsContainer) {
             this.indicatorsContainer.innerHTML = '';
         }
