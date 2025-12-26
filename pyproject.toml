@@ -237,6 +237,8 @@ dependencies = [
     "fastparquet>=2024.11.0,<2025.0.0",
     "traceloop-sdk>=0.43.1,<1.0.0",
     "docling_core>=2.36.1",
+    "torch>=2.0.0,<2.3.0; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "torch>=2.3.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "docling>=2.36.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "easyocr>=1.7.2; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "opencv-python>=4.11; sys_platform != 'darwin' or platform_machine != 'x86_64'",
