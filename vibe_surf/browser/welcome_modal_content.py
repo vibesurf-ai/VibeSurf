@@ -219,6 +219,68 @@ def _get_base_welcome_js_template() -> str:
         .vibesurf-btn:active {{
             transform: translateY(0) scale(0.98);
         }}
+        .vibesurf-star-modal {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            animation: fadeIn 0.3s ease-in;
+        }}
+        .vibesurf-star-modal-content {{
+            background: linear-gradient(145deg, #0D2435 0%, #14334A 50%, #1A4059 100%);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 500px;
+            width: 85%;
+            box-shadow: 0 24px 80px rgba(26, 64, 89, 0.8), 0 0 0 1px rgba(111, 233, 255, 0.2);
+            color: white;
+            animation: slideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-align: center;
+        }}
+        .vibesurf-star-icon {{
+            font-size: 64px;
+            margin-bottom: 20px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }}
+        .vibesurf-star-title {{
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 0 16px 0;
+        }}
+        .vibesurf-star-text {{
+            font-size: 16px;
+            line-height: 1.6;
+            opacity: 0.9;
+            margin-bottom: 24px;
+        }}
+        .vibesurf-star-btn {{
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: #0D2435;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 32px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(255, 215, 0, 0.3);
+        }}
+        .vibesurf-star-btn:hover {{
+            background: linear-gradient(135deg, #FFD700 0%, #FFB500 100%);
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 8px 24px rgba(255, 215, 0, 0.5);
+        }}
+        .vibesurf-star-btn:active {{
+            transform: translateY(0) scale(0.98);
+        }}
     `;
     document.head.appendChild(style);
 
@@ -370,6 +432,80 @@ def _get_base_welcome_js_template() -> str:
         }});
     }});
 
+    // Show star modal function
+    function showStarModal() {{
+        const starModal = document.createElement('div');
+        starModal.className = 'vibesurf-star-modal';
+
+        const starContent = document.createElement('div');
+        starContent.className = 'vibesurf-star-modal-content';
+
+        const starIcon = document.createElement('div');
+        starIcon.className = 'vibesurf-star-icon';
+        starIcon.textContent = '⭐';
+        starContent.appendChild(starIcon);
+
+        const starTitle = document.createElement('h2');
+        starTitle.className = 'vibesurf-star-title';
+        starTitle.textContent = '{star_title}';
+        starContent.appendChild(starTitle);
+
+        const starText = document.createElement('p');
+        starText.className = 'vibesurf-star-text';
+        starText.textContent = '{star_text}';
+        starContent.appendChild(starText);
+
+        const starBtn = document.createElement('button');
+        starBtn.className = 'vibesurf-star-btn';
+        starBtn.textContent = '{star_button_text}';
+        starContent.appendChild(starBtn);
+
+        starModal.appendChild(starContent);
+        document.body.appendChild(starModal);
+
+        // Function to close star modal and open GitHub
+        function closeStarModalAndOpenGitHub() {{
+            starModal.style.animation = 'fadeOut 0.3s ease-out';
+            starContent.style.animation = 'slideOut 0.3s ease-out';
+            setTimeout(() => {{
+                if (document.body.contains(starModal)) {{
+                    document.body.removeChild(starModal);
+                }}
+                // Open GitHub after modal closes
+                console.log('[VibeSurf] Opening GitHub repository...');
+                const githubUrl = 'https://github.com/vibesurf-ai/VibeSurf';
+                // Try multiple methods to open the link
+                const newWindow = window.open(githubUrl, '_blank');
+                if (!newWindow) {{
+                    console.warn('[VibeSurf] Popup blocked, trying direct navigation');
+                    // Fallback: create a temporary link and click it
+                    const link = document.createElement('a');
+                    link.href = githubUrl;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }}
+            }}, 300);
+        }}
+
+        starBtn.addEventListener('click', closeStarModalAndOpenGitHub);
+
+        // Close without opening GitHub when clicking outside
+        starModal.addEventListener('click', (e) => {{
+            if (e.target === starModal) {{
+                starModal.style.animation = 'fadeOut 0.3s ease-out';
+                starContent.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => {{
+                    if (document.body.contains(starModal)) {{
+                        document.body.removeChild(starModal);
+                    }}
+                }}, 300);
+            }}
+        }});
+    }}
+
     // Close modal function
     function closeModal() {{
         overlay.style.animation = 'fadeOut 0.3s ease-out';
@@ -385,6 +521,11 @@ def _get_base_welcome_js_template() -> str:
             localStorage.setItem('vibesurf_welcome_dismissed', 'true');
             console.log('[VibeSurf] Welcome modal dismissed permanently');
         }}
+
+        // Show star modal first, then open GitHub when user clicks the button
+        setTimeout(() => {{
+            showStarModal();
+        }}, 300);
     }}
 
     // Got It button click handler
@@ -452,7 +593,10 @@ def get_english_welcome_js(extension_path: str) -> str:
         copy_success_text="✅ Copied!",
         copy_error_text="❌ Failed",
         checkbox_text="Don't show this again",
-        button_text="Got It!"
+        button_text="Got It!",
+        star_title="⭐ Star Us on GitHub!",
+        star_text="Creating open source takes love and coffee. Your star is the fuel that keeps us going!",
+        star_button_text="Got it, keep up the great work!"
     )
 
 
@@ -506,7 +650,10 @@ def get_chinese_welcome_js(extension_path: str) -> str:
         copy_success_text="✅ 已复制！",
         copy_error_text="❌ 复制失败",
         checkbox_text="不再显示此提示",
-        button_text="知道了！"
+        button_text="知道了！",
+        star_title="⭐ 在 GitHub 上给我们点个赞吧！",
+        star_text="创作不易，开源更需要您的支持！您的点赞就是我们持续创作的动力。",
+        star_button_text="好的，继续加油！"
     )
 
 
