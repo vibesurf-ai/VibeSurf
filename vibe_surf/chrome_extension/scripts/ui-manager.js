@@ -1609,8 +1609,8 @@ class VibeSurfUIManager {
     const welcomeHTML = `
       <div class="welcome-message">
         <div class="welcome-text">
-          <h4>Welcome to VibeSurf</h4>
-          <p>Let's vibe surfing the world with AI automation</p>
+          <h4 data-i18n="welcomeTitle">Welcome to VibeSurf</h4>
+          <p data-i18n="welcomeSubtitle">Let's vibe surfing the world with AI automation</p>
         </div>
         <div id="weather-widget"></div>
       </div>
@@ -1619,22 +1619,27 @@ class VibeSurfUIManager {
     if (this.elements.activityLog) {
       // Preserve the news carousel
       const newsCarousel = this.elements.activityLog.querySelector('#news-carousel-container');
-      
+
       // Set the welcome message
       this.elements.activityLog.innerHTML = welcomeHTML;
-      
+
       // Re-initialize weather manager with new container
       if (this.weatherManager) {
         setTimeout(() => {
           this.weatherManager.checkContainer();
         }, 0);
       }
-      
+
       // Append the news carousel at the end (after welcome message)
       if (newsCarousel) {
         this.elements.activityLog.appendChild(newsCarousel);
       }
-      
+
+      // Translate the welcome message elements to the current language
+      if (window.i18n && window.i18n.translatePage) {
+        window.i18n.translatePage(this.elements.activityLog);
+      }
+
       this.bindTaskSuggestionEvents();
     }
   }

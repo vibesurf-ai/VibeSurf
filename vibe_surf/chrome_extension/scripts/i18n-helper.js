@@ -107,11 +107,6 @@ const VibeSurfI18n = (function() {
     const locale = getCurrentLocale();
     const messages = messageCache[locale] || {};
 
-    // Debug logging
-    if (Object.keys(messages).length === 0) {
-      console.warn(`[i18n] No messages loaded for locale: ${locale}. messageCache is empty.`);
-    }
-
     let message = messages[messageName]?.message;
 
     // Handle placeholders
@@ -125,19 +120,12 @@ const VibeSurfI18n = (function() {
     if (!message && typeof chrome !== 'undefined' && chrome.i18n) {
       try {
         message = chrome.i18n.getMessage(messageName);
-        if (message) {
-          console.log(`[i18n] Using Chrome native i18n for key: ${messageName}`);
-        }
       } catch (e) {
         // Chrome i18n failed, continue
       }
     }
 
     const result = message || messageName;
-    if (result === messageName && !messages[messageName]) {
-      console.warn(`[i18n] Message not found for key: "${messageName}" in locale: ${locale}`);
-    }
-
     return result;
   }
 
@@ -216,16 +204,6 @@ const VibeSurfI18n = (function() {
 
     if (!root) return;
 
-    const locale = getCurrentLocale();
-
-    // Check if messages are loaded for the current locale
-    if (!messageCache[locale] || Object.keys(messageCache[locale]).length === 0) {
-      console.warn(`[i18n] Messages not loaded for locale: ${locale}. Attempting to load now...`);
-      // Don't return - try to proceed anyway
-    }
-
-    console.log('[i18n] translatePage called, current locale:', locale, 'cache size:', messageCache[locale] ? Object.keys(messageCache[locale]).length : 0);
-
     // Find all elements with data-i18n attributes
     const selectors = [
       '[data-i18n]',
@@ -236,17 +214,10 @@ const VibeSurfI18n = (function() {
       '[data-i18n-value]'
     ];
 
-    let totalElements = 0;
     selectors.forEach(selector => {
       const elements = root.querySelectorAll(selector);
-      if (elements.length > 0) {
-        console.log(`[i18n] Found ${elements.length} elements with ${selector}`);
-        totalElements += elements.length;
-      }
       elements.forEach(translateElement);
     });
-
-    console.log(`[i18n] Translated ${totalElements} elements for locale: ${locale}`);
   }
 
   /**
