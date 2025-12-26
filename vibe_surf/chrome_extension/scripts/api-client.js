@@ -762,6 +762,11 @@ class VibeSurfAPIClient {
   async getWorkflowSkills() {
     return this.get('/skill/workflow-skills');
   }
+
+  // Location-based Language Detection
+  async getLanguageFromLocation() {
+    return this.get('/vibesurf/location-language');
+  }
 }
 
 // Custom error class for API errors

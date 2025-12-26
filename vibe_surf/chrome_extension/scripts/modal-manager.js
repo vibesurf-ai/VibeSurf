@@ -48,6 +48,16 @@ class VibeSurfModalManager {
     }
   }
 
+  /**
+   * Helper method to translate dynamically created modal content
+   * @param {HTMLElement} modalElement - The modal element to translate
+   */
+  translateModalContent(modalElement) {
+    if (window.i18n && window.i18n.translatePage) {
+      window.i18n.translatePage(modalElement);
+    }
+  }
+
   // Warning Modal
   showWarningModal(title, message, options = {}) {
     const {
@@ -86,21 +96,24 @@ class VibeSurfModalManager {
 
     // Add to DOM
     document.body.insertAdjacentHTML('beforeend', modalHTML);
-    
+
     const modal = document.getElementById(modalId);
     const overlay = document.getElementById(`${modalId}-overlay`);
-    
+
     // Track active modal
     this.state.activeModals.add(modalId);
-    
+
     // Add event listeners
     this.bindModalEvents(modalId, { onConfirm, onCancel });
-    
+
+    // Translate the modal content
+    this.translateModalContent(modal);
+
     // Show modal
     requestAnimationFrame(() => {
       overlay.classList.add('show');
     });
-    
+
     return modalId;
   }
 
@@ -149,21 +162,24 @@ class VibeSurfModalManager {
 
     // Add to DOM
     document.body.insertAdjacentHTML('beforeend', modalHTML);
-    
+
     const modal = document.getElementById(modalId);
     const overlay = document.getElementById(`${modalId}-overlay`);
-    
+
     // Track active modal
     this.state.activeModals.add(modalId);
-    
+
     // Add event listeners
     this.bindModalEvents(modalId, { onConfirm, onCancel });
-    
+
+    // Translate the modal content
+    this.translateModalContent(modal);
+
     // Show modal
     requestAnimationFrame(() => {
       overlay.classList.add('show');
     });
-    
+
     return modalId;
   }
 
@@ -200,22 +216,25 @@ class VibeSurfModalManager {
 
     // Add to DOM
     document.body.insertAdjacentHTML('beforeend', modalHTML);
-    
+
     const modal = document.getElementById(modalId);
     const overlay = document.getElementById(`${modalId}-overlay`);
-    
+
     // Track active modal
     this.state.activeModals.add(modalId);
-    
+
     // Add basic event listeners
     this.bindModalEvents(modalId, { onShow, onHide });
-    
+
+    // Translate the modal content
+    this.translateModalContent(modal);
+
     // Show modal
     requestAnimationFrame(() => {
       overlay.classList.add('show');
       if (onShow) onShow(modal);
     });
-    
+
     return {
       modalId,
       modal,

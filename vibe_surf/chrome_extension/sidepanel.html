@@ -45,9 +45,9 @@
                             </div>
                         </div>
                         <div class="session-info">
-                            <span class="session-label">Session:</span>
+                            <span class="session-label" data-i18n="session">Session</span>:
                             <span id="session-id">-</span>
-                            <button id="copy-session-btn" class="copy-btn" title="Copy Session ID">
+                            <button id="copy-session-btn" class="copy-btn" data-i18n-title="copySessionId" title="">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
                                 </svg>
@@ -57,32 +57,32 @@
                 </div>
             </div>
             <div class="header-right">
-                <button id="upgrade-btn" class="icon-btn upgrade-btn hidden" title="Extension Update Available">
+                <button id="upgrade-btn" class="icon-btn upgrade-btn hidden" data-i18n-title="extensionUpdateAvailable" title="">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 4V15M12 4L8 8M12 4L16 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M4 17V19C4 19.5304 4.46957 20 5 20H19C19.5304 20 20 19.5304 20 19V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                     <div class="upgrade-tooltip">
-                        <div class="upgrade-tooltip-title">VibeSurf Extension Update Available</div>
-                        <div>A newer VibeSurf extension is available. Download and install for the best experience:</div>
+                        <div class="upgrade-tooltip-title" data-i18n="extensionUpdateAvailable">VibeSurf Extension Update Available</div>
+                        <div data-i18n="extensionUpdateDescription">A newer VibeSurf extension is available. Download and install for the best experience:</div>
                         <ul class="upgrade-tooltip-steps">
-                            <li>Open chrome://extensions</li>
-                            <li>Enable Developer mode</li>
-                            <li>Click "Load unpacked" and select the Extension path</li>
+                            <li data-i18n="extensionUpdateStep1">Open chrome://extensions</li>
+                            <li data-i18n="extensionUpdateStep2">Enable Developer mode</li>
+                            <li data-i18n="extensionUpdateStep3">Click "Load unpacked" and select the Extension path</li>
                         </ul>
                     </div>
                 </button>
-                <button id="new-session-btn" class="icon-btn" title="New Session">
+                <button id="new-session-btn" class="icon-btn" data-i18n-title="newSession" title="">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </button>
-                <button id="history-btn" class="icon-btn" title="Chat History">
+                <button id="history-btn" class="icon-btn" data-i18n-title="chatHistory" title="">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M3 3V11A4 4 0 0 0 7 15H17L21 19V3H3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </button>
-                <button id="settings-btn" class="icon-btn" title="Settings">
+                <button id="settings-btn" class="icon-btn" data-i18n-title="settings" title="">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="2"/>
                         <path d="M19.4 15C19.2669 15.3016 19.2272 15.6362 19.286 15.9606C19.3448 16.285 19.4995 16.5843 19.73 16.82L19.79 16.88C19.976 17.0657 20.1235 17.2863 20.2241 17.5291C20.3248 17.7719 20.3766 18.0322 20.3766 18.295C20.3766 18.5578 20.3248 18.8181 20.2241 19.0609C20.1235 19.3037 19.976 19.5243 19.79 19.71C19.6043 19.896 19.3837 20.0435 19.1409 20.1441C18.8981 20.2448 18.6378 20.2966 18.375 20.2966C18.1122 20.2966 17.8519 20.2448 17.6091 20.1441C17.3663 20.0435 17.1457 19.896 16.96 19.71L16.9 19.65C16.6643 19.4195 16.365 19.2648 16.0406 19.206C15.7162 19.1472 15.3816 19.1869 15.08 19.32C14.7842 19.4468 14.532 19.6572 14.3543 19.9255C14.1766 20.1938 14.0813 20.5082 14.08 20.83V21C14.08 21.5304 13.8693 22.0391 13.4942 22.4142C13.1191 22.7893 12.6104 23 12.08 23C11.5496 23 11.0409 22.7893 10.6658 22.4142C10.2907 22.0391 10.08 21.5304 10.08 21V20.91C10.0723 20.579 9.96512 20.2579 9.77251 19.9887C9.5799 19.7194 9.31074 19.5143 9 19.4C8.69838 19.2669 8.36381 19.2272 8.03941 19.286C7.71502 19.3448 7.41568 19.4995 7.18 19.73L7.12 19.79C6.93425 19.976 6.71368 20.1235 6.47088 20.2241C6.22808 20.3248 5.96783 20.3766 5.705 20.3766C5.44217 20.3766 5.18192 20.3248 4.93912 20.2241C4.69632 20.1235 4.47575 19.976 4.29 19.79C4.10405 19.6043 3.95653 19.3837 3.85588 19.1409C3.75523 18.8981 3.70343 18.6378 3.70343 18.375C3.70343 18.1122 3.75523 17.8519 3.85588 17.6091C3.95653 17.3663 4.10405 17.1457 4.29 16.96L4.35 16.9C4.58054 16.6643 4.73519 16.365 4.794 16.0406C4.85282 15.7162 4.81312 15.3816 4.68 15.08C4.55324 14.7842 4.34276 14.532 4.07447 14.3543C3.80618 14.1766 3.49179 14.0813 3.17 14.08H3C2.46957 14.08 1.96086 13.8693 1.58579 13.4942C1.21071 13.1191 1 12.6104 1 12.08C1 11.5496 1.21071 11.0409 1.58579 10.6658C1.96086 10.2907 2.46957 10.08 3 10.08H3.09C3.42099 10.0723 3.742 9.96512 4.01127 9.77251C4.28053 9.5799 4.48572 9.31074 4.6 9C4.73312 8.69838 4.77282 8.36381 4.714 8.03941C4.65519 7.71502 4.50054 7.41568 4.27 7.18L4.21 7.12C4.02405 6.93425 3.87653 6.71368 3.77588 6.47088C3.67523 6.22808 3.62343 5.96783 3.62343 5.705C3.62343 5.44217 3.67523 5.18192 3.77588 4.93912C3.87653 4.69632 4.02405 4.47575 4.21 4.29C4.39575 4.10405 4.61632 3.95653 4.85912 3.85588C5.10192 3.75523 5.36217 3.70343 5.625 3.70343C5.88783 3.70343 6.14808 3.75523 6.39088 3.85588C6.63368 3.95653 6.85425 4.10405 7.04 4.29L7.1 4.35C7.33568 4.58054 7.63502 4.73519 7.95941 4.794C8.28381 4.85282 8.61838 4.81312 8.92 4.68H9C9.29577 4.55324 9.54802 4.34276 9.72569 4.07447C9.90337 3.80618 9.99872 3.49179 10 3.17V3C10 2.46957 10.2107 1.96086 10.5858 1.58579C10.9609 1.21071 11.4696 1 12 1C12.5304 1 13.0391 1.21071 13.4142 1.58579C13.7893 1.96086 14 2.46957 14 3V3.09C14.0013 3.41179 14.0966 3.72618 14.2743 3.99447C14.452 4.26276 14.7042 4.47324 15 4.6C15.3016 4.73312 15.6362 4.77282 15.9606 4.714C16.285 4.65519 16.5843 4.50054 16.82 4.27L16.88 4.21C17.0657 4.02405 17.2863 3.87653 17.5291 3.77588C17.7719 3.67523 18.0322 3.62343 18.295 3.62343C18.5578 3.62343 18.8181 3.67523 19.0609 3.77588C19.3037 3.87653 19.5243 4.02405 19.71 4.21C19.896 4.39575 20.0435 4.61632 20.1441 4.85912C20.2448 5.10192 20.2966 5.36217 20.2966 5.625C20.2966 5.88783 20.2448 6.14808 20.1441 6.39088C20.0435 6.63368 19.896 6.85425 19.71 7.04L19.65 7.1C19.4195 7.33568 19.2648 7.63502 19.206 7.95941C19.1472 8.28381 19.1869 8.61838 19.32 8.92V9C19.4468 9.29577 19.6572 9.54802 19.9255 9.72569C20.1938 9.90337 20.5082 9.99872 20.83 10H21C21.5304 10 22.0391 10.2107 22.4142 10.5858C22.7893 10.9609 23 11.4696 23 12C23 12.5304 22.7893 13.0391 22.4142 13.4142C22.0391 13.7893 21.5304 14 21 14H20.91C20.5882 14.0013 20.2738 14.0966 20.0055 14.2743C19.7372 14.452 19.5268 14.7042 19.4 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -99,8 +99,8 @@
                     <!-- Welcome Message - at the top -->
                     <div class="welcome-message">
                         <div class="welcome-text">
-                            <h4>Welcome to VibeSurf</h4>
-                            <p>Let's vibe surfing the world with AI automation</p>
+                            <h4 data-i18n="welcomeTitle">Welcome to VibeSurf</h4>
+                            <p data-i18n="welcomeSubtitle">Let's vibe surfing the world with AI automation</p>
                         </div>
                         <!-- Weather Widget -->
                         <div id="weather-widget"></div>
@@ -134,8 +134,8 @@
                         </div>
                         <div class="carousel-indicators" id="carousel-indicators"></div>
                         <div class="news-type-tabs">
-                            <button class="news-type-tab active" data-type="hottest">🔥 Hottest</button>
-                            <button class="news-type-tab" data-type="realtime">⚡ Realtime</button>
+                            <button class="news-type-tab active" data-type="hottest" data-i18n="hottest">🔥 Hottest</button>
+                            <button class="news-type-tab" data-type="realtime" data-i18n="realtime">⚡ Realtime</button>
                         </div>
                     </div>
                 </div>
@@ -172,12 +172,12 @@
                         <textarea
                             id="task-input"
                             class="task-input"
-                            placeholder="Ask anything (/ for skills, @ to specify tab)"
+                            data-i18n-placeholder="inputPlaceholder"
                             rows="3"></textarea>
                         <!-- Tab Selection Dropdown -->
                         <div id="tab-selector-dropdown" class="tab-selector-dropdown hidden">
                             <div class="tab-selector-header">
-                                <span class="tab-selector-title">Select Tabs</span>
+                                <span class="tab-selector-title" data-i18n="selectTabs">Select Tabs</span>
                             </div>
                             <div class="tab-selector-content">
                                 <div class="tab-selector-controls">
@@ -216,7 +216,7 @@
                             </div>
                         </div>
                         <div class="input-actions">
-                            <button id="voice-record-btn" class="action-btn voice-record-btn" title="Voice Input">
+                            <button id="voice-record-btn" class="action-btn voice-record-btn" data-i18n-title="voiceInput" title="Voice Input">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M12 1C10.34 1 9 2.34 9 4V10C9 11.66 10.34 13 12 13C13.66 13 15 11.66 15 10V4C15 2.34 13.66 1 12 1Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                     <path d="M19 10V11C19 14.87 15.87 18 12 18C8.13 18 5 14.87 5 11V10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -224,12 +224,12 @@
                                     <path d="M8 23H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                             </button>
-                            <button id="attach-file-btn" class="action-btn attach-btn" title="Attach Files">
+                            <button id="attach-file-btn" class="action-btn attach-btn" data-i18n-title="attachFiles" title="Attach Files">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M21.44 11.05L12.25 20.24C11.1242 21.3658 9.59722 21.9983 8.005 21.9983C6.41278 21.9983 4.88583 21.3658 3.76 20.24C2.63417 19.1142 2.00166 17.5872 2.00166 15.995C2.00166 14.4028 2.63417 12.8758 3.76 11.75L12.33 3.18C13.0806 2.42944 14.0986 2.00696 15.16 2.00696C16.2214 2.00696 17.2394 2.42944 17.99 3.18C18.7406 3.93056 19.163 4.94859 19.163 6.01C19.163 7.07141 18.7406 8.08944 17.99 8.84L10.07 16.76C9.69469 17.1353 9.1897 17.3442 8.665 17.3442C8.1403 17.3442 7.63531 17.1353 7.26 16.76C6.88469 16.3847 6.67581 15.8797 6.67581 15.355C6.67581 14.8303 6.88469 14.3253 7.26 13.95L15.19 6.02" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                             </button>
-                            <button id="send-btn" class="action-btn send-btn" title="Send Task">
+                            <button id="send-btn" class="action-btn send-btn" data-i18n-title="sendTask" title="Send Task">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
@@ -257,7 +257,7 @@
         <div class="modal-overlay"></div>
         <div class="modal-content history-modal-content">
             <div class="modal-header">
-                <h3>Chat History</h3>
+                <h3 data-i18n="historyTitle">Chat History</h3>
                 <button class="modal-close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -268,8 +268,8 @@
                 <!-- Recent Tasks Section -->
                 <div class="history-section recent-tasks-section">
                     <div class="section-header">
-                        <h4>Recent Tasks</h4>
-                        <span class="section-subtitle">Last 3 sessions</span>
+                        <h4 data-i18n="recentTasks">Recent Tasks</h4>
+                        <span class="section-subtitle" data-i18n="last3Sessions">Last 3 sessions</span>
                     </div>
                     <div id="recent-tasks-list" class="recent-tasks-list">
                         <!-- Recent tasks will be populated here -->
@@ -278,37 +278,37 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                         </svg>
-                        View More Tasks
+                        <span data-i18n="viewMoreTasks">View More Tasks</span>
                     </button>
                 </div>
 
                 <!-- All Sessions Section (initially hidden) -->
                 <div id="all-sessions-section" class="history-section all-sessions-section hidden">
                     <div class="section-header">
-                        <h4>All Sessions</h4>
+                        <h4 data-i18n="allSessions">All Sessions</h4>
                         <button id="back-to-recent-btn" class="back-btn">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
-                            Back to Recent
+                            <span data-i18n="backToRecent">Back to Recent</span>
                         </button>
                     </div>
                     <div class="search-filter-bar">
-                        <input type="text" id="session-search" placeholder="Search sessions..." class="search-input">
+                        <input type="text" id="session-search" data-i18n-placeholder="searchSessions" placeholder="Search sessions..." class="search-input">
                         <select id="session-filter" class="filter-select">
-                            <option value="all">All Sessions</option>
-                            <option value="active">Active</option>
-                            <option value="completed">Completed</option>
-                            <option value="error">Error</option>
+                            <option value="all" data-i18n="filterAllSessions">All Sessions</option>
+                            <option value="active" data-i18n="filterActive">Active</option>
+                            <option value="completed" data-i18n="filterCompleted">Completed</option>
+                            <option value="error" data-i18n="filterError">Error</option>
                         </select>
                     </div>
                     <div id="all-sessions-list" class="sessions-list">
                         <!-- All sessions will be populated here -->
                     </div>
                     <div class="pagination-controls">
-                        <button id="prev-page-btn" class="page-btn" disabled>Previous</button>
-                        <span id="page-info" class="page-info">Page 1 of 1</span>
-                        <button id="next-page-btn" class="page-btn" disabled>Next</button>
+                        <button id="prev-page-btn" class="page-btn" disabled data-i18n="previous">Previous</button>
+                        <span id="page-info" class="page-info" data-i18n="pageOf">Page 1 of 1</span>
+                        <button id="next-page-btn" class="page-btn" disabled data-i18n="next">Next</button>
                     </div>
                 </div>
             </div>
@@ -322,7 +322,7 @@
             <div class="settings-header">
                 <div class="settings-title">
                     <img src="icons/logo.png" alt="VibeSurf" class="settings-logo">
-                    <h3>VibeSurf Settings</h3>
+                    <h3 data-i18n="settingsTitle">VibeSurf Settings</h3>
                 </div>
                 <button class="modal-close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -338,21 +338,21 @@
                         <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="2"/>
                         <path d="M19.4 15C19.2669 15.3016 19.2272 15.6362 19.286 15.9606C19.3448 16.285 19.4995 16.5843 19.73 16.82L19.79 16.88C19.976 17.0657 20.1235 17.2863 20.2241 17.5291C20.3248 17.7719 20.3766 18.0322 20.3766 18.295C20.3766 18.5578 20.3248 18.8181 20.2241 19.0609C20.1235 19.3037 19.976 19.5243 19.79 19.71C19.6043 19.896 19.3837 20.0435 19.1409 20.1441C18.8981 20.2448 18.6378 20.2966 18.375 20.2966C18.1122 20.2966 17.8519 20.2448 17.6091 20.1441C17.3663 20.0435 17.1457 19.896 16.96 19.71L16.9 19.65C16.6643 19.4195 16.365 19.2648 16.0406 19.206C15.7162 19.1472 15.3816 19.1869 15.08 19.32C14.7842 19.4468 14.532 19.6572 14.3543 19.9255C14.1766 20.1938 14.0813 20.5082 14.08 20.83V21C14.08 21.5304 13.8693 22.0391 13.4942 22.4142C13.1191 22.7893 12.6104 23 12.08 23C11.5496 23 11.0409 22.7893 10.6658 22.4142C10.2907 22.0391 10.08 21.5304 10.08 21V20.91C10.0723 20.579 9.96512 20.2579 9.77251 19.9887C9.5799 19.7194 9.31074 19.5143 9 19.4C8.69838 19.2669 8.36381 19.2272 8.03941 19.286C7.71502 19.3448 7.41568 19.4995 7.18 19.73L7.12 19.79C6.93425 19.976 6.71368 20.1235 6.47088 20.2241C6.22808 20.3248 5.96783 20.3766 5.705 20.3766C5.44217 20.3766 5.18192 20.3248 4.93912 20.2241C4.69632 20.1235 4.47575 19.976 4.29 19.79C4.10405 19.6043 3.95653 19.3837 3.85588 19.1409C3.75523 18.8981 3.70343 18.6378 3.70343 18.375C3.70343 18.1122 3.75523 17.8519 3.85588 17.6091C3.95653 17.3663 4.10405 17.1457 4.29 16.96L4.35 16.9C4.58054 16.6643 4.73519 16.365 4.794 16.0406C4.85282 15.7162 4.81312 15.3816 4.68 15.08C4.55324 14.7842 4.34276 14.532 4.07447 14.3543C3.80618 14.1766 3.49179 14.0813 3.17 14.08H3C2.46957 14.08 1.96086 13.8693 1.58579 13.4942C1.21071 13.1191 1 12.6104 1 12.08C1 11.5496 1.21071 11.0409 1.58579 10.6658C1.96086 10.2907 2.46957 10.08 3 10.08H3.09C3.42099 10.0723 3.742 9.96512 4.01127 9.77251C4.28053 9.5799 4.48572 9.31074 4.6 9C4.73312 8.69838 4.77282 8.36381 4.714 8.03941C4.65519 7.71502 4.50054 7.41568 4.27 7.18L4.21 7.12C4.02405 6.93425 3.87653 6.71368 3.77588 6.47088C3.67523 6.22808 3.62343 5.96783 3.62343 5.705C3.62343 5.44217 3.67523 5.18192 3.77588 4.93912C3.87653 4.69632 4.02405 4.47575 4.21 4.29C4.39575 4.10405 4.61632 3.95653 4.85912 3.85588C5.10192 3.75523 5.36217 3.70343 5.625 3.70343C5.88783 3.70343 6.14808 3.75523 6.39088 3.85588C6.63368 3.95653 6.85425 4.10405 7.04 4.29L7.1 4.35C7.33568 4.58054 7.63502 4.73519 7.95941 4.794C8.28381 4.85282 8.61838 4.81312 8.92 4.68H9C9.29577 4.55324 9.54802 4.34276 9.72569 4.07447C9.90337 3.80618 9.99872 3.49179 10 3.17V3C10 2.46957 10.2107 1.96086 10.5858 1.58579C10.9609 1.21071 11.4696 1 12 1C12.5304 1 13.0391 1.21071 13.4142 1.58579C13.7893 1.96086 14 2.46957 14 3V3.09C14.0013 3.41179 14.0966 3.72618 14.2743 3.99447C14.452 4.26276 14.7042 4.47324 15 4.6C15.3016 4.73312 15.6362 4.77282 15.9606 4.714C16.285 4.65519 16.5843 4.50054 16.82 4.27L16.88 4.21C17.0657 4.02405 17.2863 3.87653 17.5291 3.77588C17.7719 3.67523 18.0322 3.62343 18.295 3.62343C18.5578 3.62343 18.8181 3.67523 19.0609 3.77588C19.3037 3.87653 19.5243 4.02405 19.71 4.21C19.896 4.39575 20.0435 4.61632 20.1441 4.85912C20.2448 5.10192 20.2966 5.36217 20.2966 5.625C20.2966 5.88783 20.2448 6.14808 20.1441 6.39088C20.0435 6.63368 19.896 6.85425 19.71 7.04L19.65 7.1C19.4195 7.33568 19.2648 7.63502 19.206 7.95941C19.1472 8.28381 19.1869 8.61838 19.32 8.92V9C19.4468 9.29577 19.6572 9.54802 19.9255 9.72569C20.1938 9.90337 20.5082 9.99872 20.83 10H21C21.5304 10 22.0391 10.2107 22.4142 10.5858C22.7893 10.9609 23 11.4696 23 12C23 12.5304 22.7893 13.0391 22.4142 13.4142C22.0391 13.7893 21.5304 14 21 14H20.91C20.5882 14.0013 20.2738 14.0966 20.0055 14.2743C19.7372 14.452 19.5268 14.7042 19.4 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    General
+                    <span data-i18n="tabGeneral">General</span>
                 </button>
                 <button class="settings-tab" data-tab="workflow">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
                         <path d="M19.07 4.93L17.66 3.52C17.2794 3.13921 16.7794 2.92631 16.2575 2.92631C15.7356 2.92631 15.2356 3.13921 14.855 3.52L3 15.37V19H6.63L18.48 7.15C18.8608 6.76944 19.0737 6.26944 19.0737 5.7475C19.0737 5.22556 18.8608 4.72556 18.48 4.345L17.07 2.93" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M16 5L19 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    Workflows
+                    <span data-i18n="tabWorkflows">Workflows</span>
                 </button>
                 <button class="settings-tab" data-tab="integrations">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
                         <path d="M10 13C10.4295 13.5741 10.9774 14.0491 11.6066 14.3929C12.2357 14.7367 12.9315 14.9411 13.6467 14.9923C14.3618 15.0435 15.0796 14.9403 15.7513 14.6897C16.4231 14.4392 17.0331 14.047 17.54 13.54L20.54 10.54C21.4508 9.59695 21.9548 8.33394 21.9434 7.02296C21.932 5.71198 21.4061 4.45791 20.4791 3.53087C19.5521 2.60383 18.298 2.07799 16.987 2.0666C15.676 2.0552 14.413 2.55918 13.47 3.47L11.75 5.18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M14 11C13.5705 10.4259 13.0226 9.95090 12.3934 9.60712C11.7643 9.26335 11.0685 9.05888 10.3533 9.00771C9.63819 8.95654 8.92037 9.05968 8.24864 9.31023C7.57691 9.56077 6.96687 9.95295 6.46 10.46L3.46 13.46C2.54918 14.403 2.04520 15.6661 2.0566 16.977C2.06799 18.288 2.59383 19.5421 3.52087 20.4691C4.44791 21.3962 5.70198 21.922 7.01296 21.9334C8.32394 21.9448 9.58695 21.4408 10.53 20.53L12.24 18.82" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    Integrations
+                    <span data-i18n="tabIntegrations">Integrations</span>
                 </button>
                 <button class="settings-tab" data-tab="llm-profiles">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
@@ -360,20 +360,20 @@
                         <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    LLM
+                    <span data-i18n="tabLLM">LLM</span>
                 </button>
                 <button class="settings-tab" data-tab="mcp-profiles">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
                         <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    MCP
+                    <span data-i18n="tabMCP">MCP</span>
                 </button>
                 <button class="settings-tab" data-tab="voice-profiles">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
                         <path d="M19 14C19 18.5 15.5 22 11 22C6.5 22 3 18.5 3 14V12C3 7.5 6.5 4 11 4S19 7.5 19 12V14ZM11 8C8.8 8 7 9.8 7 12V14C7 16.2 8.8 18 11 18S15 16.2 15 14V12C15 9.8 13.2 8 11 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <circle cx="11" cy="11" r="2" stroke="currentColor" stroke-width="2"/>
                     </svg>
-                    Voice
+                    <span data-i18n="tabVoice">Voice</span>
                 </button>
             </div>
             
@@ -385,58 +385,65 @@
                         <!-- General Settings Section -->
                         <div class="general-section">
                             <div class="section-header">
-                                <h3>General Settings</h3>
-                                <p class="section-description">Configure application-wide settings</p>
+                                <h3 data-i18n="generalSettings">General Settings</h3>
+                                <p class="section-description" data-i18n="generalSettingsDescription">Configure application-wide settings</p>
                             </div>
                             <div class="general-settings-content">
                                 <div class="form-group">
-                                    <label class="form-label">Application Theme</label>
+                                    <label class="form-label" data-i18n="language">Language</label>
+                                    <select class="form-select" id="language-select">
+                                        <option value="en">English</option>
+                                        <option value="zh_CN">简体中文</option>
+                                    </select>
+                                    <div class="form-help" data-i18n="languageHelp">Select your preferred language. Requires reload to apply.</div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" data-i18n="applicationTheme">Application Theme</label>
                                     <select class="form-select" id="theme-select">
-                                        <option value="auto">Auto (System)</option>
-                                        <option value="light">Light</option>
-                                        <option value="dark">Dark</option>
+                                        <option value="auto" data-i18n="themeAuto">Auto (System)</option>
+                                        <option value="light" data-i18n="themeLight">Light</option>
+                                        <option value="dark" data-i18n="themeDark">Dark</option>
                                     </select>
-                                    <div class="form-help">Choose your preferred theme</div>
+                                    <div class="form-help" data-i18n="applicationThemeHelp">Choose your preferred theme</div>
                                 </div>
                                 <div class="form-group">
-                                    <label class="form-label">Default ASR Profile</label>
+                                    <label class="form-label" data-i18n="defaultAsrProfile">Default ASR Profile</label>
                                     <select class="form-select" id="default-asr-select">
-                                        <option value="">No ASR profile selected</option>
+                                        <option value="" data-i18n="noAsrProfileSelected">No ASR profile selected</option>
                                     </select>
-                                    <div class="form-help">Default voice recognition profile for speech-to-text</div>
+                                    <div class="form-help" data-i18n="defaultAsrProfileHelp">Default voice recognition profile for speech-to-text</div>
                                 </div>
                                 <div class="form-group">
-                                    <label class="form-label">Default TTS Profile</label>
+                                    <label class="form-label" data-i18n="defaultTtsProfile">Default TTS Profile</label>
                                     <select class="form-select" id="default-tts-select">
-                                        <option value="">No TTS profile selected</option>
+                                        <option value="" data-i18n="noTtsProfileSelected">No TTS profile selected</option>
                                     </select>
-                                    <div class="form-help">Default text-to-speech profile for voice output</div>
+                                    <div class="form-help" data-i18n="defaultTtsProfileHelp">Default text-to-speech profile for voice output</div>
+                                </div>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Environment Variables Section -->
                         <div class="general-section">
                             <div class="section-header">
-                                <h3>Environment Variables</h3>
-                                <p class="section-description">Manage environment variables for the application</p>
+                                <h3 data-i18n="environmentVariables">Environment Variables</h3>
+                                <p class="section-description" data-i18n="environmentVariablesDescription">Manage environment variables for the application</p>
                             </div>
                             <div class="env-variables-container">
                                 <div class="form-group">
-                                    <label class="form-label">Environment Variables</label>
+                                    <label class="form-label" data-i18n="environmentVariables">Environment Variables</label>
                                     <div id="env-variables-list">
                                         <!-- Environment variables will be populated here -->
                                     </div>
                                 </div>
-                                <div class="env-var-actions-center">
-                                    <button id="save-env-vars-btn" class="save-env-vars-btn-compact">
-                                        <div class="btn-icon">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16L21 8V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                                <path d="M17 21V13H7V21M7 3V8H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                            </svg>
-                                        </div>
-                                        <span class="btn-text">Update Variables</span>
+                                <div class="env-var-actions-inline">
+                                    <button id="save-env-vars-btn" class="save-env-vars-btn-large">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16L21 8V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <path d="M17 21V13H7V21M7 3V8H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                        <span data-i18n="updateVariables">Update Variables</span>
                                     </button>
                                 </div>
                             </div>
@@ -453,7 +460,7 @@
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                                 </svg>
-                                Create Workflow
+                                <span data-i18n="createWorkflow">Create Workflow</span>
                             </button>
                             <button id="import-workflow-btn" class="import-workflow-btn">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -463,55 +470,55 @@
                                     <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                     <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
-                                Import Workflow
+                                <span data-i18n="importWorkflow">Import Workflow</span>
                             </button>
                             <button id="workflow-templates-btn" class="workflow-templates-btn">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M4 4V20H20V8H14V4H4ZM12 12V6H6V12H12ZM18 18V10H12V18H18Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
-                                Workflow Templates
+                                <span data-i18n="workflowTemplates">Workflow Templates</span>
                             </button>
                             <button id="record-to-workflow-btn" class="record-to-workflow-btn">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/>
                                     <circle cx="12" cy="12" r="3" fill="currentColor"/>
                                 </svg>
-                                Record Workflow
+                                <span data-i18n="recordWorkflow">Record Workflow</span>
                             </button>
                         </div>
-                        
+
                         <!-- Search and Filter Bar -->
                         <div class="workflows-controls">
                             <div class="search-filter-bar">
                                 <div class="search-input-container">
-                                    <input type="text" id="workflow-search" placeholder="Search workflows..." class="search-input">
+                                    <input type="text" id="workflow-search" data-i18n-placeholder="searchWorkflows" placeholder="Search workflows..." class="search-input">
                                     <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
                                         <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                                     </svg>
                                 </div>
                                 <select id="workflow-filter" class="filter-select">
-                                    <option value="all">All Workflows</option>
-                                    <option value="scheduled">Scheduled</option>
-                                    <option value="unscheduled">Unscheduled</option>
-                                    <option value="running">Running</option>
+                                    <option value="all" data-i18n="filterAllWorkflows">All Workflows</option>
+                                    <option value="scheduled" data-i18n="filterScheduled">Scheduled</option>
+                                    <option value="unscheduled" data-i18n="filterUnscheduled">Unscheduled</option>
+                                    <option value="running" data-i18n="filterRunning">Running</option>
                                 </select>
                             </div>
                         </div>
-                        
+
                         <!-- Workflows List -->
                         <div id="workflows-list" class="workflows-list">
                             <!-- Workflows will be populated here -->
                         </div>
-                        
+
                         <!-- Loading State -->
                         <div id="workflows-loading" class="loading-state hidden">
                             <div class="loading-spinner"></div>
-                            <div class="loading-text">Loading workflows...</div>
+                            <div class="loading-text" data-i18n="loadingWorkflows">Loading workflows...</div>
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- LLM Profiles Tab -->
                 <div id="llm-profiles-tab" class="settings-tab-content">
                     <div id="llm-profiles-container" class="profiles-container">
@@ -523,10 +530,10 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                         </svg>
-                        Add LLM
+                        <span data-i18n="addLLM">Add LLM</span>
                     </button>
                 </div>
-                
+
                 <!-- MCP Profiles Tab -->
                 <div id="mcp-profiles-tab" class="settings-tab-content">
                     <div id="mcp-profiles-container" class="profiles-container">
@@ -538,10 +545,10 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                         </svg>
-                        Add MCP
+                        <span data-i18n="addMCP">Add MCP</span>
                     </button>
                 </div>
-                
+
                 <!-- Voice Profiles Tab -->
                 <div id="voice-profiles-tab" class="settings-tab-content">
                     <div id="voice-profiles-container" class="profiles-container">
@@ -553,48 +560,48 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                         </svg>
-                        Add Voice
+                        <span data-i18n="addVoice">Add Voice</span>
                     </button>
                 </div>
-                
+
                 <!-- Integrations Tab -->
                 <div id="integrations-tab" class="settings-tab-content">
                     <div class="integrations-container">
                         <!-- API Key Setup Section -->
                         <div id="api-key-setup" class="integrations-section">
                             <div class="section-header">
-                                <h3>Composio Integration</h3>
-                                <p class="section-description">Connect your Composio account to access external toolkits</p>
+                                <h3 data-i18n="composioIntegration">Composio Integration</h3>
+                                <p class="section-description" data-i18n="composioIntegrationDescription">Connect your Composio account to access external toolkits</p>
                             </div>
                             <div class="api-key-status">
                                 <div class="status-indicator" id="composio-status">
                                     <div class="status-icon">⚠️</div>
                                     <div class="status-text">
-                                        <div class="status-title">API Key Required</div>
-                                        <div class="status-message">Please configure your Composio API key to continue</div>
+                                        <div class="status-title" data-i18n="apiKeyRequired">API Key Required</div>
+                                        <div class="status-message" data-i18n="configureApiKeyMessage">Please configure your Composio API key to continue</div>
                                     </div>
-                                    <button id="setup-api-key-btn" class="status-btn">Setup</button>
+                                    <button id="setup-api-key-btn" class="status-btn" data-i18n="setup">Setup</button>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Toolkits Section (hidden initially) -->
                         <div id="toolkits-section" class="integrations-section hidden">
                             <!-- Search and Filter Bar -->
                             <div class="toolkits-controls">
                                 <div class="search-filter-bar">
                                     <div class="search-input-container">
-                                        <input type="text" id="toolkit-search" placeholder="Search toolkits..." class="search-input">
+                                        <input type="text" id="toolkit-search" data-i18n-placeholder="searchToolkits" placeholder="Search toolkits..." class="search-input">
                                         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
                                             <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                                         </svg>
                                     </div>
                                     <select id="toolkit-filter" class="filter-select">
-                                        <option value="all">All Toolkits</option>
-                                        <option value="enabled">Enabled Only</option>
-                                        <option value="disabled">Disabled Only</option>
-                                        <option value="connected">Connected Only</option>
+                                        <option value="all" data-i18n="allToolkits">All Toolkits</option>
+                                        <option value="enabled" data-i18n="enabledOnly">Enabled Only</option>
+                                        <option value="disabled" data-i18n="disabledOnly">Disabled Only</option>
+                                        <option value="connected" data-i18n="connectedOnly">Connected Only</option>
                                     </select>
                                 </div>
                             </div>
@@ -622,7 +629,7 @@
     <div id="profile-form-modal" class="profile-form-modal hidden">
         <div class="profile-form-container">
             <div class="profile-form-header">
-                <h3 id="profile-form-title">Add LLM</h3>
+                <h3 id="profile-form-title" data-i18n="addLLM">Add LLM</h3>
                 <button class="profile-form-close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -635,8 +642,8 @@
                 </form>
             </div>
             <div class="profile-form-actions">
-                <button type="button" class="form-btn secondary" id="profile-form-cancel">Cancel</button>
-                <button type="submit" class="form-btn primary" id="profile-form-submit">Save Profile</button>
+                <button type="button" class="form-btn secondary" id="profile-form-cancel"><span data-i18n="cancel">Cancel</span></button>
+                <button type="submit" class="form-btn primary" id="profile-form-submit"><span data-i18n="saveProfile">Save Profile</span></button>
             </div>
         </div>
     </div>
@@ -646,7 +653,7 @@
         <div class="modal-overlay"></div>
         <div class="modal-content composio-modal-content">
             <div class="modal-header">
-                <h3>Setup Composio API Key</h3>
+                <h3 data-i18n="setupComposioApiKey">Setup Composio API Key</h3>
                 <button class="modal-close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -656,11 +663,11 @@
             <div class="modal-body">
                 <div class="api-key-setup-content">
                     <div class="form-group">
-                        <label class="form-label required">Composio API Key</label>
+                        <label class="form-label required" data-i18n="composioApiKeyLabel">Composio API Key</label>
                         <div class="api-key-field">
                             <input type="password" id="composio-api-key-input" class="form-input api-key-input"
-                                   placeholder="Enter your Composio API key" required>
-                            <button type="button" class="api-key-toggle" title="Toggle visibility">
+                                   data-i18n-placeholder="enterComposioApiKey" placeholder="Enter your Composio API key" required>
+                            <button type="button" class="api-key-toggle" data-i18n-title="toggleVisibility" title="Toggle visibility">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" stroke-width="2"/>
                                     <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
@@ -668,16 +675,16 @@
                             </button>
                         </div>
                         <div class="form-help">
-                            <p>Your Composio API key for accessing external integrations</p>
+                            <p data-i18n="composioApiKeyHelp">Your Composio API key for accessing external integrations</p>
                             <div class="help-link">
-                                <span>Get your API key from </span>
+                                <span data-i18n="getApiKeyFrom">Get your API key from</span>
                                 <button id="open-composio-link" class="link-btn">
                                     composio.dev
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <path d="M18 13V19C18 19.5304 17.7893 20.0391 17.4142 20.4142C17.0391 20.7893 16.5304 21 16 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V8C3 7.46957 3.21071 6.96086 3.58579 6.58579C3.96086 6.21071 4.46957 6 5 6H11M15 3H21M21 3V9M21 3L9 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                     </svg>
                                 </button>
-                                <span> (Project Settings → API Keys)</span>
+                                <span data-i18n="projectSettingsApiKeys">(Project Settings → API Keys)</span>
                             </div>
                         </div>
                     </div>
@@ -687,8 +694,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="form-btn secondary" id="api-key-cancel">Cancel</button>
-                <button type="button" class="form-btn primary" id="api-key-confirm">Verify & Save</button>
+                <button type="button" class="form-btn secondary" id="api-key-cancel"><span data-i18n="cancel">Cancel</span></button>
+                <button type="button" class="form-btn primary" id="api-key-confirm"><span data-i18n="verifyAndSave">Verify & Save</span></button>
             </div>
         </div>
     </div>
@@ -698,7 +705,7 @@
         <div class="modal-overlay"></div>
         <div class="modal-content tools-modal-content">
             <div class="modal-header">
-                <h3 id="tools-modal-title">Manage Tools</h3>
+                <h3 id="tools-modal-title" data-i18n="manageTools">Manage Tools</h3>
                 <button class="modal-close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -729,8 +736,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="form-btn secondary" id="tools-cancel">Cancel</button>
-                <button type="button" class="form-btn primary" id="tools-save">Save Selection</button>
+                <button type="button" class="form-btn secondary" id="tools-cancel"><span data-i18n="cancel">Cancel</span></button>
+                <button type="button" class="form-btn primary" id="tools-save"><span data-i18n="saveSelection">Save Selection</span></button>
             </div>
         </div>
     </div>
@@ -1043,7 +1050,7 @@
         <div class="modal-overlay"></div>
         <div class="modal-content create-workflow-modal-content">
             <div class="modal-header">
-                <h3>Create New Workflow</h3>
+                <h3 data-i18n="createNewWorkflow">Create New Workflow</h3>
                 <button class="modal-close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1053,29 +1060,29 @@
             <div class="modal-body">
                 <div class="create-workflow-content">
                     <div class="form-group">
-                        <label class="form-label required">Workflow Name</label>
+                        <label class="form-label required" data-i18n="workflowName">Workflow Name</label>
                         <input type="text" id="workflow-name-input" class="form-input"
-                               placeholder="Enter workflow name" required>
-                        <div class="form-help">Choose a descriptive name for your workflow</div>
+                               data-i18n-placeholder="enterWorkflowName" placeholder="Enter workflow name" required>
+                        <div class="form-help" data-i18n="workflowNameHelp">Choose a descriptive name for your workflow</div>
                     </div>
-                    
+
                     <div class="form-group">
-                        <label class="form-label">Description (Optional)</label>
+                        <label class="form-label" data-i18n="descriptionOptional">Description (Optional)</label>
                         <textarea id="workflow-description-input" class="form-textarea" rows="3"
-                                  placeholder="Enter workflow description"></textarea>
-                        <div class="form-help">Describe what this workflow will do</div>
+                                  data-i18n-placeholder="enterWorkflowDescription" placeholder="Enter workflow description"></textarea>
+                        <div class="form-help" data-i18n="workflowDescriptionHelp">Describe what this workflow will do</div>
                     </div>
-                    
+
                     <div id="create-workflow-validation" class="validation-feedback hidden">
                         <!-- Validation feedback will be shown here -->
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="form-btn secondary" id="create-workflow-cancel">Cancel</button>
+                <button type="button" class="form-btn secondary" id="create-workflow-cancel"><span data-i18n="cancel">Cancel</span></button>
                 <button type="button" class="form-btn primary" id="create-workflow-confirm">
-                    <span class="btn-text">Create Workflow</span>
-                    <span class="btn-loading hidden">Creating...</span>
+                    <span class="btn-text" data-i18n="createWorkflowConfirm">Create Workflow</span>
+                    <span class="btn-loading hidden" data-i18n="creatingWorkflow">Creating...</span>
                 </button>
             </div>
         </div>
@@ -1086,7 +1093,7 @@
         <div class="modal-overlay"></div>
         <div class="modal-content import-workflow-modal-content">
             <div class="modal-header">
-                <h3>Import Workflow</h3>
+                <h3 data-i18n="importWorkflowTitle">Import Workflow</h3>
                 <button class="modal-close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1099,23 +1106,23 @@
                         <div class="import-method">
                             <label class="import-method-label">
                                 <input type="radio" name="import-method" value="json-file" class="import-method-radio" checked>
-                                <span class="import-method-title">Import from JSON File</span>
+                                <span class="import-method-title" data-i18n="importFromJsonFile">Import from JSON File</span>
                             </label>
-                            <div class="import-method-description">Select a JSON file from your computer</div>
+                            <div class="import-method-description" data-i18n="importFromFileDescription">Select a JSON file from your computer</div>
                         </div>
                         <div class="import-method">
                             <label class="import-method-label">
                                 <input type="radio" name="import-method" value="json-text" class="import-method-radio">
-                                <span class="import-method-title">Import from JSON Text</span>
+                                <span class="import-method-title" data-i18n="importFromJsonText">Import from JSON Text</span>
                             </label>
-                            <div class="import-method-description">Paste workflow JSON directly</div>
+                            <div class="import-method-description" data-i18n="importFromTextDescription">Paste workflow JSON directly</div>
                         </div>
                     </div>
-                    
+
                     <!-- JSON File Import -->
                     <div id="json-file-import" class="import-section">
                         <div class="form-group">
-                            <label class="form-label required">Select JSON File</label>
+                            <label class="form-label required" data-i18n="selectJsonFile">Select JSON File</label>
                             <div class="file-input-container">
                                 <input type="file" id="workflow-json-file" class="hidden" accept=".json">
                                 <button type="button" class="file-select-btn" id="select-json-file-btn">
@@ -1123,27 +1130,27 @@
                                         <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                         <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                     </svg>
-                                    Choose JSON File
+                                    <span data-i18n="chooseJsonFile">Choose JSON File</span>
                                 </button>
                                 <div id="selected-file-info" class="selected-file-info hidden">
                                     <span id="selected-file-name" class="file-name"></span>
-                                    <button type="button" id="clear-file-btn" class="clear-file-btn" title="Clear selection">
+                                    <button type="button" id="clear-file-btn" class="clear-file-btn" data-i18n-title="clearSelection" title="Clear selection">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                                         </svg>
                                     </button>
                                 </div>
                             </div>
-                            <div class="form-help">Select a .json file containing the workflow configuration</div>
+                            <div class="form-help" data-i18n="selectJsonFileHelp">Select a .json file containing the workflow configuration</div>
                         </div>
                     </div>
-                    
+
                     <!-- JSON Text Import -->
                     <div id="json-text-import" class="import-section hidden">
                         <div class="form-group">
-                            <label class="form-label required">Workflow JSON</label>
+                            <label class="form-label required" data-i18n="workflowJson">Workflow JSON</label>
                             <textarea id="workflow-json-input" class="form-textarea import-json-textarea" rows="10"
-                                      placeholder='Paste your workflow JSON here, e.g.:
+                                      data-i18n-placeholder="pasteWorkflowJson" placeholder='Paste your workflow JSON here, e.g.:
 {
   "name": "My Workflow",
   "description": "A sample workflow",
@@ -1152,20 +1159,20 @@
     "edges": [...]
   }
 }'></textarea>
-                            <div class="form-help">Paste the complete workflow JSON configuration</div>
+                            <div class="form-help" data-i18n="pasteWorkflowJsonHelp">Paste the complete workflow JSON configuration</div>
                         </div>
                     </div>
-                    
+
                     <div id="import-workflow-validation" class="validation-feedback hidden">
                         <!-- Validation feedback will be shown here -->
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="form-btn secondary" id="import-workflow-cancel">Cancel</button>
+                <button type="button" class="form-btn secondary" id="import-workflow-cancel"><span data-i18n="cancel">Cancel</span></button>
                 <button type="button" class="form-btn primary" id="import-workflow-confirm">
-                    <span class="btn-text">Import Workflow</span>
-                    <span class="btn-loading hidden">Importing...</span>
+                    <span class="btn-text" data-i18n="importWorkflowConfirm">Import Workflow</span>
+                    <span class="btn-loading hidden" data-i18n="importingWorkflow">Importing...</span>
                 </button>
             </div>
         </div>
@@ -1174,12 +1181,13 @@
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="loading-overlay hidden">
         <div class="loading-spinner"></div>
-        <div class="loading-text">Connecting to VibeSurf...</div>
+        <div class="loading-text" data-i18n="connectingToVibesurf">Connecting to VibeSurf...</div>
     </div>
 
     <!-- Scripts -->
     <script src="scripts/version.js"></script>
     <script src="config.js"></script>
+    <script src="scripts/i18n-helper.js"></script>
     <script src="scripts/markdown-it.min.js"></script>
     <script src="scripts/api-client.js"></script>
     <script src="scripts/session-manager.js"></script>

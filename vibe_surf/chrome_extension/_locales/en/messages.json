@@ -1,0 +1,2464 @@
+{
+  "appName": {
+    "message": "VibeSurf",
+    "description": "The application name"
+  },
+  "appTagline": {
+    "message": "Let's vibe surfing the world with AI automation",
+    "description": "Application tagline shown in welcome message"
+  },
+  "appDescription": {
+    "message": "AI-powered browsing automation at your fingertips",
+    "description": "Application description shown in popup"
+  },
+  "extensionName": {
+    "message": "VibeSurf: Your browser assistant for vibe surfing",
+    "description": "Extension name shown in Chrome extensions"
+  },
+  "extensionDescription": {
+    "message": "Let's vibe surfing the world",
+    "description": "Extension description"
+  },
+  "extensionUpdateAvailable": {
+    "message": "VibeSurf Extension Update Available",
+    "description": "Title of the update notification tooltip"
+  },
+  "extensionUpdateDescription": {
+    "message": "A newer VibeSurf extension is available. Download and install for the best experience:",
+    "description": "Description of the update notification"
+  },
+  "extensionUpdateStep1": {
+    "message": "Open chrome://extensions",
+    "description": "Update step 1"
+  },
+  "extensionUpdateStep2": {
+    "message": "Enable Developer mode",
+    "description": "Update step 2"
+  },
+  "extensionUpdateStep3": {
+    "message": "Click \"Load unpacked\" and select the Extension path",
+    "description": "Update step 3"
+  },
+
+  "session": {
+    "message": "Session",
+    "description": "Session label"
+  },
+  "copySessionId": {
+    "message": "Copy Session ID",
+    "description": "Button tooltip for copying session ID"
+  },
+
+  "newSession": {
+    "message": "New Session",
+    "description": "Button to create a new session"
+  },
+  "chatHistory": {
+    "message": "Chat History",
+    "description": "Button to open chat history"
+  },
+  "settings": {
+    "message": "Settings",
+    "description": "Settings button"
+  },
+
+  "welcomeTitle": {
+    "message": "Welcome to VibeSurf",
+    "description": "Welcome message title"
+  },
+
+  "welcomeSubtitle": {
+    "message": "Let's vibe surfing the world with AI automation",
+    "description": "Welcome message subtitle"
+  },
+
+  "pause": {
+    "message": "Pause",
+    "description": "Pause button label"
+  },
+  "resume": {
+    "message": "Resume",
+    "description": "Resume button label"
+  },
+  "terminate": {
+    "message": "Terminate",
+    "description": "Terminate button label"
+  },
+
+  "inputPlaceholder": {
+    "message": "Ask anything (/ for skills, @ to specify tab)",
+    "description": "Placeholder text for the main input"
+  },
+  "voiceInput": {
+    "message": "Voice Input",
+    "description": "Voice input button tooltip"
+  },
+  "attachFiles": {
+    "message": "Attach Files",
+    "description": "Attach files button tooltip"
+  },
+  "sendTask": {
+    "message": "Send Task",
+    "description": "Send task button tooltip"
+  },
+
+  "agentModeThinking": {
+    "message": "Thinking",
+    "description": "Agent mode: Thinking"
+  },
+  "agentModeNoThinking": {
+    "message": "No-thinking",
+    "description": "Agent mode: No-thinking"
+  },
+  "agentModeFlash": {
+    "message": "Flash",
+    "description": "Agent mode: Flash"
+  },
+
+  "selectTabs": {
+    "message": "Select Tabs",
+    "description": "Title of tab selector dropdown"
+  },
+  "selectAll": {
+    "message": "Select All",
+    "description": "Select all option"
+  },
+  "selectSkills": {
+    "message": "Select Skills",
+    "description": "Title of skill selector dropdown"
+  },
+  "selectWorkflows": {
+    "message": "Select Workflows",
+    "description": "Title of workflow selector dropdown"
+  },
+
+  "connectingToVibesurf": {
+    "message": "Connecting to VibeSurf...",
+    "description": "Loading message"
+  },
+
+  "statusReady": {
+    "message": "Ready",
+    "description": "Backend status: Ready"
+  },
+  "statusConnected": {
+    "message": "Connected",
+    "description": "Backend status: Connected"
+  },
+  "statusDisconnected": {
+    "message": "Disconnected",
+    "description": "Backend status: Disconnected"
+  },
+  "statusError": {
+    "message": "Error",
+    "description": "Backend status: Error"
+  },
+  "openSidePanel": {
+    "message": "Open Side Panel",
+    "description": "Button to open side panel"
+  },
+
+  "historyTitle": {
+    "message": "Chat History",
+    "description": "History modal title"
+  },
+  "recentTasks": {
+    "message": "Recent Tasks",
+    "description": "Recent tasks section header"
+  },
+  "last3Sessions": {
+    "message": "Last 3 sessions",
+    "description": "Subtitle for recent tasks"
+  },
+  "viewMoreTasks": {
+    "message": "View More Tasks",
+    "description": "Button to view more tasks"
+  },
+  "allSessions": {
+    "message": "All Sessions",
+    "description": "All sessions section header"
+  },
+  "backToRecent": {
+    "message": "Back to Recent",
+    "description": "Button to go back to recent tasks"
+  },
+  "searchSessions": {
+    "message": "Search sessions...",
+    "description": "Search placeholder"
+  },
+  "filterAllSessions": {
+    "message": "All Sessions",
+    "description": "Filter option: All Sessions"
+  },
+  "filterActive": {
+    "message": "Active",
+    "description": "Filter option: Active"
+  },
+  "filterCompleted": {
+    "message": "Completed",
+    "description": "Filter option: Completed"
+  },
+  "filterError": {
+    "message": "Error",
+    "description": "Filter option: Error"
+  },
+  "previous": {
+    "message": "Previous",
+    "description": "Previous page button"
+  },
+  "next": {
+    "message": "Next",
+    "description": "Next page button"
+  },
+  "pageOf": {
+    "message": "Page {current} of {total}",
+    "description": "Page info, e.g., 'Page 1 of 5'",
+    "placeholders": {
+      "current": {
+        "content": "$1",
+        "example": "1"
+      },
+      "total": {
+        "content": "$2",
+        "example": "5"
+      }
+    }
+  },
+  "noRecentTasks": {
+    "message": "No Recent Tasks",
+    "description": "Empty state message"
+  },
+  "startNewTask": {
+    "message": "Start a new task to see it here.",
+    "description": "Empty state description"
+  },
+  "noSessionsFound": {
+    "message": "No Sessions Found",
+    "description": "Empty state for no sessions"
+  },
+  "adjustSearchCriteria": {
+    "message": "Try adjusting your search or filter criteria.",
+    "description": "Empty state suggestion"
+  },
+  "lastActivity": {
+    "message": "Last activity",
+    "description": "Label for last activity time"
+  },
+  "clickToLoadSession": {
+    "message": "Click to load session",
+    "description": "Tooltip for session item"
+  },
+  "tasks": {
+    "message": "{count, plural, =1 {task} other {tasks}}",
+    "description": "Plural form of 'task'",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "loadingRecentTasks": {
+    "message": "Loading recent tasks...",
+    "description": "Loading message for recent tasks"
+  },
+  "loadingAllSessions": {
+    "message": "Loading all sessions...",
+    "description": "Loading message for all sessions"
+  },
+
+  "settingsTitle": {
+    "message": "VibeSurf Settings",
+    "description": "Settings modal title"
+  },
+  "tabGeneral": {
+    "message": "General",
+    "description": "Settings tab: General"
+  },
+  "tabWorkflows": {
+    "message": "Workflows",
+    "description": "Settings tab: Workflows"
+  },
+  "tabIntegrations": {
+    "message": "Integrations",
+    "description": "Settings tab: Integrations"
+  },
+  "tabLLM": {
+    "message": "LLM",
+    "description": "Settings tab: LLM"
+  },
+  "tabMCP": {
+    "message": "MCP",
+    "description": "Settings tab: MCP"
+  },
+  "tabVoice": {
+    "message": "Voice",
+    "description": "Settings tab: Voice"
+  },
+
+  "generalSettings": {
+    "message": "General Settings",
+    "description": "General settings section title"
+  },
+  "generalSettingsDescription": {
+    "message": "Configure application-wide settings",
+    "description": "General settings description"
+  },
+  "applicationTheme": {
+    "message": "Application Theme",
+    "description": "Theme setting label"
+  },
+  "themeAuto": {
+    "message": "Auto (System)",
+    "description": "Theme option: Auto"
+  },
+  "themeLight": {
+    "message": "Light",
+    "description": "Theme option: Light"
+  },
+  "themeDark": {
+    "message": "Dark",
+    "description": "Theme option: Dark"
+  },
+  "themeHelp": {
+    "message": "Choose your preferred theme",
+    "description": "Theme setting help text"
+  },
+  "themeChanged": {
+    "message": "Theme changed to {theme}",
+    "description": "Notification when theme is changed",
+    "placeholders": {
+      "theme": {
+        "content": "$1",
+        "example": "dark"
+      }
+    }
+  },
+  "themeChangeFailed": {
+    "message": "Failed to change theme",
+    "description": "Error message when theme change fails"
+  },
+
+  "language": {
+    "message": "Language",
+    "description": "Language setting label"
+  },
+  "languageHelp": {
+    "message": "Select your preferred language",
+    "description": "Language setting help text"
+  },
+  "languageChanged": {
+    "message": "Language changed. Please reload the extension to apply changes.",
+    "description": "Notification when language is changed"
+  },
+
+  "defaultAsrProfile": {
+    "message": "Default ASR Profile",
+    "description": "ASR profile label"
+  },
+  "noAsrProfileSelected": {
+    "message": "No ASR profile selected",
+    "description": "Empty option for ASR profile"
+  },
+  "asrProfileHelp": {
+    "message": "Default voice recognition profile for speech-to-text",
+    "description": "ASR profile help text"
+  },
+  "defaultTtsProfile": {
+    "message": "Default TTS Profile",
+    "description": "TTS profile label"
+  },
+  "noTtsProfileSelected": {
+    "message": "No TTS profile selected",
+    "description": "Empty option for TTS profile"
+  },
+  "ttsProfileHelp": {
+    "message": "Default text-to-speech profile for voice output",
+    "description": "TTS profile help text"
+  },
+  "failedToLoadVoiceProfiles": {
+    "message": "Failed to load ASR/TTS profiles",
+    "description": "Error loading voice profiles"
+  },
+  "defaultAsrProfileSet": {
+    "message": "Default ASR profile set to {profile}",
+    "description": "Notification when ASR profile is set",
+    "placeholders": {
+      "profile": {
+        "content": "$1",
+        "example": "whisper"
+      }
+    }
+  },
+  "defaultAsrProfileCleared": {
+    "message": "Default ASR profile cleared",
+    "description": "Notification when ASR profile is cleared"
+  },
+  "defaultTtsProfileSet": {
+    "message": "Default TTS profile set to {profile}",
+    "description": "Notification when TTS profile is set",
+    "placeholders": {
+      "profile": {
+        "content": "$1",
+        "example": "elevenlabs"
+      }
+    }
+  },
+  "defaultTtsProfileCleared": {
+    "message": "Default TTS profile cleared",
+    "description": "Notification when TTS profile is cleared"
+  },
+  "failedToChangeVoiceProfile": {
+    "message": "Failed to change default ASR/TTS profile",
+    "description": "Error changing voice profile"
+  },
+  "autoSelectedLatestAsrProfile": {
+    "message": "Auto-selected latest ASR profile: {profile}",
+    "description": "Notification when auto-selecting ASR profile",
+    "placeholders": {
+      "profile": {
+        "content": "$1",
+        "example": "whisper"
+      }
+    }
+  },
+  "autoSelectedLatestTtsProfile": {
+    "message": "Auto-selected latest TTS profile: {profile}",
+    "description": "Notification when auto-selecting TTS profile",
+    "placeholders": {
+      "profile": {
+        "content": "$1",
+        "example": "elevenlabs"
+      }
+    }
+  },
+
+  "environmentVariables": {
+    "message": "Environment Variables",
+    "description": "Environment variables section title"
+  },
+  "noEnvironmentVariables": {
+    "message": "No Environment Variables",
+    "description": "Empty state for environment variables"
+  },
+  "envVarHelp": {
+    "message": "Environment variables are configured on the backend. Add or update variables as needed.",
+    "description": "Environment variables help text"
+  },
+  "variableName": {
+    "message": "Variable name",
+    "description": "Placeholder for variable name input"
+  },
+  "variableValue": {
+    "message": "Variable value",
+    "description": "Placeholder for variable value input"
+  },
+  "updateVariables": {
+    "message": "Update Variables",
+    "description": "Button to update environment variables"
+  },
+  "environmentVariablesDescription": {
+    "message": "Manage environment variables for the application",
+    "description": "Environment variables section description"
+  },
+  "applicationThemeHelp": {
+    "message": "Choose your preferred theme",
+    "description": "Application theme setting help text"
+  },
+  "defaultAsrProfileHelp": {
+    "message": "Default voice recognition profile for speech-to-text",
+    "description": "ASR profile help text"
+  },
+  "defaultTtsProfileHelp": {
+    "message": "Default text-to-speech profile for voice output",
+    "description": "TTS profile help text"
+  },
+  "languageHelp": {
+    "message": "Select your preferred language. Requires reload to apply.",
+    "description": "Language setting help text"
+  },
+  "envVarUpdated": {
+    "message": "Environment variables updated successfully",
+    "description": "Success message for environment variables"
+  },
+  "envVarUpdateFailed": {
+    "message": "Failed to update environment variables: {error}",
+    "description": "Error message for environment variables",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Network error"
+      }
+    }
+  },
+
+  "backendUrl": {
+    "message": "Backend URL",
+    "description": "Backend URL setting label"
+  },
+  "backendUrlCannotBeEmpty": {
+    "message": "Backend URL cannot be empty",
+    "description": "Validation error for backend URL"
+  },
+  "invalidBackendUrl": {
+    "message": "Invalid backend URL: {error}",
+    "description": "Validation error for invalid backend URL",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Invalid URL format"
+      }
+    }
+  },
+  "backendUrlUpdated": {
+    "message": "Backend URL updated successfully",
+    "description": "Success message for backend URL update"
+  },
+
+  "createWorkflow": {
+    "message": "Create Workflow",
+    "description": "Create workflow button"
+  },
+  "importWorkflow": {
+    "message": "Import Workflow",
+    "description": "Import workflow button"
+  },
+  "workflowTemplates": {
+    "message": "Workflow Templates",
+    "description": "Workflow templates button"
+  },
+  "recordWorkflow": {
+    "message": "Record Workflow",
+    "description": "Record workflow button"
+  },
+  "searchWorkflows": {
+    "message": "Search workflows...",
+    "description": "Search workflows placeholder"
+  },
+  "filterAllWorkflows": {
+    "message": "All Workflows",
+    "description": "Filter option: All Workflows"
+  },
+  "filterScheduled": {
+    "message": "Scheduled",
+    "description": "Filter option: Scheduled"
+  },
+  "filterUnscheduled": {
+    "message": "Unscheduled",
+    "description": "Filter option: Unscheduled"
+  },
+  "filterRunning": {
+    "message": "Running",
+    "description": "Filter option: Running"
+  },
+  "loadingWorkflows": {
+    "message": "Loading workflows...",
+    "description": "Loading message for workflows"
+  },
+  "noWorkflowsFound": {
+    "message": "No workflows found",
+    "description": "Empty state for workflows"
+  },
+
+  "composioIntegration": {
+    "message": "Composio Integration",
+    "description": "Composio integration section title"
+  },
+  "composioIntegrationDescription": {
+    "message": "Connect your Composio account to access external toolkits",
+    "description": "Composio integration description"
+  },
+  "apiKeyRequired": {
+    "message": "API Key Required",
+    "description": "API key status title"
+  },
+  "apiKeyRequiredHelp": {
+    "message": "Please configure your Composio API key to continue",
+    "description": "API key required help text"
+  },
+  "setup": {
+    "message": "Setup",
+    "description": "Setup button"
+  },
+  "checkingConnection": {
+    "message": "Checking Connection",
+    "description": "Checking connection status"
+  },
+  "verifyingComposioStatus": {
+    "message": "Verifying Composio integration status...",
+    "description": "Verification message"
+  },
+  "composioConnected": {
+    "message": "Composio Connected",
+    "description": "Connected status"
+  },
+  "composioConnectedHelp": {
+    "message": "API key is valid and ready to use",
+    "description": "Connected status help text"
+  },
+  "updateKey": {
+    "message": "Update Key",
+    "description": "Update key button"
+  },
+  "searchToolkits": {
+    "message": "Search toolkits...",
+    "description": "Search toolkits placeholder"
+  },
+  "filterAllToolkits": {
+    "message": "All Toolkits",
+    "description": "Filter option: All Toolkits"
+  },
+  "filterEnabledOnly": {
+    "message": "Enabled Only",
+    "description": "Filter option: Enabled Only"
+  },
+  "filterDisabledOnly": {
+    "message": "Disabled Only",
+    "description": "Filter option: Disabled Only"
+  },
+  "filterConnectedOnly": {
+    "message": "Connected Only",
+    "description": "Filter option: Connected Only"
+  },
+  "loadingToolkits": {
+    "message": "Loading toolkits...",
+    "description": "Loading message for toolkits"
+  },
+
+  "setupComposioApiKey": {
+    "message": "Setup Composio API Key",
+    "description": "API key modal title"
+  },
+  "composioApiKey": {
+    "message": "Composio API Key",
+    "description": "API key label"
+  },
+  "enterComposioApiKey": {
+    "message": "Enter your Composio API key",
+    "description": "API key input placeholder"
+  },
+  "getApiKeyFrom": {
+    "message": "Get your API key from",
+    "description": "Help text prefix"
+  },
+  "composioDev": {
+    "message": "composio.dev",
+    "description": "Composio website"
+  },
+  "composioApiKeyLocation": {
+    "message": "(Project Settings → API Keys)",
+    "description": "API key location help"
+  },
+  "composioApiKeyHelp": {
+    "message": "Your Composio API key for accessing external integrations",
+    "description": "API key help text"
+  },
+  "verifyAndSave": {
+    "message": "Verify & Save",
+    "description": "Verify and save button"
+  },
+  "validatingApiKey": {
+    "message": "Validating API key...",
+    "description": "Validation message"
+  },
+  "apiKeyValid": {
+    "message": "API key is valid!",
+    "description": "Validation success message"
+  },
+  "invalidApiKey": {
+    "message": "Invalid API key. Please check and try again.",
+    "description": "Validation error message"
+  },
+  "enterApiKey": {
+    "message": "Please enter an API key",
+    "description": "Validation error for empty API key"
+  },
+  "failedToVerifyApiKey": {
+    "message": "Failed to verify API key",
+    "description": "API key verification error"
+  },
+  "composioApiKeySaved": {
+    "message": "Composio API key validated and saved successfully",
+    "description": "Success message for API key save"
+  },
+  "syncedNewToolkits": {
+    "message": "Synced {count} new toolkits from Composio",
+    "description": "Success message for toolkit sync",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+
+  "manageTools": {
+    "message": "Manage Tools",
+    "description": "Tools management modal title"
+  },
+  "deselectAll": {
+    "message": "Deselect All",
+    "description": "Deselect all button"
+  },
+  "saveSelection": {
+    "message": "Save Selection",
+    "description": "Save selection button"
+  },
+  "loadingTools": {
+    "message": "Loading tools...",
+    "description": "Loading tools message"
+  },
+
+  "oauthAuthorizationRequired": {
+    "message": "OAuth Authorization Required",
+    "description": "OAuth modal title"
+  },
+  "oauthTabOpened": {
+    "message": "A new browser tab has been opened for OAuth authorization.",
+    "description": "OAuth modal message"
+  },
+  "oauthCompleteInstructions": {
+    "message": "Please complete the authorization process and return here.",
+    "description": "OAuth modal instruction"
+  },
+  "oauthCompletedQuestion": {
+    "message": "Have you completed the OAuth authorization?",
+    "description": "OAuth completion question"
+  },
+  "notYet": {
+    "message": "Not Yet",
+    "description": "OAuth not completed button"
+  },
+  "yesCompleted": {
+    "message": "Yes, Completed",
+    "description": "OAuth completed button"
+  },
+
+  "scheduleWorkflow": {
+    "message": "Schedule Workflow",
+    "description": "Schedule workflow modal title"
+  },
+  "workflowName": {
+    "message": "Workflow Name",
+    "description": "Workflow name label"
+  },
+  "scheduleConfiguration": {
+    "message": "Schedule Configuration",
+    "description": "Schedule configuration section"
+  },
+  "scheduleType": {
+    "message": "Schedule Type",
+    "description": "Schedule type label"
+  },
+  "scheduleTypeDaily": {
+    "message": "Daily",
+    "description": "Schedule type: Daily"
+  },
+  "scheduleTypeEveryXMinutes": {
+    "message": "Every X Minutes",
+    "description": "Schedule type: Every X Minutes"
+  },
+  "scheduleTypeEveryXHours": {
+    "message": "Every X Hours",
+    "description": "Schedule type: Every X Hours"
+  },
+  "scheduleTypeWeekly": {
+    "message": "Weekly",
+    "description": "Schedule type: Weekly"
+  },
+  "scheduleTypeMonthly": {
+    "message": "Monthly",
+    "description": "Schedule type: Monthly"
+  },
+  "minuteInterval": {
+    "message": "Minute Interval",
+    "description": "Minute interval label"
+  },
+  "everyXMinutes": {
+    "message": "Every {count} minute(s)",
+    "description": "Every X minutes label",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "hourInterval": {
+    "message": "Hour Interval",
+    "description": "Hour interval label"
+  },
+  "everyXHours": {
+    "message": "Every {count} hour(s)",
+    "description": "Every X hours label",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "time": {
+    "message": "Time",
+    "description": "Time label"
+  },
+  "dayOfWeek": {
+    "message": "Day of Week",
+    "description": "Day of week label"
+  },
+  "dayOfMonth": {
+    "message": "Day of Month",
+    "description": "Day of month label"
+  },
+  "dayOfMonthHelp": {
+    "message": "Day 1-31 (use 1 for 1st of month)",
+    "description": "Day of month help text"
+  },
+  "enableSchedule": {
+    "message": "Enable Schedule",
+    "description": "Enable schedule checkbox label"
+  },
+  "enableScheduleHelp": {
+    "message": "Uncheck to disable the schedule without deleting it",
+    "description": "Enable schedule help text"
+  },
+  "scheduleDescription": {
+    "message": "Schedule Description (Optional)",
+    "description": "Schedule description label"
+  },
+  "scheduleDescriptionPlaceholder": {
+    "message": "e.g., Daily data sync, Weekly report generation",
+    "description": "Schedule description placeholder"
+  },
+  "saveSchedule": {
+    "message": "Save Schedule",
+    "description": "Save schedule button"
+  },
+  "saving": {
+    "message": "Saving...",
+    "description": "Saving state text"
+  },
+  "cancel": {
+    "message": "Cancel",
+    "description": "Cancel button"
+  },
+  "close": {
+    "message": "Close",
+    "description": "Close button"
+  },
+
+  "monday": {
+    "message": "Monday",
+    "description": "Day of week: Monday"
+  },
+  "tuesday": {
+    "message": "Tuesday",
+    "description": "Day of week: Tuesday"
+  },
+  "wednesday": {
+    "message": "Wednesday",
+    "description": "Day of week: Wednesday"
+  },
+  "thursday": {
+    "message": "Thursday",
+    "description": "Day of week: Thursday"
+  },
+  "friday": {
+    "message": "Friday",
+    "description": "Day of week: Friday"
+  },
+  "saturday": {
+    "message": "Saturday",
+    "description": "Day of week: Saturday"
+  },
+  "sunday": {
+    "message": "Sunday",
+    "description": "Day of week: Sunday"
+  },
+
+  "workflowLogs": {
+    "message": "Workflow Logs",
+    "description": "Workflow logs modal title"
+  },
+  "refreshLogs": {
+    "message": "Refresh Logs",
+    "description": "Refresh logs button tooltip"
+  },
+  "clearLogs": {
+    "message": "Clear Logs",
+    "description": "Clear logs button tooltip"
+  },
+  "loadingLogs": {
+    "message": "Loading logs...",
+    "description": "Loading logs message"
+  },
+  "noLogsAvailable": {
+    "message": "No logs available",
+    "description": "Empty state for logs"
+  },
+
+  "deleteWorkflow": {
+    "message": "Delete Workflow",
+    "description": "Delete workflow modal title"
+  },
+  "deleteWorkflowConfirmation": {
+    "message": "Are you sure you want to delete this workflow?",
+    "description": "Delete workflow confirmation message"
+  },
+  "deleteWorkflowWarning": {
+    "message": "This action cannot be undone. All schedule information will also be removed.",
+    "description": "Delete workflow warning message"
+  },
+  "deleteWorkflowConfirm": {
+    "message": "Delete Workflow",
+    "description": "Delete workflow confirm button"
+  },
+
+  "setupVibesurfApiKey": {
+    "message": "Setup VibeSurf API Key",
+    "description": "VibeSurf API key modal title"
+  },
+  "vibesurfApiKey": {
+    "message": "VibeSurf API Key",
+    "description": "VibeSurf API key label"
+  },
+  "enterVibesurfApiKey": {
+    "message": "Enter your VibeSurf API key",
+    "description": "VibeSurf API key input placeholder"
+  },
+  "vibesurfApiKeyHelp": {
+    "message": "Your VibeSurf API key for accessing workflows functionality",
+    "description": "VibeSurf API key help text"
+  },
+  "getVibesurfApiKeyFrom": {
+    "message": "Get your API key from",
+    "description": "VibeSurf API key help prefix"
+  },
+  "vibesurfCom": {
+    "message": "vibe-surf.com",
+    "description": "VibeSurf website"
+  },
+  "vibesurfApiKeyLocation": {
+    "message": "then login and create API key in profile",
+    "description": "VibeSurf API key location help"
+  },
+  "vibesurfApiKeySaved": {
+    "message": "VibeSurf API key validated and saved successfully",
+    "description": "Success message for VibeSurf API key"
+  },
+  "invalidVibesurfApiKey": {
+    "message": "Invalid VibeSurf API key. Please check and try again.",
+    "description": "Invalid VibeSurf API key error"
+  },
+  "enterVibesurfApiKeyError": {
+    "message": "Please enter a VibeSurf API key",
+    "description": "Empty VibeSurf API key error"
+  },
+  "validatingVibesurfApiKey": {
+    "message": "Validating API key...",
+    "description": "VibeSurf API key validation message"
+  },
+
+  "createNewWorkflow": {
+    "message": "Create New Workflow",
+    "description": "Create workflow modal title"
+  },
+  "workflowNameInput": {
+    "message": "Workflow Name",
+    "description": "Workflow name input label"
+  },
+  "enterWorkflowName": {
+    "message": "Enter workflow name",
+    "description": "Workflow name input placeholder"
+  },
+  "chooseWorkflowNameHelp": {
+    "message": "Choose a descriptive name for your workflow",
+    "description": "Workflow name help text"
+  },
+  "workflowDescription": {
+    "message": "Description (Optional)",
+    "description": "Workflow description label"
+  },
+  "enterWorkflowDescription": {
+    "message": "Enter workflow description",
+    "description": "Workflow description placeholder"
+  },
+  "workflowDescriptionHelp": {
+    "message": "Describe what this workflow will do",
+    "description": "Workflow description help text"
+  },
+  "creatingWorkflow": {
+    "message": "Creating...",
+    "description": "Creating workflow state"
+  },
+  "createWorkflowConfirm": {
+    "message": "Create Workflow",
+    "description": "Create workflow confirm button"
+  },
+
+  "importWorkflowTitle": {
+    "message": "Import Workflow",
+    "description": "Import workflow modal title"
+  },
+  "importFromJsonFile": {
+    "message": "Import from JSON File",
+    "description": "Import method: JSON file"
+  },
+  "importFromFileDescription": {
+    "message": "Select a JSON file from your computer",
+    "description": "Import from file description"
+  },
+  "importFromJsonText": {
+    "message": "Import from JSON Text",
+    "description": "Import method: JSON text"
+  },
+  "importFromTextDescription": {
+    "message": "Paste workflow JSON directly",
+    "description": "Import from text description"
+  },
+  "selectJsonFile": {
+    "message": "Select JSON File",
+    "description": "Select JSON file label"
+  },
+  "chooseJsonFile": {
+    "message": "Choose JSON File",
+    "description": "Choose JSON file button"
+  },
+  "selectedFileName": {
+    "message": "{fileName}",
+    "description": "Selected file name",
+    "placeholders": {
+      "fileName": {
+        "content": "$1",
+        "example": "workflow.json"
+      }
+    }
+  },
+  "selectJsonFileHelp": {
+    "message": "Select a .json file containing the workflow configuration",
+    "description": "Select JSON file help text"
+  },
+  "workflowJson": {
+    "message": "Workflow JSON",
+    "description": "Workflow JSON label"
+  },
+  "pasteWorkflowJson": {
+    "message": "Paste your workflow JSON here, e.g.:",
+    "description": "Workflow JSON placeholder"
+  },
+  "pasteWorkflowJsonHelp": {
+    "message": "Paste the complete workflow JSON configuration",
+    "description": "Workflow JSON help text"
+  },
+  "importingWorkflow": {
+    "message": "Importing...",
+    "description": "Importing workflow state"
+  },
+  "importWorkflowConfirm": {
+    "message": "Import Workflow",
+    "description": "Import workflow confirm button"
+  },
+
+  "addLlm": {
+    "message": "Add LLM",
+    "description": "Add LLM button"
+  },
+  "addMcp": {
+    "message": "Add MCP",
+    "description": "Add MCP button"
+  },
+  "addVoice": {
+    "message": "Add Voice",
+    "description": "Add Voice button"
+  },
+  "editLlm": {
+    "message": "Edit LLM",
+    "description": "Edit LLM modal title"
+  },
+  "editMcp": {
+    "message": "Edit MCP",
+    "description": "Edit MCP modal title"
+  },
+  "editVoice": {
+    "message": "Edit Voice",
+    "description": "Edit Voice modal title"
+  },
+  "saveProfile": {
+    "message": "Save Profile",
+    "description": "Save profile button"
+  },
+
+  "profileName": {
+    "message": "Profile Name",
+    "description": "Profile name label"
+  },
+  "enterProfileName": {
+    "message": "Enter a unique name for this profile",
+    "description": "Profile name placeholder"
+  },
+  "profileNameHelp": {
+    "message": "A unique identifier for this profile",
+    "description": "Profile name help text"
+  },
+  "provider": {
+    "message": "Provider",
+    "description": "Provider label"
+  },
+  "selectProvider": {
+    "message": "Select a provider",
+    "description": "Provider placeholder"
+  },
+  "chooseProviderHelp": {
+    "message": "Choose your LLM provider (OpenAI, Anthropic, etc.)",
+    "description": "Provider help text"
+  },
+  "model": {
+    "message": "Model",
+    "description": "Model label"
+  },
+  "selectModel": {
+    "message": "Select a model or type custom model name",
+    "description": "Model placeholder"
+  },
+  "chooseModelHelp": {
+    "message": "Choose from the list or enter a custom model name",
+    "description": "Model help text"
+  },
+  "apiKey": {
+    "message": "API Key",
+    "description": "API Key label"
+  },
+  "enterApiKey": {
+    "message": "Enter your API key",
+    "description": "API Key placeholder"
+  },
+  "keepExistingKeyHelp": {
+    "message": "Leave empty to keep existing key",
+    "description": "API Key help for edit"
+  },
+  "apiKeyProfileHelp": {
+    "message": "Your provider's API key for authentication",
+    "description": "API Key help text"
+  },
+  "baseUrl": {
+    "message": "Base URL",
+    "description": "Base URL label"
+  },
+  "customBaseUrlHelp": {
+    "message": "Custom API endpoint (leave empty for provider default)",
+    "description": "Base URL help text"
+  },
+  "temperature": {
+    "message": "Temperature",
+    "description": "Temperature label"
+  },
+  "temperatureHelp": {
+    "message": "Controls randomness (0.0-2.0, lower = more focused)",
+    "description": "Temperature help text"
+  },
+  "maxTokens": {
+    "message": "Max Tokens",
+    "description": "Max Tokens label"
+  },
+  "maxTokensHelp": {
+    "message": "Maximum tokens in the response",
+    "description": "Max Tokens help text"
+  },
+  "description": {
+    "message": "Description",
+    "description": "Description label"
+  },
+  "descriptionHelp": {
+    "message": "Optional description for this profile",
+    "description": "Description help text"
+  },
+  "setAsDefaultProfile": {
+    "message": "Set as default profile",
+    "description": "Set as default checkbox label"
+  },
+  "setAsDefaultHelp": {
+    "message": "This profile will be selected by default for new tasks",
+    "description": "Set as default help text"
+  },
+
+  "voiceModelType": {
+    "message": "Model Type",
+    "description": "Voice model type label"
+  },
+  "voiceModelTypeAsr": {
+    "message": "ASR (Speech Recognition)",
+    "description": "Voice model type: ASR"
+  },
+  "voiceModelTypeTts": {
+    "message": "TTS (Text to Speech)",
+    "description": "Voice model type: TTS"
+  },
+  "chooseVoiceModelTypeHelp": {
+    "message": "Choose the type of voice model",
+    "description": "Voice model type help text"
+  },
+  "voiceModel": {
+    "message": "Voice Model",
+    "description": "Voice model label"
+  },
+  "selectVoiceModel": {
+    "message": "Select a model",
+    "description": "Voice model placeholder"
+  },
+  "chooseVoiceModelHelp": {
+    "message": "Choose your voice model",
+    "description": "Voice model help text"
+  },
+  "modelParameters": {
+    "message": "Model Parameters (JSON)",
+    "description": "Model parameters label"
+  },
+  "modelParametersHelp": {
+    "message": "Enter JSON configuration for model parameters (optional)",
+    "description": "Model parameters help text"
+  },
+  "modelParametersOptionalHelp": {
+    "message": "Optional JSON configuration for model-specific parameters",
+    "description": "Model parameters optional help"
+  },
+  "active": {
+    "message": "Active",
+    "description": "Active checkbox label"
+  },
+  "activeHelp": {
+    "message": "Whether this profile is active and available for use",
+    "description": "Active help text"
+  },
+
+  "displayName": {
+    "message": "Display Name",
+    "description": "Display name label for MCP"
+  },
+  "displayNameHelp": {
+    "message": "Enter a friendly name for this MCP profile",
+    "description": "Display name placeholder"
+  },
+  "displayNameHelpText": {
+    "message": "A user-friendly name for this MCP configuration",
+    "description": "Display name help text"
+  },
+  "serverName": {
+    "message": "Server Name",
+    "description": "Server name label for MCP"
+  },
+  "serverNameHelp": {
+    "message": "e.g., filesystem, markitdown, brave-search",
+    "description": "Server name placeholder"
+  },
+  "serverNameHelpText": {
+    "message": "The MCP server identifier",
+    "description": "Server name help text"
+  },
+  "mcpServerParameters": {
+    "message": "MCP Server Parameters (JSON)",
+    "description": "MCP parameters label"
+  },
+  "mcpServerParametersHelp": {
+    "message": "Enter JSON configuration for MCP server parameters",
+    "description": "MCP parameters placeholder"
+  },
+  "mcpServerParametersHelpText": {
+    "message": "JSON configuration including command and arguments",
+    "description": "MCP parameters help text"
+  },
+
+  "invalidJsonFormat": {
+    "message": "Invalid JSON format",
+    "description": "JSON validation error"
+  },
+  "jsonMustBeValidObject": {
+    "message": "JSON must be a valid object",
+    "description": "JSON validation error detail"
+  },
+
+  "confirm": {
+    "message": "Confirm",
+    "description": "Confirm button"
+  },
+  "ok": {
+    "message": "OK",
+    "description": "OK button"
+  },
+
+  "uploadingFiles": {
+    "message": "Uploading {count} file(s)...",
+    "description": "Uploading files message",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "filesUploadedSuccessfully": {
+    "message": "{count} file(s) uploaded successfully",
+    "description": "Files uploaded success message",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "fileUploadFailed": {
+    "message": "File upload failed: {error}",
+    "description": "File upload error message",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Network error"
+      }
+    }
+  },
+  "fileRemoved": {
+    "message": "File removed from upload list",
+    "description": "File removed message"
+  },
+  "errorDisplayingFiles": {
+    "message": "Error displaying files",
+    "description": "Error displaying files message"
+  },
+  "removeFile": {
+    "message": "Remove file",
+    "description": "Remove file button tooltip"
+  },
+  "unknownFile": {
+    "message": "Unknown file",
+    "description": "Unknown file type"
+  },
+  "unknownPath": {
+    "message": "Unknown path",
+    "description": "Unknown path error"
+  },
+  "invalidFilePath": {
+    "message": "Invalid file path provided",
+    "description": "Invalid file path error"
+  },
+  "failedToDecodeFilePath": {
+    "message": "Failed to decode file path",
+    "description": "Decode file path error"
+  },
+  "fileAccessDenied": {
+    "message": "File access denied",
+    "description": "File access denied error"
+  },
+  "fileNotFound": {
+    "message": "File not found",
+    "description": "File not found error"
+  },
+  "failedToOpenFileLink": {
+    "message": "Failed to open file link",
+    "description": "Failed to open file link error"
+  },
+
+  "newsCarouselTitle": {
+    "message": "Hot News",
+    "description": "News carousel title"
+  },
+  "loadingNews": {
+    "message": "Loading news...",
+    "description": "Loading news message"
+  },
+  "latestNews": {
+    "message": "Latest News",
+    "description": "Latest news tab"
+  },
+  "refreshNews": {
+    "message": "Refresh",
+    "description": "Refresh news button tooltip"
+  },
+  "noNewsAvailable": {
+    "message": "No news available",
+    "description": "No news available message"
+  },
+  "noTitle": {
+    "message": "No title",
+    "description": "No title placeholder for news"
+  },
+  "minutesAgo": {
+    "message": "{count} minute(s) ago",
+    "description": "Time ago: minutes",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "hoursAgo": {
+    "message": "{count} hour(s) ago",
+    "description": "Time ago: hours",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "failedToLoadNews": {
+    "message": "Failed to load news",
+    "description": "Failed to load news error"
+  },
+
+  "hottest": {
+    "message": "Hottest",
+    "description": "News type: Hottest"
+  },
+  "realtime": {
+    "message": "Realtime",
+    "description": "News type: Realtime"
+  },
+
+  "loadingWeather": {
+    "message": "Loading weather...",
+    "description": "Loading weather message"
+  },
+  "unableToLoadWeather": {
+    "message": "Unable to load weather",
+    "description": "Weather load error"
+  },
+  "retry": {
+    "message": "Retry",
+    "description": "Retry button"
+  },
+  "refreshWeather": {
+    "message": "Refresh weather",
+    "description": "Refresh weather button tooltip"
+  },
+  "clearSky": {
+    "message": "Clear sky",
+    "description": "Weather condition: Clear sky"
+  },
+  "mainlyClear": {
+    "message": "Mainly clear",
+    "description": "Weather condition: Mainly clear"
+  },
+  "partlyCloudy": {
+    "message": "Partly cloudy",
+    "description": "Weather condition: Partly cloudy"
+  },
+  "overcast": {
+    "message": "Overcast",
+    "description": "Weather condition: Overcast"
+  },
+  "drizzle": {
+    "message": "Drizzle",
+    "description": "Weather condition: Drizzle"
+  },
+  "rain": {
+    "message": "Rain",
+    "description": "Weather condition: Rain"
+  },
+  "snow": {
+    "message": "Snow",
+    "description": "Weather condition: Snow"
+  },
+  "thunderstorm": {
+    "message": "Thunderstorm",
+    "description": "Weather condition: Thunderstorm"
+  },
+  "fog": {
+    "message": "Fog",
+    "description": "Weather condition: Fog"
+  },
+
+  "microphonePermissionDenied": {
+    "message": "Microphone permission denied",
+    "description": "Microphone permission error title"
+  },
+  "microphoneDeniedDescription": {
+    "message": "Microphone access was denied. Please allow access and try again.",
+    "description": "Microphone permission denied description"
+  },
+  "noMicrophoneFound": {
+    "message": "No microphone found. Please connect a microphone.",
+    "description": "No microphone error"
+  },
+  "microphoneInUse": {
+    "message": "Microphone is in use by another application.",
+    "description": "Microphone in use error"
+  },
+  "voiceRecordingNotSupported": {
+    "message": "Voice recording is not supported in your browser",
+    "description": "Voice recording not supported error"
+  },
+  "noAsrProfilesFound": {
+    "message": "No ASR profiles found",
+    "description": "No ASR profiles error"
+  },
+  "configureAsrProfileFirst": {
+    "message": "Please configure an ASR profile in settings first",
+    "description": "Configure ASR profile message"
+  },
+  "startingVoiceRecording": {
+    "message": "Starting voice recording...",
+    "description": "Starting recording message"
+  },
+  "stoppingRecording": {
+    "message": "Stopping recording...",
+    "description": "Stopping recording message"
+  },
+  "processingAudio": {
+    "message": "Processing audio...",
+    "description": "Processing audio message"
+  },
+  "transcribing": {
+    "message": "Transcribing...",
+    "description": "Transcribing message"
+  },
+  "failedToStartRecording": {
+    "message": "Failed to start recording",
+    "description": "Failed to start recording error"
+  },
+  "failedToTranscribe": {
+    "message": "Failed to transcribe audio",
+    "description": "Failed to transcribe error"
+  },
+  "recording": {
+    "message": "Recording...",
+    "description": "Recording status text"
+  },
+
+  "notificationReady": {
+    "message": "VibeSurf Ready",
+    "description": "Notification title: Ready"
+  },
+  "notificationReadyDescription": {
+    "message": "Extension is ready to automate your browsing tasks!",
+    "description": "Notification message: Ready"
+  },
+  "notificationConnected": {
+    "message": "VibeSurf Backend Connected",
+    "description": "Notification title: Connected"
+  },
+  "notificationConnectedDescription": {
+    "message": "Successfully connected to VibeSurf backend server",
+    "description": "Notification message: Connected"
+  },
+  "notificationDisconnected": {
+    "message": "VibeSurf Backend Unavailable",
+    "description": "Notification title: Disconnected"
+  },
+  "notificationDisconnectedDescription": {
+    "message": "Cannot connect to backend. Please ensure the VibeSurf server is running.",
+    "description": "Notification message: Disconnected"
+  },
+  "notificationError": {
+    "message": "VibeSurf Error",
+    "description": "Notification title: Error"
+  },
+  "notificationErrorDescription": {
+    "message": "An unexpected error occurred. Check the console for details.",
+    "description": "Notification message: Error"
+  },
+  "initializationFailed": {
+    "message": "VibeSurf Initialization Failed",
+    "description": "Init failed title"
+  },
+  "retry": {
+    "message": "Retry",
+    "description": "Retry button"
+  },
+
+  "failedToLoadHistory": {
+    "message": "Failed to load history",
+    "description": "Failed to load history error"
+  },
+  "failedToLoadSessions": {
+    "message": "Failed to load sessions",
+    "description": "Failed to load sessions error"
+  },
+  "failedToLoadTaskSession": {
+    "message": "Failed to load task session",
+    "description": "Failed to load task session error"
+  },
+  "invalidTaskNoSession": {
+    "message": "Invalid task - no session ID found",
+    "description": "Invalid task error"
+  },
+  "invalidSessionNoId": {
+    "message": "Invalid session - no session ID found",
+    "description": "Invalid session error"
+  },
+  "failedToLoadSettings": {
+    "message": "Failed to load settings data",
+    "description": "Failed to load settings error"
+  },
+
+  "taskStatusCompleted": {
+    "message": "completed",
+    "description": "Task status: completed"
+  },
+  "taskStatusRunning": {
+    "message": "running",
+    "description": "Task status: running"
+  },
+  "taskStatusPending": {
+    "message": "pending",
+    "description": "Task status: pending"
+  },
+  "taskStatusFailed": {
+    "message": "failed",
+    "description": "Task status: failed"
+  },
+  "taskStatusActive": {
+    "message": "active",
+    "description": "Task status: active"
+  },
+  "taskStatusError": {
+    "message": "error",
+    "description": "Task status: error"
+  },
+
+  "apiKeyValidAndReady": {
+    "message": "API key is valid and ready to use",
+    "description": "API key validation success message"
+  },
+  "apiKeyValidatedAndSaved": {
+    "message": "API key validated and saved successfully",
+    "description": "API key saved notification"
+  },
+  "pleaseEnterApiKey": {
+    "message": "Please enter an API key",
+    "description": "API key input validation error"
+  },
+  "failedToLoadIntegrations": {
+    "message": "Failed to load integrations data",
+    "description": "Failed to load integrations error"
+  },
+  "syncedToolkitsFromComposio": {
+    "message": "Synced $1 new toolkits from Composio",
+    "description": "Toolkits synced notification",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "failedToLoadComposioToolkits": {
+    "message": "Failed to load Composio toolkits",
+    "description": "Failed to load toolkits error"
+  },
+  "noToolkitsAvailable": {
+    "message": "No Toolkits Available",
+    "description": "No toolkits empty state title"
+  },
+  "noToolkitsAvailableDesc": {
+    "message": "No toolkits are available at the moment.",
+    "description": "No toolkits empty state description"
+  },
+  "noMatchingToolkits": {
+    "message": "No Matching Toolkits",
+    "description": "No matching toolkits empty state title"
+  },
+  "noMatchingToolkitsDesc": {
+    "message": "Try adjusting your search or filter criteria.",
+    "description": "No matching toolkits empty state description"
+  },
+  "connected": {
+    "message": "Connected",
+    "description": "Connection status: connected"
+  },
+  "notConnected": {
+    "message": "Not Connected",
+    "description": "Connection status: not connected"
+  },
+  "toolkitEnabledDisabled": {
+    "message": "Toolkit $1 $2",
+    "description": "Toolkit enabled/disabled notification",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Gmail"
+      },
+      "status": {
+        "content": "$2",
+        "example": "enabled"
+      }
+    }
+  },
+  "enable": {
+    "message": "enable",
+    "description": "Enable action"
+  },
+  "disable": {
+    "message": "disable",
+    "description": "Disable action"
+  },
+  "enabled": {
+    "message": "enabled",
+    "description": "Enabled status"
+  },
+  "disabled": {
+    "message": "disabled",
+    "description": "Disabled status"
+  },
+  "toolkit": {
+    "message": "toolkit",
+    "description": "Toolkit label"
+  },
+  "failedToStartOAuth": {
+    "message": "Failed to start OAuth flow",
+    "description": "OAuth flow start failed error"
+  },
+  "connectedSuccessfully": {
+    "message": "$1 connected successfully!",
+    "description": "Connected successfully notification",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Gmail"
+      }
+    }
+  },
+  "oauthConnectionNotDetected": {
+    "message": "OAuth connection not detected. Please try again.",
+    "description": "OAuth not completed warning"
+  },
+  "failedToVerifyOAuth": {
+    "message": "Failed to verify OAuth connection",
+    "description": "OAuth verification failed error"
+  },
+  "toolkitNotFound": {
+    "message": "Toolkit not found",
+    "description": "Toolkit not found error"
+  },
+  "failedToLoadToolkitTools": {
+    "message": "Failed to load toolkit tools",
+    "description": "Failed to load tools error"
+  },
+  "failedToLoadTools": {
+    "message": "Failed to Load Tools",
+    "description": "Failed to load tools empty state title"
+  },
+  "unableToFetchTools": {
+    "message": "Unable to fetch tools for this toolkit.",
+    "description": "Unable to fetch tools description"
+  },
+  "noToolsAvailable": {
+    "message": "No Tools Available",
+    "description": "No tools empty state title"
+  },
+  "noToolsAvailableDesc": {
+    "message": "This toolkit has no tools available.",
+    "description": "No tools empty state description"
+  },
+  "toolName": {
+    "message": "Tool Name",
+    "description": "Tool name column header"
+  },
+  "noDescriptionAvailable": {
+    "message": "No description available",
+    "description": "No description available text"
+  },
+  "toolsConfigSavedSuccessfully": {
+    "message": "Tools configuration saved successfully",
+    "description": "Tools config saved notification"
+  },
+  "failedToSaveToolsConfig": {
+    "message": "Failed to save tools configuration",
+    "description": "Failed to save tools error"
+  },
+
+  "failedToShow": {
+    "message": "Failed to show ",
+    "description": "Failed to show error prefix"
+  },
+  "profileForm": {
+    "message": " profile form",
+    "description": "Profile form suffix"
+  },
+  "edit": {
+    "message": "Edit",
+    "description": "Edit action"
+  },
+  "add": {
+    "message": "Add",
+    "description": "Add action"
+  },
+  "profileName": {
+    "message": "Profile Name",
+    "description": "Profile name label"
+  },
+  "enterUniqueName": {
+    "message": "Enter a unique name for this profile",
+    "description": "Profile name placeholder"
+  },
+  "uniqueIdentifierConfig": {
+    "message": "A unique identifier for this LLM configuration",
+    "description": "Profile name help text"
+  },
+  "selectProvider": {
+    "message": "Select a provider",
+    "description": "Provider select placeholder"
+  },
+  "chooseLLMProvider": {
+    "message": "Choose your LLM provider (OpenAI, Anthropic, etc.)",
+    "description": "Provider help text"
+  },
+  "selectModelOrCustom": {
+    "message": "Select a model or type custom model name",
+    "description": "Model input placeholder"
+  },
+  "chooseFromListOrCustom": {
+    "message": "Choose from the list or enter a custom model name",
+    "description": "Model help text"
+  },
+  "leaveEmptyKeepKey": {
+    "message": "Leave empty to keep existing key",
+    "description": "API key placeholder for edit"
+  },
+  "enterYourApiKey": {
+    "message": "Enter your API key",
+    "description": "API key placeholder"
+  },
+  "toggleVisibility": {
+    "message": "Toggle visibility",
+    "description": "Toggle password visibility tooltip"
+  },
+  "providerApiKeyAuth": {
+    "message": "Your provider's API key for authentication",
+    "description": "API key help text"
+  },
+  "baseUrl": {
+    "message": "Base URL",
+    "description": "Base URL label"
+  },
+  "customApiEndpoint": {
+    "message": "Custom API endpoint (leave empty for provider default)",
+    "description": "Base URL help text"
+  },
+  "temperature": {
+    "message": "Temperature",
+    "description": "Temperature label"
+  },
+  "temperatureHelp": {
+    "message": "Controls randomness (0.0-2.0, lower = more focused)",
+    "description": "Temperature help text"
+  },
+  "maxTokens": {
+    "message": "Max Tokens",
+    "description": "Max tokens label"
+  },
+  "maxTokensHelp": {
+    "message": "Maximum tokens in the response",
+    "description": "Max tokens help text"
+  },
+  "description": {
+    "message": "Description",
+    "description": "Description label"
+  },
+  "optionalDescription": {
+    "message": "Optional description for this profile",
+    "description": "Description placeholder"
+  },
+  "optionalDescriptionHelp": {
+    "message": "Optional description to help identify this profile",
+    "description": "Description help text"
+  },
+  "setAsDefaultProfile": {
+    "message": "Set as default profile",
+    "description": "Set as default checkbox label"
+  },
+  "defaultProfileHelp": {
+    "message": "This profile will be selected by default for new tasks",
+    "description": "Default profile help text"
+  },
+  "loading": {
+    "message": "Loading...",
+    "description": "Loading text"
+  },
+  "selectModel": {
+    "message": "Select a model",
+    "description": "Select model placeholder"
+  },
+  "failedToLoadModels": {
+    "message": "Failed to load models",
+    "description": "Failed to load models error"
+  },
+  "modelType": {
+    "message": "Model Type",
+    "description": "Model type label"
+  },
+  "voiceModel": {
+    "message": "Voice Model",
+    "description": "Voice model label"
+  },
+  "modelParameters": {
+    "message": "Model Parameters (JSON)",
+    "description": "Model parameters label"
+  },
+  "modelParametersHelp": {
+    "message": "Optional JSON configuration for model-specific parameters",
+    "description": "Model parameters help text"
+  },
+  "active": {
+    "message": "Active",
+    "description": "Active status/label"
+  },
+  "activeProfileHelp": {
+    "message": "Whether this voice profile is active and available for use",
+    "description": "Active checkbox help"
+  },
+  "displayName": {
+    "message": "Display Name",
+    "description": "Display name label"
+  },
+  "serverName": {
+    "message": "Server Name",
+    "description": "Server name label"
+  },
+  "serverParameters": {
+    "message": "Server Parameters (JSON)",
+    "description": "Server parameters label"
+  },
+  "saving": {
+    "message": "Saving...",
+    "description": "Saving button text"
+  },
+  "saveProfile": {
+    "message": "Save Profile",
+    "description": "Save profile button text"
+  },
+  "validJson": {
+    "message": "✓ Valid JSON configuration",
+    "description": "Valid JSON feedback"
+  },
+  "invalidJson": {
+    "message": "✗ Invalid JSON: ",
+    "description": "Invalid JSON prefix"
+  },
+  "deleting": {
+    "message": "Deleting",
+    "description": "Deleting action prefix"
+  },
+  "deletedSuccessfully": {
+    "message": "deleted successfully",
+    "description": "Deleted successfully message"
+  },
+  "profileNotFound": {
+    "message": " profile not found. Please check if it still exists.",
+    "description": "Profile not found error"
+  },
+  "createdUpdatedSuccessfully": {
+    "message": " profile $1 successfully",
+    "description": "Profile created/updated notification",
+    "placeholders": {
+      "action": {
+        "content": "$1",
+        "example": "created"
+      }
+    }
+  },
+  "created": {
+    "message": "created",
+    "description": "Created action"
+  },
+  "updated": {
+    "message": "updated",
+    "description": "Updated action"
+  },
+  "noLLMProfiles": {
+    "message": "No LLM Profiles",
+    "description": "No LLM profiles empty state title"
+  },
+  "createFirstLLMProfile": {
+    "message": "Create your first LLM profile to get started",
+    "description": "No LLM profiles empty state description"
+  },
+  "default": {
+    "message": "Default",
+    "description": "Default badge"
+  },
+  "editProfile": {
+    "message": "Edit Profile",
+    "description": "Edit profile button tooltip"
+  },
+  "deleteProfile": {
+    "message": "Delete Profile",
+    "description": "Delete profile button tooltip"
+  },
+  "base_url": {
+    "message": "Base URL",
+    "description": "Base URL detail label"
+  },
+  "temperature_detail": {
+    "message": "Temperature",
+    "description": "Temperature detail label"
+  },
+  "max_tokens_detail": {
+    "message": "Max Tokens",
+    "description": "Max Tokens detail label"
+  },
+  "command": {
+    "message": "Command",
+    "description": "Command label"
+  },
+  "args": {
+    "message": "Args",
+    "description": "Args label"
+  },
+  "modelDetail": {
+    "message": "Model",
+    "description": "Model detail label"
+  },
+  "typeDetail": {
+    "message": "Type",
+    "description": "Type detail label"
+  },
+  "parameters": {
+    "message": "Parameters",
+    "description": "Parameters label"
+  },
+  "customSettings": {
+    "message": "custom settings",
+    "description": "Custom settings text"
+  },
+  "noMCPProfiles": {
+    "message": "No MCP Profiles",
+    "description": "No MCP profiles empty state title"
+  },
+  "createFirstMCPProfile": {
+    "message": "Create your first MCP profile to enable server integrations",
+    "description": "No MCP profiles empty state description"
+  },
+  "inactive": {
+    "message": "Inactive",
+    "description": "Inactive status"
+  },
+  "noVoiceProfiles": {
+    "message": "No Voice Profiles",
+    "description": "No voice profiles empty state title"
+  },
+  "createFirstVoiceProfile": {
+    "message": "Create your first voice profile to enable speech features",
+    "description": "No voice profiles empty state description"
+  },
+  "onlyLLMProfileError": {
+    "message": "This is the only LLM profile configured. You cannot delete it without having at least one other profile.",
+    "description": "Only profile error message"
+  },
+  "onlyLLMProfileErrorDetails": {
+    "message": "Please create another LLM profile first, then you can delete this one.",
+    "description": "Only profile error details"
+  },
+  "createNewProfile": {
+    "message": "Create New Profile",
+    "description": "Create new profile button"
+  },
+  "updatingDefaultProfile": {
+    "message": "Updating default profile...",
+    "description": "Updating default profile loading message"
+  },
+  "deletingProfile": {
+    "message": "Deleting profile...",
+    "description": "Deleting profile loading message"
+  },
+  "profileDeletedSetDefault": {
+    "message": "Profile \"$1\" deleted and \"$2\" set as default",
+    "description": "Profile deleted and new default set notification",
+    "placeholders": {
+      "deleted": {
+        "content": "$1",
+        "example": "old-profile"
+      },
+      "newDefault": {
+        "content": "$2",
+        "example": "new-profile"
+      }
+    }
+  },
+  "failedToUpdateProfiles": {
+    "message": "Failed to update profiles",
+    "description": "Failed to update profiles error"
+  },
+  "chooseVoiceModelType": {
+    "message": "Choose the type of voice model",
+    "description": "Voice model type help text"
+  },
+  "chooseYourVoiceModel": {
+    "message": "Choose your voice model",
+    "description": "Voice model help text"
+  },
+  "voiceProviderApiKeyAuth": {
+    "message": "Your voice provider's API key for authentication",
+    "description": "Voice API key help text"
+  },
+  "enterJsonModelParams": {
+    "message": "Enter JSON configuration for model parameters (optional)",
+    "description": "Model parameters placeholder"
+  },
+  "enterFriendlyName": {
+    "message": "Enter a friendly name for this MCP profile",
+    "description": "Display name placeholder"
+  },
+  "userFriendlyNameMcp": {
+    "message": "A user-friendly name for this MCP configuration",
+    "description": "Display name help text"
+  },
+  "serverNamePlaceholder": {
+    "message": "e.g., filesystem, markitdown, brave-search",
+    "description": "Server name placeholder"
+  },
+  "mcpServerIdentifier": {
+    "message": "The MCP server identifier",
+    "description": "Server name help text"
+  },
+  "enterJsonMcpParams": {
+    "message": "Enter JSON configuration for MCP server parameters",
+    "description": "MCP params placeholder"
+  },
+  "mcpParamsHelp": {
+    "message": "JSON configuration including command and arguments. Example:",
+    "description": "MCP params help text"
+  },
+  "optionalDescriptionMcp": {
+    "message": "Optional description for this MCP profile",
+    "description": "MCP description placeholder"
+  },
+  "activeMcpProfileHelp": {
+    "message": "Whether this MCP profile is active and available for use",
+    "description": "Active MCP profile help text"
+  },
+  "failedToLoadModelsForType": {
+    "message": "Failed to load models for $1. Please try again.",
+    "description": "Failed to load models for type error",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "asr"
+      }
+    }
+  },
+  "loadingProviderModels": {
+    "message": "Loading $1 models...",
+    "description": "Loading models placeholder",
+    "placeholders": {
+      "provider": {
+        "content": "$1",
+        "example": "openai"
+      }
+    }
+  },
+  "selectProviderModelOrCustom": {
+    "message": "Select a $1 model or type custom model name",
+    "description": "Model input placeholder with provider",
+    "placeholders": {
+      "provider": {
+        "content": "$1",
+        "example": "openai"
+      }
+    }
+  },
+  "enterProviderModelManually": {
+    "message": "Enter $1 model name manually",
+    "description": "Enter model manually placeholder",
+    "placeholders": {
+      "provider": {
+        "content": "$1",
+        "example": "openai"
+      }
+    }
+  },
+  "failedToLoadModelsManually": {
+    "message": "Failed to load models for $1. You can enter the model name manually.",
+    "description": "Failed to load models warning",
+    "placeholders": {
+      "provider": {
+        "content": "$1",
+        "example": "openai"
+      }
+    }
+  },
+  "validJsonMcp": {
+    "message": "✓ Valid JSON configuration",
+    "description": "Valid JSON MCP feedback"
+  },
+  "invalidJsonMcp": {
+    "message": "MCP server parameters must be a JSON object",
+    "description": "Invalid JSON MCP error"
+  },
+  "missingInvalidCommand": {
+    "message": "Missing or invalid \"command\" field (must be a string)",
+    "description": "Invalid command field error"
+  },
+  "argsMustBeArray": {
+    "message": "\"args\" field must be an array if provided",
+    "description": "Invalid args field error"
+  },
+  "invalidJsonVoice": {
+    "message": "Voice meta parameters must be a JSON object",
+    "description": "Invalid JSON voice error"
+  },
+  "failedToDelete": {
+    "message": "Failed to delete $1 profile",
+    "description": "Failed to delete profile error",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "llm"
+      }
+    }
+  },
+  "profile": {
+    "message": "profile",
+    "description": "Profile label (lowercase)"
+  },
+  "failedToLoadSettings": {
+    "message": "Failed to load settings data",
+    "description": "Failed to load settings error"
+  },
+  "latestNews": {
+    "message": "Latest News",
+    "description": "Latest news subtitle"
+  },
+  "refresh": {
+    "message": "Refresh",
+    "description": "Refresh button tooltip"
+  },
+  "noTitle": {
+    "message": "No Title",
+    "description": "No title placeholder"
+  },
+  "justNow": {
+    "message": "Just now",
+    "description": "Time ago: just now"
+  },
+  "minutesAgo": {
+    "message": "$1 minutes ago",
+    "description": "Time ago: minutes",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "hoursAgo": {
+    "message": "$1 hours ago",
+    "description": "Time ago: hours",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "daysAgo": {
+    "message": "$1 days ago",
+    "description": "Time ago: days",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "monthDay": {
+    "message": "$1/$2",
+    "description": "Date format month/day",
+    "placeholders": {
+      "month": {
+        "content": "$1",
+        "example": "12"
+      },
+      "day": {
+        "content": "$2",
+        "example": "25"
+      }
+    }
+  },
+  "loadingNews": {
+    "message": "Loading news...",
+    "description": "Loading news text"
+  },
+  "noNewsData": {
+    "message": "No news data available",
+    "description": "No news data empty state"
+  },
+  "loadingFailedRetry": {
+    "message": "Loading failed, please try again later",
+    "description": "Loading failed error message"
+  },
+  "popupDescription": {
+    "message": "AI-powered browsing automation at your fingertips",
+    "description": "Popup window description"
+  },
+  "openSidePanel": {
+    "message": "Open Side Panel",
+    "description": "Open side panel button"
+  },
+  "ready": {
+    "message": "Ready",
+    "description": "Status: ready"
+  },
+  "error": {
+    "message": "Error",
+    "description": "Status: error"
+  },
+  "connected": {
+    "message": "Connected",
+    "description": "Status: connected"
+  },
+  "disconnected": {
+    "message": "Disconnected",
+    "description": "Status: disconnected"
+  },
+  "microphonePermissionRequired": {
+    "message": "Microphone Permission Required",
+    "description": "Microphone permission title"
+  },
+  "microphonePermissionDescription": {
+    "message": "VibeSurf needs access to your microphone to enable voice input. This permission is used only when you click the microphone button.",
+    "description": "Microphone permission description"
+  },
+  "allowMicrophone": {
+    "message": "Allow Microphone",
+    "description": "Allow microphone button"
+  },
+  "deny": {
+    "message": "Deny",
+    "description": "Deny button"
+  },
+
+  "addToSkill": {
+    "message": "Add to Skill",
+    "description": "Add to Skill button label"
+  },
+  "flowId": {
+    "message": "Flow ID",
+    "description": "Flow ID label"
+  },
+  "copyFlowId": {
+    "message": "Copy Flow ID",
+    "description": "Copy Flow ID button tooltip"
+  },
+  "clickToCopy": {
+    "message": "Click to copy",
+    "description": "Click to copy tooltip"
+  },
+  "runWorkflow": {
+    "message": "Run",
+    "description": "Run workflow button"
+  },
+  "download": {
+    "message": "Download",
+    "description": "Download button"
+  },
+  "createFirstWorkflowHelp": {
+    "message": "Create your first workflow to get started and unlock the power of automated workflows.",
+    "description": "Empty state help for workflows"
+  },
+  "configureApiKeyMessage": {
+    "message": "Please configure your Composio API key to continue",
+    "description": "API key required message"
+  },
+  "clearSelection": {
+    "message": "Clear selection",
+    "description": "Clear selection button tooltip"
+  },
+  "composioApiKeyLabel": {
+    "message": "Composio API Key",
+    "description": "Composio API key label"
+  },
+  "projectSettingsApiKeys": {
+    "message": "(Project Settings → API Keys)",
+    "description": "Project settings API keys path"
+  },
+  "workflowNameHelp": {
+    "message": "Choose a descriptive name for your workflow",
+    "description": "Workflow name help text"
+  },
+  "descriptionOptional": {
+    "message": "Description (Optional)",
+    "description": "Optional description label"
+  },
+  "workflowNameRequired": {
+    "message": "Workflow Name *",
+    "description": "Workflow name required label"
+  },
+  "describeWorkflow": {
+    "message": "Describe what this workflow does",
+    "description": "Workflow description placeholder"
+  },
+
+  "recording": {
+    "message": "Recording",
+    "description": "Recording label"
+  },
+  "startRecording": {
+    "message": "Start Recording",
+    "description": "Start Recording button label"
+  },
+  "recordedSteps": {
+    "message": "Recorded Steps",
+    "description": "Recorded Steps section header"
+  },
+  "clickStartRecordingToBegin": {
+    "message": "Click \"Start Recording\" to begin",
+    "description": "Message when no steps recorded"
+  },
+  "noStepsRecordedYet": {
+    "message": "No steps recorded yet",
+    "description": "Empty state message for steps"
+  },
+  "inputSchema": {
+    "message": "Input Schema",
+    "description": "Input Schema modal title"
+  },
+  "workflow": {
+    "message": "Workflow",
+    "description": "Workflow label"
+  },
+  "save": {
+    "message": "Save",
+    "description": "Save button"
+  },
+  "exposeInput": {
+    "message": "Expose Input",
+    "description": "Expose Input column header"
+  },
+  "fieldName": {
+    "message": "Field Name",
+    "description": "Field Name column header"
+  },
+  "currentValue": {
+    "message": "Current Value",
+    "description": "Current Value column header"
+  },
+  "required": {
+    "message": "required",
+    "description": "Required badge text"
+  },
+  "useMainSession": {
+    "message": "Use the main browser session",
+    "description": "Use Main Session field label"
+  },
+  "browserTabId": {
+    "message": "Browser tab id",
+    "description": "Browser tab id field label"
+  },
+  "targetId": {
+    "message": "Target ID",
+    "description": "Target ID field label"
+  },
+  "noExposableInputs": {
+    "message": "No exposable inputs found in this workflow.",
+    "description": "Empty state for input schema"
+  },
+
+  "selectLlmProfile": {
+    "message": "Select LLM Profile...",
+    "description": "LLM profile select placeholder"
+  },
+  "noLlmProfilesConfigured": {
+    "message": "No LLM profiles configured - Go to Settings",
+    "description": "No LLM profiles message"
+  }
+}

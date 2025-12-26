@@ -152,7 +152,7 @@ class VibeSurfSettingsIntegrations {
       console.error('[SettingsIntegrations] Failed to load integrations data:', error);
       this.hideIntegrationsLoading();
       this.emit('notification', {
-        message: 'Failed to load integrations data',
+        message: window.i18n.getMessage('failedToLoadIntegrations'),
         type: 'error'
       });
     }
@@ -199,8 +199,8 @@ class VibeSurfSettingsIntegrations {
         <div class="status-item info">
           <div class="status-icon loading-spinner">⟳</div>
           <div class="status-content">
-            <div class="status-title">Checking Connection</div>
-            <div class="status-description">Verifying Composio integration status...</div>
+            <div class="status-title">${window.i18n.getMessage('checkingConnection')}</div>
+            <div class="status-description">${window.i18n.getMessage('verifyingComposioStatus')}</div>
           </div>
         </div>
       `;
@@ -231,11 +231,11 @@ class VibeSurfSettingsIntegrations {
         <div class="status-item success">
           <div class="status-icon">✓</div>
           <div class="status-content">
-            <div class="status-title">Composio Connected</div>
-            <div class="status-description">API key is valid and ready to use</div>
+            <div class="status-title">${window.i18n.getMessage('composioConnected')}</div>
+            <div class="status-description">${window.i18n.getMessage('apiKeyValidAndReady')}</div>
           </div>
           <button id="update-api-key-btn" class="btn btn-secondary btn-sm">
-            Update Key
+            ${window.i18n.getMessage('updateKey')}
           </button>
         </div>
       `;
@@ -246,11 +246,11 @@ class VibeSurfSettingsIntegrations {
         updateBtn.addEventListener('click', this.handleSetupApiKey.bind(this));
       }
     }
-    
+
     if (this.elements.apiKeySetup) {
       this.elements.apiKeySetup.style.display = 'none';
     }
-    
+
     if (this.elements.toolkitsSection) {
       this.elements.toolkitsSection.classList.remove('hidden');
       this.elements.toolkitsSection.style.display = 'block';
@@ -258,6 +258,16 @@ class VibeSurfSettingsIntegrations {
     } else {
       console.error('[SettingsIntegrations] toolkitsSection element not found!');
     }
+
+    // Re-translate the integrations tab content after rendering
+    setTimeout(() => {
+      if (typeof window.i18n !== 'undefined') {
+        const integrationsTab = document.getElementById('integrations-tab');
+        if (integrationsTab) {
+          window.i18n.translatePage(integrationsTab);
+        }
+      }
+    }, 10);
   }
 
   // Handle API key setup button click
@@ -316,43 +326,43 @@ class VibeSurfSettingsIntegrations {
     const apiKey = this.elements.composioApiKeyInput?.value?.trim();
     
     if (!apiKey) {
-      this.showApiKeyValidation('Please enter an API key', 'error');
+      this.showApiKeyValidation(window.i18n.getMessage('pleaseEnterApiKey'), 'error');
       return;
     }
 
     try {
-      this.showApiKeyValidation('Validating API key...', 'info');
+      this.showApiKeyValidation(window.i18n.getMessage('validatingApiKey'), 'info');
       
       const response = await this.apiClient.verifyComposioKey(apiKey);
       
       if (response.valid) {
-        this.showApiKeyValidation('API key is valid!', 'success');
-        
+        this.showApiKeyValidation(window.i18n.getMessage('apiKeyValid'), 'success');
+
         // Update state
         this.state.composioKeyValid = true;
         this.state.composioApiKey = '***';
-        
+
         // Show integrations content and load toolkits
         this.showIntegrationsContent();
         await this.loadToolkits(false);
-        
+
         // Close modal after short delay
         setTimeout(() => {
           this.hideApiKeyModal();
         }, 1000);
-        
+
         this.emit('notification', {
-          message: 'Composio API key validated and saved successfully',
+          message: window.i18n.getMessage('apiKeyValidatedAndSaved'),
           type: 'success'
         });
-        
+
       } else {
-        this.showApiKeyValidation('Invalid API key. Please check and try again.', 'error');
+        this.showApiKeyValidation(window.i18n.getMessage('invalidApiKey'), 'error');
       }
-      
+
     } catch (error) {
       console.error('[SettingsIntegrations] Failed to verify API key:', error);
-      this.showApiKeyValidation(`Failed to verify API key: ${error.message}`, 'error');
+      this.showApiKeyValidation(`${window.i18n.getMessage('failedToVerifyApiKey')}: ${error.message}`, 'error');
     }
   }
 
@@ -438,7 +448,7 @@ class VibeSurfSettingsIntegrations {
       
       if (forceSync && response.synced_count > 0) {
         this.emit('notification', {
-          message: `Synced ${response.synced_count} new toolkits from Composio`,
+          message: window.i18n.getMessage('syncedToolkitsFromComposio', [response.synced_count.toString()]),
           type: 'success'
         });
       }
@@ -450,7 +460,7 @@ class VibeSurfSettingsIntegrations {
       this.renderToolkits();
       
       this.emit('notification', {
-        message: 'Failed to load Composio toolkits',
+        message: window.i18n.getMessage('failedToLoadComposioToolkits'),
         type: 'error'
       });
     } finally {
@@ -520,9 +530,9 @@ class VibeSurfSettingsIntegrations {
       this.elements.toolkitsList.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">🔧</div>
-          <div class="empty-state-title">${isEmpty ? 'No Toolkits Available' : 'No Matching Toolkits'}</div>
+          <div class="empty-state-title">${isEmpty ? window.i18n.getMessage('noToolkitsAvailable') : window.i18n.getMessage('noMatchingToolkits')}</div>
           <div class="empty-state-description">
-            ${isEmpty ? 'No toolkits are available at the moment.' : 'Try adjusting your search or filter criteria.'}
+            ${isEmpty ? window.i18n.getMessage('noToolkitsAvailableDesc') : window.i18n.getMessage('noMatchingToolkitsDesc')}
           </div>
         </div>
       `;
@@ -557,10 +567,10 @@ class VibeSurfSettingsIntegrations {
               <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2"/>
               <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2"/>
             </svg>
-            Manage Tools
+            ${window.i18n.getMessage('manageTools')}
           </button>
           <div class="toolkit-status ${toolkit.connected ? 'connected' : 'disconnected'}">
-            ${toolkit.connected ? 'Connected' : 'Not Connected'}
+            ${toolkit.connected ? window.i18n.getMessage('connected') : window.i18n.getMessage('notConnected')}
           </div>
         </div>
       </div>
@@ -569,10 +579,19 @@ class VibeSurfSettingsIntegrations {
     console.log('[SettingsIntegrations] Setting toolkits HTML, length:', toolkitsHTML.length);
     this.elements.toolkitsList.innerHTML = toolkitsHTML;
     console.log('[SettingsIntegrations] HTML set successfully');
-    
+
     // Bind event listeners for toolkit interactions
     this.bindToolkitEvents();
     console.log('[SettingsIntegrations] Event binding completed');
+  }
+
+  /**
+   * Re-render all toolkits with current language
+   * This should be called when language changes to update dynamically rendered content
+   */
+  rerenderAllToolkits() {
+    console.log('[SettingsIntegrations] Re-rendering all toolkits for language change');
+    this.renderToolkits();
   }
 
   // Bind toolkit event listeners
@@ -637,18 +656,18 @@ class VibeSurfSettingsIntegrations {
       this.filterToolkits();
       
       this.emit('notification', {
-        message: `Toolkit ${toolkit?.name || toolkitSlug} ${isEnabled ? 'enabled' : 'disabled'}`,
+        message: window.i18n.getMessage('toolkitEnabledDisabled', [toolkit?.name || toolkitSlug, isEnabled ? window.i18n.getMessage('enabled') : window.i18n.getMessage('disabled')]),
         type: 'success'
       });
-      
+
     } catch (error) {
       console.error('[SettingsIntegrations] Failed to toggle toolkit:', error);
-      
+
       // Revert checkbox state
       checkbox.checked = !isEnabled;
-      
+
       this.emit('notification', {
-        message: `Failed to ${isEnabled ? 'enable' : 'disable'} toolkit: ${error.message}`,
+        message: `${window.i18n.getMessage(isEnabled ? 'enable' : 'disable')} ${window.i18n.getMessage('toolkit')}: ${error.message}`,
         type: 'error'
       });
     }
@@ -673,7 +692,7 @@ class VibeSurfSettingsIntegrations {
     } catch (error) {
       console.error('[SettingsIntegrations] Failed to handle OAuth flow:', error);
       this.emit('notification', {
-        message: 'Failed to start OAuth flow',
+        message: window.i18n.getMessage('failedToStartOAuth'),
         type: 'error'
       });
     }
@@ -721,20 +740,20 @@ class VibeSurfSettingsIntegrations {
         await this.loadToolkits();
         
         this.emit('notification', {
-          message: `${stateToolkit?.name || this.state.currentToolkit} connected successfully!`,
+          message: window.i18n.getMessage('connectedSuccessfully', [stateToolkit?.name || this.state.currentToolkit]),
           type: 'success'
         });
       } else {
         this.emit('notification', {
-          message: 'OAuth connection not detected. Please try again.',
+          message: window.i18n.getMessage('oauthConnectionNotDetected'),
           type: 'warning'
         });
       }
-      
+
     } catch (error) {
       console.error('[SettingsIntegrations] Failed to check OAuth completion:', error);
       this.emit('notification', {
-        message: 'Failed to verify OAuth connection',
+        message: window.i18n.getMessage('failedToVerifyOAuth'),
         type: 'error'
       });
     } finally {
@@ -749,16 +768,16 @@ class VibeSurfSettingsIntegrations {
     try {
       const toolkit = this.state.toolkits.find(t => t.slug === toolkitSlug);
       if (!toolkit) {
-        throw new Error('Toolkit not found');
+        throw new Error(window.i18n.getMessage('toolkitNotFound'));
       }
-      
+
       this.showToolsModal(toolkit);
       await this.loadToolkitTools(toolkitSlug);
-      
+
     } catch (error) {
       console.error('[SettingsIntegrations] Failed to manage tools:', error);
       this.emit('notification', {
-        message: 'Failed to load toolkit tools',
+        message: window.i18n.getMessage('failedToLoadToolkitTools'),
         type: 'error'
       });
     }
@@ -767,10 +786,10 @@ class VibeSurfSettingsIntegrations {
   // Show tools management modal
   showToolsModal(toolkit) {
     if (!this.elements.toolsManagementModal) return;
-    
+
     // Update modal title and info
     if (this.elements.toolsModalTitle) {
-      this.elements.toolsModalTitle.textContent = `Manage ${toolkit.name} Tools`;
+      this.elements.toolsModalTitle.textContent = `${window.i18n.getMessage('manageTools')} ${toolkit.name}`;
     }
     
     if (this.elements.toolkitLogo) {
@@ -812,8 +831,8 @@ class VibeSurfSettingsIntegrations {
       this.elements.toolsList.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">⚠</div>
-          <div class="empty-state-title">Failed to Load Tools</div>
-          <div class="empty-state-description">Unable to fetch tools for this toolkit.</div>
+          <div class="empty-state-title">${window.i18n.getMessage('failedToLoadTools')}</div>
+          <div class="empty-state-description">${window.i18n.getMessage('unableToFetchTools')}</div>
         </div>
       `;
     } finally {
@@ -829,8 +848,8 @@ class VibeSurfSettingsIntegrations {
       this.elements.toolsList.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">🔧</div>
-          <div class="empty-state-title">No Tools Available</div>
-          <div class="empty-state-description">This toolkit has no tools available.</div>
+          <div class="empty-state-title">${window.i18n.getMessage('noToolsAvailable')}</div>
+          <div class="empty-state-description">${window.i18n.getMessage('noToolsAvailableDesc')}</div>
         </div>
       `;
       return;
@@ -842,8 +861,8 @@ class VibeSurfSettingsIntegrations {
           <div class="tool-cell tool-checkbox">
             <input type="checkbox" id="select-all-tools-checkbox">
           </div>
-          <div class="tool-cell tool-name">Tool Name</div>
-          <div class="tool-cell tool-description">Description</div>
+          <div class="tool-cell tool-name">${window.i18n.getMessage('toolName')}</div>
+          <div class="tool-cell tool-description">${window.i18n.getMessage('description')}</div>
         </div>
         <div class="tools-body">
           ${tools.map(tool => `
@@ -854,7 +873,7 @@ class VibeSurfSettingsIntegrations {
                        ${tool.enabled ? 'checked' : ''}>
               </div>
               <div class="tool-cell tool-name">${this.escapeHtml(tool.name)}</div>
-              <div class="tool-cell tool-description">${this.escapeHtml(tool.description || 'No description available')}</div>
+              <div class="tool-cell tool-description">${this.escapeHtml(tool.description || window.i18n.getMessage('noDescriptionAvailable'))}</div>
             </div>
           `).join('')}
         </div>
@@ -928,17 +947,17 @@ class VibeSurfSettingsIntegrations {
       console.log(`[SettingsIntegrations] Save response:`, response);
       
       this.emit('notification', {
-        message: 'Tools configuration saved successfully',
+        message: window.i18n.getMessage('toolsConfigSavedSuccessfully'),
         type: 'success'
       });
-      
+
       // Close modal
       this.hideToolsModal();
-      
+
     } catch (error) {
       console.error('[SettingsIntegrations] Failed to save tools:', error);
       this.emit('notification', {
-        message: `Failed to save tools configuration: ${error.message}`,
+        message: `${window.i18n.getMessage('failedToSaveToolsConfig')}: ${error.message}`,
         type: 'error'
       });
     }
