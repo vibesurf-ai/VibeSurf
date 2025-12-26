@@ -86,7 +86,7 @@
   },
 
   "inputPlaceholder": {
-    "message": "输入任何内容（/ 使用技能，@ 指定标签页）",
+    "message": "输入任何内容（/ 使用技能，@ 指定标签页，@flow指定工作流）",
     "description": "主输入框的占位符文本"
   },
   "voiceInput": {

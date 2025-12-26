@@ -86,7 +86,7 @@
   },
 
   "inputPlaceholder": {
-    "message": "Ask anything (/ for skills, @ to specify tab)",
+    "message": "Ask anything (/ for skills, @ to specify tab, @flow to specify workflow)",
     "description": "Placeholder text for the main input"
   },
   "voiceInput": {

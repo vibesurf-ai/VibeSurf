@@ -8,8 +8,11 @@
   --accent-color: #28a745;
   --danger-color: #dc3545;
   --warning-color: #ffc107;
+  --success-color: #28a745;
+  --error-color: #dc3545;
   --text-primary: #1a1a1a;
   --text-secondary: #6c757d;
+  --text-color: #1a1a1a;
   --text-muted: #9ca3af;
   --border-color: #e5e7eb;
   --border-hover: #d1d5db;
@@ -18,6 +21,8 @@
   --bg-tertiary: #f1f3f4;
   --bg-hover: #f5f5f5;
   --bg-active: #e8f4fd;
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -63,8 +68,11 @@
   --accent-color: #66bb6a;
   --danger-color: #ef5350;
   --warning-color: #ffca28;
+  --success-color: #66bb6a;
+  --error-color: #ef5350;
   --text-primary: #ffffff;
   --text-secondary: #b0b0b0;
+  --text-color: #ffffff;
   --text-muted: #808080;
   --border-color: #404040;
   --border-hover: #505050;
@@ -73,6 +81,8 @@
   --bg-tertiary: #3a3a3a;
   --bg-hover: #404040;
   --bg-active: #2a3f5f;
+  --card-bg: #2a2a2a;
+  --input-bg: #2a2a2a;
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
@@ -88,8 +98,11 @@
     --accent-color: #66bb6a;
     --danger-color: #ef5350;
     --warning-color: #ffca28;
+    --success-color: #66bb6a;
+    --error-color: #ef5350;
     --text-primary: #ffffff;
     --text-secondary: #b0b0b0;
+    --text-color: #ffffff;
     --text-muted: #808080;
     --border-color: #404040;
     --border-hover: #505050;
@@ -98,6 +111,8 @@
     --bg-tertiary: #3a3a3a;
     --bg-hover: #404040;
     --bg-active: #2a3f5f;
+    --card-bg: #2a2a2a;
+    --input-bg: #2a2a2a;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
