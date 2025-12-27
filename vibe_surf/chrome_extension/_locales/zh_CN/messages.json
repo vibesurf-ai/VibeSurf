@@ -735,40 +735,40 @@
   },
 
   "scheduleWorkflow": {
-    "message": "计划工作流",
-    "description": "计划工作流模态框标题"
+    "message": "定时任务",
+    "description": "定时任务模态框标题"
   },
   "workflowName": {
     "message": "工作流名称",
     "description": "工作流名称标签"
   },
   "scheduleConfiguration": {
-    "message": "计划配置",
-    "description": "计划配置部分"
+    "message": "定时配置",
+    "description": "定时配置部分"
   },
   "scheduleType": {
-    "message": "计划类型",
-    "description": "计划类型标签"
+    "message": "定时类型",
+    "description": "定时类型标签"
   },
   "scheduleTypeDaily": {
     "message": "每天",
-    "description": "计划类型：每天"
+    "description": "定时类型：每天"
   },
   "scheduleTypeEveryXMinutes": {
     "message": "每 X 分钟",
-    "description": "计划类型：每 X 分钟"
+    "description": "定时类型：每 X 分钟"
   },
   "scheduleTypeEveryXHours": {
     "message": "每 X 小时",
-    "description": "计划类型：每 X 小时"
+    "description": "定时类型：每 X 小时"
   },
   "scheduleTypeWeekly": {
     "message": "每周",
-    "description": "计划类型：每周"
+    "description": "定时类型：每周"
   },
   "scheduleTypeMonthly": {
     "message": "每月",
-    "description": "计划类型：每月"
+    "description": "定时类型：每月"
   },
   "minuteInterval": {
     "message": "分钟间隔",
@@ -815,24 +815,80 @@
     "description": "月份日期帮助文本"
   },
   "enableSchedule": {
-    "message": "启用计划",
-    "description": "启用计划复选框标签"
+    "message": "启用定时",
+    "description": "启用定时复选框标签"
   },
   "enableScheduleHelp": {
-    "message": "取消选中可禁用计划而不删除它",
-    "description": "启用计划帮助文本"
+    "message": "取消选中可禁用定时任务而不删除它",
+    "description": "启用定时帮助文本"
   },
   "scheduleDescription": {
-    "message": "计划描述（可选）",
-    "description": "计划描述标签"
+    "message": "定时描述（可选）",
+    "description": "定时描述标签"
   },
   "scheduleDescriptionPlaceholder": {
     "message": "例如：每日数据同步、每周报告生成",
-    "description": "计划描述占位符"
+    "description": "定时描述占位符"
   },
   "saveSchedule": {
-    "message": "保存计划",
-    "description": "保存计划按钮"
+    "message": "保存定时",
+    "description": "保存定时按钮"
+  },
+  "workflowScheduleDisabled": {
+    "message": "定时任务已禁用",
+    "description": "定时任务禁用成功消息"
+  },
+  "workflowScheduleSaved": {
+    "message": "定时任务保存成功",
+    "description": "定时任务保存成功消息"
+  },
+  "scheduleEnabledRequired": {
+    "message": "请启用定时任务",
+    "description": "未启用定时任务时的错误消息"
+  },
+  "noActiveJob": {
+    "message": "无活动任务",
+    "description": "没有活动任务时显示"
+  },
+  "noActiveJobToShowLogs": {
+    "message": "无活动任务可显示日志",
+    "description": "没有活动任务时日志为空的消息"
+  },
+  "completed": {
+    "message": "已完成",
+    "description": "任务完成状态"
+  },
+  "noEventsAvailable": {
+    "message": "暂无可用事件",
+    "description": "日志为空时的标题"
+  },
+  "noEventsDescription": {
+    "message": "事件可能仍在处理中，或者此工作流尚未生成任何日志。",
+    "description": "日志为空时的描述"
+  },
+  "logsCleared": {
+    "message": "日志已清除",
+    "description": "日志清除后的消息"
+  },
+  "failedToLoadLogs": {
+    "message": "加载日志失败：{error}",
+    "description": "加载日志失败的消息",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "网络错误"
+      }
+    }
+  },
+  "failedToRefreshLogs": {
+    "message": "刷新日志失败：{error}",
+    "description": "刷新日志失败的消息",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "网络错误"
+      }
+    }
   },
   "saving": {
     "message": "正在保存...",

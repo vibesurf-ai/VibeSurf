@@ -735,8 +735,8 @@
   },
 
   "scheduleWorkflow": {
-    "message": "Schedule Workflow",
-    "description": "Schedule workflow modal title"
+    "message": "Scheduled Task",
+    "description": "Scheduled task modal title"
   },
   "workflowName": {
     "message": "Workflow Name",
@@ -819,7 +819,7 @@
     "description": "Enable schedule checkbox label"
   },
   "enableScheduleHelp": {
-    "message": "Uncheck to disable the schedule without deleting it",
+    "message": "Uncheck to disable the scheduled task without deleting it",
     "description": "Enable schedule help text"
   },
   "scheduleDescription": {
@@ -833,6 +833,62 @@
   "saveSchedule": {
     "message": "Save Schedule",
     "description": "Save schedule button"
+  },
+  "workflowScheduleDisabled": {
+    "message": "Scheduled task disabled",
+    "description": "Scheduled task disabled success message"
+  },
+  "workflowScheduleSaved": {
+    "message": "Scheduled task saved successfully",
+    "description": "Scheduled task saved success message"
+  },
+  "scheduleEnabledRequired": {
+    "message": "Please enable the schedule",
+    "description": "Error message when schedule is not enabled"
+  },
+  "noActiveJob": {
+    "message": "No active job",
+    "description": "Display when there is no active job"
+  },
+  "noActiveJobToShowLogs": {
+    "message": "No active job to show logs for",
+    "description": "Message when logs are empty due to no active job"
+  },
+  "completed": {
+    "message": "Completed",
+    "description": "Task completion status"
+  },
+  "noEventsAvailable": {
+    "message": "No Events Available",
+    "description": "Title when logs are empty"
+  },
+  "noEventsDescription": {
+    "message": "Events may still be processing or this workflow hasn't generated any logs yet.",
+    "description": "Description when logs are empty"
+  },
+  "logsCleared": {
+    "message": "Logs cleared",
+    "description": "Message after logs are cleared"
+  },
+  "failedToLoadLogs": {
+    "message": "Failed to load logs: {error}",
+    "description": "Error message when logs fail to load",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Network error"
+      }
+    }
+  },
+  "failedToRefreshLogs": {
+    "message": "Failed to refresh logs: {error}",
+    "description": "Error message when logs fail to refresh",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Network error"
+      }
+    }
   },
   "saving": {
     "message": "Saving...",

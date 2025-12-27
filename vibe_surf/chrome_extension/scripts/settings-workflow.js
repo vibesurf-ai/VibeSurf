@@ -1775,18 +1775,18 @@ class VibeSurfSettingsWorkflow {
   // Show logs modal
   showLogsModal() {
     if (!this.elements.workflowLogsModal || !this.state.currentLogsWorkflow) return;
-    
+
     // Update modal title and info
     if (this.elements.logsModalTitle) {
-      this.elements.logsModalTitle.textContent = `Workflow Logs`;
+      this.elements.logsModalTitle.textContent = window.i18n.getMessage('workflowLogs');
     }
-    
+
     if (this.elements.logsWorkflowName) {
       this.elements.logsWorkflowName.textContent = this.state.currentLogsWorkflow.name;
     }
-    
+
     if (this.elements.logsJobId) {
-      this.elements.logsJobId.textContent = this.state.currentLogsJobId || 'No active job';
+      this.elements.logsJobId.textContent = this.state.currentLogsJobId || window.i18n.getMessage('noActiveJob');
     }
     
     // Show modal
@@ -1812,7 +1812,7 @@ class VibeSurfSettingsWorkflow {
       }
       
       if (!jobId) {
-        this.elements.logsContent.innerHTML = '<div class="log-entry info">No active job to show logs for</div>';
+        this.elements.logsContent.innerHTML = `<div class="log-entry info">${window.i18n.getMessage('noActiveJobToShowLogs')}</div>`;
         return;
       }
       
@@ -1862,7 +1862,7 @@ class VibeSurfSettingsWorkflow {
         } else if (cached.isComplete || cached.isPersistent) {
           // Update job info display to show completion status
           if (this.elements.logsJobId) {
-            this.elements.logsJobId.textContent = `${jobId} (Completed)`;
+            this.elements.logsJobId.textContent = `${jobId} (${window.i18n.getMessage('completed')})`;
           }
         }
       } else {
@@ -1906,7 +1906,7 @@ class VibeSurfSettingsWorkflow {
       
     } catch (error) {
       console.error('[SettingsWorkflow] Failed to load workflow logs:', error);
-      this.elements.logsContent.innerHTML = `<div class="log-entry error">Failed to load logs: ${error.message}</div>`;
+      this.elements.logsContent.innerHTML = `<div class="log-entry error">${window.i18n.getMessage('failedToLoadLogs', [error.message])}</div>`;
     } finally {
       if (this.elements.logsLoading) {
         this.elements.logsLoading.style.display = 'none';
@@ -1924,8 +1924,8 @@ class VibeSurfSettingsWorkflow {
       this.elements.logsContent.innerHTML = `
         <div class="log-empty-state">
           <div class="log-empty-icon">📋</div>
-          <div class="log-empty-title">No Events Available</div>
-          <div class="log-empty-description">Events may still be processing or this workflow hasn't generated any logs yet.</div>
+          <div class="log-empty-title">${window.i18n.getMessage('noEventsAvailable')}</div>
+          <div class="log-empty-description">${window.i18n.getMessage('noEventsDescription')}</div>
         </div>
       `;
       return;
@@ -2256,7 +2256,7 @@ class VibeSurfSettingsWorkflow {
       } catch (error) {
         console.error('[SettingsWorkflow] Failed to refresh logs:', error);
         this.emit('notification', {
-          message: `Failed to refresh logs: ${error.message}`,
+          message: window.i18n.getMessage('failedToRefreshLogs', [error.message]),
           type: 'error'
         });
       }
@@ -2266,7 +2266,7 @@ class VibeSurfSettingsWorkflow {
   // Handle logs clear
   handleLogsClear() {
     if (this.elements.logsContent) {
-      this.elements.logsContent.innerHTML = '<div class="log-entry info">Logs cleared</div>';
+      this.elements.logsContent.innerHTML = `<div class="log-entry info">${window.i18n.getMessage('logsCleared')}</div>`;
     }
   }
   
@@ -2285,7 +2285,7 @@ class VibeSurfSettingsWorkflow {
     
     // Update modal title and info
     if (this.elements.scheduleModalTitle) {
-      this.elements.scheduleModalTitle.textContent = 'Schedule Workflow';
+      this.elements.scheduleModalTitle.textContent = window.i18n.getMessage('scheduleWorkflow');
     }
     
     if (this.elements.scheduleWorkflowName) {
@@ -2618,23 +2618,23 @@ class VibeSurfSettingsWorkflow {
       // If schedule is disabled, remove it
       if (!isEnabled && this.state.currentScheduleWorkflow.schedule) {
         await this.apiClient.deleteSchedule(workflowId);
-        
+
         this.emit('notification', {
-          message: 'Workflow schedule disabled',
+          message: window.i18n.getMessage('workflowScheduleDisabled'),
           type: 'success'
         });
       } else if (this.scheduleState.cronExpression && isEnabled) {
         // Add/update schedule with new interface
         const descriptionInput = document.getElementById('schedule-description');
         const description = descriptionInput ? descriptionInput.value.trim() : '';
-        
+
         const scheduleData = {
           flow_id: workflowId,
           cron_expression: this.scheduleState.cronExpression,
           is_enabled: isEnabled,
           description: description
         };
-        
+
         if (this.state.currentScheduleWorkflow.schedule) {
           // Update existing schedule using flow_id
           await this.apiClient.updateSchedule(workflowId, scheduleData);
@@ -2642,15 +2642,15 @@ class VibeSurfSettingsWorkflow {
           // Create new schedule
           await this.apiClient.createSchedule(scheduleData);
         }
-        
+
         this.emit('notification', {
-          message: 'Workflow schedule saved successfully',
+          message: window.i18n.getMessage('workflowScheduleSaved'),
           type: 'success'
         });
       } else if (isEnabled) {
         // Enabled but no valid cron expression
         this.emit('notification', {
-          message: 'Please configure a valid schedule',
+          message: window.i18n.getMessage('scheduleEnabledRequired'),
           type: 'error'
         });
         return;

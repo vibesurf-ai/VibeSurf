@@ -180,6 +180,7 @@
 /* Form select elements - general styling for all dropdowns */
 .form-select {
     width: 100%;
+    max-width: none;
     padding: 10px 12px;
     border: 2px solid var(--border-color);
     border-radius: 8px;
@@ -194,6 +195,7 @@
     background-repeat: no-repeat;
     background-size: 16px;
     padding-right: 40px;
+    box-sizing: border-box;
 }
 
 .form-select:focus {
@@ -1902,6 +1904,7 @@
 /* Enhanced Form Controls */
 .form-input[type="number"] {
     width: 100%;
+    max-width: none;
     padding: 10px 12px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -1909,6 +1912,7 @@
     color: var(--text-color);
     font-size: 14px;
     transition: all 0.3s ease;
+    box-sizing: border-box;
 }
 
 .form-input[type="number"]:focus {
@@ -1919,6 +1923,7 @@
 
 .form-input[type="time"] {
     width: 100%;
+    max-width: none;
     padding: 10px 12px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -1926,6 +1931,7 @@
     color: var(--text-color);
     font-size: 14px;
     transition: all 0.3s ease;
+    box-sizing: border-box;
 }
 
 .form-input[type="time"]:focus {

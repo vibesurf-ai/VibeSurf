@@ -790,36 +790,36 @@
             <div class="modal-body">
                 <div class="schedule-content">
                     <div class="form-group">
-                        <label class="form-label">Workflow Name</label>
+                        <label class="form-label" data-i18n="workflowName">Workflow Name</label>
                         <div id="schedule-workflow-name" class="workflow-name-display"></div>
                     </div>
-                    
+
                     <!-- Schedule Configuration -->
                     <div class="schedule-configuration-section">
-                        <h4>Schedule Configuration</h4>
+                        <h4 data-i18n="scheduleConfiguration">Schedule Configuration</h4>
 
                     <!-- Simplified Schedule Builder -->
                     <div class="schedule-builder">
                         <div class="builder-row">
                             <div class="builder-group">
-                                <label class="form-label">Schedule Type</label>
+                                <label class="form-label" data-i18n="scheduleType">Schedule Type</label>
                                 <select id="schedule-type-select" class="form-select">
-                                    <option value="daily" selected>Daily</option>
-                                    <option value="every-x-minutes">Every X Minutes</option>
-                                    <option value="every-x-hours">Every X Hours</option>
-                                    <option value="weekly">Weekly</option>
-                                    <option value="monthly">Monthly</option>
+                                    <option value="daily" selected data-i18n="scheduleTypeDaily">Daily</option>
+                                    <option value="every-x-minutes" data-i18n="scheduleTypeEveryXMinutes">Every X Minutes</option>
+                                    <option value="every-x-hours" data-i18n="scheduleTypeEveryXHours">Every X Hours</option>
+                                    <option value="weekly" data-i18n="scheduleTypeWeekly">Weekly</option>
+                                    <option value="monthly" data-i18n="scheduleTypeMonthly">Monthly</option>
                                 </select>
                             </div>
                         </div>
-                            
+
                             <!-- Every X Minutes -->
                             <div id="every-x-minutes-options" class="schedule-options hidden">
                                 <div class="builder-row">
                                     <div class="builder-group">
-                                        <label class="form-label">Minute Interval</label>
+                                        <label class="form-label" data-i18n="minuteInterval">Minute Interval</label>
                                         <input type="number" id="minutes-interval" class="form-input" min="1" max="59" value="1">
-                                        <div class="form-help">Every <span id="minutes-label">1</span> minute(s)</div>
+                                        <div class="form-help" data-i18n="everyXMinutes" data-i18n-args="[1]">Every <span id="minutes-label">1</span> minute(s)</div>
                                     </div>
                                 </div>
                             </div>
@@ -828,9 +828,9 @@
                             <div id="every-x-hours-options" class="schedule-options hidden">
                                 <div class="builder-row">
                                     <div class="builder-group">
-                                        <label class="form-label">Hour Interval</label>
+                                        <label class="form-label" data-i18n="hourInterval">Hour Interval</label>
                                         <input type="number" id="hours-interval" class="form-input" min="1" max="23" value="1">
-                                        <div class="form-help">Every <span id="hours-label">1</span> hour(s)</div>
+                                        <div class="form-help" data-i18n="everyXHours" data-i18n-args="[1]">Every <span id="hours-label">1</span> hour(s)</div>
                                     </div>
                                 </div>
                             </div>
@@ -839,7 +839,7 @@
                             <div id="daily-options" class="schedule-options">
                                 <div class="builder-row">
                                     <div class="builder-group">
-                                        <label class="form-label">Time</label>
+                                        <label class="form-label" data-i18n="time">Time</label>
                                         <input type="time" id="daily-time" class="form-input" value="08:00">
                                     </div>
                                 </div>
@@ -849,19 +849,19 @@
                             <div id="weekly-options" class="schedule-options hidden">
                                 <div class="builder-row">
                                     <div class="builder-group">
-                                        <label class="form-label">Day of Week</label>
+                                        <label class="form-label" data-i18n="dayOfWeek">Day of Week</label>
                                         <select id="weekly-day" class="form-select">
-                                            <option value="1">Monday</option>
-                                            <option value="2">Tuesday</option>
-                                            <option value="3">Wednesday</option>
-                                            <option value="4">Thursday</option>
-                                            <option value="5">Friday</option>
-                                            <option value="6">Saturday</option>
-                                            <option value="0">Sunday</option>
+                                            <option value="1" data-i18n="monday">Monday</option>
+                                            <option value="2" data-i18n="tuesday">Tuesday</option>
+                                            <option value="3" data-i18n="wednesday">Wednesday</option>
+                                            <option value="4" data-i18n="thursday">Thursday</option>
+                                            <option value="5" data-i18n="friday">Friday</option>
+                                            <option value="6" data-i18n="saturday">Saturday</option>
+                                            <option value="0" data-i18n="sunday">Sunday</option>
                                         </select>
                                     </div>
                                     <div class="builder-group">
-                                        <label class="form-label">Time</label>
+                                        <label class="form-label" data-i18n="time">Time</label>
                                         <input type="time" id="weekly-time" class="form-input" value="09:00">
                                     </div>
                                 </div>
@@ -871,12 +871,12 @@
                             <div id="monthly-options" class="schedule-options hidden">
                                 <div class="builder-row">
                                     <div class="builder-group">
-                                        <label class="form-label">Day of Month</label>
+                                        <label class="form-label" data-i18n="dayOfMonth">Day of Month</label>
                                         <input type="number" id="monthly-day" class="form-input" min="1" max="31" value="1">
-                                        <div class="form-help">Day 1-31 (use 1 for 1st of month)</div>
+                                        <div class="form-help" data-i18n="dayOfMonthHelp">Day 1-31 (use 1 for 1st of month)</div>
                                     </div>
                                     <div class="builder-group">
-                                        <label class="form-label">Time</label>
+                                        <label class="form-label" data-i18n="time">Time</label>
                                         <input type="time" id="monthly-time" class="form-input" value="09:00">
                                     </div>
                                 </div>
@@ -891,22 +891,22 @@
                         <div class="form-group">
                             <label class="form-label">
                                 <input type="checkbox" id="schedule-enabled" checked>
-                                <span>Enable Schedule</span>
+                                <span data-i18n="enableSchedule">Enable Schedule</span>
                             </label>
-                            <div class="form-help">Uncheck to disable the schedule without deleting it</div>
+                            <div class="form-help" data-i18n="enableScheduleHelp">Uncheck to disable the schedule without deleting it</div>
                         </div>
-                        
+
                         <div class="form-group">
-                            <label class="form-label">Schedule Description (Optional)</label>
-                            <textarea id="schedule-description" class="form-textarea" rows="2" placeholder="e.g., Daily data sync, Weekly report generation"></textarea>
+                            <label class="form-label" data-i18n="scheduleDescription">Schedule Description (Optional)</label>
+                            <textarea id="schedule-description" class="form-textarea" rows="2" data-i18n-placeholder="scheduleDescriptionPlaceholder" placeholder="e.g., Daily data sync, Weekly report generation"></textarea>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="form-btn secondary" id="schedule-cancel">Cancel</button>
+                <button type="button" class="form-btn secondary" id="schedule-cancel" data-i18n="cancel">Cancel</button>
                 <button type="button" class="form-btn primary" id="schedule-save" disabled>
-                    <span class="btn-text">Save Schedule</span>
+                    <span class="btn-text" data-i18n="saveSchedule">Save Schedule</span>
                     <span class="btn-loading hidden">Saving...</span>
                 </button>
             </div>
@@ -918,7 +918,7 @@
         <div class="modal-overlay"></div>
         <div class="modal-content workflow-logs-modal-content">
             <div class="modal-header">
-                <h3 id="logs-modal-title">Workflow Logs</h3>
+                <h3 id="logs-modal-title" data-i18n="workflowLogs">Workflow Logs</h3>
                 <button class="modal-close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -953,13 +953,13 @@
                         </div>
                         <div id="logs-loading" class="logs-loading hidden">
                             <div class="loading-spinner"></div>
-                            <div class="loading-text">Loading logs...</div>
+                            <div class="loading-text" data-i18n="loadingLogs">Loading logs...</div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="form-btn secondary" id="logs-close">Close</button>
+                <button type="button" class="form-btn secondary" id="logs-close" data-i18n="close">Close</button>
             </div>
         </div>
     </div>
