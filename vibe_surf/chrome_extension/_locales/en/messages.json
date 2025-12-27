@@ -2460,5 +2460,57 @@
   "noLlmProfilesConfigured": {
     "message": "No LLM profiles configured - Go to Settings",
     "description": "No LLM profiles message"
+  },
+  "llmProfileRequired": {
+    "message": "LLM Profile Required",
+    "description": "LLM profile required modal title"
+  },
+  "pleaseSelectLlmProfile": {
+    "message": "Please Select LLM Profile",
+    "description": "Please select LLM profile modal title"
+  },
+  "noLlmProfilesConfiguredDesc": {
+    "message": "No LLM profiles are configured. You need to configure at least one LLM profile before sending tasks.",
+    "description": "No LLM profiles configured description"
+  },
+  "pleaseSelectLlmProfileDesc": {
+    "message": "Please select an LLM profile from the dropdown to proceed with your task.",
+    "description": "Please select LLM profile description"
+  },
+  "voiceProfileRequired": {
+    "message": "Voice Profile Required",
+    "description": "Voice profile required modal title"
+  },
+  "pleaseSelectVoiceProfile": {
+    "message": "Please Select Voice Profile",
+    "description": "Please select voice profile modal title"
+  },
+  "noVoiceProfilesConfiguredDesc": {
+    "message": "No voice recognition (ASR) profiles are configured. You need to configure at least one voice profile before using voice input.",
+    "description": "No voice profiles configured description"
+  },
+  "pleaseConfigureVoiceProfileDesc": {
+    "message": "Please configure a voice recognition profile to use voice input functionality.",
+    "description": "Please configure voice profile description"
+  },
+  "openVoiceSettings": {
+    "message": "Open Voice Settings",
+    "description": "Open voice settings button"
+  },
+  "noVoiceRecognitionProfilesConfigured": {
+    "message": "No voice recognition profiles configured. Please set up an ASR profile in Settings > Voice.",
+    "description": "No voice recognition profiles configured message"
+  },
+  "voiceInputDisabledNoAsr": {
+    "message": "Voice input disabled - No ASR profiles configured. Click to configure.",
+    "description": "Voice input disabled tooltip"
+  },
+  "clickToStartVoiceRecording": {
+    "message": "Click to start voice recording",
+    "description": "Voice recording button tooltip"
+  },
+  "openSettings": {
+    "message": "Open Settings",
+    "description": "Open Settings button"
   }
 }

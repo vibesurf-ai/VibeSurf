@@ -2456,5 +2456,57 @@
   "noLlmProfilesConfigured": {
     "message": "未配置 LLM 配置 - 前往设置",
     "description": "无 LLM 配置消息"
+  },
+  "llmProfileRequired": {
+    "message": "需要 LLM 配置",
+    "description": "LLM 配置必需的模态标题"
+  },
+  "pleaseSelectLlmProfile": {
+    "message": "请选择 LLM 配置",
+    "description": "请选择 LLM 配置模态标题"
+  },
+  "noLlmProfilesConfiguredDesc": {
+    "message": "未配置任何 LLM 配置。您需要先配置至少一个 LLM 配置才能发送任务。",
+    "description": "未配置 LLM 配置的描述"
+  },
+  "pleaseSelectLlmProfileDesc": {
+    "message": "请从下拉列表中选择一个 LLM 配置以继续您的任务。",
+    "description": "请选择 LLM 配置的描述"
+  },
+  "voiceProfileRequired": {
+    "message": "需要语音配置",
+    "description": "语音配置必需的模态标题"
+  },
+  "pleaseSelectVoiceProfile": {
+    "message": "请选择语音配置",
+    "description": "请选择语音配置模态标题"
+  },
+  "noVoiceProfilesConfiguredDesc": {
+    "message": "未配置任何语音识别（ASR）配置。您需要先配置至少一个语音配置才能使用语音输入。",
+    "description": "未配置语音配置的描述"
+  },
+  "pleaseConfigureVoiceProfileDesc": {
+    "message": "请配置语音识别配置以使用语音输入功能。",
+    "description": "请配置语音配置的描述"
+  },
+  "openVoiceSettings": {
+    "message": "打开语音设置",
+    "description": "打开语音设置按钮"
+  },
+  "noVoiceRecognitionProfilesConfigured": {
+    "message": "未配置语音识别配置。请在 设置 > 语音 中设置 ASR 配置。",
+    "description": "未配置语音识别配置的消息"
+  },
+  "voiceInputDisabledNoAsr": {
+    "message": "语音输入已禁用 - 未配置 ASR 配置。点击进行配置。",
+    "description": "语音输入已禁用的工具提示"
+  },
+  "clickToStartVoiceRecording": {
+    "message": "点击开始语音录制",
+    "description": "语音录制按钮工具提示"
+  },
+  "openSettings": {
+    "message": "打开设置",
+    "description": "打开设置按钮"
   }
 }
