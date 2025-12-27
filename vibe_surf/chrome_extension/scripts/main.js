@@ -371,7 +371,7 @@ class VibeSurfApp {
             <div class="input-container">
               <div class="input-main">
                 <div class="textarea-container">
-                  <textarea id="task-input" class="task-input" placeholder="Ask anything (/ for skills, @ to specify tab)" rows="3"></textarea>
+                  <textarea id="task-input" class="task-input" data-i18n-placeholder="inputPlaceholder" placeholder="Ask anything (/ for skills, @ to specify tab)" rows="3"></textarea>
                   <div class="input-actions">
                     <button id="attach-file-btn" class="action-btn attach-btn" title="Attach Files">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

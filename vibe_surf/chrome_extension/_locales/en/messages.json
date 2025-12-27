@@ -2512,5 +2512,13 @@
   "openSettings": {
     "message": "Open Settings",
     "description": "Open Settings button"
+  },
+  "taskRunningPlaceholder": {
+    "message": "Task is running - please wait...",
+    "description": "Placeholder when task is running"
+  },
+  "taskPausedPlaceholder": {
+    "message": "Add additional information or guidance...",
+    "description": "Placeholder when task is paused"
   }
 }

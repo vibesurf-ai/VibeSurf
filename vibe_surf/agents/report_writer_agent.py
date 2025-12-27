@@ -330,7 +330,7 @@ Please analyze the task, determine if you need to read any additional files, the
                 model_provider=getattr(self.llm, 'provider', None),
                 duration_seconds=duration,
                 success=False,
-                error_message=str(e)[:200],  # Limit error message length
+                error_message=None,  # Privacy: removed error message
                 report_type='html'
             )
             self.telemetry.capture(error_event)

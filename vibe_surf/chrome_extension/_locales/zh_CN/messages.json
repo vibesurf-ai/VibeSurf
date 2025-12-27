@@ -2508,5 +2508,13 @@
   "openSettings": {
     "message": "打开设置",
     "description": "打开设置按钮"
+  },
+  "taskRunningPlaceholder": {
+    "message": "任务正在运行中，请稍候...",
+    "description": "任务运行时的占位符"
+  },
+  "taskPausedPlaceholder": {
+    "message": "添加更多信息或指导...",
+    "description": "任务暂停时的占位符"
   }
 }

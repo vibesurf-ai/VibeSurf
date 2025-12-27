@@ -315,7 +315,7 @@ class VibeSurfUIManager {
       } else {
         this.elements.voiceRecordBtn.classList.remove('recording');
         this.elements.voiceRecordBtn.setAttribute('title', 'Voice Input');
-        this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Click to start voice recording');
+        this.elements.voiceRecordBtn.setAttribute('data-tooltip', window.i18n?.getMessage('clickToStartVoiceRecording') || 'Click to start voice recording');
 
         // Clear duration display
         this.updateRecordingDuration('0:00', 0);
@@ -378,7 +378,7 @@ class VibeSurfUIManager {
       userMessage = `Recording failed: ${errorMessage}`;
     } else if (errorType === 'transcription') {
       if (errorMessage.includes('No active ASR profiles')) {
-        userMessage = 'No voice recognition profiles configured. Please set up an ASR profile in Settings > Voice.';
+        userMessage = window.i18n?.getMessage('noVoiceRecognitionProfilesConfigured') || 'No voice recognition profiles configured. Please set up an ASR profile in Settings > Voice.';
       } else {
         userMessage = `Transcription failed: ${errorMessage}`;
       }
@@ -652,11 +652,11 @@ class VibeSurfUIManager {
       // Allow input when paused or not running
       this.elements.taskInput.disabled = isRunning && !isPaused;
       if (isPaused) {
-        this.elements.taskInput.placeholder = 'Add additional information or guidance...';
+        this.elements.taskInput.placeholder = window.i18n?.getMessage('taskPausedPlaceholder') || 'Add additional information or guidance...';
       } else if (isRunning) {
-        this.elements.taskInput.placeholder = 'Task is running - please wait...';
+        this.elements.taskInput.placeholder = window.i18n?.getMessage('taskRunningPlaceholder') || 'Task is running - please wait...';
       } else {
-        this.elements.taskInput.placeholder = 'Ask anything (/ for skills, @ to specify tab)';
+        this.elements.taskInput.placeholder = window.i18n?.getMessage('inputPlaceholder') || 'Ask anything (/ for skills, @ to specify tab)';
       }
     }
 
@@ -687,7 +687,7 @@ class VibeSurfUIManager {
         if (this.elements.voiceRecordBtn.classList.contains('recording')) {
           this.elements.voiceRecordBtn.setAttribute('title', 'Recording... Click to stop');
         } else {
-          this.elements.voiceRecordBtn.setAttribute('title', 'Click to start voice recording');
+          this.elements.voiceRecordBtn.setAttribute('title', window.i18n?.getMessage('clickToStartVoiceRecording') || 'Click to start voice recording');
         }
       }
     }
@@ -734,7 +734,7 @@ class VibeSurfUIManager {
     if (this.elements.voiceRecordBtn) {
       this.elements.voiceRecordBtn.disabled = false;
       this.elements.voiceRecordBtn.classList.remove('task-running-disabled');
-      this.elements.voiceRecordBtn.setAttribute('title', 'Click to start voice recording');
+      this.elements.voiceRecordBtn.setAttribute('title', window.i18n?.getMessage('clickToStartVoiceRecording') || 'Click to start voice recording');
     }
 
     // Keep LLM profile disabled during pause (user doesn't need to change it)
@@ -2481,22 +2481,24 @@ class VibeSurfUIManager {
 
   showLLMProfileRequiredModal(action) {
     const isConfigureAction = action === 'configure';
-    const title = isConfigureAction ? 'LLM Profile Required' : 'Please Select LLM Profile';
+    const title = isConfigureAction
+      ? (window.i18n?.getMessage('llmProfileRequired') || 'LLM Profile Required')
+      : (window.i18n?.getMessage('pleaseSelectLlmProfile') || 'Please Select LLM Profile');
     const message = isConfigureAction
-      ? 'No LLM profiles are configured. You need to configure at least one LLM profile before sending tasks.'
-      : 'Please select an LLM profile from the dropdown to proceed with your task.';
+      ? (window.i18n?.getMessage('noLlmProfilesConfiguredDesc') || 'No LLM profiles are configured. You need to configure at least one LLM profile before sending tasks.')
+      : (window.i18n?.getMessage('pleaseSelectLlmProfileDesc') || 'Please select an LLM profile from the dropdown to proceed with your task.');
 
     const options = isConfigureAction
       ? {
-          confirmText: 'Open Settings',
-          cancelText: 'Cancel',
+          confirmText: window.i18n?.getMessage('openSettings') || 'Open Settings',
+          cancelText: window.i18n?.getMessage('cancel') || 'Cancel',
           onConfirm: () => {
             this.handleShowLLMSettings();
           }
         }
       : {
-          confirmText: 'OK',
-          cancelText: 'Open Settings',
+          confirmText: window.i18n?.getMessage('ok') || 'OK',
+          cancelText: window.i18n?.getMessage('openSettings') || 'Open Settings',
           onConfirm: () => {
             this.elements.llmProfileSelect?.focus();
           },
@@ -2510,22 +2512,24 @@ class VibeSurfUIManager {
 
   showVoiceProfileRequiredModal(action) {
     const isConfigureAction = action === 'configure';
-    const title = isConfigureAction ? 'Voice Profile Required' : 'Please Select Voice Profile';
+    const title = isConfigureAction
+      ? (window.i18n?.getMessage('voiceProfileRequired') || 'Voice Profile Required')
+      : (window.i18n?.getMessage('pleaseSelectVoiceProfile') || 'Please Select Voice Profile');
     const message = isConfigureAction
-      ? 'No voice recognition (ASR) profiles are configured. You need to configure at least one voice profile before using voice input.'
-      : 'Please configure a voice recognition profile to use voice input functionality.';
+      ? (window.i18n?.getMessage('noVoiceProfilesConfiguredDesc') || 'No voice recognition (ASR) profiles are configured. You need to configure at least one voice profile before using voice input.')
+      : (window.i18n?.getMessage('pleaseConfigureVoiceProfileDesc') || 'Please configure a voice recognition profile to use voice input functionality.');
 
     const options = isConfigureAction
       ? {
-          confirmText: 'Open Voice Settings',
-          cancelText: 'Cancel',
+          confirmText: window.i18n?.getMessage('openVoiceSettings') || 'Open Voice Settings',
+          cancelText: window.i18n?.getMessage('cancel') || 'Cancel',
           onConfirm: () => {
             this.handleShowVoiceSettings();
           }
         }
       : {
-          confirmText: 'Open Voice Settings',
-          cancelText: 'Cancel',
+          confirmText: window.i18n?.getMessage('openVoiceSettings') || 'Open Voice Settings',
+          cancelText: window.i18n?.getMessage('cancel') || 'Cancel',
           onConfirm: () => {
             this.handleShowVoiceSettings();
           }
@@ -2695,14 +2699,14 @@ class VibeSurfUIManager {
       if (!isVoiceAvailable) {
         // Add visual indication but keep button enabled for click handling
         this.elements.voiceRecordBtn.classList.add('voice-disabled');
-        this.elements.voiceRecordBtn.setAttribute('title', 'Voice input disabled - No ASR profiles configured. Click to configure.');
-        this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Voice input disabled - No ASR profiles configured. Click to configure.');
+        this.elements.voiceRecordBtn.setAttribute('title', window.i18n?.getMessage('voiceInputDisabledNoAsr') || 'Voice input disabled - No ASR profiles configured. Click to configure.');
+        this.elements.voiceRecordBtn.setAttribute('data-tooltip', window.i18n?.getMessage('voiceInputDisabledNoAsr') || 'Voice input disabled - No ASR profiles configured. Click to configure.');
       } else {
         // Remove visual indication and restore normal tooltip
         this.elements.voiceRecordBtn.classList.remove('voice-disabled');
         if (!this.elements.voiceRecordBtn.classList.contains('recording')) {
-          this.elements.voiceRecordBtn.setAttribute('title', 'Click to start voice recording');
-          this.elements.voiceRecordBtn.setAttribute('data-tooltip', 'Click to start voice recording');
+          this.elements.voiceRecordBtn.setAttribute('title', window.i18n?.getMessage('clickToStartVoiceRecording') || 'Click to start voice recording');
+          this.elements.voiceRecordBtn.setAttribute('data-tooltip', window.i18n?.getMessage('clickToStartVoiceRecording') || 'Click to start voice recording');
         }
       }
     } catch (error) {
