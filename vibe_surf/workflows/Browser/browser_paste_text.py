@@ -10,10 +10,10 @@ from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.langflow.schema.message import Message
 from vibe_surf.langflow.field_typing import LanguageModel
 
-class BrowserInputTextComponent(Component):
-    display_name = "Input Text"
-    description = "Browser input Text to an element"
-    icon = "text-cursor-input"
+class BrowserPasteTextComponent(Component):
+    display_name = "Paste Text"
+    description = "Browser paste text to an element using clipboard (faster than typing)"
+    icon = "clipboard-paste"
 
     inputs = [
         HandleInput(
@@ -26,15 +26,21 @@ class BrowserInputTextComponent(Component):
         MultilineInput(
             name="input_text",
             display_name="Input Text",
-            info="Input Text into an element",
-            required=True,
+            info="Text to paste into an element (not required when use_pyperclip is enabled)",
+            required=False,
             multiline=True
         ),
         BoolInput(
             name="clear_text",
             display_name="Clear Text",
-            info="Clear Text before typing",
+            info="Clear Text before pasting",
             value=True
+        ),
+        BoolInput(
+            name="use_pyperclip",
+            display_name="Use Pyperclip",
+            info="Use pyperclip library to paste (only works for local browser). If enabled, copies text to local clipboard and simulates Ctrl+V.",
+            value=False
         ),
         MessageTextInput(
             name="element_text",
@@ -78,16 +84,124 @@ class BrowserInputTextComponent(Component):
         Output(
             display_name="Browser Session",
             name="output_browser_session",
-            method="browser_input_text",
+            method="browser_paste_text",
             types=["AgentBrowserSession"]
         )
     ]
 
-    async def browser_input_text(self) -> AgentBrowserSession:
+    async def _clear_text_field(self, object_id: str, cdp_client, session_id: str) -> bool:
+        """Clear text field using JavaScript."""
+        try:
+            await cdp_client.send.Runtime.callFunctionOn(
+                params={
+                    'functionDeclaration': 'function() { this.value = ""; return true; }',
+                    'objectId': object_id,
+                    'returnByValue': True,
+                },
+                session_id=session_id,
+            )
+            return True
+        except Exception as e:
+            from cdp_use.client import logger
+            logger.warning(f'Failed to clear text field: {e}')
+            return False
+
+    async def _focus_element_simple(
+        self, backend_node_id: int, cdp_client, session_id: str
+    ) -> bool:
+        """Focus element using CDP."""
+        try:
+            await cdp_client.send.DOM.focus(
+                params={'backendNodeId': backend_node_id, 'depth': 0},
+                session_id=session_id,
+            )
+            await asyncio.sleep(0.05)
+            return True
+        except Exception as e:
+            from cdp_use.client import logger
+            logger.warning(f'Failed to focus element: {e}')
+            return False
+
+    async def _dispatch_paste(self, text: Optional[str], page, use_pyperclip: bool = False) -> None:
+        """Dispatch paste using multiple methods."""
+        if use_pyperclip:
+            # Method: Use pyperclip to read from clipboard + press Ctrl+V
+            try:
+                import pyperclip
+                # Read text from local clipboard (ignore input_text parameter)
+                clipboard_text = pyperclip.paste()
+                from cdp_use.client import logger
+                logger.info(f'Read text from clipboard using pyperclip: {len(clipboard_text)} chars')
+
+                # Use page.press() to simulate Ctrl+V (platform-independent)
+                await page.press('Control+V')
+                return
+            except ImportError:
+                from cdp_use.client import logger
+                logger.warning('pyperclip not installed, falling back to other methods')
+            except Exception as e:
+                from cdp_use.client import logger
+                logger.warning(f'pyperclip method failed: {e}, falling back to other methods')
+
+        # If not using pyperclip, use the provided text
+        if not text:
+            from cdp_use.client import logger
+            logger.warning('No text provided and pyperclip is disabled')
+            return
+
+        # Method 1: Try CDP Input.insertText (fastest)
+        try:
+            cdp_client = page.cdp_client
+            session_id = page._session_id
+            await cdp_client.send.Input.insertText(
+                params={'text': text},
+                session_id=session_id,
+            )
+            return
+        except Exception:
+            pass
+
+        # Method 2: Use JavaScript to directly set value (fallback)
+        try:
+            cdp_client = page.cdp_client
+            session_id = page._session_id
+            # Escape text for JavaScript - use a more robust escaping method
+            import json
+            escaped_text = json.dumps(text)[1:-1]  # Remove quotes
+            js_code = f'''
+            (function() {{
+                const active = document.activeElement;
+                if (active) {{
+                    const start = active.selectionStart || 0;
+                    const end = active.selectionEnd || 0;
+                    const value = active.value || '';
+                    active.value = value.substring(0, start) + "{escaped_text}" + value.substring(end);
+                    active.selectionStart = active.selectionEnd = start + {len(text)};
+                    // Trigger input event
+                    const event = new Event('input', {{ bubbles: true }});
+                    active.dispatchEvent(event);
+                }}
+                return true;
+            }})()
+            '''
+            await cdp_client.send.Runtime.evaluate(
+                params={
+                    'expression': js_code,
+                    'returnByValue': True,
+                    'awaitPromise': True,
+                },
+                session_id=session_id,
+            )
+        except Exception as e:
+            from cdp_use.client import logger
+            logger.warning(f'All paste methods failed: {e}')
+
+    async def browser_paste_text(self) -> AgentBrowserSession:
         try:
             await self.browser_session._wait_for_stable_network()
             from browser_use.actor.element import Element
             element: Optional[Element] = None
+
             if self.element_text:
                 from vibe_surf.browser.find_page_element import SemanticExtractor
                 from vibe_surf.browser.page_operations import _try_direct_selector, _wait_for_element
@@ -160,8 +274,51 @@ class BrowserInputTextComponent(Component):
                 self.status = "No element found!"
                 raise ValueError("No element found!")
 
-            await element.fill(self.input_text, clear=self.clear_text)
-            self.status = f"Input text: {self.input_text} on element {element}"
+            # Get page for press() method
+            page = await self.browser_session.get_current_page()
+
+            # Paste implementation using CDP directly
+            cdp_client = element._client
+            session_id = element._session_id
+            backend_node_id = element._backend_node_id
+
+            # Scroll element into view
+            try:
+                await cdp_client.send.DOM.scrollIntoViewIfNeeded(
+                    params={'backendNodeId': backend_node_id},
+                    session_id=session_id
+                )
+                await asyncio.sleep(0.01)
+            except Exception:
+                pass
+
+            # Get object ID
+            result = await cdp_client.send.DOM.resolveNode(
+                params={'backendNodeId': backend_node_id},
+                session_id=session_id,
+            )
+            if 'object' not in result or 'objectId' not in result['object']:
+                raise RuntimeError('Failed to get object ID for element')
+            object_id = result['object']['objectId']
+
+            if session_id is None:
+                raise RuntimeError('Session ID is required for paste operation')
+
+            # Focus the element
+            await self._focus_element_simple(
+                backend_node_id=backend_node_id,
+                cdp_client=cdp_client,
+                session_id=session_id,
+            )
+
+            # Clear text if requested
+            if self.clear_text:
+                await self._clear_text_field(object_id, cdp_client, session_id)
+
+            # Paste the text
+            await self._dispatch_paste(self.input_text, page, self.use_pyperclip)
+
+            self.status = f"Paste text: {self.input_text} on element {element}"
         except Exception as e:
             import traceback
             traceback.print_exc()

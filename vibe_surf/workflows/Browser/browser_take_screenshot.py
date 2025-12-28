@@ -30,28 +30,28 @@ class BrowserTakeScreenshotComponent(Component):
             display_name="Crop X1",
             info="The left edge of the crop region (0-1)",
             value=0.0,
-            range_spec=RangeSpec(min=0, max=1),
+            range_spec=RangeSpec(min=0, max=1, step=0.01),
         ),
         SliderInput(
             name="crop_y1",
             display_name="Crop Y1",
             info="The top edge of the crop region (0-1)",
             value=0.0,
-            range_spec=RangeSpec(min=0, max=1),
+            range_spec=RangeSpec(min=0, max=1, step=0.01),
         ),
         SliderInput(
             name="crop_x2",
             display_name="Crop X2",
             info="The right edge of the crop region (0-1)",
             value=1.0,
-            range_spec=RangeSpec(min=0, max=1),
+            range_spec=RangeSpec(min=0, max=1, step=0.01),
         ),
         SliderInput(
             name="crop_y2",
             display_name="Crop Y2",
             info="The bottom edge of the crop region (0-1)",
             value=1.0,
-            range_spec=RangeSpec(min=0, max=1),
+            range_spec=RangeSpec(min=0, max=1, step=0.01),
         ),
     ]
 
