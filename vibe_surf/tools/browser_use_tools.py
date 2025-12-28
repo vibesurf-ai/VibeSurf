@@ -44,7 +44,7 @@ from browser_use.browser.views import BrowserError
 from browser_use.mcp.client import MCPClient
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, DownloadMediaAction
+from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, DownloadMediaAction, TakeScreenshotAction
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.logger import get_logger
@@ -488,12 +488,41 @@ class BrowserUseTools(Tools, VibeSurfTools):
 
         @self.registry.action(
             'Take a screenshot of the current page and save it to the file system',
-            param_model=NoParamsAction
+            param_model=TakeScreenshotAction
         )
-        async def take_screenshot(_: NoParamsAction, browser_session: AgentBrowserSession, file_system: FileSystem):
+        async def take_screenshot(params: TakeScreenshotAction, browser_session: AgentBrowserSession, file_system: FileSystem):
             try:
                 # Take screenshot using browser session
                 screenshot_bytes = await browser_session.take_screenshot()
+
+                # Apply crop if all crop parameters are provided
+                if params.crop_x1 is not None and params.crop_y1 is not None and params.crop_x2 is not None and params.crop_y2 is not None:
+                    from io import BytesIO
+                    from PIL import Image
+
+                    # Open image with PIL
+                    image = Image.open(BytesIO(screenshot_bytes))
+                    width, height = image.size
+
+                    # Convert relative coordinates (0-1) to pixel coordinates
+                    x1 = int(params.crop_x1 * width)
+                    y1 = int(params.crop_y1 * height)
+                    x2 = int(params.crop_x2 * width)
+                    y2 = int(params.crop_y2 * height)
+
+                    # Validate crop coordinates
+                    if x1 >= x2 or y1 >= y2:
+                        return ActionResult(error=f'Invalid crop coordinates: x1={x1}, y1={y1}, x2={x2}, y2={y2}')
+
+                    # Crop the image
+                    cropped_image = image.crop((x1, y1, x2, y2))
+
+                    # Save cropped image to bytes
+                    output = BytesIO()
+                    cropped_image.save(output, format='PNG')
+                    screenshot_bytes = output.getvalue()
+
+                    logger.info(f'Cropped screenshot: {x1},{y1},{x2},{y2} from {width}x{height}')
 
                 # Generate timestamp for filename
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -508,7 +537,13 @@ class BrowserUseTools(Tools, VibeSurfTools):
                 # Save screenshot to file system
                 page_title = await browser_session.get_current_page_title()
                 page_title = sanitize_filename(page_title)
-                filename = f"{page_title}-{timestamp}.png"
+
+                # Add crop suffix to filename if cropped
+                crop_suffix = ""
+                if params.crop_x1 is not None:
+                    crop_suffix = f"_crop_{params.crop_x1}_{params.crop_y1}_{params.crop_x2}_{params.crop_y2}"
+
+                filename = f"{page_title}-{timestamp}{crop_suffix}.png"
                 filepath = screenshots_dir / filename
 
                 with open(filepath, "wb") as f:
