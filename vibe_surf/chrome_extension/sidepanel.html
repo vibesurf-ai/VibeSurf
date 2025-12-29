@@ -747,7 +747,7 @@
         <div class="modal-overlay"></div>
         <div class="modal-content oauth-modal-content">
             <div class="modal-header">
-                <h3>OAuth Authorization Required</h3>
+                <h3 data-i18n="oauthAuthorizationRequired">OAuth Authorization Required</h3>
                 <button class="modal-close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -759,18 +759,18 @@
                     <div class="oauth-info">
                         <div class="oauth-icon">🔐</div>
                         <div class="oauth-text">
-                            <p>A new browser tab has been opened for OAuth authorization.</p>
-                            <p>Please complete the authorization process and return here.</p>
+                            <p data-i18n="oauthTabOpened">A new browser tab has been opened for OAuth authorization.</p>
+                            <p data-i18n="oauthCompleteInstructions">Please complete the authorization process and return here.</p>
                         </div>
                     </div>
                     <div class="oauth-question">
-                        <p><strong>Have you completed the OAuth authorization?</strong></p>
+                        <p><strong data-i18n="oauthCompletedQuestion">Have you completed the OAuth authorization?</strong></p>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="form-btn secondary" id="oauth-not-completed">Not Yet</button>
-                <button type="button" class="form-btn primary" id="oauth-completed">Yes, Completed</button>
+                <button type="button" class="form-btn secondary" id="oauth-not-completed" data-i18n="notYet">Not Yet</button>
+                <button type="button" class="form-btn primary" id="oauth-completed" data-i18n="yesCompleted">Yes, Completed</button>
             </div>
         </div>
     </div>
@@ -780,7 +780,7 @@
         <div class="modal-overlay"></div>
         <div class="modal-content workflow-schedule-modal-content">
             <div class="modal-header">
-                <h3 id="schedule-modal-title">Schedule Workflow</h3>
+                <h3 id="schedule-modal-title" data-i18n="scheduleWorkflow">Schedule Workflow</h3>
                 <button class="modal-close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -933,13 +933,13 @@
                             <div id="logs-job-id" class="logs-job-id"></div>
                         </div>
                         <div class="logs-controls">
-                            <button id="logs-refresh-btn" class="logs-refresh-btn" title="Refresh Logs">
+                            <button id="logs-refresh-btn" class="logs-refresh-btn" data-i18n-title="refreshLogs">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M1 4V10H7M23 20V14H17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                     <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M3.51 15A9 9 0 0 0 18.36 18.36L23 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                             </button>
-                            <button id="logs-clear-btn" class="logs-clear-btn" title="Clear Logs">
+                            <button id="logs-clear-btn" class="logs-clear-btn" data-i18n-title="clearLogs">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                     <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -969,7 +969,7 @@
         <div class="modal-overlay"></div>
         <div class="modal-content workflow-delete-modal-content">
             <div class="modal-header">
-                <h3>Delete Workflow</h3>
+                <h3 data-i18n="deleteWorkflow">Delete Workflow</h3>
                 <button class="modal-close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -980,15 +980,15 @@
                 <div class="delete-content">
                     <div class="warning-icon">⚠️</div>
                     <div class="delete-message">
-                        <p>Are you sure you want to delete this workflow?</p>
+                        <p data-i18n="deleteWorkflowConfirmation">Are you sure you want to delete this workflow?</p>
                         <div id="delete-workflow-name" class="delete-workflow-name"></div>
-                        <p class="warning-text">This action cannot be undone. All schedule information will also be removed.</p>
+                        <p class="warning-text" data-i18n="deleteWorkflowWarning">This action cannot be undone. All schedule information will also be removed.</p>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="form-btn secondary" id="delete-cancel">Cancel</button>
-                <button type="button" class="form-btn danger" id="delete-confirm">Delete Workflow</button>
+                <button type="button" class="form-btn secondary" id="delete-cancel" data-i18n="cancel">Cancel</button>
+                <button type="button" class="form-btn danger" id="delete-confirm" data-i18n="deleteWorkflowConfirm">Delete Workflow</button>
             </div>
         </div>
     </div>

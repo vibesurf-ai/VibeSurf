@@ -2576,5 +2576,57 @@
   "taskPausedPlaceholder": {
     "message": "Add additional information or guidance...",
     "description": "Placeholder when task is paused"
+  },
+  "confirmStopRecording": {
+    "message": "Recording is in progress. Do you want to stop and discard?",
+    "description": "Confirmation message when closing recording page while recording is in progress"
+  },
+  "deleteProfileTitle": {
+    "message": "Delete Profile",
+    "description": "Delete profile modal title"
+  },
+  "deleteProfileConfirmation": {
+    "message": "Are you sure you want to delete the $1 profile \"$2\"? This action cannot be undone.",
+    "description": "Delete profile confirmation message",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "llm"
+      },
+      "profileId": {
+        "content": "$2",
+        "example": "GPT-4"
+      }
+    }
+  },
+  "delete": {
+    "message": "Delete",
+    "description": "Delete button text"
+  },
+  "selectNewDefaultProfile": {
+    "message": "Select New Default Profile",
+    "description": "Select new default profile modal title"
+  },
+  "selectNewDefaultDescription": {
+    "message": "You are deleting the default LLM profile. Please select a new default profile:",
+    "description": "Select new default profile description"
+  },
+  "setAsDefaultAndDelete": {
+    "message": "Set as Default & Delete",
+    "description": "Set as default and delete button text"
+  },
+  "disabledWhileTaskRunning": {
+    "message": "Disabled while task is running",
+    "description": "Tooltip when file attachment is disabled during task execution"
+  },
+  "clickToLoadSession": {
+    "message": "Click to load session: $1",
+    "description": "Tooltip for session item click action",
+    "placeholders": {
+      "sessionId": {
+        "content": "$1",
+        "example": "abc123"
+      }
+    }
   }
 }

@@ -496,7 +496,7 @@ class VibeSurfFileManager {
         this.elements.attachFileBtn.removeAttribute('title');
       } else {
         this.elements.attachFileBtn.classList.add('task-running-disabled');
-        this.elements.attachFileBtn.setAttribute('title', 'Disabled while task is running');
+        this.elements.attachFileBtn.setAttribute('title', window.i18n.getMessage('disabledWhileTaskRunning'));
       }
     }
   }

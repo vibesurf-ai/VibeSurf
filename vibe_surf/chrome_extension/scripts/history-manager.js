@@ -501,8 +501,8 @@ class VibeSurfHistoryManager {
     
     // Add visual feedback for clickability
     item.style.cursor = 'pointer';
-    item.setAttribute('title', `Click to load session: ${sessionId}`);
-    
+    item.setAttribute('title', window.i18n.getMessage('clickToLoadSession', [sessionId]));
+
     return item;
   }
 

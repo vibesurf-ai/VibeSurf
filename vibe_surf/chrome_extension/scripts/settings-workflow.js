@@ -3447,7 +3447,7 @@ class VibeSurfSettingsWorkflow {
   handleRecordingPageClose() {
     if (this.recordingState.isRecording) {
       // Confirm before closing if recording
-      if (confirm('Recording is in progress. Do you want to stop and discard?')) {
+      if (confirm(window.i18n.getMessage('confirmStopRecording'))) {
         this.stopStepsPolling();
         chrome.runtime.sendMessage({ type: 'STOP_RECORDING' });
         this.hideRecordingPage();

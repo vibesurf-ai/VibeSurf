@@ -184,11 +184,11 @@ class VibeSurfUIManager {
 
     this.settingsManager.on('confirmDeletion', (data) => {
       this.modalManager.showConfirmModal(
-        'Delete Profile',
-        `Are you sure you want to delete the ${data.type} profile "${data.profileId}"? This action cannot be undone.`,
+        window.i18n.getMessage('deleteProfileTitle'),
+        window.i18n.getMessage('deleteProfileConfirmation', [data.type, data.profileId]),
         {
-          confirmText: 'Delete',
-          cancelText: 'Cancel',
+          confirmText: window.i18n.getMessage('delete'),
+          cancelText: window.i18n.getMessage('cancel'),
           type: 'danger',
           onConfirm: () => {
             if (data.callback) data.callback();
@@ -204,17 +204,17 @@ class VibeSurfUIManager {
 
       const modalData = this.modalManager.createModal(`
         <div class="select-default-modal">
-          <p>You are deleting the default LLM profile. Please select a new default profile:</p>
+          <p>${window.i18n.getMessage('selectNewDefaultDescription')}</p>
           <select id="new-default-select" class="form-select">
             ${options}
           </select>
           <div class="modal-footer">
-            <button class="btn-secondary cancel-btn">Cancel</button>
-            <button class="btn-primary confirm-btn">Set as Default & Delete</button>
+            <button class="btn-secondary cancel-btn">${window.i18n.getMessage('cancel')}</button>
+            <button class="btn-primary confirm-btn">${window.i18n.getMessage('setAsDefaultAndDelete')}</button>
           </div>
         </div>
       `, {
-        title: 'Select New Default Profile'
+        title: window.i18n.getMessage('selectNewDefaultProfile')
       });
 
       const select = document.getElementById('new-default-select');
