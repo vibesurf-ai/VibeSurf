@@ -2572,5 +2572,57 @@
   "taskPausedPlaceholder": {
     "message": "添加更多信息或指导...",
     "description": "任务暂停时的占位符"
+  },
+  "confirmStopRecording": {
+    "message": "录制正在进行中。您要停止并放弃吗?",
+    "description": "录制进行中关闭录制页面时的确认消息"
+  },
+  "deleteProfileTitle": {
+    "message": "删除配置",
+    "description": "删除配置模态框标题"
+  },
+  "deleteProfileConfirmation": {
+    "message": "确定要删除 $1 配置「$2」吗？此操作无法撤销。",
+    "description": "删除配置确认消息",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "llm"
+      },
+      "profileId": {
+        "content": "$2",
+        "example": "GPT-4"
+      }
+    }
+  },
+  "delete": {
+    "message": "删除",
+    "description": "删除按钮文本"
+  },
+  "selectNewDefaultProfile": {
+    "message": "选择新的默认配置",
+    "description": "选择新默认配置模态框标题"
+  },
+  "selectNewDefaultDescription": {
+    "message": "您正在删除默认的 LLM 配置。请选择一个新的默认配置：",
+    "description": "选择新默认配置描述"
+  },
+  "setAsDefaultAndDelete": {
+    "message": "设为默认并删除",
+    "description": "设为默认并删除按钮文本"
+  },
+  "disabledWhileTaskRunning": {
+    "message": "任务运行时已禁用",
+    "description": "任务执行期间文件附件被禁用时的工具提示"
+  },
+  "clickToLoadSession": {
+    "message": "点击加载会话：$1",
+    "description": "会话项点击操作的工具提示",
+    "placeholders": {
+      "sessionId": {
+        "content": "$1",
+        "example": "abc123"
+      }
+    }
   }
 }
