@@ -29,7 +29,6 @@ from browser_use.browser import BrowserProfile
 from vibe_surf.llm.openai_compatible import ChatOpenAICompatible
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
 from vibe_surf.browser.agen_browser_profile import AgentBrowserProfile
-from vibe_surf.backend.utils.utils import configure_system_proxies
 from vibe_surf.logger import get_logger
 
 logger = get_logger(__name__)
@@ -510,7 +509,7 @@ async def initialize_vibesurf_components():
         # Load environment variables
         workspace_dir = common.get_workspace_dir()
         logger.info("WorkSpace directory: {}".format(workspace_dir))
-        configure_system_proxies()
+        # Note: configure_system_proxies() is called earlier in main.py before ProductTelemetry initialization
         # Load environment configuration from envs.json
         envs_file_path = os.path.join(workspace_dir, "envs.json")
         try:

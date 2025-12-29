@@ -16,7 +16,6 @@ import importlib.util
 import argparse
 from pathlib import Path
 from typing import Optional
-import os
 
 try:
     from rich.console import Console
@@ -446,8 +445,12 @@ def main():
     parser.add_argument('--no_select_browser', action='store_true',
                        help='Skip browser selection and use first available browser (Chrome -> Edge -> Brave)')
     args = parser.parse_args()
-    
+
     try:
+        # Configure system proxies BEFORE any component initialization
+        from vibe_surf.backend.utils.utils import configure_system_proxies
+        configure_system_proxies()
+
         # Initialize telemetry
         telemetry = ProductTelemetry()
         start_time = time.time()

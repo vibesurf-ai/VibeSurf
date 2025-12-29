@@ -62,15 +62,32 @@ class ProductTelemetry:
 
     def _ensure_no_proxy(self):
         current_no_proxy = os.environ.get('no_proxy', '')
+        current_NO_PROXY = os.environ.get('NO_PROXY', '')
+
+        # Use NO_PROXY if no_proxy is not set
+        if not current_no_proxy and current_NO_PROXY:
+            current_no_proxy = current_NO_PROXY
+
         required_hosts = ['us.i.posthog.com']
 
+        # Parse current no_proxy list
+        if current_no_proxy:
+            no_proxy_list = [h.strip() for h in current_no_proxy.split(',')]
+        else:
+            no_proxy_list = []
+
+        # Add required hosts if not already present
+        modified = False
         for host in required_hosts:
-            if host not in current_no_proxy:
-                if current_no_proxy:
-                    os.environ['no_proxy'] = f"{current_no_proxy},{host}"
-                else:
-                    os.environ['no_proxy'] = host
-                current_no_proxy = os.environ['no_proxy']
+            if host not in no_proxy_list:
+                no_proxy_list.append(host)
+                modified = True
+
+        # Update environment variables if modified
+        if modified:
+            new_no_proxy = ','.join(no_proxy_list)
+            os.environ['no_proxy'] = new_no_proxy
+            os.environ['NO_PROXY'] = new_no_proxy
 
     def capture(self, event: BaseTelemetryEvent) -> None:
         if self._posthog_client is None:

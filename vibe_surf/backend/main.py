@@ -337,6 +337,10 @@ def get_lifespan():
             await initialize_langflow_in_background()
             logger.info("🚀 Started Langflow initialization in background")
 
+            # Configure system proxies BEFORE any component initialization
+            from vibe_surf.backend.utils.utils import configure_system_proxies
+            configure_system_proxies()
+
             # Initialize telemetry and capture startup event
             telemetry = ProductTelemetry()
             import vibe_surf

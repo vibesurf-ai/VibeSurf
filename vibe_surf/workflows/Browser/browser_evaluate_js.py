@@ -99,6 +99,7 @@ class BrowserEvaluateJavaScriptComponent(Component):
 
     async def browser_evaluate_result(self) :
         try:
+            await self.browser_session._wait_for_stable_network()
             import json
             # Parse func_params if provided
             args = []
@@ -173,6 +174,4 @@ class BrowserEvaluateJavaScriptComponent(Component):
             raise e
 
     async def pass_browser_session(self) -> AgentBrowserSession:
-        if not self._operation_message:
-            await self.browser_evaluate_result()
         return self.browser_session
