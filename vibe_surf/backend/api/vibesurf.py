@@ -26,6 +26,7 @@ from vibe_surf.langflow.services.auth.utils import create_super_user
 from vibe_surf.langflow.api.v1.flows import _read_flow, _new_flow
 from vibe_surf.langflow.services.database.models.folder.model import Folder
 from vibe_surf.langflow.services.database.models.flow.model import FlowCreate
+from vibe_surf.tools.views import SearchWorkflowsAction, ExecuteWorkflowAction
 
 logger = get_logger(__name__)
 
@@ -647,6 +648,19 @@ class IPLocationData(BaseModel):
     longitude: float = None
     detected: bool = False
 
+class SearchWorkflowSkillsResponse(BaseModel):
+    """Response for search workflow skills"""
+    success: bool
+    message: str
+    workflows: Optional[List[Dict[str, Any]]] = None
+
+class ExecuteWorkflowSkillResponse(BaseModel):
+    """Response for execute workflow skill"""
+    success: bool
+    message: str
+    result: Optional[str] = None
+    error: Optional[str] = None
+
 async def get_ip_location() -> IPLocationData:
     """
     Get IP location information using ipinfo.io
@@ -882,4 +896,303 @@ async def get_location_language():
             country="US",
             suggested_language="en",
             detected_from_ip=False
+        )
+
+@router.post("/search-workflow-skills", response_model=SearchWorkflowSkillsResponse)
+async def search_workflow_skills(request: SearchWorkflowsAction):
+    """
+    Search available workflows by keywords or workflow ID
+
+    Returns workflow information including:
+    - workflow_id (last 4 digits)
+    - workflow_name
+    - workflow_description
+    - adjustable components with input parameters
+    """
+    try:
+        from vibe_surf.backend.shared_state import workflow_skills
+
+        # Get all workflows
+        all_workflows = workflow_skills
+
+        if not all_workflows:
+            return SearchWorkflowSkillsResponse(
+                success=False,
+                message="No workflows available. Please configure workflows in the skill management system.",
+                workflows=None
+            )
+
+        # Filter workflows
+        filtered_workflows = {}
+
+        # Normalize empty strings to None
+        workflow_id = request.workflow_id if request.workflow_id and request.workflow_id.strip() else None
+        key_words = request.key_words if request.key_words and request.key_words.strip() else None
+
+        # If workflow_id is provided, prioritize it
+        if workflow_id:
+            for flow_id, workflow_data in all_workflows.items():
+                if flow_id.endswith(workflow_id):
+                    filtered_workflows[flow_id] = workflow_data
+                    break
+
+        # If no workflow_id match or not provided, search by keywords
+        if not filtered_workflows:
+            # Check if we should return all workflows
+            if not key_words or key_words in ['None', '*']:
+                filtered_workflows = all_workflows
+            else:
+                # Filter by keywords
+                keywords = [kw.strip().lower() for kw in key_words.split(',')]
+                for flow_id, workflow_data in all_workflows.items():
+                    name = workflow_data.get('name', '').lower()
+                    description = workflow_data.get('description', '').lower()
+                    search_text = f"{name} {description}"
+
+                    if any(keyword in search_text for keyword in keywords):
+                        filtered_workflows[flow_id] = workflow_data
+
+        if not filtered_workflows:
+            return SearchWorkflowSkillsResponse(
+                success=False,
+                message=f"No workflows found matching criteria. Keywords: {key_words}, Workflow ID: {workflow_id}",
+                workflows=None
+            )
+
+        # Format results
+        workflows_list = []
+        for flow_id, workflow_data in filtered_workflows.items():
+            flow_id_short = flow_id[-4:]
+            workflow_name = workflow_data.get('name', 'Unnamed Workflow')
+            workflow_desc = workflow_data.get('description', 'No description')
+            workflow_expose_config = workflow_data.get('workflow_expose_config', {})
+
+            workflow_info = {
+                "workflow_id": flow_id,
+                "workflow_id_short": flow_id_short,
+                "name": workflow_name,
+                "description": workflow_desc,
+                "adjustable_parameters": {}
+            }
+
+            # List adjustable parameters
+            if workflow_expose_config:
+                for component_id, component_data in workflow_expose_config.items():
+                    component_name = component_data.get('component_name', component_id)
+                    inputs = component_data.get('inputs', {})
+
+                    # Only show exposed inputs
+                    exposed_inputs = {k: v for k, v in inputs.items() if v.get('is_expose', False)}
+
+                    if exposed_inputs:
+                        workflow_info["adjustable_parameters"][component_id] = {
+                            "component_name": component_name,
+                            "inputs": {}
+                        }
+
+                        for input_name, input_data in exposed_inputs.items():
+                            display_name = input_data.get('display_name', input_name)
+                            input_type = input_data.get('type', 'str')
+                            info = input_data.get('info', '')
+                            current_value = input_data.get('value', '')
+
+                            workflow_info["adjustable_parameters"][component_id]["inputs"][input_name] = {
+                                "display_name": display_name,
+                                "type": input_type,
+                                "info": info,
+                                "current_value": current_value
+                            }
+
+            workflows_list.append(workflow_info)
+
+        logger.info(f'🔍 Found {len(filtered_workflows)} workflows')
+        return SearchWorkflowSkillsResponse(
+            success=True,
+            message=f"Found {len(filtered_workflows)} workflows",
+            workflows=workflows_list
+        )
+
+    except Exception as e:
+        error_msg = f'Failed to search workflows: {str(e)}'
+        logger.error(f'❌ {error_msg}')
+        import traceback
+        traceback.print_exc()
+        return SearchWorkflowSkillsResponse(
+            success=False,
+            message=error_msg,
+            workflows=None
+        )
+
+@router.post("/execute-workflow-skill", response_model=ExecuteWorkflowSkillResponse)
+async def execute_workflow_skill(request: ExecuteWorkflowAction):
+    """
+    Execute a workflow with optional parameter tweaks
+
+    Uses tweak_params to customize workflow inputs
+    """
+    try:
+        from vibe_surf.backend.shared_state import workflow_skills
+        from vibe_surf.langflow.api.v1.endpoints import simple_run_flow
+        from vibe_surf.langflow.api.v1.schemas import SimplifiedAPIRequest
+        from uuid import UUID
+
+        # Find the full workflow ID
+        full_flow_id = None
+        for flow_id in workflow_skills.keys():
+            if flow_id.endswith(request.workflow_id):
+                full_flow_id = flow_id
+                break
+
+        if not full_flow_id:
+            return ExecuteWorkflowSkillResponse(
+                success=False,
+                message=f'Workflow with ID ending in "{request.workflow_id}" not found',
+                result=None,
+                error=f'Workflow with ID ending in "{request.workflow_id}" not found'
+            )
+
+        # Parse tweak_params
+        tweaks = {}
+        if request.tweak_params:
+            try:
+                from json_repair import repair_json
+                tweaks = json.loads(repair_json(request.tweak_params))
+            except json.JSONDecodeError as e:
+                return ExecuteWorkflowSkillResponse(
+                    success=False,
+                    message=f'Invalid tweak_params JSON: {str(e)}',
+                    result=None,
+                    error=f'Invalid tweak_params JSON: {str(e)}'
+                )
+
+        # Validate tweak_params against workflow expose config
+        if tweaks:
+            # Get workflow expose config
+            workflow_data = workflow_skills.get(full_flow_id, {})
+            workflow_expose_config = workflow_data.get('workflow_expose_config', {})
+
+            # Build valid exposed inputs map
+            valid_components = {}
+            for component_id, component_data in workflow_expose_config.items():
+                inputs = component_data.get('inputs', {})
+                exposed_inputs = {k: v for k, v in inputs.items() if v.get('is_expose', False)}
+                if exposed_inputs:
+                    valid_components[component_id] = exposed_inputs
+
+            # Validate tweak keys
+            invalid_tweaks = []
+            for component_id, component_tweaks in tweaks.items():
+                if component_id not in valid_components:
+                    invalid_tweaks.append(f"Component '{component_id}' is not found in exposed components")
+                else:
+                    for input_name in component_tweaks.keys():
+                        if input_name not in valid_components[component_id]:
+                            invalid_tweaks.append(f"Input '{input_name}' in component '{component_id}' is not exposed")
+
+            # If invalid tweaks found, return error with adjustable parameters
+            if invalid_tweaks:
+                result_text = "Invalid tweak parameters:\n"
+                for error in invalid_tweaks:
+                    result_text += f"- {error}\n"
+
+                return ExecuteWorkflowSkillResponse(
+                    success=False,
+                    message=result_text,
+                    result=None,
+                    error=result_text
+                )
+
+        # Get the flow from database
+        try:
+            flow_uuid = UUID(full_flow_id)
+        except ValueError:
+            return ExecuteWorkflowSkillResponse(
+                success=False,
+                message=f'Invalid flow ID format: {full_flow_id}',
+                result=None,
+                error=f'Invalid flow ID format: {full_flow_id}'
+            )
+
+        # Get settings for authentication
+        settings_service = get_settings_service()
+        username = settings_service.auth_settings.SUPERUSER
+        password = settings_service.auth_settings.SUPERUSER_PASSWORD
+
+        # Fetch workflow from langflow database
+        async with session_scope() as langflow_session:
+            current_user = await create_super_user(db=langflow_session, username=username, password=password)
+            db_flow = await _read_flow(session=langflow_session, flow_id=flow_uuid, user_id=current_user.id)
+
+            if not db_flow:
+                return ExecuteWorkflowSkillResponse(
+                    success=False,
+                    message=f'Workflow not found in database: {full_flow_id}',
+                    result=None,
+                    error=f'Workflow not found in database: {full_flow_id}'
+                )
+
+            # Create request with tweaks
+            input_request = SimplifiedAPIRequest(
+                input_value=None,
+                input_type="chat",
+                output_type="any",
+                tweaks=tweaks,
+            )
+
+            # Execute workflow
+            result = await simple_run_flow(
+                flow=db_flow,
+                input_request=input_request,
+                stream=False,
+                api_key_user=current_user,
+            )
+
+            # Format result
+            workflow_name = workflow_skills[full_flow_id].get('name', 'Workflow')
+            result_text = f"# Workflow Execution Result\n\n"
+            result_text += f"**Workflow:** @flow-{request.workflow_id}: {workflow_name}\n\n"
+            result_text += f"**Status:** ✅ Completed\n\n"
+
+            if result.outputs:
+                result_text += "**Results:**\n\n"
+                # result.outputs is list[RunOutputs]
+                for outer_idx, run_output in enumerate(result.outputs, 1):
+                    # run_output.outputs is list[ResultData]
+                    for inner_idx, result_data_org in enumerate(run_output.outputs, 1):
+                        # Extract results from ResultData
+                        results_data = result_data_org.results
+                        component_display_name = result_data_org.component_display_name
+                        component_id = result_data_org.component_id
+                        try:
+                            if "text" in results_data:
+                                results_data_str = results_data["text"].data["text"]
+                            elif "output_data" in results_data:
+                                results_data_str = results_data["output_data"].data
+                            elif "message" in results_data:
+                                results_data_str = results_data["message"].data["text"]
+                            else:
+                                results_data_str = str(results_data)
+                        except Exception as e:
+                            results_data_str = str(results_data)
+                        result_text += f"### Result of {component_id}-{component_display_name}\n\n"
+                        result_text += f"{results_data_str}\n\n"
+
+            logger.info(f'✅ Successfully executed workflow: {full_flow_id}')
+            return ExecuteWorkflowSkillResponse(
+                success=True,
+                message="Workflow executed successfully",
+                result=result_text,
+                error=None
+            )
+
+    except Exception as e:
+        error_msg = f'Failed to execute workflow: {str(e)}'
+        logger.error(f'❌ {error_msg}')
+        import traceback
+        traceback.print_exc()
+        return ExecuteWorkflowSkillResponse(
+            success=False,
+            message=error_msg,
+            result=None,
+            error=error_msg
         )

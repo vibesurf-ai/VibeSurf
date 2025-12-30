@@ -2,6 +2,13 @@ from typing import Generic, TypeVar, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class SearchAction(BaseModel):
+	query: str
+	engine: str = Field(
+		default='google', description='duckduckgo, google, bing (use duckduckgo by default because less captchas)'
+	)
+
+
 class HoverAction(BaseModel):
     """Parameters for hover action"""
     index: int | None = None
@@ -440,9 +447,7 @@ class SearchWorkflowsAction(BaseModel):
     )
     workflow_id: str | None = Field(
         default=None,
-        min_length=4,
-        max_length=4,
-        description='Optional last 4 digits of workflow ID for direct lookup.'
+        description='Optional last 4 digits of workflow ID for direct lookup. If empty or None, will search by keywords instead.'
     )
 
 
@@ -455,5 +460,5 @@ class ExecuteWorkflowAction(BaseModel):
     )
     tweak_params: str | None = Field(
         default=None,
-        description='JSON string containing tweak parameters in format: {"component_id": {"input_name": "input_value"}}. Example: {"TextInput-uU4Rl": {"input_value": "vibesurf"}}. Only include parameters that need to be adjusted; others will use default values.'
+        description='JSON string containing tweak parameters in format: {"component_id": {"input_name": "input_value"}. Example: {"TextInput-uU4Rl": {"input_value": "vibesurf"}. Only include parameters that need to be adjusted; others will use default values.'
     )

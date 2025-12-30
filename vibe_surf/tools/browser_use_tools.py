@@ -29,7 +29,6 @@ from browser_use.tools.views import (
     InputTextAction,
     NoParamsAction,
     ScrollAction,
-    SearchAction,
     SelectDropdownOptionAction,
     SendKeysAction,
     StructuredOutputAction,
@@ -44,7 +43,7 @@ from browser_use.browser.views import BrowserError
 from browser_use.mcp.client import MCPClient
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionAction, DownloadMediaAction, TakeScreenshotAction
+from vibe_surf.tools.views import SearchAction, HoverAction, ExtractionAction, FileExtractionAction, DownloadMediaAction, TakeScreenshotAction
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.logger import get_logger
