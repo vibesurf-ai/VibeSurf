@@ -2464,6 +2464,10 @@
     "message": "输入架构",
     "description": "输入架构模态框标题"
   },
+  "searchInputs": {
+    "message": "按组件名称、字段名称或描述搜索...",
+    "description": "技能暴露模态框搜索输入占位符"
+  },
   "workflow": {
     "message": "工作流",
     "description": "工作流标签"
@@ -2487,18 +2491,6 @@
   "required": {
     "message": "必填",
     "description": "必填徽章文本"
-  },
-  "useMainSession": {
-    "message": "使用主浏览器会话",
-    "description": "使用主会话字段标签"
-  },
-  "browserTabId": {
-    "message": "浏览器标签页 ID",
-    "description": "浏览器标签页 ID 字段标签"
-  },
-  "targetId": {
-    "message": "目标 ID",
-    "description": "目标 ID 字段标签"
   },
   "noExposableInputs": {
     "message": "此工作流中没有可暴露的输入。",

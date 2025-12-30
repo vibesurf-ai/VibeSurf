@@ -2468,6 +2468,10 @@
     "message": "Input Schema",
     "description": "Input Schema modal title"
   },
+  "searchInputs": {
+    "message": "Search by component name, field name, or description...",
+    "description": "Skill expose modal search input placeholder"
+  },
   "workflow": {
     "message": "Workflow",
     "description": "Workflow label"
@@ -2491,18 +2495,6 @@
   "required": {
     "message": "required",
     "description": "Required badge text"
-  },
-  "useMainSession": {
-    "message": "Use the main browser session",
-    "description": "Use Main Session field label"
-  },
-  "browserTabId": {
-    "message": "Browser tab id",
-    "description": "Browser tab id field label"
-  },
-  "targetId": {
-    "message": "Target ID",
-    "description": "Target ID field label"
   },
   "noExposableInputs": {
     "message": "No exposable inputs found in this workflow.",

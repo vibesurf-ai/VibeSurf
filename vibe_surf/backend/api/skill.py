@@ -88,42 +88,45 @@ def extract_exposable_inputs(workflow_data: Dict[str, Any]) -> Dict[str, Any]:
             node_data = node.get("data", {})
             node_info = node_data.get("node", {})
             template = node_info.get("template", {})
-            
+
             component_id = node_data.get("id")
-            component_type = node.get("type", "")
+            # Use node_data.type (the actual component type)
+            component_type = node_data.get("type", "")
+            # Get component description from node_info
+            component_description = node_info.get("description", "")
             display_name = node_info.get("display_name", component_id)
-            
+
             if not component_id:
                 continue
-            
+
             exposable_inputs = {}
-            
+
             # Process each input field in template
             for field_name, field_config in template.items():
                 if not isinstance(field_config, dict):
                     continue
-                
+
                 # Rule 1: Skip if field name starts with underscore
                 if field_name.startswith("_"):
                     continue
-                
+
                 # Rule 2: Skip 'code' input
                 if field_name == "code":
                     continue
-                
+
                 # Rule 4: Skip HandleInput type
                 input_type = field_config.get("_input_type") or field_config.get("type")
                 if input_type == "HandleInput":
                     continue
-                
+
                 # Rule 3: Skip if connected
                 connection_key = f"{component_id}:{field_name}"
                 if connection_key in connected_inputs:
                     continue
-                
+
                 # Rule 5: ChatInput's input_value is exposed by default
                 is_exposed = (component_type == "ChatInput" and field_name == "input_value")
-                
+
                 # Extract relevant field information
                 exposable_inputs[field_name] = {
                     "display_name": field_config.get("display_name", field_name),
@@ -133,12 +136,14 @@ def extract_exposable_inputs(workflow_data: Dict[str, Any]) -> Dict[str, Any]:
                     "value": field_config.get("value"),
                     "is_expose": is_exposed
                 }
-            
+
             # Only add component if it has exposable inputs
             if exposable_inputs:
                 workflow_expose_config[component_id] = {
+                    "component_id": component_id,
                     "component_name": display_name,
                     "component_type": component_type,
+                    "component_description": component_description,
                     "inputs": exposable_inputs
                 }
         
