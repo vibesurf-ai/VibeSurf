@@ -909,10 +909,10 @@ async def search_workflow_skills(
     Args:
         key_words: Comma-separated keywords to search in workflow name and description.
                    Use None or empty to return all workflows. Example: "search,data,analysis"
-        workflow_id: Optional last 4 digits of workflow ID for direct lookup
+        workflow_id: Optional full workflow UUID for direct lookup (36 characters)
 
     Returns workflow information including:
-    - workflow_id (last 4 digits)
+    - workflow_id (full UUID)
     - workflow_name
     - workflow_description
     - adjustable components with input parameters
@@ -939,10 +939,9 @@ async def search_workflow_skills(
 
         # If workflow_id is provided, prioritize it
         if workflow_id:
-            for flow_id, workflow_data in all_workflows.items():
-                if flow_id.endswith(workflow_id):
-                    filtered_workflows[flow_id] = workflow_data
-                    break
+            # Direct lookup by full workflow ID
+            if workflow_id in all_workflows:
+                filtered_workflows[workflow_id] = all_workflows[workflow_id]
 
         # If no workflow_id match or not provided, search by keywords
         if not filtered_workflows:
@@ -970,14 +969,12 @@ async def search_workflow_skills(
         # Format results
         workflows_list = []
         for flow_id, workflow_data in filtered_workflows.items():
-            flow_id_short = flow_id[-4:]
             workflow_name = workflow_data.get('name', 'Unnamed Workflow')
             workflow_desc = workflow_data.get('description', 'No description')
             workflow_expose_config = workflow_data.get('workflow_expose_config', {})
 
             workflow_info = {
                 "workflow_id": flow_id,
-                "workflow_id_short": flow_id_short,
                 "name": workflow_name,
                 "description": workflow_desc,
                 "adjustable_parameters": {}
@@ -1044,19 +1041,15 @@ async def execute_workflow_skill(request: ExecuteWorkflowAction):
         from vibe_surf.langflow.api.v1.schemas import SimplifiedAPIRequest
         from uuid import UUID
 
-        # Find the full workflow ID
-        full_flow_id = None
-        for flow_id in workflow_skills.keys():
-            if flow_id.endswith(request.workflow_id):
-                full_flow_id = flow_id
-                break
+        # Get the workflow directly using full workflow_id
+        workflow_id = request.workflow_id
 
-        if not full_flow_id:
+        if workflow_id not in workflow_skills:
             return ExecuteWorkflowSkillResponse(
                 success=False,
-                message=f'Workflow with ID ending in "{request.workflow_id}" not found',
+                message=f'Workflow with ID "{workflow_id}" not found',
                 result=None,
-                error=f'Workflow with ID ending in "{request.workflow_id}" not found'
+                error=f'Workflow with ID "{workflow_id}" not found'
             )
 
         # Parse tweak_params
@@ -1076,7 +1069,7 @@ async def execute_workflow_skill(request: ExecuteWorkflowAction):
         # Validate tweak_params against workflow expose config
         if tweaks:
             # Get workflow expose config
-            workflow_data = workflow_skills.get(full_flow_id, {})
+            workflow_data = workflow_skills.get(workflow_id, {})
             workflow_expose_config = workflow_data.get('workflow_expose_config', {})
 
             # Build valid exposed inputs map
@@ -1112,13 +1105,13 @@ async def execute_workflow_skill(request: ExecuteWorkflowAction):
 
         # Get the flow from database
         try:
-            flow_uuid = UUID(full_flow_id)
+            flow_uuid = UUID(workflow_id)
         except ValueError:
             return ExecuteWorkflowSkillResponse(
                 success=False,
-                message=f'Invalid flow ID format: {full_flow_id}',
+                message=f'Invalid flow ID format: {workflow_id}',
                 result=None,
-                error=f'Invalid flow ID format: {full_flow_id}'
+                error=f'Invalid flow ID format: {workflow_id}'
             )
 
         # Get settings for authentication
@@ -1134,9 +1127,9 @@ async def execute_workflow_skill(request: ExecuteWorkflowAction):
             if not db_flow:
                 return ExecuteWorkflowSkillResponse(
                     success=False,
-                    message=f'Workflow not found in database: {full_flow_id}',
+                    message=f'Workflow not found in database: {workflow_id}',
                     result=None,
-                    error=f'Workflow not found in database: {full_flow_id}'
+                    error=f'Workflow not found in database: {workflow_id}'
                 )
 
             # Create request with tweaks
@@ -1156,9 +1149,9 @@ async def execute_workflow_skill(request: ExecuteWorkflowAction):
             )
 
             # Format result
-            workflow_name = workflow_skills[full_flow_id].get('name', 'Workflow')
+            workflow_name = workflow_skills[workflow_id].get('name', 'Workflow')
             result_text = f"# Workflow Execution Result\n\n"
-            result_text += f"**Workflow:** @flow-{request.workflow_id}: {workflow_name}\n\n"
+            result_text += f"**Workflow:** {workflow_name}\n\n"
             result_text += f"**Status:** ✅ Completed\n\n"
 
             if result.outputs:
@@ -1185,7 +1178,7 @@ async def execute_workflow_skill(request: ExecuteWorkflowAction):
                         result_text += f"### Result of {component_id}-{component_display_name}\n\n"
                         result_text += f"{results_data_str}\n\n"
 
-            logger.info(f'✅ Successfully executed workflow: {full_flow_id}')
+            logger.info(f'✅ Successfully executed workflow: {workflow_id}')
             return ExecuteWorkflowSkillResponse(
                 success=True,
                 message="Workflow executed successfully",

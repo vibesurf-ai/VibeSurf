@@ -454,9 +454,9 @@ class SearchWorkflowsAction(BaseModel):
 class ExecuteWorkflowAction(BaseModel):
     """Parameters for execute_workflow action - Execute a workflow with tweaks"""
     workflow_id: str = Field(
-        min_length=4,
-        max_length=4,
-        description='Last 4 digits of the workflow ID to execute'
+        min_length=36,
+        max_length=36,
+        description='Full workflow UUID to execute (36 characters including dashes)'
     )
     tweak_params: str | None = Field(
         default=None,
