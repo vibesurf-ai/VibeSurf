@@ -57,23 +57,35 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-### 2. 启动 VibeSurf
+### 2. 安装 VibeSurf
+将 VibeSurf 安装为工具
+
+```bash
+uv tool install vibesurf
+```
+
+> **提示**：使用 `uv tool upgrade vibesurf` 可升级到最新版本。
+
+### 3. 启动 VibeSurf
 启动 VibeSurf 浏览器助手
 
 ```bash
-uvx vibesurf
+vibesurf
 ```
 
-> **提示**：使用 `uvx --refresh vibesurf` 可强制更新到最新版本。
+**注意**：从 Chrome 142 开始，不再支持 `--load-extension` 标志。首次启动 VibeSurf 时，**浏览器会弹出一个窗口显示扩展的路径**。手动加载扩展的步骤：
 
-**注意**：从 Chrome 142 开始，不再支持 `--load-extension` 标志，这意味着 VibeSurf 无法自动加载扩展。如果启动 VibeSurf 后找不到 VibeSurf 扩展，请从[这里](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip)手动下载并按照以下步骤操作：
-
-- 解压下载的 zip 文件
 - 打开 chrome://extensions
 - 启用开发者模式
-- 点击"加载已解压的扩展程序"并选择解压后的文件夹
+- 点击"加载已解压的扩展程序"并导航到扩展文件夹
 
-### 3. 开始使用
+**常见扩展位置：**
+- **Windows**: `C:\Users\<用户名>\AppData\Roaming\uv\tools\vibesurf\Lib\site-packages\vibe_surf\chrome_extension`
+- **macOS**: `~/.local/share/uv/tools/vibesurf/lib/python3.x/site-packages/vibe_surf/chrome_extension`
+
+  > **macOS 提示**：在 Finder 中按 `Cmd+Shift+G`，粘贴路径后按回车即可直接导航到该文件夹。
+
+### 4. 开始使用
 
 <video src="https://github.com/user-attachments/assets/86dba2e4-3f33-4ccf-b400-d07cf1a481a0" controls="controls">Your browser does not support playing this video!</video>
 

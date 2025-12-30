@@ -56,23 +56,35 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-### 2. Launch VibeSurf
+### 2. Install VibeSurf
+Install VibeSurf as a tool
+
+```bash
+uv tool install vibesurf
+```
+
+> **Tip**: Use `uv tool upgrade vibesurf` to upgrade to the latest version.
+
+### 3. Launch VibeSurf
 Start the VibeSurf browser assistant
 
 ```bash
-uvx vibesurf
+vibesurf
 ```
 
-> **Tip**: Use `uvx --refresh vibesurf` to force update to the latest version.
+**Note**: Starting from Chrome 142, the `--load-extension` flag is no longer supported. When you first start VibeSurf, **the browser will show a popup displaying the extension path**. To manually load the extension:
 
-**Note**: Starting from Chrome 142, the `--load-extension` flag is no longer supported, which means VibeSurf cannot automatically load the extension. If you cannot find the VibeSurf extension after starting VibeSurf, please download it manually from [here](https://github.com/vibesurf-ai/VibeSurf/releases/latest/download/vibesurf-extension.zip) and follow these steps:
-
-- Extract the downloaded zip file
 - Open chrome://extensions
 - Enable Developer mode
-- Click "Load unpacked" and select the extracted folder
+- Click "Load unpacked" and navigate to the extension folder
 
-### 3. Start to Use
+**Typical Extension Locations:**
+- **Windows**: `C:\Users\<username>\AppData\Roaming\uv\tools\vibesurf\Lib\site-packages\vibe_surf\chrome_extension`
+- **macOS**: `~/.local/share/uv/tools/vibesurf/lib/python3.x/site-packages/vibe_surf/chrome_extension`
+
+  > **Tip for macOS**: Press `Cmd+Shift+G` in Finder, paste the path, and press Enter to navigate directly to the folder.
+
+### 4. Start to Use
 
 <video src="https://github.com/user-attachments/assets/86dba2e4-3f33-4ccf-b400-d07cf1a481a0" controls="controls">Your browser does not support playing this video!</video>
 
