@@ -179,4 +179,4 @@ Huge thanks to their creators and contributors!
 
 Welcome to join our WeChat group for discussions!
 
-<img src="assets/wx.png" width="300" alt="WeChat Group">
+<img src="./vibe_surf/chrome_extension/icons/wx.png" width="300" alt="WeChat Group">

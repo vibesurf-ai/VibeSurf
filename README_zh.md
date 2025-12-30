@@ -177,4 +177,4 @@ VibeSurf 建立在其他优秀的开源项目之上：
 
 欢迎加入我们的微信群讨论！
 
-<img src="assets/wx.png" width="300" alt="微信群">
+<img src="./vibe_surf/chrome_extension/icons/wx.png" width="300" alt="微信群">

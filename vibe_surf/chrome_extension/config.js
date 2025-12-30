@@ -33,7 +33,7 @@ const VIBESURF_CONFIG = {
     github: "https://github.com/vibesurf-ai/VibeSurf",
     discord: "https://discord.gg/86SPfhRVbk",
     x: "https://x.com/warmshao",
-    reportBug: "https://github.com/vibesurf-ai/VibeSurf/issues/new/choose",
+    wechat: "icons/wx.png", // WeChat QR code image
     website: "https://vibe-surf.com/"
   },
   

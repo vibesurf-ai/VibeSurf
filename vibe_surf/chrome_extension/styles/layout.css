@@ -58,19 +58,29 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-decoration: none;
   transition: all var(--transition-fast);
-  opacity: 0.7;
+  opacity: 0.85;
   cursor: pointer; /* Explicitly set cursor */
   pointer-events: auto; /* Ensure clickable */
+  position: relative; /* For QR code popup positioning */
+}
+
+.social-link svg {
+  width: 18px;
+  height: 18px;
+}
+
+.social-link[data-platform="wechat"] svg {
+  width: 22px;
+  height: 22px;
 }
 
 .social-link:hover {
-  color: var(--text-secondary);
   background-color: var(--bg-hover);
   opacity: 1;
   transform: scale(1.1);
@@ -80,26 +90,86 @@
   transform: scale(0.95);
 }
 
-.social-link[data-platform="github"]:hover {
+.social-link[data-platform="github"] {
   color: #333;
 }
 
-.social-link[data-platform="discord"]:hover {
+.social-link[data-platform="discord"] {
   color: #5865F2;
 }
 
-.social-link[data-platform="x"]:hover {
+.social-link[data-platform="x"] {
   color: #000;
+}
+
+.social-link[data-platform="wechat"] {
+  color: #07C160;
+}
+
+/* WeChat QR Code Popup */
+.wechat-qr-popup {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 10px;
+  padding: 10px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+.wechat-qr-popup::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-bottom-color: var(--border-color);
+}
+
+.wechat-qr-popup::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-bottom-color: white;
+}
+
+.social-link[data-platform="wechat"]:hover .wechat-qr-popup {
+  display: block;
+}
+
+.wechat-qr-popup img {
+  display: block;
+  width: 300px;
+  height: auto;
+  border-radius: var(--radius-sm);
 }
 
 /* Dark mode adjustments for social links */
 @media (prefers-color-scheme: dark) {
-  .social-link[data-platform="github"]:hover {
+  .social-link[data-platform="github"] {
     color: #f0f6fc;
   }
-  
-  .social-link[data-platform="x"]:hover {
+
+  .social-link[data-platform="x"] {
     color: #fff;
+  }
+
+  .wechat-qr-popup {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+  }
+
+  .wechat-qr-popup::after {
+    border-bottom-color: var(--bg-secondary);
   }
 }
 
