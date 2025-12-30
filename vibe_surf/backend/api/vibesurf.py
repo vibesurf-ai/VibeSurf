@@ -26,7 +26,7 @@ from vibe_surf.langflow.services.auth.utils import create_super_user
 from vibe_surf.langflow.api.v1.flows import _read_flow, _new_flow
 from vibe_surf.langflow.services.database.models.folder.model import Folder
 from vibe_surf.langflow.services.database.models.flow.model import FlowCreate
-from vibe_surf.tools.views import SearchWorkflowsAction, ExecuteWorkflowAction
+from vibe_surf.tools.views import ExecuteWorkflowAction
 
 logger = get_logger(__name__)
 
@@ -898,10 +898,18 @@ async def get_location_language():
             detected_from_ip=False
         )
 
-@router.post("/search-workflow-skills", response_model=SearchWorkflowSkillsResponse)
-async def search_workflow_skills(request: SearchWorkflowsAction):
+@router.get("/search-workflow-skills", response_model=SearchWorkflowSkillsResponse)
+async def search_workflow_skills(
+    key_words: Optional[str] = None,
+    workflow_id: Optional[str] = None
+):
     """
     Search available workflows by keywords or workflow ID
+
+    Args:
+        key_words: Comma-separated keywords to search in workflow name and description.
+                   Use None or empty to return all workflows. Example: "search,data,analysis"
+        workflow_id: Optional last 4 digits of workflow ID for direct lookup
 
     Returns workflow information including:
     - workflow_id (last 4 digits)
@@ -926,8 +934,8 @@ async def search_workflow_skills(request: SearchWorkflowsAction):
         filtered_workflows = {}
 
         # Normalize empty strings to None
-        workflow_id = request.workflow_id if request.workflow_id and request.workflow_id.strip() else None
-        key_words = request.key_words if request.key_words and request.key_words.strip() else None
+        workflow_id = workflow_id if workflow_id and workflow_id.strip() else None
+        key_words = key_words if key_words and key_words.strip() else None
 
         # If workflow_id is provided, prioritize it
         if workflow_id:
