@@ -78,7 +78,7 @@ def _should_filter_action(action_name: str, source: str) -> bool:
         return True
     if action_name == 'gen_and_execute_js_code':
         return True
-    if action_name == 'screenshot':
+    if action_name == 'take_screenshot':
         return True
 
     # Source-specific rules
@@ -101,7 +101,8 @@ def _get_filtered_actions() -> Dict[str, Dict[str, Any]]:
     Get all actions from both vibesurf_tools and browser_use_tools with filtering applied
 
     Returns:
-        Dictionary mapping action_name to action info including source and action object
+        Dictionary mapping action_name to action info including source, action object, and original_name
+        For browser_use_tools, action_name has "browser." prefix, original_name is without prefix
     """
     from ..shared_state import vibesurf_tools, browser_use_tools, workspace_dir
     filtered_actions = {}
@@ -112,16 +113,20 @@ def _get_filtered_actions() -> Dict[str, Dict[str, Any]]:
             if not _should_filter_action(action_name, 'vibesurf_tools'):
                 filtered_actions[action_name] = {
                     'source': 'vibesurf_tools',
-                    'action': action
+                    'action': action,
+                    'original_name': action_name  # Same as action_name for vibesurf_tools
                 }
 
-    # Add browser_use_tools actions
+    # Add browser_use_tools actions with "browser." prefix
     if browser_use_tools and hasattr(browser_use_tools, 'registry'):
         for action_name, action in browser_use_tools.registry.registry.actions.items():
             if not _should_filter_action(action_name, 'browser_use_tools'):
-                filtered_actions[action_name] = {
+                # Add "browser." prefix for display
+                prefixed_name = f"browser.{action_name}"
+                filtered_actions[prefixed_name] = {
                     'source': 'browser_use_tools',
-                    'action': action
+                    'action': action,
+                    'original_name': action_name  # Store original name without prefix
                 }
 
     return filtered_actions
@@ -284,22 +289,27 @@ async def execute_action(request: ExecuteActionRequest):
         action_info = all_actions[request.action_name]
         action = action_info['action']
         source = action_info['source']
+        original_name = action_info['original_name']  # Get original name without prefix
 
         # Initialize file_system with workspace_dir
         file_system = CustomFileSystem(workspace_dir)
 
         # Validate and create ActionModel
         try:
-            # Get the parameter model for this action
-            param_model = action.param_model
+            if not request.action_params:
+                from browser_use.tools.views import NoParamsAction
+                action_model = NoParamsAction()
+            else:
+                # Get the parameter model for this action
+                param_model = action.param_model
 
-            # Validate parameters using the parameter model
-            validated_params = param_model(**request.action_params)
+                # Validate parameters using the parameter model
+                validated_params = param_model(**request.action_params)
+                
+                # ActionModel expects a dict with original action_name (without prefix) as key
+                action_dict = {original_name: validated_params}
 
-            # Create ActionModel instance with the validated parameters
-            # ActionModel expects a dict with action_name as key and params as value
-            action_dict = {request.action_name: validated_params}
-            action_model = ActionModel(**action_dict)
+                action_model = ActionModel(**action_dict)
 
         except Exception as e:
             logger.error(f"Failed to validate parameters for {request.action_name}: {e}")
