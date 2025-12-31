@@ -166,6 +166,30 @@ class SkillTakeScreenshotAction(BaseModel):
         min_length=4,
         max_length=4,
     )
+    crop_x1: float | None = Field(
+        default=None,
+        description='crop x1 coordinate (0-1, relative to image width)',
+        ge=0,
+        le=1,
+    )
+    crop_y1: float | None = Field(
+        default=None,
+        description='crop y1 coordinate (0-1, relative to image height)',
+        ge=0,
+        le=1,
+    )
+    crop_x2: float | None = Field(
+        default=None,
+        description='crop x2 coordinate (0-1, relative to image width)',
+        ge=0,
+        le=1,
+    )
+    crop_y2: float | None = Field(
+        default=None,
+        description='crop y2 coordinate (0-1, relative to image height)',
+        ge=0,
+        le=1,
+    )
 
 
 class SkillDeepResearchAction(BaseModel):

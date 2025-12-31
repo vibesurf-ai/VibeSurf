@@ -46,6 +46,7 @@ from vibe_surf.backend.api.composio import router as composio_router
 from vibe_surf.backend.api.schedule import router as schedule_router
 from vibe_surf.backend.api.vibesurf import router as vibesurf_router
 from vibe_surf.backend.api.skill import router as skill_router
+from vibe_surf.backend.api.tool import router as tool_router
 from vibe_surf.backend import shared_state
 
 # Configure logging
@@ -592,6 +593,7 @@ def create_app() -> FastAPI:
     app.include_router(schedule_router, prefix="/api", tags=["schedule"])
     app.include_router(vibesurf_router, prefix="/api", tags=["vibesurf"])
     app.include_router(skill_router, prefix="/api", tags=["skill"])
+    app.include_router(tool_router, prefix="/api", tags=["tool"])
 
     @app.middleware("http")
     async def check_boundary(request: Request, call_next):
