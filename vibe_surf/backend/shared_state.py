@@ -22,6 +22,7 @@ from sqlalchemy import select, update
 from vibe_surf.agents.vibe_surf_agent import VibeSurfAgent
 from vibe_surf.tools.browser_use_tools import BrowserUseTools
 from vibe_surf.tools.vibesurf_tools import VibeSurfTools
+from vibe_surf.tools.browser_use_tools import BrowserUseTools
 from vibe_surf.browser.browser_manager import BrowserManager
 from browser_use.llm.base import BaseChatModel
 from browser_use.llm.openai.chat import ChatOpenAI
@@ -37,6 +38,7 @@ logger = get_logger(__name__)
 vibesurf_agent: Optional[VibeSurfAgent] = None
 browser_manager: Optional[BrowserManager] = None
 vibesurf_tools: Optional[VibeSurfTools] = None
+browser_use_tools: BrowserUseTools = BrowserUseTools()
 llm: Optional[BaseChatModel] = None
 db_manager: Optional['DatabaseManager'] = None
 current_llm_profile_name: Optional[str] = None

@@ -397,7 +397,7 @@ async def _vibesurf_agent_node_impl(state: VibeSurfState) -> VibeSurfState:
     # Create action model and agent output using VibeSurfTools
     vibesurf_agent = state.vibesurf_agent
 
-    vibesurf_action_names = vibesurf_agent.tools.get_all_action_names(exclude_actions=['mcp.', 'cpo.'])
+    vibesurf_action_names = vibesurf_agent.tools.get_all_action_names(exclude_actions=['mcp.', 'cpo.', 'get_browser_state'])
     ActionModel = vibesurf_agent.tools.registry.create_action_model(include_actions=vibesurf_action_names)
     if vibesurf_agent.settings.agent_mode == "thinking":
         AgentOutput = CustomAgentOutput.type_with_custom_actions(ActionModel)

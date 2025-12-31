@@ -2,6 +2,13 @@ from typing import Generic, TypeVar, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class SearchAction(BaseModel):
+	query: str
+	engine: str = Field(
+		default='google', description='duckduckgo, google, bing'
+	)
+
+
 class HoverAction(BaseModel):
     """Parameters for hover action"""
     index: int | None = None
@@ -158,6 +165,30 @@ class SkillTakeScreenshotAction(BaseModel):
         default=None,
         min_length=4,
         max_length=4,
+    )
+    crop_x1: float | None = Field(
+        default=None,
+        description='crop x1 coordinate (0-1, relative to image width)',
+        ge=0,
+        le=1,
+    )
+    crop_y1: float | None = Field(
+        default=None,
+        description='crop y1 coordinate (0-1, relative to image height)',
+        ge=0,
+        le=1,
+    )
+    crop_x2: float | None = Field(
+        default=None,
+        description='crop x2 coordinate (0-1, relative to image width)',
+        ge=0,
+        le=1,
+    )
+    crop_y2: float | None = Field(
+        default=None,
+        description='crop y2 coordinate (0-1, relative to image height)',
+        ge=0,
+        le=1,
     )
 
 
@@ -440,20 +471,18 @@ class SearchWorkflowsAction(BaseModel):
     )
     workflow_id: str | None = Field(
         default=None,
-        min_length=4,
-        max_length=4,
-        description='Optional last 4 digits of workflow ID for direct lookup.'
+        description='Optional last 4 digits of workflow ID for direct lookup. If empty or None, will search by keywords instead.'
     )
 
 
 class ExecuteWorkflowAction(BaseModel):
     """Parameters for execute_workflow action - Execute a workflow with tweaks"""
     workflow_id: str = Field(
-        min_length=4,
-        max_length=4,
-        description='Last 4 digits of the workflow ID to execute'
+        min_length=36,
+        max_length=36,
+        description='Full workflow UUID to execute (36 characters including dashes)'
     )
     tweak_params: str | None = Field(
         default=None,
-        description='JSON string containing tweak parameters in format: {"component_id": {"input_name": "input_value"}}. Example: {"TextInput-uU4Rl": {"input_value": "vibesurf"}}. Only include parameters that need to be adjusted; others will use default values.'
+        description='JSON string containing tweak parameters in format: {"component_id": {"input_name": "input_value"}. Example: {"TextInput-uU4Rl": {"input_value": "vibesurf"}. Only include parameters that need to be adjusted; others will use default values.'
     )
