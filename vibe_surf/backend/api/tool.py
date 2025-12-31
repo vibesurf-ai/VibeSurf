@@ -8,7 +8,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from json_repair import repair_json
 
-from ..shared_state import vibesurf_tools, browser_use_tools, workspace_dir
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.logger import get_logger
 from browser_use.agent.views import ActionModel, ActionResult
@@ -23,7 +22,6 @@ router = APIRouter(prefix="/tool", tags=["tool"])
 class ActionInfo(BaseModel):
     action_name: str
     action_description: str
-    param_schema: Optional[Dict[str, Any]] = None
 
 
 class SearchActionsResponse(BaseModel):
@@ -40,7 +38,7 @@ class ActionParamsResponse(BaseModel):
 
 class ExecuteActionRequest(BaseModel):
     action_name: str
-    action_params: Dict[str, Any]
+    action_params: Dict[str, Any] = {}
 
 
 class ExecuteActionResponse(BaseModel):
@@ -61,6 +59,7 @@ def _should_filter_action(action_name: str, source: str) -> bool:
     Returns:
         True if action should be filtered out, False otherwise
     """
+    from ..shared_state import vibesurf_tools, browser_use_tools, workspace_dir
     # Common filtering rules
     if 'done' in action_name.lower():
         return True
@@ -70,9 +69,16 @@ def _should_filter_action(action_name: str, source: str) -> bool:
         return True
     if 'todo' in action_name.lower():
         return True
+    
+    if action_name.startswith('mcp.') or action_name.startswith('cpo.'):
+        return True
 
     # Specific action filtering
     if action_name == 'execute_python_code':
+        return True
+    if action_name == 'gen_and_execute_js_code':
+        return True
+    if action_name == 'screenshot':
         return True
 
     # Source-specific rules
@@ -83,7 +89,7 @@ def _should_filter_action(action_name: str, source: str) -> bool:
 
     elif source == 'browser_use_tools':
         # Filter actions that exist in vibesurf_tools (duplicates)
-        if vibesurf_tools and hasattr(vibesurf_tools, 'registry'):
+        if vibesurf_tools:
             if action_name in vibesurf_tools.registry.registry.actions:
                 return True
 
@@ -97,6 +103,7 @@ def _get_filtered_actions() -> Dict[str, Dict[str, Any]]:
     Returns:
         Dictionary mapping action_name to action info including source and action object
     """
+    from ..shared_state import vibesurf_tools, browser_use_tools, workspace_dir
     filtered_actions = {}
 
     # Add vibesurf_tools actions
@@ -125,8 +132,7 @@ def _get_action_description(action) -> str:
     Get action description from param_model or return action name
     """
     try:
-        param_schema = action.param_model.model_json_schema()
-        return param_schema.get('description', '')
+        return action.description
     except Exception:
         return ''
 
@@ -176,12 +182,12 @@ async def search_actions(keyword: Optional[str] = None):
             )
 
             # Include param schema if fewer than 5 results
-            if include_schemas:
-                try:
-                    param_schema = action.param_model.model_json_schema()
-                    action_result.param_schema = param_schema
-                except Exception as e:
-                    logger.warning(f"Failed to get param schema for {action_name}: {e}")
+            # if include_schemas:
+            #     try:
+            #         param_schema = action.param_model.model_json_schema()
+            #         action_result.param_schema = param_schema
+            #     except Exception as e:
+            #         logger.warning(f"Failed to get param schema for {action_name}: {e}")
 
             result_actions.append(action_result)
 
@@ -263,6 +269,7 @@ async def execute_action(request: ExecuteActionRequest):
     Returns:
         ExecuteActionResponse with execution result
     """
+    from ..shared_state import vibesurf_tools, browser_use_tools, workspace_dir
     try:
         # Get all filtered actions
         all_actions = _get_filtered_actions()

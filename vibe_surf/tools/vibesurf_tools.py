@@ -101,7 +101,7 @@ class VibeSurfTools:
 
     def _register_skills(self):
         @self.registry.action(
-            'Advanced search',
+            'Advanced search by using gemini AI search.',
             param_model=SkillSearchAction,
         )
         async def skill_search(
@@ -206,7 +206,7 @@ class VibeSurfTools:
                         logger.warning(f"Failed to cleanup agent {agent_id}: {cleanup_error}")
 
         @self.registry.action(
-            '',
+            'Crawl or scrape a web page with tab_id.',
             param_model=SkillCrawlAction,
         )
         async def skill_crawl(
@@ -270,7 +270,7 @@ class VibeSurfTools:
                 return ActionResult(error=f'Skill crawl failed: {str(e)}')
 
         @self.registry.action(
-            '',
+            'Summary a web page with tab_id.',
             param_model=SkillSummaryAction,
         )
         async def skill_summary(
@@ -334,7 +334,7 @@ class VibeSurfTools:
                 return ActionResult(error=f'Skill summary failed: {str(e)}')
 
         @self.registry.action(
-            '',
+            'Take screenshot on a web page with tab_id.',
             param_model=SkillTakeScreenshotAction,
         )
         async def skill_screenshot(
@@ -426,7 +426,7 @@ class VibeSurfTools:
                 return ActionResult(error=error_msg)
 
         @self.registry.action(
-            'Execute JavaScript code on webpage',
+            'Generate and execute JavaScript code from functional requirements or code prompts with iterative retry logic.',
             param_model=SkillCodeAction,
         )
         async def skill_code(
@@ -1203,7 +1203,7 @@ class VibeSurfTools:
         from vibe_surf.tools.website_api_skills import get_api_params, call_api
 
         @self.registry.action(
-            'Get API parameters and available methods for website platforms.',
+            'Get API parameters and available methods for website platforms: "xiaohongshu", "weibo", "zhihu", "douyin", or "youtube"',
             param_model=GetApiParamsAction,
         )
         async def get_website_api_params(params: GetApiParamsAction):
@@ -1215,7 +1215,7 @@ class VibeSurfTools:
             return await get_api_params(params)
 
         @self.registry.action(
-            '',
+            'Call website platform API with unified handling.',
             param_model=CallApiAction,
         )
         async def call_website_api(
@@ -1470,6 +1470,128 @@ class VibeSurfTools:
                 return ActionResult(error=f'Failed to execute extra tool: {str(e)}')
 
     def _register_browser_use_agent(self):
+        @self.registry.action(
+            'Get current browser state including tabs, DOM content, and highlighted screenshot',
+            param_model=NoParamsAction,
+        )
+        async def get_browser_state(
+                _: NoParamsAction,
+                browser_manager: BrowserManager,
+                file_system: FileSystem
+        ):
+            """
+            Get comprehensive browser state including:
+            - Current time
+            - All browser tabs info
+            - Active tab's DOM state
+            - Highlighted screenshot with element IDs
+            """
+            try:
+                from browser_use.agent.views import DEFAULT_INCLUDE_ATTRIBUTES
+
+                # Get browser tabs
+                browser_tabs = await browser_manager.main_browser_session.get_tabs()
+                active_browser_tab = await browser_manager.get_activate_tab()
+
+                # Format context information
+                context_info = []
+                context_info.append(f"Current Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+                if browser_tabs:
+                    browser_tabs_info = {}
+                    for tab in browser_tabs:
+                        browser_tabs_info[tab.target_id[-4:]] = {
+                            "page_title": tab.title,
+                            "page_url": tab.url,
+                        }
+                    context_info.append(
+                        f"Current Available Browser Tabs:\n{json.dumps(browser_tabs_info, ensure_ascii=False, indent=2)}\n"
+                    )
+
+                # Get browser session and activate target tab
+                browser_session = browser_manager.main_browser_session
+                if active_browser_tab:
+                    await browser_session.get_or_create_cdp_session(active_browser_tab.target_id)
+
+                # Get browser state summary
+                browser_state_summary = await browser_session.get_browser_state_summary(
+                    include_screenshot=True,  # always capture even if use_vision=False
+                    include_recent_events=False
+                )
+
+                # Save screenshot to file
+                screenshot_path = None
+                if browser_state_summary.screenshot:
+                    # Get file system directory
+                    fs_dir = file_system.get_dir()
+
+                    # Create screenshots directory if it doesn't exist
+                    screenshots_dir = fs_dir / "screenshots"
+                    screenshots_dir.mkdir(exist_ok=True)
+
+                    # Generate filename with timestamp
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    page_title = browser_state_summary.title or "untitled"
+                    page_title = sanitize_filename(page_title)
+                    filename = f"browser_state-{page_title}-{timestamp}.png"
+                    filepath = screenshots_dir / filename
+
+                    # Decode base64 screenshot and save
+                    screenshot_bytes = base64.b64decode(browser_state_summary.screenshot)
+                    with open(filepath, "wb") as f:
+                        f.write(screenshot_bytes)
+
+                    screenshot_path = str(filepath.relative_to(fs_dir))
+
+                # Get DOM content
+                dom_content = browser_state_summary.dom_state.llm_representation(
+                    include_attributes=DEFAULT_INCLUDE_ATTRIBUTES
+                )
+
+                # Format result
+                result_text = "# 🌐 Browser State\n\n"
+
+                # Add context info
+                for info in context_info:
+                    result_text += f"{info}\n\n"
+
+                result_text += "---\n\n"
+
+                # Add active tab info
+                if active_browser_tab:
+                    result_text += f"## 📌 Active Tab\n\n"
+                    result_text += f"**Tab ID:** {active_browser_tab.target_id[-4:]}\n"
+                    result_text += f"**Title:** {browser_state_summary.title}\n"
+                    result_text += f"**URL:** {browser_state_summary.url}\n\n"
+
+                # Add screenshot info
+                if screenshot_path:
+                    result_text += f"## 📸 Highlighted Screenshot\n\n"
+                    result_text += f"**Path:** {screenshot_path}\n"
+                    result_text += f"*Screenshot with element IDs (index) highlighted*\n\n"
+
+                # Add DOM content
+                result_text += f"## 📄 DOM Content\n\n"
+                result_text += f"```\n{dom_content}\n```\n\n"
+
+                # Add page info if available
+                if browser_state_summary.page_info:
+                    result_text += f"## ℹ️ Page Info\n\n"
+                    result_text += f"**Pixels Above:** {browser_state_summary.pixels_above}px\n"
+                    result_text += f"**Pixels Below:** {browser_state_summary.pixels_below}px\n\n"
+
+                logger.info(f'✅ Retrieved browser state for: {browser_state_summary.url}')
+                return ActionResult(
+                    extracted_content=result_text
+                )
+
+            except Exception as e:
+                error_msg = f'❌ Failed to get browser state: {str(e)}'
+                logger.error(error_msg)
+                import traceback
+                traceback.print_exc()
+                return ActionResult(error=error_msg)
+            
         @self.registry.action(
             'Execute browser_use agent tasks. Please specify a tab id to an agent, if you want to let agent work on this tab. When using Parallel Task Processing, each `tab_id` in parameter must be unique - one tab_id can only be assigned to one agent during parallel execution. Otherwise, please use single bu agent to complete the task.',
             param_model=BrowserUseAgentExecution,

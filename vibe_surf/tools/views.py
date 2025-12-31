@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class SearchAction(BaseModel):
 	query: str
 	engine: str = Field(
-		default='google', description='duckduckgo, google, bing (use duckduckgo by default because less captchas)'
+		default='google', description='duckduckgo, google, bing'
 	)
 
 
