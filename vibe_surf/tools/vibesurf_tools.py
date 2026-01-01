@@ -1491,6 +1491,7 @@ class VibeSurfTools:
                 
                 # Get browser tabs
                 browser_tabs = await browser_manager.main_browser_session.get_tabs()
+                
                 active_browser_tab = await browser_manager.get_activate_tab()
 
                 # Format context information
@@ -1510,8 +1511,6 @@ class VibeSurfTools:
 
                 # Get browser session and activate target tab
                 browser_session = browser_manager.main_browser_session
-                if active_browser_tab:
-                    await browser_session.get_or_create_cdp_session(active_browser_tab.target_id)
 
                 # Get browser state summary
                 browser_state_summary = await browser_session.get_browser_state_summary(

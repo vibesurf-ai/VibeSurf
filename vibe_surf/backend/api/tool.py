@@ -3,6 +3,7 @@ Tool API
 Provides endpoints for searching, inspecting, and executing actions from vibesurf_tools and browser_use_tools
 """
 import json
+import os
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -291,8 +292,10 @@ async def execute_action(request: ExecuteActionRequest):
         source = action_info['source']
         original_name = action_info['original_name']  # Get original name without prefix
 
-        # Initialize file_system with workspace_dir
-        file_system = CustomFileSystem(workspace_dir)
+        # Initialize file_system with workspace_dir + "apis"
+        apis_dir = os.path.join(workspace_dir, "apis")
+        os.makedirs(apis_dir, exist_ok=True)
+        file_system = CustomFileSystem(apis_dir)
         
         if source == "vibesurf_tools":
             ActionModel = vibesurf_tools.registry.create_action_model()
@@ -359,6 +362,7 @@ async def execute_action(request: ExecuteActionRequest):
                     'success': getattr(result, 'success', True),
                     'extracted_content': getattr(result, 'extracted_content', None),
                     'error': getattr(result, 'error', None),
+                    'file_system_base_dir': str(file_system.get_dir()),
                 }
 
                 # Check if execution was successful
