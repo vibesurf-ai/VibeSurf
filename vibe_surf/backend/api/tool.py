@@ -38,7 +38,7 @@ class ActionParamsResponse(BaseModel):
 
 class ExecuteActionRequest(BaseModel):
     action_name: str
-    action_params: Dict[str, Any] = {}
+    parameters: Dict[str, Any] = {}
 
 
 class ExecuteActionResponse(BaseModel):
@@ -301,7 +301,7 @@ async def execute_action(request: ExecuteActionRequest):
 
         # Validate and create ActionModel
         try:
-            if not request.action_params:
+            if not request.parameters:
                 action_dict = {original_name: {}}
 
                 action_model = ActionModel(**action_dict)
@@ -310,7 +310,7 @@ async def execute_action(request: ExecuteActionRequest):
                 param_model = action.param_model
 
                 # Validate parameters using the parameter model
-                validated_params = param_model(**request.action_params)
+                validated_params = param_model(**request.parameters)
                 
                 # ActionModel expects a dict with original action_name (without prefix) as key
                 action_dict = {original_name: validated_params}
