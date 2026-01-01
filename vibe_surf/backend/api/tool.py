@@ -83,8 +83,8 @@ def _should_filter_action(action_name: str, source: str) -> bool:
 
     # Source-specific rules
     if source == 'vibesurf_tools':
-        # Filter actions ending with 'agent'
-        if action_name.endswith('agent'):
+        # Filter actions ending with 'agent', except execute_browser_use_agent
+        if action_name.endswith('agent') and action_name != 'execute_browser_use_agent':
             return True
 
     elif source == 'browser_use_tools':

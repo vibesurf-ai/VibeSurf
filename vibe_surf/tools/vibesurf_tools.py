@@ -1590,22 +1590,387 @@ class VibeSurfTools:
         )
         async def execute_browser_use_agent(
                 params: BrowserUseAgentExecution,
+                browser_manager: BrowserManager,
+                page_extraction_llm: BaseChatModel,
+                file_system: CustomFileSystem
         ):
             """
-            Execute browser_use agent tasks in parallel for improved efficiency.
-            
+            Execute browser_use agent tasks - single or parallel execution.
+
             Args:
                 params: BrowserUseAgentExecution containing list of tasks to execute
                 browser_manager: Browser manager instance
-                llm: Language model instance
+                page_extraction_llm: Language model instance
                 file_system: File system instance
-                
+
             Returns:
                 ActionResult with execution results
             """
-            # TODO: Implement parallel execution of browser_use agent tasks
-            # This is a placeholder implementation
-            pass
+            from vibe_surf.agents.browser_use_agent import BrowserUseAgent
+            from vibe_surf.agents.prompts.vibe_surf_prompt import EXTEND_BU_SYSTEM_PROMPT
+            from vibe_surf.tools.browser_use_tools import BrowserUseTools
+            import nanoid
+            import shutil
+
+            try:
+                tasks = params.tasks
+                task_count = len(tasks)
+
+                if task_count == 0:
+                    return ActionResult(error="No browser tasks provided. Please provide at least one task.")
+
+                # Generate task ID for this execution
+                task_id = nanoid.generate(size=5)
+                bu_agents_workdir = file_system.get_dir() / "bu_agents"
+                bu_agents_workdir.mkdir(parents=True, exist_ok=True)
+
+                # Create tools for browser use agents
+                bu_tools = BrowserUseTools()
+
+                if task_count == 1:
+                    # Single task execution
+                    logger.info("📝 Executing single browser task")
+                    result = await _execute_single_task(
+                        task_info=tasks[0],
+                        task_id=task_id,
+                        task_index=0,
+                        bu_agents_workdir=bu_agents_workdir,
+                        bu_tools=bu_tools,
+                        browser_manager=browser_manager,
+                        page_extraction_llm=page_extraction_llm,
+                        file_system=file_system
+                    )
+
+                    # Format result
+                    if result['success']:
+                        response = f"✅ Browser task completed successfully\n\n"
+                        response += f"**Task:** {result['task']}\n\n"
+                        response += f"**Workdir:** {result['workdir']}\n\n"
+                        if result['result']:
+                            response += f"**Result:**\n{result['result']}\n\n"
+                        if result['important_files']:
+                            response += f"**Important Files:**\n"
+                            for f in result['important_files']:
+                                response += f"- {f}\n"
+                        return ActionResult(extracted_content=response)
+                    else:
+                        error_msg = f"❌ Browser task failed\n\n"
+                        error_msg += f"**Task:** {result['task']}\n\n"
+                        error_msg += f"**Workdir:** {result['workdir']}\n\n"
+                        error_msg += f"**Error:** {result['error']}"
+                        return ActionResult(error=error_msg)
+
+                else:
+                    # Parallel task execution
+                    logger.info(f"🚀 Executing {task_count} browser tasks in parallel")
+                    results = await _execute_parallel_tasks(
+                        tasks=tasks,
+                        task_id=task_id,
+                        bu_agents_workdir=bu_agents_workdir,
+                        bu_tools=bu_tools,
+                        browser_manager=browser_manager,
+                        page_extraction_llm=page_extraction_llm,
+                        file_system=file_system
+                    )
+
+                    # Format results
+                    successful = sum(1 for r in results if r['success'])
+                    response = f"🎯 Parallel browser tasks completed: {successful}/{task_count} successful\n\n"
+
+                    for i, result in enumerate(results, 1):
+                        status = "✅" if result['success'] else "❌"
+                        response += f"{status} **Task {i}:** {result['task']}\n"
+                        response += f"**Workdir:** {result['workdir']}\n"
+
+                        if result['success'] and result['result']:
+                            response += f"**Result:** {result['result']}\n"
+                        elif result['error']:
+                            response += f"**Error:** {result['error']}\n"
+
+                        if result['important_files']:
+                            response += f"**Files:** {', '.join(result['important_files'])}\n"
+                        response += "\n"
+
+                    if successful == task_count:
+                        return ActionResult(extracted_content=response)
+                    else:
+                        return ActionResult(
+                            extracted_content=response,
+                            error=f"{task_count - successful} task(s) failed"
+                        )
+
+            except Exception as e:
+                logger.error(f"❌ Execute browser_use_agent failed: {e}")
+                import traceback
+                traceback.print_exc()
+                return ActionResult(error=f"Failed to execute browser tasks: {str(e)}")
+
+
+        async def _execute_single_task(
+                task_info,  # BrowserUseAgentTask object
+                task_id: str,
+                task_index: int,
+                bu_agents_workdir: Path,
+                bu_tools,
+                browser_manager: BrowserManager,
+                page_extraction_llm: BaseChatModel,
+                file_system: CustomFileSystem
+        ) -> dict:
+            """Execute a single browser task"""
+            from vibe_surf.agents.browser_use_agent import BrowserUseAgent
+            from vibe_surf.agents.prompts.vibe_surf_prompt import EXTEND_BU_SYSTEM_PROMPT
+            import shutil
+
+            task_description = task_info.task
+            if not task_description:
+                bu_agent_workdir = bu_agents_workdir / f"{task_id}-{task_index+1:03d}"
+                return {
+                    'success': False,
+                    'task': '',
+                    'workdir': str(bu_agent_workdir),
+                    'error': "Task description is empty",
+                    'result': None,
+                    'important_files': []
+                }
+
+            task_files = task_info.task_files or []
+            tab_id = task_info.tab_id
+            bu_agent_workdir = bu_agents_workdir / f"{task_id}-{task_index+1:03d}"
+            bu_agent_workdir.mkdir(parents=True, exist_ok=True)
+
+            try:
+                # Process task files
+                available_file_paths = []
+                if task_files:
+                    for task_file in task_files:
+                        upload_workdir = bu_agent_workdir / "upload_files"
+                        upload_workdir.mkdir(parents=True, exist_ok=True)
+                        task_file_path = file_system.get_absolute_path(task_file)
+                        if os.path.exists(task_file_path):
+                            shutil.copy(task_file_path, str(upload_workdir))
+                            available_file_paths.append(
+                                os.path.join("upload_files", os.path.basename(task_file_path))
+                            )
+
+                # Build task description with files
+                if available_file_paths:
+                    upload_files_md = '\n'.join(available_file_paths)
+                    bu_task = f"{task_description}\nNecessary files for this task:\n{upload_files_md}\n"
+                else:
+                    bu_task = task_description
+
+                # Get or create browser session
+                main_browser_session = browser_manager.main_browser_session
+                created_new_tab = False
+                target_id = None
+
+                if tab_id:
+                    target_id = await main_browser_session.get_target_id_from_tab_id(tab_id)
+                    await main_browser_session.get_or_create_cdp_session(target_id=target_id)
+                else:
+                    new_target = await main_browser_session.cdp_client.send.Target.createTarget(
+                        params={'url': 'chrome://newtab/'}
+                    )
+                    target_id = new_target["targetId"]
+                    await main_browser_session.get_or_create_cdp_session(target_id=target_id)
+                    created_new_tab = True
+
+                # Create and run browser agent
+                agent = BrowserUseAgent(
+                    task=bu_task,
+                    llm=page_extraction_llm,
+                    browser_session=main_browser_session,
+                    tools=bu_tools,
+                    task_id=f"{task_id}-{task_index+1:03d}",
+                    file_system_path=str(bu_agent_workdir),
+                    extend_system_message=EXTEND_BU_SYSTEM_PROMPT,
+                    use_thinking=False,
+                    flash_mode=True
+                )
+
+                history = await agent.run()
+
+                # Extract important files with absolute paths
+                important_files = []
+                if history and history.history and len(history.history[-1].result) > 0:
+                    last_result = history.history[-1].result[-1]
+                    important_files = last_result.attachments
+                    if important_files:
+                        important_files = [
+                            str(bu_agent_workdir / file_name) for file_name in important_files
+                        ]
+
+                return {
+                    'success': history.is_successful(),
+                    'task': bu_task,
+                    'workdir': str(bu_agent_workdir),
+                    'result': history.final_result() if hasattr(history, 'final_result') else "Task completed",
+                    'error': str(history.errors()) if history.has_errors() and not history.is_successful() else "",
+                    'important_files': important_files
+                }
+
+            except Exception as e:
+                logger.error(f"Single task execution failed: {e}")
+                import traceback
+                traceback.print_exc()
+                return {
+                    'success': False,
+                    'task': task_description,
+                    'workdir': str(bu_agent_workdir),
+                    'error': str(e),
+                    'result': None,
+                    'important_files': []
+                }
+            finally:
+                # Cleanup browser tab if it was created for this task
+                if created_new_tab and target_id:
+                    try:
+                        root_client = main_browser_session.cdp_client
+                        await root_client.send.Target.closeTarget(params={'targetId': target_id})
+                        logger.debug(f"🧹 Closed browser tab {target_id} created for single task")
+                    except Exception as cleanup_error:
+                        logger.warning(f"Failed to close browser tab {target_id}: {cleanup_error}")
+
+
+        async def _execute_parallel_tasks(
+                tasks: list,  # List of BrowserUseAgentTask objects
+                task_id: str,
+                bu_agents_workdir: Path,
+                bu_tools,
+                browser_manager: BrowserManager,
+                page_extraction_llm: BaseChatModel,
+                file_system: CustomFileSystem
+        ) -> list:
+            """Execute multiple browser tasks in parallel"""
+            from vibe_surf.agents.browser_use_agent import BrowserUseAgent
+            from vibe_surf.agents.prompts.vibe_surf_prompt import EXTEND_BU_SYSTEM_PROMPT
+            import shutil
+
+            # Register agents with browser manager
+            agents = []
+            bu_agent_ids = []
+            register_sessions = []
+
+            for i, task_info in enumerate(tasks):
+                agent_id = f"bu_agent-{task_id}-{i+1:03d}"
+                task_description = task_info.task
+                if not task_description:
+                    continue
+                target_id = task_info.tab_id
+                register_sessions.append(
+                    browser_manager.register_agent(agent_id, target_id=target_id)
+                )
+                bu_agent_ids.append(agent_id)
+
+            agent_browser_sessions = await asyncio.gather(*register_sessions)
+
+            # Create agents
+            bu_tasks = []
+            bu_agent_workdirs = []  # Store workdirs for later use
+            for i, task_info in enumerate(tasks):
+                task_description = task_info.task
+                if not task_description:
+                    continue
+
+                task_files = task_info.task_files or []
+                bu_agent_workdir = bu_agents_workdir / f"{task_id}-{i+1:03d}"
+                bu_agent_workdir.mkdir(parents=True, exist_ok=True)
+                bu_agent_workdirs.append(bu_agent_workdir)
+
+                try:
+                    # Process task files
+                    available_file_paths = []
+                    if task_files:
+                        for task_file in task_files:
+                            upload_workdir = bu_agent_workdir / "upload_files"
+                            upload_workdir.mkdir(parents=True, exist_ok=True)
+                            task_file_path = file_system.get_absolute_path(task_file)
+                            if os.path.exists(task_file_path):
+                                shutil.copy(task_file_path, str(upload_workdir))
+                                available_file_paths.append(
+                                    os.path.join("upload_files", os.path.basename(task_file_path))
+                                )
+
+                    # Build task description
+                    if available_file_paths:
+                        upload_files_md = '\n'.join(available_file_paths)
+                        bu_task = f"{task_description}\nNecessary files for this task:\n{upload_files_md}\n"
+                    else:
+                        bu_task = task_description
+
+                    bu_tasks.append(bu_task)
+
+                    # Create browser agent
+                    agent = BrowserUseAgent(
+                        task=bu_task,
+                        llm=page_extraction_llm,
+                        browser_session=agent_browser_sessions[i],
+                        tools=bu_tools,
+                        task_id=f"{task_id}-{i+1:03d}",
+                        file_system_path=str(bu_agent_workdir),
+                        extend_system_message=EXTEND_BU_SYSTEM_PROMPT,
+                        use_thinking=False,
+                        flash_mode=True
+                    )
+                    agents.append(agent)
+
+                except Exception as e:
+                    logger.error(f"Failed to create agent for task {i}: {e}")
+                    import traceback
+                    traceback.print_exc()
+
+            # Execute all agents in parallel
+            try:
+                histories = await asyncio.gather(
+                    *[agent.run() for agent in agents],
+                    return_exceptions=True
+                )
+
+                # Process results
+                results = []
+                for i, (history, bu_task, bu_agent_workdir) in enumerate(zip(histories, bu_tasks, bu_agent_workdirs)):
+                    # Extract important files with absolute paths
+                    important_files = []
+                    if history and not isinstance(history, Exception):
+                        if history.history and len(history.history[-1].result) > 0:
+                            last_result = history.history[-1].result[-1]
+                            important_files = last_result.attachments
+                            if important_files:
+                                important_files = [
+                                    str(bu_agent_workdir / file_name) for file_name in important_files
+                                ]
+
+                    if isinstance(history, Exception):
+                        results.append({
+                            'success': False,
+                            'task': bu_task,
+                            'workdir': str(bu_agent_workdir),
+                            'error': str(history),
+                            'result': None,
+                            'important_files': important_files
+                        })
+                    else:
+                        results.append({
+                            'success': history.is_successful(),
+                            'task': bu_task,
+                            'workdir': str(bu_agent_workdir),
+                            'result': history.final_result() if hasattr(history, 'final_result') else "Task completed",
+                            'error': str(history.errors()) if history.has_errors() and not history.is_successful() else "",
+                            'important_files': important_files
+                        })
+
+                return results
+
+            except Exception as e:
+                logger.error(f"Parallel execution failed: {e}")
+                import traceback
+                traceback.print_exc()
+                raise
+            finally:
+                # Cleanup browser sessions
+                for i, agent_id in enumerate(bu_agent_ids):
+                    if tasks[i].tab_id is None:
+                        await browser_manager.unregister_agent(agent_id, close_tabs=True)
 
     def _register_report_writer_agent(self):
         @self.registry.action(
