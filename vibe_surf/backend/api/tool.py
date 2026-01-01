@@ -78,7 +78,7 @@ def _should_filter_action(action_name: str, source: str) -> bool:
         return True
     if action_name == 'gen_and_execute_js_code':
         return True
-    if action_name == 'take_screenshot':
+    if action_name == 'screenshot':
         return True
 
     # Source-specific rules
@@ -341,7 +341,10 @@ async def execute_action(request: ExecuteActionRequest):
             else:
                 # browser_use_tools.act uses: browser_session, page_extraction_llm, file_system
                 # Get browser_session from browser_manager.main_browser_session
-                browser_session = browser_manager.main_browser_session if browser_manager else None
+                active_browser_tab = await browser_manager.get_activate_tab()
+                browser_session = browser_manager.main_browser_session
+                if active_browser_tab:
+                    await browser_session.get_or_create_cdp_session(active_browser_tab.target_id)
                 result = await browser_use_tools.act(
                     action=action_model,
                     browser_session=browser_session,
