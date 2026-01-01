@@ -489,7 +489,7 @@ class BrowserUseTools(Tools, VibeSurfTools):
             'Take a screenshot of the current page and save it to the file system',
             param_model=TakeScreenshotAction
         )
-        async def take_screenshot(params: TakeScreenshotAction, browser_session: AgentBrowserSession, file_system: FileSystem):
+        async def screenshot(params: TakeScreenshotAction, browser_session: AgentBrowserSession, file_system: FileSystem):
             try:
                 # Take screenshot using browser session
                 screenshot_bytes = await browser_session.take_screenshot()
