@@ -857,6 +857,9 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
 
         step_callback = create_browser_agent_step_callback(state, agent_name)
         main_browser_session = state.vibesurf_agent.browser_manager.main_browser_session
+        created_new_tab = False
+        target_id = None
+
         if task_info.get("tab_id", None):
             tab_id = task_info.get("tab_id")
             target_id = await main_browser_session.get_target_id_from_tab_id(tab_id)
@@ -866,6 +869,7 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
                 params={'url': 'chrome://newtab/'})
             target_id = new_target["targetId"]
             await main_browser_session.get_or_create_cdp_session(target_id=target_id)
+            created_new_tab = True
         agent = BrowserUseAgent(
             task=bu_task,
             llm=state.vibesurf_agent.llm,
@@ -928,6 +932,15 @@ async def execute_single_browser_tasks(state: VibeSurfState) -> BrowserTaskResul
         if state.vibesurf_agent and hasattr(state.vibesurf_agent, '_running_agents'):
             state.vibesurf_agent._running_agents.pop(agent_id, None)
             logger.debug(f"🔗 Unregistered single agent {agent_id} from control coordination")
+
+        # Cleanup browser tab if it was created for this task
+        if created_new_tab and target_id:
+            try:
+                root_client = main_browser_session.cdp_client
+                await root_client.send.Target.closeTarget(params={'targetId': target_id})
+                logger.debug(f"🧹 Closed browser tab {target_id} created for single task")
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to close browser tab {target_id}: {cleanup_error}")
 
 
 async def report_task_execution_node(state: VibeSurfState) -> VibeSurfState:
