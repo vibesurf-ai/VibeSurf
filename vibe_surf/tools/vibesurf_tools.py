@@ -1488,7 +1488,7 @@ class VibeSurfTools:
             """
             try:
                 from browser_use.agent.views import DEFAULT_INCLUDE_ATTRIBUTES
-
+                
                 # Get browser tabs
                 browser_tabs = await browser_manager.main_browser_session.get_tabs()
                 active_browser_tab = await browser_manager.get_activate_tab()
@@ -1534,14 +1534,12 @@ class VibeSurfTools:
                     page_title = browser_state_summary.title or "untitled"
                     page_title = sanitize_filename(page_title)
                     filename = f"browser_state-{page_title}-{timestamp}.png"
-                    filepath = screenshots_dir / filename
+                    screenshot_path = screenshots_dir / filename
 
                     # Decode base64 screenshot and save
                     screenshot_bytes = base64.b64decode(browser_state_summary.screenshot)
-                    with open(filepath, "wb") as f:
+                    with open(screenshot_path, "wb") as f:
                         f.write(screenshot_bytes)
-
-                    screenshot_path = str(filepath.relative_to(fs_dir))
 
                 # Get DOM content
                 dom_content = browser_state_summary.dom_state.llm_representation(
@@ -1573,12 +1571,6 @@ class VibeSurfTools:
                 # Add DOM content
                 result_text += f"## 📄 DOM Content\n\n"
                 result_text += f"```\n{dom_content}\n```\n\n"
-
-                # Add page info if available
-                if browser_state_summary.page_info:
-                    result_text += f"## ℹ️ Page Info\n\n"
-                    result_text += f"**Pixels Above:** {browser_state_summary.pixels_above}px\n"
-                    result_text += f"**Pixels Below:** {browser_state_summary.pixels_below}px\n\n"
 
                 logger.info(f'✅ Retrieved browser state for: {browser_state_summary.url}')
                 return ActionResult(

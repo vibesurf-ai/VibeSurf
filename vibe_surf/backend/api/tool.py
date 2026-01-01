@@ -293,12 +293,18 @@ async def execute_action(request: ExecuteActionRequest):
 
         # Initialize file_system with workspace_dir
         file_system = CustomFileSystem(workspace_dir)
+        
+        if source == "vibesurf_tools":
+            ActionModel = vibesurf_tools.registry.create_action_model()
+        else:
+            ActionModel = browser_use_tools.registry.create_action_model()
 
         # Validate and create ActionModel
         try:
             if not request.action_params:
-                from browser_use.tools.views import NoParamsAction
-                action_model = NoParamsAction()
+                action_dict = {original_name: {}}
+
+                action_model = ActionModel(**action_dict)
             else:
                 # Get the parameter model for this action
                 param_model = action.param_model
