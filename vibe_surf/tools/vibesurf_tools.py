@@ -1291,7 +1291,7 @@ class VibeSurfTools:
             'Search tools within a specific toolkit type by name and description filters',
             param_model=SearchToolAction,
         )
-        async def search_tool(params: SearchToolAction):
+        async def search_extra_tool(params: SearchToolAction):
             """
             Search tools by toolkit type and filters
             
@@ -1371,7 +1371,7 @@ class VibeSurfTools:
             'Get detailed information about a specific tool including its parameters',
             param_model=GetToolInfoAction,
         )
-        async def get_tool_info(params: GetToolInfoAction):
+        async def get_extra_tool_info(params: GetToolInfoAction):
             """
             Get tool information including parameter model
             
