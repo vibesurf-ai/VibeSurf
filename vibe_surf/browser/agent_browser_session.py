@@ -191,7 +191,7 @@ class AgentBrowserSession(BrowserSession):
             if not self.cdp_url:
                 if self.is_local:
                     # Launch local browser using event-driven approach
-                    launch_event = self.event_bus.dispatch(BrowserLaunchEvent())
+                    launch_event = self.event_bus.dispatch(BrowserLaunchEvent(event_timeout=300))
                     await launch_event
 
                     # Get the CDP URL from LocalBrowserWatchdog handler result

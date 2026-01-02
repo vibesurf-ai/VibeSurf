@@ -1163,11 +1163,11 @@ class YouTubeApiClient(BaseAPIClient):
         Dict[str, List[Dict]]]:
         """
         Get transcript for a YouTube video
-        
+
         Args:
             video_id: YouTube video ID (not the full URL)
             languages: List of language codes to try (default: ['en'])
-            
+
         Returns:
             Dictionary with language codes as keys and transcript raw data as values
             Returns None if no transcripts are available
@@ -1180,16 +1180,23 @@ class YouTubeApiClient(BaseAPIClient):
             ytt_api = YouTubeTranscriptApi()
 
             # List available transcripts to check what's available
-            transcript_list = ytt_api.list(video_id)
-            available_languages = [transcript.language_code for transcript in transcript_list]
+            try:
+                transcript_list = ytt_api.list(video_id)
+                available_languages = [transcript.language_code for transcript in transcript_list]
 
-            logger.info(f"Available transcript languages for video {video_id}: {available_languages}")
+                logger.info(f"Available transcript languages for video {video_id}: {available_languages}")
+            except Exception as e:
+                logger.warning(f"No transcripts available for video {video_id}: {e}")
+                return None
 
             # Filter requested languages to only include available ones
             valid_languages = [lang for lang in languages if lang in available_languages]
 
             if not valid_languages:
-                logger.warning(f"None of the requested languages {languages} are available for video {video_id}")
+                logger.warning(
+                    f"None of the requested languages {languages} are available for video {video_id}. "
+                    f"Available languages: {available_languages}"
+                )
                 return None
 
             # Fetch transcripts for each valid language
@@ -1200,9 +1207,15 @@ class YouTubeApiClient(BaseAPIClient):
                     transcript = transcript_list.find_transcript([language])
                     fetched_transcript = transcript.fetch()
 
-                    # Convert to raw data format
-                    raw_data = fetched_transcript.to_raw_data()
-                    result[language] = raw_data
+                    # Convert to JSON serializable format (list of dicts)
+                    result[language] = [
+                        {
+                            'text': snippet.text,
+                            'start': snippet.start,
+                            'duration': snippet.duration
+                        }
+                        for snippet in fetched_transcript
+                    ]
 
                     logger.info(f"Successfully fetched transcript for video {video_id} in language {language}")
 
