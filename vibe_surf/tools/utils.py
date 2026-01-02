@@ -359,13 +359,14 @@ async def google_ai_model_search(browser_manager, query: str, max_results: int =
     Google AI model Search - Extract both AI response and sources
     Returns dict with 'response' and 'sources' keys
     """
-    agent_id = "ai_search_agent"
+    target_id = None
     try:
-        browser_session = await browser_manager.register_agent(agent_id, target_id=None)
+        # Use main browser session directly
+        browser_session = browser_manager.main_browser_session
 
-        # Navigate to Google AI model search with udm=50
+        # Navigate to Google AI model search with udm=50 and get target_id
         search_url = f'https://www.google.com/search?q={query}&udm=50'
-        await browser_session.navigate_to_url(search_url, new_tab=False)
+        target_id = await browser_session.navigate_to_url(search_url, new_tab=True)
 
         # Wait for page to load
         await asyncio.sleep(2)
@@ -373,7 +374,7 @@ async def google_ai_model_search(browser_manager, query: str, max_results: int =
         # Extract AI response content
         ai_response = ""
         try:
-            cdp_session = await browser_session.get_or_create_cdp_session()
+            cdp_session = await browser_session.get_or_create_cdp_session(target_id)
             
             # JavaScript to extract AI response content
             extract_ai_content_js = """
@@ -498,7 +499,7 @@ async def google_ai_model_search(browser_manager, query: str, max_results: int =
 
         # Try to click "显示更多" button
         try:
-            cdp_session = await browser_session.get_or_create_cdp_session()
+            cdp_session = await browser_session.get_or_create_cdp_session(target_id)
 
             # JavaScript to click the "显示更多" button with retry logic
             click_more_js = """
@@ -699,7 +700,7 @@ async def google_ai_model_search(browser_manager, query: str, max_results: int =
 """
 
         # Execute extraction JavaScript
-        cdp_session = await browser_session.get_or_create_cdp_session()
+        cdp_session = await browser_session.get_or_create_cdp_session(target_id)
         result = await cdp_session.cdp_client.send.Runtime.evaluate(
             params={'expression': extraction_js, 'returnByValue': True, 'awaitPromise': True},
             session_id=cdp_session.session_id,
@@ -734,9 +735,10 @@ async def google_ai_model_search(browser_manager, query: str, max_results: int =
 
     finally:
         try:
-            await browser_manager.unregister_agent(agent_id, close_tabs=True)
+            if target_id:
+                await browser_session.cdp_client.send.Target.closeTarget(params={'targetId': target_id})
         except Exception as cleanup_error:
-            logger.warning(f"Failed to cleanup agent {agent_id}: {cleanup_error}")
+            logger.warning(f"Failed to cleanup agent: {cleanup_error}")
 
 
 async def fallback_parallel_search(browser_manager, query: str, max_results: int = 100):

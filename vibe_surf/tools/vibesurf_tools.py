@@ -197,13 +197,6 @@ class VibeSurfTools:
             except Exception as e:
                 logger.error(f'❌ Skill Search failed: {e}')
                 return ActionResult(error=f'Skill search failed: {str(e)}')
-            finally:
-                # Clean up browser sessions
-                for agent_id in agent_ids:
-                    try:
-                        await browser_manager.unregister_agent(agent_id, close_tabs=True)
-                    except Exception as cleanup_error:
-                        logger.warning(f"Failed to cleanup agent {agent_id}: {cleanup_error}")
 
         @self.registry.action(
             'Crawl or scrape a web page with tab_id.',

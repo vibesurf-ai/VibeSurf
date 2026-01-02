@@ -185,7 +185,7 @@ class BrowserClickElementComponent(Component):
             if new_tabs:
                 new_tab_id = list(new_tabs)[0]
                 await self.browser_session.get_or_create_cdp_session(new_tab_id, focus=True)
-                await self.browser_session.cdp_client.send.Target.activateTarget(params={'targetId': new_tab_id})
+                # await self.browser_session.cdp_client.send.Target.activateTarget(params={'targetId': new_tab_id})
             self.status = f"Clicked on element {element}"
         except Exception as e:
             import traceback
