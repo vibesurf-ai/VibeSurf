@@ -142,16 +142,25 @@ async def call_api(
         
         method = getattr(client, params.method)
         result = await method(**method_params)
-        
+
+        # Check if result is None
+        if result is None:
+            if platform == "youtube" and params.method == "get_video_transcript":
+                error_msg = "⚠️ 该视频没有可用字幕"
+            else:
+                error_msg = f"⚠️ {config['name']} 未返回数据（内容不存在或不可用）"
+            logger.warning(error_msg)
+            return ActionResult(error=error_msg, extracted_content=error_msg)
+
         # Save result to file
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{platform}_{params.method}_{timestamp}.json"
         filepath = file_system.get_dir() / "data" / filename
         filepath.parent.mkdir(exist_ok=True)
-        
+
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
-        
+
         # Format result as markdown
         if isinstance(result, list):
             display_count = min(5, len(result))
@@ -167,7 +176,7 @@ async def call_api(
                     else:
                         md_content += f"- **{key}**: {value}\n"
                 md_content += "\n"
-        else:
+        elif isinstance(result, dict):
             md_content = f"## {config['name']} {params.method.replace('_', ' ').title()}\n\n"
             for key, value in result.items():
                 if isinstance(value, str) and len(value) > 200:
@@ -175,6 +184,10 @@ async def call_api(
                 else:
                     md_content += f"- **{key}**: {value}\n"
             md_content += "\n"
+        else:
+            # Handle other types (str, int, etc.)
+            md_content = f"## {config['name']} {params.method.replace('_', ' ').title()}\n\n"
+            md_content += f"{result}\n"
         
         # Add file path to markdown
         relative_path = str(filepath.relative_to(file_system.get_dir()))
