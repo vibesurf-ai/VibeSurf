@@ -10,3 +10,6 @@ except ImportError:
 project_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
 load_dotenv(os.path.join(project_dir, ".env"))
+
+os.environ["TIMEOUT_BrowserStartEvent"] = '300'
+os.environ["TIMEOUT_BrowserLaunchEvent"] = '300'
