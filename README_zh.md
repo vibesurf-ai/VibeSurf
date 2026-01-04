@@ -81,9 +81,9 @@ vibesurf
 
 **常见扩展位置：**
 - **Windows**: `C:\Users\<用户名>\AppData\Roaming\uv\tools\vibesurf\Lib\site-packages\vibe_surf\chrome_extension`
-- **macOS**: `~/.local/share/uv/tools/vibesurf/lib/python3.x/site-packages/vibe_surf/chrome_extension`
+- **macOS**: `~/.local/share/uv/tools/vibesurf/lib/python3.<version>/site-packages/vibe_surf/chrome_extension`（将 `<version>` 替换为您的 Python 版本，例如 `python3.12`）
 
-  > **macOS 提示**：在 Finder 中按 `Cmd+Shift+G`，粘贴路径后按回车即可直接导航到该文件夹。
+  > **提示**：除了弹窗显示的路径，您还可以在命令行启动日志中找到扩展路径。macOS 用户可以在 Finder 中按 `Cmd+Shift+G`，粘贴路径后按回车即可直接导航到该文件夹。
 
 ### 4. 开始使用
 

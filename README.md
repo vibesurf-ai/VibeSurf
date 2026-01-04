@@ -80,9 +80,9 @@ vibesurf
 
 **Typical Extension Locations:**
 - **Windows**: `C:\Users\<username>\AppData\Roaming\uv\tools\vibesurf\Lib\site-packages\vibe_surf\chrome_extension`
-- **macOS**: `~/.local/share/uv/tools/vibesurf/lib/python3.x/site-packages/vibe_surf/chrome_extension`
+- **macOS**: `~/.local/share/uv/tools/vibesurf/lib/python3.<version>/site-packages/vibe_surf/chrome_extension` (replace `<version>` with your Python version, e.g., `python3.12`)
 
-  > **Tip for macOS**: Press `Cmd+Shift+G` in Finder, paste the path, and press Enter to navigate directly to the folder.
+  > **Tip**: Besides the popup, you can also find the extension path in the command line startup logs. For macOS users, press `Cmd+Shift+G` in Finder, paste the path, and press Enter to navigate directly to the folder.
 
 ### 4. Start to Use
 
