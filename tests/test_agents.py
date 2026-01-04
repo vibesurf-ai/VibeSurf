@@ -40,9 +40,9 @@ async def run_single_bu_agent():
     await main_browser_session.start()
     bu_tools = BrowserUseTools()
 
-    # llm = ChatOpenAICompatible(model='gemini-2.5-flash',
-    #                            base_url=os.getenv("OPENAI_ENDPOINT"),
-    #                            api_key=os.getenv("OPENAI_API_KEY"))
+    llm = ChatOpenAICompatible(model='gemini-3-flash-preview',
+                               base_url=os.getenv("OPENAI_ENDPOINT"),
+                               api_key=os.getenv("OPENAI_API_KEY"))
 
     # llm = ChatOpenAICompatible(model='qwen-plus',
     #                            base_url=os.getenv("ALIBABA_ENDPOINT"),
@@ -56,9 +56,9 @@ async def run_single_bu_agent():
     #                            base_url=os.getenv("DEEPSEEK_ENDPOINT"),
     #                            api_key=os.getenv("DEEPSEEK_API_KEY"))
 
-    llm = ChatOpenAICompatible(model='glm-4.7',
-                               base_url=os.getenv("OPENAI_ENDPOINT"),
-                               api_key=os.getenv("OPENAI_API_KEY"))
+    # llm = ChatOpenAICompatible(model='glm-4.7',
+    #                            base_url=os.getenv("OPENAI_ENDPOINT"),
+    #                            api_key=os.getenv("OPENAI_API_KEY"))
 
     task = "Search Google for 'Elon Mask' and tell me the top 3 results"
 
@@ -68,6 +68,8 @@ async def run_single_bu_agent():
     # 3. 在新的tab 导航到 https://browser-use.com/
     # 4. 分别总结所有tab的内容(在一步中使用parallel的extract操作, 不要分开三步)，然后保存到 tabs_summary.txt
     # """
+    
+    task = "启动console log 和 network_logging， 然后做一下任务：Search Google for 'Elon Mask' and tell me the top 3 results。最后stop console log 和 network_logging返回log和网络信息"
     agent = BrowserUseAgent(task=task,
                             llm=llm,
                             browser_session=main_browser_session,

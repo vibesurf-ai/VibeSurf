@@ -53,6 +53,12 @@ from vibe_surf.tools.utils import _detect_file_format, _format_file_size
 
 logger = get_logger(__name__)
 
+# Global storage for console logs (keyed by session_id)
+_console_logs_storage: Dict[str, list] = {}
+
+# Global storage for network logs (keyed by session_id)
+_network_logs_storage: Dict[str, dict] = {}
+
 Context = TypeVar('Context')
 
 T = TypeVar('T', bound=BaseModel)
@@ -693,4 +699,480 @@ class BrowserUseTools(Tools, VibeSurfTools):
             except Exception as e:
                 error_msg = f'❌ Failed to reload page: {str(e)}'
                 logger.error(error_msg)
+                return ActionResult(error=error_msg)
+
+        @self.registry.action(
+            'Start monitoring browser console logs (console.log, console.warn, console.error, etc.)',
+            param_model=NoParamsAction
+        )
+        async def start_console_logging(_: NoParamsAction, browser_session: AgentBrowserSession):
+            """
+            Start monitoring console logs from the browser.
+
+            This enables the CDP Console domain and registers an event handler
+            to collect all console messages (log, warn, error, info, debug, etc.).
+            """
+            try:
+                # Get CDP session
+                cdp_session = await browser_session.get_or_create_cdp_session()
+                session_id = cdp_session.session_id
+
+                # Initialize storage for this session
+                _console_logs_storage[session_id] = []
+
+                # Define the callback function for console messages
+                def on_console_message(event_data: dict, event_session_id: Optional[str]):
+                    """Callback to collect console messages"""
+                    message = event_data.get('message', {})
+                    log_entry = {
+                        'source': message.get('source', ''),
+                        'level': message.get('level', ''),
+                        'text': message.get('text', ''),
+                        'url': message.get('url', ''),
+                        'line': message.get('line', 0),
+                        'column': message.get('column', 0),
+                        'timestamp': asyncio.get_event_loop().time()
+                    }
+                    _console_logs_storage[session_id].append(log_entry)
+                    logger.debug(f"Console [{log_entry['level']}]: {log_entry['text']}")
+
+                # Register the event handler
+                cdp_session.cdp_client.register.Console.messageAdded(on_console_message)
+
+                # Enable Console domain to start receiving messages
+                await cdp_session.cdp_client.send.Console.enable(session_id=session_id)
+
+                memory = f"Console logging started (session: {session_id[:8]}...)"
+                msg = f'🎯 {memory}'
+                logger.info(msg)
+                return ActionResult(extracted_content=memory, include_in_memory=True, long_term_memory=memory)
+
+            except Exception as e:
+                error_msg = f"❌ Failed to start console logging: {str(e)}"
+                logger.error(error_msg)
+                return ActionResult(error=error_msg)
+
+        @self.registry.action(
+            'Stop console logging and retrieve all collected console messages',
+            param_model=NoParamsAction
+        )
+        async def stop_console_logging(_: NoParamsAction, browser_session: AgentBrowserSession, file_system: FileSystem):
+            """
+            Stop monitoring console logs and return all collected logs.
+
+            This disables the Console domain, unregisters the event handler,
+            saves all console messages to a file, and returns a summary.
+
+            Returns logs as a formatted string with each entry showing:
+            - Log level (log/warn/error/info/debug)
+            - Message text
+            - Source location (file, line, column) if available
+            """
+            try:
+                # Get CDP session
+                cdp_session = await browser_session.get_or_create_cdp_session()
+                session_id = cdp_session.session_id
+
+                # Disable Console domain
+                await cdp_session.cdp_client.send.Console.disable(session_id=session_id)
+
+                # Unregister the event handler
+                cdp_session.cdp_client._event_registry.unregister("Console.messageAdded")
+
+                # Retrieve and clear the logs for this session
+                logs = _console_logs_storage.get(session_id, [])
+                if session_id in _console_logs_storage:
+                    del _console_logs_storage[session_id]
+
+                # Handle no logs case
+                if not logs:
+                    memory = "No console logs were captured"
+                    msg = f'📋 {memory}'
+                    logger.info(msg)
+                    return ActionResult(
+                        extracted_content=memory,
+                        include_in_memory=True,
+                        long_term_memory=memory
+                    )
+
+                # Group logs by level
+                log_counts = {}
+                for log in logs:
+                    level = log['level']
+                    log_counts[level] = log_counts.get(level, 0) + 1
+
+                # Format detailed logs
+                log_lines = []
+                for i, log in enumerate(logs, 1):
+                    location = ""
+                    if log.get('url'):
+                        location = f" ({log['url']}"
+                        if log.get('line'):
+                            location += f":{log['line']}"
+                            if log.get('column'):
+                                location += f":{log['column']}"
+                        location += ")"
+
+                    log_lines.append(f"{i}. [{log['level'].upper()}] {log['text']}{location}")
+
+                # Save logs to file
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                fs_dir = file_system.get_dir()
+                console_dir = fs_dir / "console"
+                console_dir.mkdir(exist_ok=True)
+
+                page_title = await browser_session.get_current_page_title()
+                page_title = sanitize_filename(page_title)
+                console_filename = f"{page_title}-{timestamp}.log"
+                console_filepath = console_dir / console_filename
+
+                # Write full logs to file
+                full_logs_text = "\n".join(log_lines)
+                with open(console_filepath, 'w', encoding='utf-8') as f:
+                    f.write(f"Console Logs Captured at {timestamp}\n")
+                    f.write("=" * 80 + "\n\n")
+                    f.write(full_logs_text)
+
+                # Also save as JSON for structured access
+                json_filename = f"{page_title}-{timestamp}.json"
+                json_filepath = console_dir / json_filename
+                with open(json_filepath, 'w', encoding='utf-8') as f:
+                    json.dump(logs, f, indent=2, ensure_ascii=False)
+
+                # Build summary
+                summary_parts = [f"{count} {level}" for level, count in sorted(log_counts.items())]
+                summary = f"Collected {len(logs)} console messages: {', '.join(summary_parts)}\n"
+                summary += f"Logs saved to: {str(console_filepath.relative_to(fs_dir))}\n"
+                summary += f"JSON saved to: {str(json_filepath.relative_to(fs_dir))}"
+
+                # Create a truncated preview (max 10 logs)
+                preview_limit = 10
+                if len(logs) > preview_limit:
+                    preview_lines = log_lines[:preview_limit]
+                    preview_text = "\n".join(preview_lines)
+                    preview_text += f"\n\n... and {len(logs) - preview_limit} more logs (see file for full details)"
+                    extracted_content = f"{summary}\n\nPreview (first {preview_limit} logs):\n{preview_text}"
+                else:
+                    logs_text = "\n".join(log_lines)
+                    extracted_content = f"{summary}\n\nConsole Logs:\n{logs_text}"
+
+                msg = f'📋 Collected {len(logs)} console messages: {", ".join(summary_parts)}'
+                logger.info(msg)
+                logger.info(f'Console logs saved to: {str(console_filepath.relative_to(fs_dir))}')
+                logger.info(f'Console JSON saved to: {str(json_filepath.relative_to(fs_dir))}')
+
+                return ActionResult(
+                    extracted_content=extracted_content,
+                    include_in_memory=True,
+                    long_term_memory=f"Retrieved {len(logs)} console log entries, saved to {str(console_filepath.relative_to(fs_dir))}"
+                )
+
+            except Exception as e:
+                error_msg = f"❌ Failed to stop console logging: {str(e)}"
+                logger.error(error_msg)
+                # Still try to return any logs we have
+                try:
+                    session_id = cdp_session.session_id if cdp_session else None
+                    logs = _console_logs_storage.get(session_id, []) if session_id else []
+                    if session_id and session_id in _console_logs_storage:
+                        del _console_logs_storage[session_id]
+
+                    if logs:
+                        error_msg += f"\n\nPartially retrieved {len(logs)} logs before error"
+                except:
+                    pass
+
+                return ActionResult(error=error_msg)
+
+        @self.registry.action(
+            'Start monitoring network traffic (HTTP requests, responses, timing, headers, etc.)',
+            param_model=NoParamsAction
+        )
+        async def start_network_logging(_: NoParamsAction, browser_session: AgentBrowserSession):
+            """
+            Start monitoring network traffic from the browser.
+
+            This enables the CDP Network domain and registers event handlers
+            to collect all network requests, responses, and timing information.
+            """
+            try:
+                # Get CDP session
+                cdp_session = await browser_session.get_or_create_cdp_session()
+                session_id = cdp_session.session_id
+
+                # Initialize storage for this session
+                _network_logs_storage[session_id] = {
+                    'requests': {},  # keyed by requestId
+                    'start_time': asyncio.get_event_loop().time()
+                }
+
+                # Define callback functions for network events
+                def on_request_will_be_sent(event_data: dict, event_session_id: Optional[str]):
+                    """Callback for requestWillBeSent event"""
+                    request_id = event_data.get('requestId')
+                    if session_id in _network_logs_storage and request_id:
+                        request = event_data.get('request', {})
+                        _network_logs_storage[session_id]['requests'][request_id] = {
+                            'requestId': request_id,
+                            'url': request.get('url', ''),
+                            'method': request.get('method', ''),
+                            'headers': request.get('headers', {}),
+                            'postData': request.get('postData'),
+                            'timestamp': event_data.get('timestamp'),
+                            'wallTime': event_data.get('wallTime'),
+                            'type': event_data.get('type', ''),
+                            'initiator': event_data.get('initiator', {}),
+                            'documentURL': event_data.get('documentURL', ''),
+                        }
+                        logger.debug(f"Network request: {request.get('method')} {request.get('url')}")
+
+                def on_response_received(event_data: dict, event_session_id: Optional[str]):
+                    """Callback for responseReceived event"""
+                    request_id = event_data.get('requestId')
+                    if session_id in _network_logs_storage and request_id:
+                        if request_id in _network_logs_storage[session_id]['requests']:
+                            response = event_data.get('response', {})
+                            _network_logs_storage[session_id]['requests'][request_id].update({
+                                'response': {
+                                    'status': response.get('status'),
+                                    'statusText': response.get('statusText', ''),
+                                    'headers': response.get('headers', {}),
+                                    'mimeType': response.get('mimeType', ''),
+                                    'connectionReused': response.get('connectionReused', False),
+                                    'connectionId': response.get('connectionId', 0),
+                                    'encodedDataLength': response.get('encodedDataLength', 0),
+                                    'fromDiskCache': response.get('fromDiskCache', False),
+                                    'fromServiceWorker': response.get('fromServiceWorker', False),
+                                    'timing': response.get('timing'),
+                                },
+                                'responseTimestamp': event_data.get('timestamp'),
+                            })
+                            logger.debug(f"Network response: {response.get('status')} {response.get('url', '')}")
+
+                def on_loading_finished(event_data: dict, event_session_id: Optional[str]):
+                    """Callback for loadingFinished event"""
+                    request_id = event_data.get('requestId')
+                    if session_id in _network_logs_storage and request_id:
+                        if request_id in _network_logs_storage[session_id]['requests']:
+                            _network_logs_storage[session_id]['requests'][request_id].update({
+                                'finished': True,
+                                'finishedTimestamp': event_data.get('timestamp'),
+                                'encodedDataLength': event_data.get('encodedDataLength', 0),
+                            })
+
+                def on_loading_failed(event_data: dict, event_session_id: Optional[str]):
+                    """Callback for loadingFailed event"""
+                    request_id = event_data.get('requestId')
+                    if session_id in _network_logs_storage and request_id:
+                        if request_id in _network_logs_storage[session_id]['requests']:
+                            _network_logs_storage[session_id]['requests'][request_id].update({
+                                'failed': True,
+                                'errorText': event_data.get('errorText', ''),
+                                'canceled': event_data.get('canceled', False),
+                                'blockedReason': event_data.get('blockedReason'),
+                            })
+
+                # Register all event handlers
+                cdp_session.cdp_client.register.Network.requestWillBeSent(on_request_will_be_sent)
+                cdp_session.cdp_client.register.Network.responseReceived(on_response_received)
+                cdp_session.cdp_client.register.Network.loadingFinished(on_loading_finished)
+                cdp_session.cdp_client.register.Network.loadingFailed(on_loading_failed)
+
+                # Enable Network domain to start receiving events
+                await cdp_session.cdp_client.send.Network.enable(session_id=session_id)
+
+                memory = f"Network logging started (session: {session_id[:8]}...)"
+                msg = f'🌐 {memory}'
+                logger.info(msg)
+                return ActionResult(extracted_content=memory, include_in_memory=True, long_term_memory=memory)
+
+            except Exception as e:
+                error_msg = f"❌ Failed to start network logging: {str(e)}"
+                logger.error(error_msg)
+                return ActionResult(error=error_msg)
+
+        @self.registry.action(
+            'Stop network logging and retrieve collected traffic data in HAR format',
+            param_model=NoParamsAction
+        )
+        async def stop_network_logging(_: NoParamsAction, browser_session: AgentBrowserSession, file_system: FileSystem):
+            """
+            Stop monitoring network traffic and return collected data in HAR format.
+
+            This disables the Network domain, unregisters event handlers,
+            and returns all network traffic collected since start_network_logging was called.
+            The data is saved as a HAR (HTTP Archive) file and a summary is provided.
+            """
+            try:
+                # Get CDP session
+                cdp_session = await browser_session.get_or_create_cdp_session()
+                session_id = cdp_session.session_id
+
+                # Disable Network domain
+                await cdp_session.cdp_client.send.Network.disable(session_id=session_id)
+
+                # Unregister all event handlers
+                cdp_session.cdp_client._event_registry.unregister("Network.requestWillBeSent")
+                cdp_session.cdp_client._event_registry.unregister("Network.responseReceived")
+                cdp_session.cdp_client._event_registry.unregister("Network.loadingFinished")
+                cdp_session.cdp_client._event_registry.unregister("Network.loadingFailed")
+
+                # Retrieve network logs
+                network_data = _network_logs_storage.get(session_id, {})
+                requests_dict = network_data.get('requests', {})
+                requests = list(requests_dict.values())
+
+                # Clean up storage
+                if session_id in _network_logs_storage:
+                    del _network_logs_storage[session_id]
+
+                if not requests:
+                    memory = "No network requests were captured"
+                    msg = f'📊 {memory}'
+                    logger.info(msg)
+                    return ActionResult(extracted_content=memory, include_in_memory=True, long_term_memory=memory)
+
+                # Build HAR format
+                har_log = {
+                    "log": {
+                        "version": "1.2",
+                        "creator": {
+                            "name": "VibeSurf CDP Network Monitor",
+                            "version": "1.0"
+                        },
+                        "pages": [],
+                        "entries": []
+                    }
+                }
+
+                # Convert requests to HAR entries
+                for req in requests:
+                    # Build HAR entry
+                    entry = {
+                        "startedDateTime": datetime.datetime.fromtimestamp(req.get('wallTime', 0)).isoformat() + 'Z',
+                        "time": 0,  # Will calculate if timing info available
+                        "request": {
+                            "method": req.get('method', 'GET'),
+                            "url": req.get('url', ''),
+                            "httpVersion": "HTTP/1.1",
+                            "headers": [{"name": k, "value": v} for k, v in req.get('headers', {}).items()],
+                            "queryString": [],
+                            "headersSize": -1,
+                            "bodySize": len(req.get('postData', '')) if req.get('postData') else 0,
+                        },
+                        "response": {
+                            "status": 0,
+                            "statusText": "",
+                            "httpVersion": "HTTP/1.1",
+                            "headers": [],
+                            "content": {
+                                "size": 0,
+                                "mimeType": "text/plain"
+                            },
+                            "redirectURL": "",
+                            "headersSize": -1,
+                            "bodySize": -1,
+                        },
+                        "cache": {},
+                        "timings": {
+                            "send": 0,
+                            "wait": 0,
+                            "receive": 0,
+                        }
+                    }
+
+                    # Add POST data if present
+                    if req.get('postData'):
+                        entry['request']['postData'] = {
+                            "mimeType": "application/x-www-form-urlencoded",
+                            "text": req.get('postData')
+                        }
+
+                    # Add response data if available
+                    if 'response' in req:
+                        resp = req['response']
+                        entry['response'].update({
+                            "status": resp.get('status', 0),
+                            "statusText": resp.get('statusText', ''),
+                            "headers": [{"name": k, "value": v} for k, v in resp.get('headers', {}).items()],
+                            "content": {
+                                "size": resp.get('encodedDataLength', 0),
+                                "mimeType": resp.get('mimeType', 'text/plain')
+                            }
+                        })
+
+                        # Add timing if available
+                        if resp.get('timing'):
+                            timing = resp['timing']
+                            entry['timings'] = {
+                                "blocked": timing.get('dnsStart', 0),
+                                "dns": timing.get('dnsEnd', 0) - timing.get('dnsStart', 0) if timing.get('dnsEnd') else 0,
+                                "connect": timing.get('connectEnd', 0) - timing.get('connectStart', 0) if timing.get('connectEnd') else 0,
+                                "send": timing.get('sendEnd', 0) - timing.get('sendStart', 0) if timing.get('sendEnd') else 0,
+                                "wait": timing.get('receiveHeadersEnd', 0) - timing.get('sendEnd', 0) if timing.get('receiveHeadersEnd') else 0,
+                                "receive": 0,
+                                "ssl": timing.get('sslEnd', 0) - timing.get('sslStart', 0) if timing.get('sslEnd') and timing.get('sslStart') else -1,
+                            }
+                            entry['time'] = timing.get('receiveHeadersEnd', 0)
+
+                    har_log['log']['entries'].append(entry)
+
+                # Generate statistics
+                total_requests = len(requests)
+                successful_requests = sum(1 for r in requests if r.get('finished') and not r.get('failed'))
+                failed_requests = sum(1 for r in requests if r.get('failed'))
+                methods = {}
+                types = {}
+
+                for req in requests:
+                    method = req.get('method', 'GET')
+                    methods[method] = methods.get(method, 0) + 1
+                    req_type = req.get('type', 'other')
+                    types[req_type] = types.get(req_type, 0) + 1
+
+                # Save HAR file
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                fs_dir = file_system.get_dir()
+                network_dir = fs_dir / "network"
+                network_dir.mkdir(exist_ok=True)
+
+                page_title = await browser_session.get_current_page_title()
+                page_title = sanitize_filename(page_title)
+                har_filename = f"{page_title}-{timestamp}.har"
+                har_filepath = network_dir / har_filename
+
+                with open(har_filepath, 'w', encoding='utf-8') as f:
+                    json.dump(har_log, f, indent=2)
+
+                # Build summary
+                method_summary = ', '.join([f"{count} {method}" for method, count in sorted(methods.items())])
+                type_summary = ', '.join([f"{count} {t}" for t, count in sorted(types.items()) if count > 0])
+
+                summary = f"Captured {total_requests} network requests ({successful_requests} successful, {failed_requests} failed)\n"
+                summary += f"Methods: {method_summary}\n"
+                if type_summary:
+                    summary += f"Types: {type_summary}\n"
+                summary += f"HAR file saved to: {str(har_filepath.relative_to(fs_dir))}"
+
+                msg = f'📊 Network logging stopped: {total_requests} requests captured'
+                logger.info(msg)
+                logger.info(f'HAR file saved to: {str(har_filepath.relative_to(fs_dir))}')
+
+                return ActionResult(
+                    extracted_content=summary,
+                    include_in_memory=True,
+                    long_term_memory=f"Captured {total_requests} network requests, saved to {str(har_filepath.relative_to(fs_dir))}"
+                )
+
+            except Exception as e:
+                error_msg = f"❌ Failed to stop network logging: {str(e)}"
+                logger.error(error_msg)
+                # Still try to clean up storage
+                try:
+                    session_id = cdp_session.session_id if cdp_session else None
+                    if session_id and session_id in _network_logs_storage:
+                        del _network_logs_storage[session_id]
+                except:
+                    pass
+
                 return ActionResult(error=error_msg)
