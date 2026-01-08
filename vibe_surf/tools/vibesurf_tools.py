@@ -730,7 +730,10 @@ class VibeSurfTools:
 
                 # Navigate to URL in new tab
                 logger.info(f'🌐 Navigating to URL: {params.url}')
-                await browser_session.navigate_to_url(params.url, new_tab=True)
+                target_id = await browser_session.navigate_to_url(params.url, new_tab=True)
+
+                # Wait for page to be stable and fully loaded
+                await browser_session._wait_for_stable_network(target_id=target_id)
 
                 # Extract clean markdown content
                 from browser_use.dom.markdown_extractor import extract_clean_markdown
