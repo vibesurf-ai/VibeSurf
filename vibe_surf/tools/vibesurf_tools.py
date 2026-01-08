@@ -49,7 +49,7 @@ from vibe_surf.tools.views import HoverAction, ExtractionAction, FileExtractionA
     ReportWriterTask, TodoGenerateAction, TodoModifyAction, VibeSurfDoneAction, SkillSearchAction, SkillCrawlAction, \
     SkillSummaryAction, SkillTakeScreenshotAction, SkillDeepResearchAction, SkillCodeAction, SkillFinanceAction, \
     GrepContentAction, SearchToolAction, GetToolInfoAction, ExecuteExtraToolAction, ExecutePythonCodeAction, \
-    SkillTrendAction, GetApiParamsAction, CallApiAction, SearchWorkflowsAction, ExecuteWorkflowAction
+    SkillTrendAction, SkillFetchUrlAction, GetApiParamsAction, CallApiAction, SearchWorkflowsAction, ExecuteWorkflowAction
 from vibe_surf.tools.finance_tools import FinanceDataRetriever, FinanceMarkdownFormatter, FinanceMethod
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.composio_client import ComposioClient
@@ -705,6 +705,103 @@ class VibeSurfTools:
                 return ActionResult(error=error_msg, extracted_content=error_msg)
             except Exception as e:
                 error_msg = f'❌ Python code execution failed: {str(e)}'
+                logger.error(error_msg)
+                return ActionResult(error=error_msg, extracted_content=error_msg)
+
+        @self.registry.action(
+            'Fetch URL content and extract markdown representation.',
+            param_model=SkillFetchUrlAction,
+        )
+        async def skill_fetch_url(
+                params: SkillFetchUrlAction,
+                browser_manager: BrowserManager,
+                file_system: CustomFileSystem
+        ):
+            """
+            Skill: Fetch URL and extract markdown content
+
+            Opens the URL in a new tab, extracts the clean markdown content,
+            and returns a preview. If content exceeds 200 characters, saves
+            full content to file and returns preview + file path.
+            """
+            try:
+                # Get browser session
+                browser_session = browser_manager.main_browser_session
+
+                # Navigate to URL in new tab
+                logger.info(f'🌐 Navigating to URL: {params.url}')
+                await browser_session.navigate_to_url(params.url, new_tab=True)
+
+                # Extract clean markdown content
+                from browser_use.dom.markdown_extractor import extract_clean_markdown
+
+                markdown_content, content_stats = await extract_clean_markdown(
+                    browser_session=browser_session,
+                    extract_links=False
+                )
+
+                # Get current page info
+                current_url = await browser_session.get_current_page_url()
+                page_title = await browser_session.get_current_page_title()
+
+                # Check if content exceeds 200 characters
+                MAX_PREVIEW_LENGTH = 200
+
+                if len(markdown_content) > MAX_PREVIEW_LENGTH:
+                    # Save full content to file
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    page_title_sanitized = sanitize_filename(page_title or "untitled")
+                    filename = f"fetch_url_{page_title_sanitized}_{timestamp}.md"
+
+                    # Create content directory
+                    content_dir = file_system.get_dir() / "fetched_content"
+                    content_dir.mkdir(exist_ok=True)
+
+                    # Save to file
+                    filepath = content_dir / filename
+                    with open(filepath, "w", encoding="utf-8") as f:
+                        f.write(f"# {page_title}\n\n")
+                        f.write(f"**URL:** {current_url}\n\n")
+                        f.write(f"**Fetched at:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                        f.write("---\n\n")
+                        f.write(markdown_content)
+
+                    # Create preview (first 200 characters)
+                    preview = markdown_content[:MAX_PREVIEW_LENGTH]
+
+                    # Format result
+                    relative_path = str(filepath.relative_to(file_system.get_dir()))
+                    result_text = f"# 📄 Fetched URL Content\n\n"
+                    result_text += f"**Title:** {page_title}\n"
+                    result_text += f"**URL:** {current_url}\n\n"
+                    result_text += f"**Preview (first {MAX_PREVIEW_LENGTH} chars):**\n\n"
+                    result_text += f"{preview}...\n\n"
+                    result_text += f"---\n\n"
+                    result_text += f"**Full content saved to:** [{filename}]({relative_path})\n"
+                    result_text += f"**Total length:** {len(markdown_content)} characters\n"
+
+                    logger.info(f'📄 URL content fetched and saved to: {relative_path}')
+                    return ActionResult(
+                        extracted_content=result_text,
+                        include_extracted_content_only_once=True,
+                        long_term_memory=f'Fetched URL {current_url}, saved to {relative_path}'
+                    )
+                else:
+                    # Content is short enough, return directly
+                    result_text = f"# 📄 Fetched URL Content\n\n"
+                    result_text += f"**Title:** {page_title}\n"
+                    result_text += f"**URL:** {current_url}\n\n"
+                    result_text += f"**Content:**\n\n{markdown_content}\n"
+
+                    logger.info(f'📄 URL content fetched: {current_url}')
+                    return ActionResult(
+                        extracted_content=result_text,
+                        include_extracted_content_only_once=False,
+                        long_term_memory=f'Fetched URL {current_url}'
+                    )
+
+            except Exception as e:
+                error_msg = f'❌ Failed to fetch URL {params.url}: {str(e)}'
                 logger.error(error_msg)
                 return ActionResult(error=error_msg, extracted_content=error_msg)
 

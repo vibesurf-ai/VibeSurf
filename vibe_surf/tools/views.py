@@ -425,6 +425,13 @@ class ExecutePythonCodeAction(BaseModel):
     )
 
 
+class SkillFetchUrlAction(BaseModel):
+    """Parameters for skill_fetch_url action - Fetch URL and extract markdown content"""
+    url: str = Field(
+        description='URL to fetch and extract content from',
+    )
+
+
 class SkillTrendAction(BaseModel):
     """Parameters for skill_trend action - NewsNow trending news"""
     source_id: str | None = Field(
