@@ -712,7 +712,7 @@ class VibeSurfTools:
             'Fetch URL content and extract markdown representation.',
             param_model=SkillFetchUrlAction,
         )
-        async def skill_fetch_url(
+        async def skill_fetch(
                 params: SkillFetchUrlAction,
                 browser_manager: BrowserManager,
                 file_system: CustomFileSystem
