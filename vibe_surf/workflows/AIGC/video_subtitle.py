@@ -49,8 +49,8 @@ class VideoSubtitleComponent(Component):
         MessageTextInput(
             name="font_size",
             display_name="Font Size",
-            info="Subtitle font size (default: 24)",
-            value="24",
+            info="Subtitle font size (leave empty for auto-adjustment based on video width)",
+            value="",
         ),
         MessageTextInput(
             name="primary_margin",
@@ -202,6 +202,34 @@ class VideoSubtitleComponent(Component):
         except Exception as e:
             raise RuntimeError(f"Error embedding soft subtitles: {str(e)}")
 
+    def _get_video_width(self, video_path):
+        """Get video width using ffprobe"""
+        try:
+            probe = ffmpeg.probe(str(video_path))
+            video_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
+            if video_stream:
+                return int(video_stream['width'])
+            return None
+        except Exception as e:
+            print(f"Error getting video width: {str(e)}")
+            return None
+
+    def _calculate_font_size(self, video_width):
+        """Calculate font size based on video width
+
+        Recommended sizes:
+        - Portrait videos (width <= 720): 16-20
+        - Portrait HD (width <= 1080): 20-24
+        - Landscape HD (width <= 1920): 26-30
+        - 4K and above (width > 1920): 32-40
+        """
+        if video_width is None:
+            return 24  # Default fallback
+
+        # Use formula: width / 50, with min=16 and max=40
+        calculated_size = max(16, min(40, video_width // 50))
+        return calculated_size
+
     def _get_color_hex(self, color_name):
         """Convert color name to hex value for FFmpeg ASS subtitles
         Format: &HAABBGGRR (AA=alpha, BB=blue, GG=green, RR=red)
@@ -234,13 +262,23 @@ class VideoSubtitleComponent(Component):
             
             # Get background style preference
             background_mode = getattr(self, 'subtitle_background', 'dark')
-            
-            # Get font size preference
-            try:
-                font_size = int(getattr(self, 'font_size', '24'))
-            except (ValueError, TypeError):
-                font_size = 24
-            
+
+            # Get font size preference - auto-adjust if empty
+            font_size_str = getattr(self, 'font_size', '').strip()
+            if not font_size_str:
+                # Auto-adjust based on video width
+                video_width = self._get_video_width(video_path)
+                font_size = self._calculate_font_size(video_width)
+                print(f"Auto-adjusted font size to {font_size} based on video width {video_width}px")
+            else:
+                try:
+                    font_size = int(font_size_str)
+                except (ValueError, TypeError):
+                    # Invalid value, fallback to auto-adjustment
+                    video_width = self._get_video_width(video_path)
+                    font_size = self._calculate_font_size(video_width)
+                    print(f"Invalid font size '{font_size_str}', auto-adjusted to {font_size}")
+
             # Get margin preferences
             try:
                 primary_margin = int(getattr(self, 'primary_margin', '40'))
