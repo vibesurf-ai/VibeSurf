@@ -54,6 +54,9 @@ class VibeSurfApp {
 
       console.log('[VibeSurf] Application initialized successfully');
 
+      // Check profile transfer after initialization
+      await this.checkProfileTransfer();
+
       // Show success notification
       chrome.runtime.sendMessage({
         type: 'SHOW_NOTIFICATION',
@@ -493,6 +496,119 @@ class VibeSurfApp {
       backendUrl: this.settings.backendUrl || 'Not configured',
       taskStatus: this.sessionManager?.getTaskStatus() || null
     };
+  }
+
+  // Check and show profile transfer modal if needed
+  async checkProfileTransfer() {
+    try {
+      if (!this.apiClient) return;
+
+      // Check transfer status from backend
+      const status = await this.apiClient.getProfileTransferStatus();
+
+      // Show modal if not transferred and not skipped
+      if (!status.has_transferred && !status.skip_prompt) {
+        this.showProfileTransferModal();
+      }
+    } catch (error) {
+      console.warn('[VibeSurf] Profile transfer check failed:', error);
+    }
+  }
+
+  // Show profile transfer modal
+  showProfileTransferModal() {
+    const modal = document.getElementById('profile-transfer-modal');
+    if (!modal) return;
+
+    modal.classList.remove('hidden');
+
+    // Setup event listeners
+    this.setupProfileTransferHandlers(modal);
+  }
+
+  // Setup profile transfer modal handlers
+  setupProfileTransferHandlers(modal) {
+    const confirmBtn = document.getElementById('profile-transfer-confirm');
+    const cancelBtn = document.getElementById('profile-transfer-cancel');
+    const closeBtn = modal.querySelector('.modal-close');
+    const dontShowCheckbox = document.getElementById('dont-show-profile-transfer-again');
+
+    // Close modal function
+    const closeModal = () => {
+      modal.classList.add('hidden');
+    };
+
+    // Handle confirm
+    const handleConfirm = async () => {
+      try {
+        const loadingDiv = document.getElementById('profile-transfer-loading');
+        const resultDiv = document.getElementById('profile-transfer-result');
+        const footer = modal.querySelector('.modal-footer');
+
+        // Show loading
+        loadingDiv.classList.remove('hidden');
+        footer.classList.add('hidden');
+
+        // Transfer profile
+        const result = await this.apiClient.transferProfile();
+
+        // Hide loading
+        loadingDiv.classList.add('hidden');
+
+        // Show result
+        resultDiv.classList.remove('hidden');
+        const messageDiv = resultDiv.querySelector('.result-message');
+        const restartNotice = resultDiv.querySelector('.restart-notice');
+
+        if (result.success) {
+          messageDiv.textContent = result.message || chrome.i18n.getMessage('profileTransferSuccess');
+          messageDiv.classList.add('success');
+          restartNotice.classList.remove('hidden');
+        } else {
+          messageDiv.textContent = result.message || chrome.i18n.getMessage('profileTransferFailed');
+          messageDiv.classList.add('error');
+        }
+
+        // Change button to close
+        footer.innerHTML = `<button type="button" class="form-btn primary" id="profile-transfer-close"><span>${chrome.i18n.getMessage('profileTransferClose')}</span></button>`;
+        footer.classList.remove('hidden');
+        document.getElementById('profile-transfer-close').addEventListener('click', closeModal);
+
+      } catch (error) {
+        console.error('[VibeSurf] Profile transfer error:', error);
+        const loadingDiv = document.getElementById('profile-transfer-loading');
+        const resultDiv = document.getElementById('profile-transfer-result');
+        const footer = modal.querySelector('.modal-footer');
+
+        loadingDiv.classList.add('hidden');
+        resultDiv.classList.remove('hidden');
+        const messageDiv = resultDiv.querySelector('.result-message');
+        messageDiv.textContent = error.message || chrome.i18n.getMessage('profileTransferFailed');
+        messageDiv.classList.add('error');
+
+        footer.innerHTML = `<button type="button" class="form-btn primary" id="profile-transfer-close"><span>${chrome.i18n.getMessage('profileTransferClose')}</span></button>`;
+        footer.classList.remove('hidden');
+        document.getElementById('profile-transfer-close').addEventListener('click', closeModal);
+      }
+    };
+
+    // Handle cancel
+    const handleCancel = async () => {
+      try {
+        if (dontShowCheckbox && dontShowCheckbox.checked) {
+          await this.apiClient.skipProfileTransfer();
+        }
+        closeModal();
+      } catch (error) {
+        console.error('[VibeSurf] Skip transfer error:', error);
+        closeModal();
+      }
+    };
+
+    // Attach listeners
+    confirmBtn?.addEventListener('click', handleConfirm);
+    cancelBtn?.addEventListener('click', handleCancel);
+    closeBtn?.addEventListener('click', handleCancel);
   }
 }
 

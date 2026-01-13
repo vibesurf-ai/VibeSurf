@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="styles/settings-forms.css">
     <link rel="stylesheet" href="styles/settings-environment.css">
     <link rel="stylesheet" href="styles/settings-integrations.css">
+    <link rel="stylesheet" href="styles/profile-transfer-modal.css">
     <link rel="stylesheet" href="styles/settings-utilities.css">
     <link rel="stylesheet" href="styles/settings-responsive.css">
     <link rel="stylesheet" href="styles/settings-workflow.css">
@@ -1174,6 +1175,76 @@
                     <span class="btn-text" data-i18n="importWorkflowConfirm">Import Workflow</span>
                     <span class="btn-loading hidden" data-i18n="importingWorkflow">Importing...</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Transfer Modal -->
+    <div id="profile-transfer-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content profile-transfer-modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="profileTransferTitle">Welcome to VibeSurf!</h3>
+                <button class="modal-close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="profile-transfer-content">
+                    <p class="transfer-subtitle" data-i18n="profileTransferSubtitle">Transfer your Chrome profile to get started</p>
+                    <p class="transfer-message" data-i18n="profileTransferMessage">Would you like to transfer your bookmarks, history, and extensions from your existing Chrome profile to VibeSurf?</p>
+
+                    <div class="transfer-features">
+                        <div class="feature-item">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M5 13L9 17L19 7" stroke="#48bb78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span data-i18n="profileTransferBookmarks">Bookmarks and favorites</span>
+                        </div>
+                        <div class="feature-item">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M5 13L9 17L19 7" stroke="#48bb78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span data-i18n="profileTransferHistory">Browsing history</span>
+                        </div>
+                        <div class="feature-item">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M5 13L9 17L19 7" stroke="#48bb78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span data-i18n="profileTransferExtensions">Installed extensions</span>
+                        </div>
+                        <div class="feature-item">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M5 13L9 17L19 7" stroke="#48bb78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span data-i18n="profileTransferCookies">Cookies and preferences</span>
+                        </div>
+                    </div>
+
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="dont-show-profile-transfer-again">
+                        <label for="dont-show-profile-transfer-again" data-i18n="profileTransferDontShowAgain">Don't show this again</label>
+                    </div>
+
+                    <div id="profile-transfer-result" class="transfer-result hidden">
+                        <div class="result-message"></div>
+                        <div class="restart-notice hidden">
+                            <strong data-i18n="profileTransferRestartTitle">⚠️ Restart Required</strong>
+                            <span data-i18n="profileTransferRestartMessage">Please close and restart your browser to apply the transferred profile settings.</span>
+                        </div>
+                    </div>
+
+                    <div id="profile-transfer-loading" class="transfer-loading hidden">
+                        <div class="loading-spinner"></div>
+                        <p data-i18n="profileTransferLoading">Transferring your profile...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="form-btn secondary" id="profile-transfer-cancel"><span data-i18n="profileTransferCancel">Cancel</span></button>
+                <button type="button" class="form-btn primary" id="profile-transfer-confirm"><span data-i18n="profileTransferConfirm">Transfer Profile</span></button>
             </div>
         </div>
     </div>

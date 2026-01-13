@@ -76,20 +76,20 @@ class VibeSurfBackground {
   }
 
   async handleInstalled(details) {
-    
+
     try {
       // Check Chrome version and API availability
-      
+
       // Initialize default settings
       await this.initializeSettings();
-      
+
       // Badge removed - no default badge needed
-      
+
       // Show welcome notification on fresh install
       if (details.reason === 'install') {
         await this.showWelcomeNotification();
       }
-      
+
       this.isInitialized = true;
     } catch (error) {
       console.error('[VibeSurf] Initialization failed:', error);

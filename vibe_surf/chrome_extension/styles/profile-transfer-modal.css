@@ -1,0 +1,138 @@
+/* Profile Transfer Modal Styles */
+
+.profile-transfer-modal-content {
+    max-width: 500px;
+}
+
+.profile-transfer-content .transfer-subtitle {
+    font-size: 14px;
+    color: #718096;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.profile-transfer-content .transfer-message {
+    font-size: 15px;
+    color: #4a5568;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.transfer-features {
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.transfer-features .feature-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    font-size: 14px;
+    color: #4a5568;
+}
+
+.transfer-features .feature-item:first-child {
+    padding-top: 0;
+}
+
+.transfer-features .feature-item:last-child {
+    padding-bottom: 0;
+}
+
+.transfer-features .feature-item svg {
+    flex-shrink: 0;
+}
+
+.profile-transfer-content .checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: #fff5f5;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-bottom: 16px;
+}
+
+.profile-transfer-content .checkbox-wrapper:hover {
+    background: #fed7d7;
+}
+
+.profile-transfer-content .checkbox-wrapper input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.profile-transfer-content .checkbox-wrapper label {
+    font-size: 14px;
+    color: #742a2a;
+    cursor: pointer;
+    user-select: none;
+    margin: 0;
+}
+
+.transfer-result {
+    margin-top: 16px;
+}
+
+.transfer-result .result-message {
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+.transfer-result .result-message.success {
+    background: #c6f6d5;
+    color: #22543d;
+}
+
+.transfer-result .result-message.error {
+    background: #fed7d7;
+    color: #742a2a;
+}
+
+.transfer-result .restart-notice {
+    background: #fff5f5;
+    border-left: 4px solid #f56565;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #742a2a;
+}
+
+.transfer-result .restart-notice strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #c53030;
+}
+
+.transfer-loading {
+    text-align: center;
+    padding: 20px;
+}
+
+.transfer-loading .loading-spinner {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid var(--primary-color, #667eea);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 12px;
+}
+
+.transfer-loading p {
+    font-size: 14px;
+    color: #718096;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

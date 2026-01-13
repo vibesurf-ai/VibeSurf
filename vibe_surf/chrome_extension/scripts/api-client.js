@@ -767,6 +767,25 @@ class VibeSurfAPIClient {
   async getLanguageFromLocation() {
     return this.get('/vibesurf/location-language');
   }
+
+  // Profile Transfer APIs
+  async getProfileTransferStatus() {
+    return this.get('/profile/transfer-status');
+  }
+
+  async transferProfile(sourceProfilePath = null) {
+    return this.post('/profile/transfer', {
+      source_profile_path: sourceProfilePath
+    });
+  }
+
+  async skipProfileTransfer() {
+    return this.post('/profile/skip-transfer');
+  }
+
+  async cancelSkipProfileTransfer() {
+    return this.post('/profile/cancel-skip');
+  }
 }
 
 // Custom error class for API errors

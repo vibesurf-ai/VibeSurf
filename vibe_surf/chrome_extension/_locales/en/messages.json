@@ -2620,5 +2620,70 @@
         "example": "abc123"
       }
     }
+  },
+
+  "profileTransferTitle": {
+    "message": "Welcome to VibeSurf!",
+    "description": "Profile transfer dialog title"
+  },
+  "profileTransferSubtitle": {
+    "message": "Transfer your Chrome profile to get started",
+    "description": "Profile transfer dialog subtitle"
+  },
+  "profileTransferMessage": {
+    "message": "Would you like to transfer your bookmarks, history, and extensions from your existing Chrome profile to VibeSurf?",
+    "description": "Profile transfer dialog message"
+  },
+  "profileTransferBookmarks": {
+    "message": "Bookmarks and favorites",
+    "description": "Profile transfer feature: bookmarks"
+  },
+  "profileTransferHistory": {
+    "message": "Browsing history",
+    "description": "Profile transfer feature: history"
+  },
+  "profileTransferExtensions": {
+    "message": "Installed extensions",
+    "description": "Profile transfer feature: extensions"
+  },
+  "profileTransferCookies": {
+    "message": "Cookies and preferences",
+    "description": "Profile transfer feature: cookies"
+  },
+  "profileTransferDontShowAgain": {
+    "message": "Don't show this again",
+    "description": "Checkbox label to skip transfer prompt in future"
+  },
+  "profileTransferCancel": {
+    "message": "Cancel",
+    "description": "Cancel button text"
+  },
+  "profileTransferConfirm": {
+    "message": "Transfer Profile",
+    "description": "Confirm button text"
+  },
+  "profileTransferLoading": {
+    "message": "Transferring your profile...",
+    "description": "Loading message during transfer"
+  },
+  "profileTransferSuccess": {
+    "message": "Transfer Completed!",
+    "description": "Success message title"
+  },
+  "profileTransferFailed": {
+    "message": "Transfer Failed",
+    "description": "Error message title"
+  },
+  "profileTransferClose": {
+    "message": "Close",
+    "description": "Close button text"
+  },
+  "profileTransferRestartTitle": {
+    "message": "⚠️ Restart Required",
+    "description": "Restart notice title"
+  },
+  "profileTransferRestartMessage": {
+    "message": "Please close and restart your browser to apply the transferred profile settings.",
+    "description": "Restart notice message"
   }
 }

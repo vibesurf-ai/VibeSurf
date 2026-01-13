@@ -2616,5 +2616,70 @@
         "example": "abc123"
       }
     }
+  },
+
+  "profileTransferTitle": {
+    "message": "欢迎使用 VibeSurf！",
+    "description": "配置文件转移对话框标题"
+  },
+  "profileTransferSubtitle": {
+    "message": "转移您的 Chrome 配置文件以开始使用",
+    "description": "配置文件转移对话框副标题"
+  },
+  "profileTransferMessage": {
+    "message": "是否要将您现有 Chrome 配置文件中的书签、历史记录和扩展程序转移到 VibeSurf？",
+    "description": "配置文件转移对话框消息"
+  },
+  "profileTransferBookmarks": {
+    "message": "书签和收藏夹",
+    "description": "配置文件转移功能：书签"
+  },
+  "profileTransferHistory": {
+    "message": "浏览历史",
+    "description": "配置文件转移功能：历史记录"
+  },
+  "profileTransferExtensions": {
+    "message": "已安装的扩展程序",
+    "description": "配置文件转移功能：扩展程序"
+  },
+  "profileTransferCookies": {
+    "message": "Cookie 和偏好设置",
+    "description": "配置文件转移功能：Cookie"
+  },
+  "profileTransferDontShowAgain": {
+    "message": "不再显示",
+    "description": "跳过未来转移提示的复选框标签"
+  },
+  "profileTransferCancel": {
+    "message": "取消",
+    "description": "取消按钮文本"
+  },
+  "profileTransferConfirm": {
+    "message": "转移配置文件",
+    "description": "确认按钮文本"
+  },
+  "profileTransferLoading": {
+    "message": "正在转移您的配置文件...",
+    "description": "转移过程中的加载消息"
+  },
+  "profileTransferSuccess": {
+    "message": "转移完成！",
+    "description": "成功消息标题"
+  },
+  "profileTransferFailed": {
+    "message": "转移失败",
+    "description": "错误消息标题"
+  },
+  "profileTransferClose": {
+    "message": "关闭",
+    "description": "关闭按钮文本"
+  },
+  "profileTransferRestartTitle": {
+    "message": "⚠️ 需要重启",
+    "description": "重启提示标题"
+  },
+  "profileTransferRestartMessage": {
+    "message": "请关闭并重新启动浏览器以应用转移的配置文件设置。",
+    "description": "重启提示消息"
   }
 }
