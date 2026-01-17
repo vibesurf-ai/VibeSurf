@@ -693,7 +693,7 @@ async def get_environments():
     """Get current environment variables"""
     try:
         from .. import shared_state
-        envs = shared_state.get_envs()
+        envs = shared_state.envs
 
         envs["HTTP_PROXY"] = os.getenv("HTTP_PROXY", "")
         envs["HTTPS_PROXY"] = os.getenv("HTTPS_PROXY", "")
@@ -722,7 +722,7 @@ async def update_environments(request: Dict):
         else:
             updates = request
 
-        envs = shared_state.get_envs()
+        envs = shared_state.envs
         allowed_keys = list(envs.keys())
         filtered_updates = {
             key: value for key, value in updates.items()

@@ -7,7 +7,7 @@ services:
       args:
         TARGETPLATFORM: ${TARGETPLATFORM:-linux/amd64}
         SETUPTOOLS_SCM_PRETEND_VERSION: ${VERSION:-0.0.0.dev0}
-        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-false}
+        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
     container_name: vibesurf
     ports:
       - "9335:9335"  # VibeSurf backend

@@ -749,7 +749,7 @@ async def update_llm_from_profile(profile_name: str):
 def get_envs() -> Dict[str, str]:
     """Get the current environment variables dictionary"""
     global envs
-    return envs.copy()
+    return envs
 
 
 def update_envs(updates: Dict[str, str]) -> bool:
