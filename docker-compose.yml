@@ -1,7 +1,6 @@
 services:
   vibesurf:
-    image: vibesurf:latest
-    # image: ghcr.io/vibesurf-ai/vibesurf:latest # Using precompiled image
+    image: ${DOCKER_IMAGE:-ghcr.io/vibesurf-ai/vibesurf:latest} # Using precompiled image
     build:
       context: .
       dockerfile: Dockerfile
