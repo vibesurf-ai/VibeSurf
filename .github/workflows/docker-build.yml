@@ -1,13 +1,8 @@
 name: Build and Push Docker Image
 
 on:
-  push:
-    branches:
-      - main
-      - master
-      - develop
-    tags:
-      - 'v*'
+  release:
+    types: [published, edited]
   workflow_dispatch:
 
 env:
@@ -55,10 +50,10 @@ jobs:
       - name: Get version for setuptools-scm
         id: version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            VERSION="${{ github.ref_name }}"
+          if [ -n "${{ github.event.release.tag_name }}" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
           else
-            VERSION="${{ github.sha }}"
+            VERSION="0.0.0.dev0"
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
@@ -69,7 +64,7 @@ jobs:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -78,7 +73,6 @@ jobs:
             SETUPTOOLS_SCM_PRETEND_VERSION=${{ steps.version.outputs.version }}
 
       - name: Output image info
-        if: github.event_name != 'pull_request'
         run: |
           echo "### 🐳 Docker Image Built Successfully" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
