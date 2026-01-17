@@ -4,6 +4,7 @@ FROM python:3.12-slim
 ARG TARGETPLATFORM
 ARG NODE_MAJOR=20
 ARG USE_CHINA_MIRROR=false
+ARG USE_TORCH_CPU=true
 ARG SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0.dev0
 
 # Set environment variables
@@ -21,7 +22,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Use China mirror for faster builds in China (set USE_CHINA_MIRROR=true)
 RUN if [ "$USE_CHINA_MIRROR" = "true" ]; then \
-        sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources; \
+        sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources; \
     fi
 
 # Install system dependencies
@@ -100,6 +101,7 @@ RUN mkdir -p /etc/apt/keyrings && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
     apt-get update && \
     apt-get install nodejs -y && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Verify installations
@@ -128,8 +130,9 @@ RUN npm ci && \
     mkdir -p ../backend/frontend && \
     cp -r build/* ../backend/frontend/
 
-# Back to app directory
+# Back to app directory and clean up frontend source code to reduce image size
 WORKDIR /app
+RUN rm -rf /app/vibe_surf/frontend
 
 # Set version for setuptools-scm (since .git is excluded in .dockerignore)
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${SETUPTOOLS_SCM_PRETEND_VERSION}
@@ -137,8 +140,12 @@ ENV SETUPTOOLS_SCM_PRETEND_VERSION=${SETUPTOOLS_SCM_PRETEND_VERSION}
 # Install VibeSurf using uv
 RUN uv venv --python 3.12 /opt/venv && \
     . /opt/venv/bin/activate && \
-    if [ "$USE_CHINA_MIRROR" = "true" ]; then \
+    if [ "$USE_CHINA_MIRROR" = "true" ] && [ "$USE_TORCH_CPU" = "true" ]; then \
+        uv pip install -e . --index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple --extra-index-url https://download.pytorch.org/whl/cpu; \
+    elif [ "$USE_CHINA_MIRROR" = "true" ]; then \
         uv pip install -e . --index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple; \
+    elif [ "$USE_TORCH_CPU" = "true" ]; then \
+        uv pip install -e . --extra-index-url https://download.pytorch.org/whl/cpu; \
     else \
         uv pip install -e .; \
     fi
