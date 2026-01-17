@@ -89,6 +89,44 @@ vibesurf
 
 <video src="https://github.com/user-attachments/assets/86dba2e4-3f33-4ccf-b400-d07cf1a481a0" controls="controls">Your browser does not support playing this video!</video>
 
+## 🐳 Docker（备选方案）
+
+您也可以使用 Docker 运行 VibeSurf，并通过浏览器 VNC 访问：
+
+### 方式 1: 使用 docker-compose（推荐）
+
+```bash
+# 1. 复制并配置环境变量
+cp .env.example .env
+nano .env  # 添加您的 API keys
+
+# 2. 启动 VibeSurf
+docker-compose up -d
+
+# 3. 访问 VibeSurf
+# - 后端: http://localhost:9335
+# - 浏览器 VNC (Web): http://localhost:6080 (密码: vibesurf)
+```
+
+### 方式 2: 使用 docker run
+
+```bash
+# 拉取镜像
+docker pull ghcr.io/vibesurf-ai/vibesurf:latest
+
+# 运行容器
+docker run --name vibesurf -d --restart unless-stopped \
+  -p 9335:9335 \
+  -p 6080:6080 \
+  -p 5901:5901 \
+  -v ./data:/data \
+  -e IN_DOCKER=true \
+  -e VIBESURF_WORKSPACE=/data/vibesurf_workspace \
+  -e VNC_PASSWORD=vibesurf \
+  --shm-size=4g \
+  --cap-add=SYS_ADMIN \
+  ghcr.io/vibesurf-ai/vibesurf:latest
+```
 
 ## 👩‍💻 贡献者指南
 
