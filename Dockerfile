@@ -22,7 +22,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Use China mirror for faster builds in China (set USE_CHINA_MIRROR=true)
 RUN if [ "$USE_CHINA_MIRROR" = "true" ]; then \
-        sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources; \
+        sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources; \
     fi
 
 # Install system dependencies
@@ -101,6 +101,7 @@ RUN mkdir -p /etc/apt/keyrings && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
     apt-get update && \
     apt-get install nodejs -y && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Verify installations
@@ -129,8 +130,9 @@ RUN npm ci && \
     mkdir -p ../backend/frontend && \
     cp -r build/* ../backend/frontend/
 
-# Back to app directory
+# Back to app directory and clean up frontend source code to reduce image size
 WORKDIR /app
+RUN rm -rf /app/vibe_surf/frontend
 
 # Set version for setuptools-scm (since .git is excluded in .dockerignore)
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${SETUPTOOLS_SCM_PRETEND_VERSION}
