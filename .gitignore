@@ -41,3 +41,5 @@ vibe_surf/frontend/build
 # Build artifacts
 vibesurf.exe
 vibesurf-nuitka.exe
+
+data

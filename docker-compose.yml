@@ -1,0 +1,78 @@
+services:
+  vibesurf:
+    image: ${DOCKER_IMAGE:-ghcr.io/vibesurf-ai/vibesurf:latest} # Using precompiled image
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TARGETPLATFORM: ${TARGETPLATFORM:-linux/amd64}
+        SETUPTOOLS_SCM_PRETEND_VERSION: ${VERSION:-0.0.0.dev0}
+        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-false}
+    container_name: vibesurf
+    ports:
+      - "9335:9335"  # VibeSurf backend
+      - "6080:6080"  # noVNC (web interface)
+      - "5901:5901"  # VNC server
+    environment:
+      # VibeSurf Settings
+      - IN_DOCKER=true
+      - VIBESURF_WORKSPACE=/data/vibesurf_workspace
+      - VIBESURF_BACKEND_PORT=9335
+      - VIBESURF_API_KEY=${VIBESURF_API_KEY:-}
+      - VIBESURF_DEBUG=${VIBESURF_DEBUG:-false}
+      - VIBESURF_ANONYMIZED_TELEMETRY=${VIBESURF_ANONYMIZED_TELEMETRY:-true}
+
+      # LLM API Keys & Endpoints
+      - OPENAI_ENDPOINT=${OPENAI_ENDPOINT:-https://api.openai.com/v1}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_ENDPOINT=${ANTHROPIC_ENDPOINT:-https://api.anthropic.com}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION:-2025-01-01-preview}
+      - DEEPSEEK_ENDPOINT=${DEEPSEEK_ENDPOINT:-https://api.deepseek.com}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - MISTRAL_ENDPOINT=${MISTRAL_ENDPOINT:-https://api.mistral.ai/v1}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:-}
+      - OLLAMA_ENDPOINT=${OLLAMA_ENDPOINT:-http://localhost:11434}
+      - DASHSCOPE_ENDPOINT=${DASHSCOPE_ENDPOINT:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
+      - MOONSHOT_ENDPOINT=${MOONSHOT_ENDPOINT:-https://api.moonshot.cn/v1}
+      - MOONSHOT_API_KEY=${MOONSHOT_API_KEY:-}
+      - UNBOUND_ENDPOINT=${UNBOUND_ENDPOINT:-https://api.getunbound.ai}
+      - UNBOUND_API_KEY=${UNBOUND_API_KEY:-}
+      - SiliconFLOW_ENDPOINT=${SiliconFLOW_ENDPOINT:-https://api.siliconflow.cn/v1/}
+      - SiliconFLOW_API_KEY=${SiliconFLOW_API_KEY:-}
+
+      # Integration API Keys
+      - COMPOSIO_API_KEY=${COMPOSIO_API_KEY:-}
+
+      # Application Settings
+      - ANONYMIZED_TELEMETRY=${ANONYMIZED_TELEMETRY:-false}
+      - BROWSER_USE_LOGGING_LEVEL=${BROWSER_USE_LOGGING_LEVEL:-info}
+      - BROWSER_USE_CALCULATE_COST=${BROWSER_USE_CALCULATE_COST:-false}
+
+      # Display Settings
+      - DISPLAY=:99
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-browsers
+      - RESOLUTION=${RESOLUTION:-1920x1080x24}
+      - RESOLUTION_WIDTH=${RESOLUTION_WIDTH:-1920}
+      - RESOLUTION_HEIGHT=${RESOLUTION_HEIGHT:-1080}
+
+      # VNC Settings
+      - VNC_PASSWORD=${VNC_PASSWORD:-vibesurf}
+
+      # Proxy Settings (optional)
+      - HTTP_PROXY=
+      - HTTPS_PROXY=
+
+    volumes:
+      - ./data:/data
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    restart: unless-stopped
+    shm_size: '4gb'
+    cap_add:
+      - SYS_ADMIN
+    tmpfs:
+      - /tmp

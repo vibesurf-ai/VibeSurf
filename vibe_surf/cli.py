@@ -370,21 +370,21 @@ def configure_extension_path() -> str:
         return str(default_extension)
 
 
-def start_backend(port: int) -> None:
+def start_backend(port: int, host: str = "127.0.0.1") -> None:
     """Start the VibeSurf backend."""
-    console.print(f"\n[bold cyan]🚀 Starting VibeSurf Backend on port {port}[/bold cyan]")
-    
+    console.print(f"\n[bold cyan]🚀 Starting VibeSurf Backend on {host}:{port}[/bold cyan]")
+
     try:
         import uvicorn
 
         from vibe_surf.backend.main import app
-        
+
         console.print("[green]✅ Backend modules loaded successfully[/green]")
-        console.print(f"[cyan]🌍 Access VibeSurf at: http://127.0.0.1:{port}[/cyan]")
+        console.print(f"[cyan]🌍 Access VibeSurf at: http://{host}:{port}[/cyan]")
         console.print("[yellow]📝 Press Ctrl+C to stop the server[/yellow]\n")
-        
+
         # Run the server
-        uvicorn.run(app, host="127.0.0.1", port=port, log_level="error")
+        uvicorn.run(app, host=host, port=port, log_level="error")
         
     except KeyboardInterrupt:
         console.print("\n[yellow]🛑 Server stopped by user[/yellow]")
@@ -444,6 +444,8 @@ def main():
     parser = argparse.ArgumentParser(description="VibeSurf CLI - Browser automation tool")
     parser.add_argument('--no_select_browser', action='store_true',
                        help='Skip browser selection and use first available browser (Chrome -> Edge -> Brave)')
+    parser.add_argument('--host', type=str, default='127.0.0.1',
+                       help='Host address to bind the server (default: 127.0.0.1, use 0.0.0.0 for Docker)')
     args = parser.parse_args()
 
     try:
@@ -508,9 +510,9 @@ def main():
         
         # Set browser path in environment
         os.environ['BROWSER_EXECUTION_PATH'] = browser_path
-        
+
         # Start backend
-        start_backend(port)
+        start_backend(port, args.host)
         
         # Capture telemetry completion event
         end_time = time.time()

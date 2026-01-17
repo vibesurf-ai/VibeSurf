@@ -470,6 +470,13 @@ class CallApiAction(BaseModel):
     )
 
 
+class GetElementInfoAction(BaseModel):
+    """Parameters for get_element_info action - Get detailed information about an element by its index"""
+    index: int = Field(
+        description='Element index from the browser state to get information for'
+    )
+
+
 class SearchWorkflowsAction(BaseModel):
     """Parameters for search_workflows action - Search available workflows"""
     key_words: str | None = Field(

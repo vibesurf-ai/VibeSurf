@@ -88,6 +88,47 @@ vibesurf
 
 <video src="https://github.com/user-attachments/assets/86dba2e4-3f33-4ccf-b400-d07cf1a481a0" controls="controls">Your browser does not support playing this video!</video>
 
+## 🐳 Docker (Alternative)
+
+You can also run VibeSurf in Docker with browser VNC access:
+
+### Option 1: Using docker-compose (Recommended)
+
+```bash
+# 1. Edit docker-compose.yml and add your API keys (optional)
+# Or create a .env file with your environment variables
+
+# 2. Start VibeSurf
+docker-compose up -d
+
+# 3. Access VibeSurf
+# - Backend: http://localhost:9335
+# - Browser VNC (Web): http://localhost:6080 (Password: vibesurf)
+```
+
+> **Note**: The VNC browser environment defaults to English input. Press `Ctrl + Space` to switch to Chinese Pinyin input method.
+
+> **Note**: To use a proxy, set the `HTTP_PROXY` and `HTTPS_PROXY` environment variables in `docker-compose.yml` (e.g., `HTTP_PROXY: http://proxy.example.com:8080`).
+
+### Option 2: Using docker run
+
+```bash
+# Pull the image
+docker pull ghcr.io/vibesurf-ai/vibesurf:latest
+
+# Run the container
+docker run --name vibesurf -d --restart unless-stopped \
+  -p 9335:9335 \
+  -p 6080:6080 \
+  -p 5901:5901 \
+  -v ./data:/data \
+  -e IN_DOCKER=true \
+  -e VIBESURF_WORKSPACE=/data/vibesurf_workspace \
+  -e VNC_PASSWORD=vibesurf \
+  --shm-size=4g \
+  --cap-add=SYS_ADMIN \
+  ghcr.io/vibesurf-ai/vibesurf:latest
+```
 
 ## 👩‍💻 For Contributors
 

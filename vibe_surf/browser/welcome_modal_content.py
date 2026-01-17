@@ -24,18 +24,25 @@ def _get_base_welcome_js_template() -> str:
     - CSS styles for the modal
     - Modal structure and animations
     - Event handlers for copy button and close functionality
-    - LocalStorage check for dismissed state
+    - LocalStorage check for dismissed state (can be overridden in debug mode)
 
     Returns:
         str: Base JavaScript template with {title}, {subtitle}, and other placeholders
     """
     return """
 (function showVibeSurfWelcome() {{
-    // Check if user has dismissed the welcome modal
-    const dismissed = localStorage.getItem('vibesurf_welcome_dismissed');
-    if (dismissed === 'true') {{
-        console.log('[VibeSurf] Welcome modal was previously dismissed');
-        return;
+    // Check if in debug mode - if true, always show welcome modal
+    const debugMode = {debug_mode};
+
+    // Check if user has dismissed the welcome modal (skip check in debug mode)
+    if (!debugMode) {{
+        const dismissed = localStorage.getItem('vibesurf_welcome_dismissed');
+        if (dismissed === 'true') {{
+            console.log('[VibeSurf] Welcome modal was previously dismissed');
+            return;
+        }}
+    }} else {{
+        console.log('[VibeSurf] Debug mode enabled - showing welcome modal');
     }}
 
     // Add styles using createElement to avoid TrustedHTML issues
@@ -543,12 +550,13 @@ def _get_base_welcome_js_template() -> str:
 """
 
 
-def get_english_welcome_js(extension_path: str) -> str:
+def get_english_welcome_js(extension_path: str, debug_mode: bool = False) -> str:
     """
     Returns the English version of the welcome modal JavaScript.
 
     Args:
         extension_path: The file path to the Chrome extension directory
+        debug_mode: If True, always show welcome modal regardless of localStorage
 
     Returns:
         str: Complete JavaScript code for English welcome modal
@@ -581,6 +589,7 @@ def get_english_welcome_js(extension_path: str) -> str:
 
     template = _get_base_welcome_js_template()
     return template.format(
+        debug_mode='true' if debug_mode else 'false',
         title="🎉 Welcome to VibeSurf!",
         subtitle="Your Personal AI Browser Assistant - Let's Vibe Surfing the World!",
         section1_title="📌 How to Enable the Extension",
@@ -600,12 +609,13 @@ def get_english_welcome_js(extension_path: str) -> str:
     )
 
 
-def get_chinese_welcome_js(extension_path: str) -> str:
+def get_chinese_welcome_js(extension_path: str, debug_mode: bool = False) -> str:
     """
     Returns the Chinese (Simplified) version of the welcome modal JavaScript.
 
     Args:
         extension_path: The file path to the Chrome extension directory
+        debug_mode: If True, always show welcome modal regardless of localStorage
 
     Returns:
         str: Complete JavaScript code for Chinese welcome modal
@@ -638,6 +648,7 @@ def get_chinese_welcome_js(extension_path: str) -> str:
 
     template = _get_base_welcome_js_template()
     return template.format(
+        debug_mode='true' if debug_mode else 'false',
         title="🎉 欢迎来到 VibeSurf！",
         subtitle="您的个人 AI 浏览器助手 - 一起冲浪世界吧！",
         section1_title="📌 如何启用扩展程序",
@@ -665,6 +676,9 @@ async def get_welcome_js(country_code: Optional[str] = None, extension_path: str
     version of the welcome modal to display. Users from China will see the
     Chinese version, while all other users will see the English version.
 
+    In debug mode (VIBESURF_DEBUG=true), the welcome modal will always be shown
+    regardless of whether the user has previously dismissed it.
+
     Args:
         country_code: ISO 3166-1 alpha-2 country code (e.g., 'CN', 'US', 'JP').
                      If None, will attempt to detect from IP. Defaults to None.
@@ -684,10 +698,16 @@ async def get_welcome_js(country_code: Optional[str] = None, extension_path: str
         # Attempts IP detection, defaults to English if detection fails
     """
     # Import here to avoid circular dependency
+    import os
     import httpx
     import logging
 
     logger = logging.getLogger(__name__)
+
+    # Check if debug mode is enabled
+    debug_mode = os.getenv("VIBESURF_DEBUG", "false").lower() in ("true", "1", "yes", "on")
+    if debug_mode:
+        logger.info("[WelcomeModal] Debug mode enabled - welcome modal will always show")
 
     # If country code not provided, try to detect from IP
     if country_code is None:
@@ -708,34 +728,36 @@ async def get_welcome_js(country_code: Optional[str] = None, extension_path: str
     # China (CN) uses Chinese, all others use English
     if country_code == "CN":
         logger.info("[WelcomeModal] Using Chinese welcome modal")
-        return get_chinese_welcome_js(extension_path)
+        return get_chinese_welcome_js(extension_path, debug_mode=debug_mode)
     else:
         logger.info("[WelcomeModal] Using English welcome modal")
-        return get_english_welcome_js(extension_path)
+        return get_english_welcome_js(extension_path, debug_mode=debug_mode)
 
 
 # Convenience functions for direct access
-def get_welcome_js_en(extension_path: str) -> str:
+def get_welcome_js_en(extension_path: str, debug_mode: bool = False) -> str:
     """
     Convenience function to get English welcome modal without IP detection.
 
     Args:
         extension_path: The file path to the Chrome extension directory
+        debug_mode: If True, always show welcome modal regardless of localStorage
 
     Returns:
         str: English welcome modal JavaScript
     """
-    return get_english_welcome_js(extension_path)
+    return get_english_welcome_js(extension_path, debug_mode=debug_mode)
 
 
-def get_welcome_js_zh(extension_path: str) -> str:
+def get_welcome_js_zh(extension_path: str, debug_mode: bool = False) -> str:
     """
     Convenience function to get Chinese welcome modal without IP detection.
 
     Args:
         extension_path: The file path to the Chrome extension directory
+        debug_mode: If True, always show welcome modal regardless of localStorage
 
     Returns:
         str: Chinese welcome modal JavaScript
     """
-    return get_chinese_welcome_js(extension_path)
+    return get_chinese_welcome_js(extension_path, debug_mode=debug_mode)

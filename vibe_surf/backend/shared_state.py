@@ -538,6 +538,18 @@ async def initialize_vibesurf_components():
             browser_user_data = os.path.join(workspace_dir, "browser_user_data",
                                              f"{os.path.basename(browser_execution_path)}-profile")
 
+        # Clean up Chromium Singleton lock files in Docker to prevent startup hangs
+        # These files can remain from previous runs if the container was killed
+        if os.getenv("IN_DOCKER") == "true" and os.path.exists(browser_user_data):
+            import glob
+            singleton_files = glob.glob(os.path.join(browser_user_data, "Singleton*"))
+            for singleton_file in singleton_files:
+                try:
+                    os.remove(singleton_file)
+                    logger.debug(f"🧹 Removed stale lock file: {os.path.basename(singleton_file)}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to remove {singleton_file}: {e}")
+
         # Get VibeSurf extension path
         vibesurf_extension = os.getenv("VIBESURF_EXTENSION", "")
         if not vibesurf_extension.strip() or not os.path.exists(vibesurf_extension):
@@ -737,7 +749,7 @@ async def update_llm_from_profile(profile_name: str):
 def get_envs() -> Dict[str, str]:
     """Get the current environment variables dictionary"""
     global envs
-    return envs.copy()
+    return envs
 
 
 def update_envs(updates: Dict[str, str]) -> bool:
