@@ -132,7 +132,7 @@ RUN npm ci && \
 WORKDIR /app
 
 # Set version for setuptools-scm (since .git is excluded in .dockerignore)
-ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VIBESURF=${SETUPTOOLS_SCM_PRETEND_VERSION}
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${SETUPTOOLS_SCM_PRETEND_VERSION}
 
 # Install VibeSurf using uv
 RUN uv venv --python 3.12 /opt/venv && \
