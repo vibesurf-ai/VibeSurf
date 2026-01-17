@@ -125,7 +125,10 @@ COPY vibe_surf ./vibe_surf
 
 # Build frontend
 WORKDIR /app/vibe_surf/frontend
-RUN npm ci && \
+RUN if [ "$USE_CHINA_MIRROR" = "true" ]; then \
+        npm config set registry https://registry.npmmirror.com; \
+    fi && \
+    npm ci && \
     npm run build && \
     mkdir -p ../backend/frontend && \
     cp -r build/* ../backend/frontend/
@@ -141,11 +144,11 @@ ENV SETUPTOOLS_SCM_PRETEND_VERSION=${SETUPTOOLS_SCM_PRETEND_VERSION}
 RUN uv venv --python 3.12 /opt/venv && \
     . /opt/venv/bin/activate && \
     if [ "$USE_CHINA_MIRROR" = "true" ] && [ "$USE_TORCH_CPU" = "true" ]; then \
-        uv pip install -e . --index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple --extra-index-url https://download.pytorch.org/whl/cpu; \
+        uv pip install -e . --index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match; \
     elif [ "$USE_CHINA_MIRROR" = "true" ]; then \
         uv pip install -e . --index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple; \
     elif [ "$USE_TORCH_CPU" = "true" ]; then \
-        uv pip install -e . --extra-index-url https://download.pytorch.org/whl/cpu; \
+        uv pip install -e . --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match; \
     else \
         uv pip install -e .; \
     fi
