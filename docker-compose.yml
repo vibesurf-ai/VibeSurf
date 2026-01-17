@@ -1,11 +1,14 @@
 services:
   vibesurf:
+    image: vibesurf:latest
     # image: ghcr.io/vibesurf-ai/vibesurf:latest # Using precompiled image
     build:
       context: .
       dockerfile: Dockerfile
       args:
         TARGETPLATFORM: ${TARGETPLATFORM:-linux/amd64}
+        SETUPTOOLS_SCM_PRETEND_VERSION: ${VERSION:-0.0.0.dev0}
+        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
     container_name: vibesurf
     ports:
       - "9335:9335"  # VibeSurf backend
@@ -18,7 +21,7 @@ services:
       - VIBESURF_BACKEND_PORT=9335
       - VIBESURF_API_KEY=${VIBESURF_API_KEY:-}
       - VIBESURF_DEBUG=${VIBESURF_DEBUG:-false}
-      - VIBESURF_ANONYMIZED_TELEMETRY=${VIBESURF_ANONYMIZED_TELEMETRY:-false}
+      - VIBESURF_ANONYMIZED_TELEMETRY=${VIBESURF_ANONYMIZED_TELEMETRY:-true}
 
       # LLM API Keys & Endpoints
       - OPENAI_ENDPOINT=${OPENAI_ENDPOINT:-https://api.openai.com/v1}
@@ -70,9 +73,3 @@ services:
       - SYS_ADMIN
     tmpfs:
       - /tmp
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9335/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s

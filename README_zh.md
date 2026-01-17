@@ -96,9 +96,8 @@ vibesurf
 ### 方式 1: 使用 docker-compose（推荐）
 
 ```bash
-# 1. 复制并配置环境变量
-cp .env.example .env
-nano .env  # 添加您的 API keys
+# 1. 编辑 docker-compose.yml 添加您的 API keys（可选）
+# 或创建 .env 文件配置环境变量
 
 # 2. 启动 VibeSurf
 docker-compose up -d
@@ -107,6 +106,8 @@ docker-compose up -d
 # - 后端: http://localhost:9335
 # - 浏览器 VNC (Web): http://localhost:6080 (密码: vibesurf)
 ```
+
+> **提示**：中国用户可以在 `docker-compose.yml` 中设置 `USE_CHINA_MIRROR: true` 来使用国内镜像源加速构建。
 
 ### 方式 2: 使用 docker run
 

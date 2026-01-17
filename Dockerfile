@@ -3,6 +3,8 @@ FROM python:3.12-slim
 # Set platform for multi-arch builds
 ARG TARGETPLATFORM
 ARG NODE_MAJOR=20
+ARG USE_CHINA_MIRROR=false
+ARG SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0.dev0
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -13,8 +15,14 @@ ENV PYTHONUNBUFFERED=1 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-browsers \
     DEBIAN_FRONTEND=noninteractive
 
+# Use China mirror for faster builds in China (set USE_CHINA_MIRROR=true)
+RUN if [ "$USE_CHINA_MIRROR" = "true" ]; then \
+        sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources; \
+    fi
+
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     # Basic utilities
     wget \
     curl \
@@ -26,7 +34,6 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     # Browser dependencies
     xvfb \
-    libgconf-2-4 \
     libxss1 \
     libnss3 \
     libnspr4 \
@@ -61,6 +68,7 @@ RUN apt-get update && apt-get install -y \
     python3-numpy \
     # FFmpeg for video processing
     ffmpeg \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Install noVNC for web-based VNC access
@@ -69,12 +77,12 @@ RUN git clone https://github.com/novnc/noVNC.git /opt/novnc \
     && ln -s /opt/novnc/vnc.html /opt/novnc/index.html
 
 # Install Node.js using NodeSource PPA
-RUN mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update \
-    && apt-get install nodejs -y \
-    && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
+    apt-get install nodejs -y && \
+    rm -rf /var/lib/apt/lists/*
 
 # Verify installations
 RUN node -v && npm -v && npx -v && ffmpeg -version
@@ -95,18 +103,43 @@ WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 COPY vibe_surf ./vibe_surf
 
+# Build frontend
+WORKDIR /app/vibe_surf/frontend
+RUN npm ci && \
+    npm run build && \
+    mkdir -p ../backend/frontend && \
+    cp -r build/* ../backend/frontend/
+
+# Back to app directory
+WORKDIR /app
+
+# Set version for setuptools-scm (since .git is excluded in .dockerignore)
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VIBESURF=${SETUPTOOLS_SCM_PRETEND_VERSION}
+
 # Install VibeSurf using uv
 RUN uv venv --python 3.12 /opt/venv && \
     . /opt/venv/bin/activate && \
-    uv pip install -e .
+    if [ "$USE_CHINA_MIRROR" = "true" ]; then \
+        uv pip install -e . --index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple; \
+    else \
+        uv pip install -e .; \
+    fi
+
+# Install playwright
+RUN . /opt/venv/bin/activate && \
+    if [ "$USE_CHINA_MIRROR" = "true" ]; then \
+        uv pip install playwright --index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple; \
+    else \
+        uv pip install playwright; \
+    fi
 
 # Activate virtual environment by default
 ENV PATH="/opt/venv/bin:$PATH"
 ENV VIRTUAL_ENV="/opt/venv"
 
-# Install playwright browsers
+# Install playwright browsers (after activating venv)
 RUN mkdir -p $PLAYWRIGHT_BROWSERS_PATH && \
-    playwright install chromium --with-deps
+    /opt/venv/bin/python -m playwright install chromium --with-deps
 
 # Set up supervisor configuration
 RUN mkdir -p /var/log/supervisor /var/log/vibesurf
@@ -117,10 +150,6 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # 6080: noVNC (web-based VNC)
 # 5901: VNC server
 EXPOSE 9335 6080 5901
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:9335/health || exit 1
 
 # Default command
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

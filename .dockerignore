@@ -44,9 +44,11 @@ venv.bak/
 .gitattributes
 .github/
 
-# Documentation
-*.md
+# Documentation (but keep README.md and LICENSE for Docker build)
 docs/
+CONTRIBUTING.md
+CHANGELOG.md
+README_zh.md
 
 # Data directories
 data/
@@ -64,6 +66,9 @@ vibe_surf/frontend/node_modules/
 vibe_surf/frontend/.next/
 vibe_surf/frontend/out/
 vibe_surf/frontend/build/
+
+# Exclude built frontend (will be rebuilt in Docker)
+vibe_surf/backend/frontend/
 
 # Temporary files
 tmp/
@@ -108,3 +113,6 @@ Thumbs.db
 # Build artifacts
 *.whl
 *.tar.gz
+
+# uv lock file
+uv.lock

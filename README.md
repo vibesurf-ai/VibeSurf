@@ -95,9 +95,8 @@ You can also run VibeSurf in Docker with browser VNC access:
 ### Option 1: Using docker-compose (Recommended)
 
 ```bash
-# 1. Copy and configure environment variables
-cp .env.example .env
-nano .env  # Add your API keys
+# 1. Edit docker-compose.yml and add your API keys (optional)
+# Or create a .env file with your environment variables
 
 # 2. Start VibeSurf
 docker-compose up -d
