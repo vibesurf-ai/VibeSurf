@@ -106,6 +106,10 @@ docker-compose up -d
 # - Browser VNC (Web): http://localhost:6080 (Password: vibesurf)
 ```
 
+> **Note**: The VNC browser environment defaults to English input. Press `Ctrl + Space` to switch to Chinese Pinyin input method.
+
+> **Note**: To use a proxy, set the `HTTP_PROXY` and `HTTPS_PROXY` environment variables in `docker-compose.yml` (e.g., `HTTP_PROXY: http://proxy.example.com:8080`).
+
 ### Option 2: Using docker run
 
 ```bash

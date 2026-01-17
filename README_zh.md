@@ -109,6 +109,11 @@ docker-compose up -d
 
 > **提示**：中国用户可以在 `docker-compose.yml` 中设置 `USE_CHINA_MIRROR: true` 来使用国内镜像源加速构建。
 
+> **注意**：VNC 浏览器环境默认为英文输入，按 `Ctrl + Space` 可切换到中文拼音输入法。
+
+> **注意**：如需使用代理，可在 `docker-compose.yml` 中设置 `HTTP_PROXY` 和 `HTTPS_PROXY` 环境变量（例如：`HTTP_PROXY: http://proxy.example.com:8080`）。
+
+
 ### 方式 2: 使用 docker run
 
 ```bash

@@ -55,6 +55,20 @@ RUN apt-get update && \
     fonts-dejavu-core \
     fonts-dejavu-extra \
     fontconfig \
+    # Chinese fonts
+    fonts-noto-cjk \
+    fonts-noto-cjk-extra \
+    fonts-wqy-microhei \
+    fonts-wqy-zenhei \
+    # Input method framework and Chinese input
+    fcitx5 \
+    fcitx5-chinese-addons \
+    fcitx5-frontend-gtk3 \
+    fcitx5-frontend-gtk2 \
+    fcitx5-frontend-qt5 \
+    fcitx5-config-qt \
+    fcitx5-module-xorg \
+    im-config \
     # VNC dependencies
     dbus \
     xauth \
@@ -136,6 +150,24 @@ RUN . /opt/venv/bin/activate && \
 # Activate virtual environment by default
 ENV PATH="/opt/venv/bin:$PATH"
 ENV VIRTUAL_ENV="/opt/venv"
+
+# Configure fcitx5 for Chinese input
+RUN mkdir -p ~/.config/fcitx5 && \
+    echo "[Groups/0]\n\
+Name=Default\n\
+Default Layout=us\n\
+DefaultIM=pinyin\n\
+\n\
+[Groups/0/Items/0]\n\
+Name=keyboard-us\n\
+Layout=\n\
+\n\
+[Groups/0/Items/1]\n\
+Name=pinyin\n\
+Layout=\n\
+\n\
+[GroupOrder]\n\
+0=Default" > ~/.config/fcitx5/profile
 
 # Install playwright browsers (after activating venv)
 RUN mkdir -p $PLAYWRIGHT_BROWSERS_PATH && \

@@ -7,7 +7,7 @@ services:
       args:
         TARGETPLATFORM: ${TARGETPLATFORM:-linux/amd64}
         SETUPTOOLS_SCM_PRETEND_VERSION: ${VERSION:-0.0.0.dev0}
-        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
+        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-false}
     container_name: vibesurf
     ports:
       - "9335:9335"  # VibeSurf backend
@@ -62,6 +62,12 @@ services:
 
       # VNC Settings
       - VNC_PASSWORD=${VNC_PASSWORD:-vibesurf}
+
+      # Proxy Settings (optional)
+      - HTTP_PROXY=${HTTP_PROXY:-}
+      - HTTPS_PROXY=${HTTPS_PROXY:-}
+      - http_proxy=${HTTP_PROXY:-}
+      - https_proxy=${HTTPS_PROXY:-}
 
     volumes:
       - ./data:/data
