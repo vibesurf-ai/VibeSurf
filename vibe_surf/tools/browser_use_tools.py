@@ -43,7 +43,7 @@ from browser_use.browser.views import BrowserError
 from browser_use.mcp.client import MCPClient
 
 from vibe_surf.browser.agent_browser_session import AgentBrowserSession
-from vibe_surf.tools.views import SearchAction, HoverAction, ExtractionAction, FileExtractionAction, DownloadMediaAction, TakeScreenshotAction
+from vibe_surf.tools.views import SearchAction, HoverAction, ExtractionAction, FileExtractionAction, DownloadMediaAction, TakeScreenshotAction, GetElementInfoAction
 from vibe_surf.tools.mcp_client import CustomMCPClient
 from vibe_surf.tools.file_system import CustomFileSystem
 from vibe_surf.logger import get_logger
@@ -359,6 +359,80 @@ class BrowserUseTools(Tools, VibeSurfTools):
 
             except Exception as e:
                 error_msg = f'❌ Failed to hover over element: {str(e)}'
+                return ActionResult(error=error_msg)
+
+        @self.registry.action(
+            'Get detailed information about an element by its index (xpath, position, attributes, visibility, text content, etc.).',
+            param_model=GetElementInfoAction,
+        )
+        async def get_element_info(params: GetElementInfoAction, browser_session: AgentBrowserSession):
+            """Get comprehensive information about an element including position, attributes, and visibility."""
+            try:
+                # Get element from selector map
+                selector_map = await browser_session.get_selector_map()
+                if params.index not in selector_map:
+                    return ActionResult(
+                        error=f'Element index {params.index} does not exist in browser state'
+                    )
+
+                element_node = selector_map[params.index]
+
+                # Build comprehensive element info dict based on __json__ with enhancements
+                element_info = {
+                    # Basic identification
+                    'node_id': element_node.node_id,
+                    'backend_node_id': element_node.backend_node_id,
+                    'node_type': element_node.node_type.name,
+                    'node_name': element_node.node_name,
+                    'tag_name': element_node.tag_name,
+
+                    # XPath (user requested)
+                    'xpath': element_node.xpath,
+
+                    # Position information (user requested)
+                    'absolute_position': element_node.absolute_position.to_dict() if element_node.absolute_position else None,
+
+                    # Attributes (very important for element identification)
+                    'attributes': element_node.attributes,
+
+                    # State information
+                    'is_visible': element_node.is_visible,
+                    'is_scrollable': element_node.is_scrollable,
+
+                    # Content
+                    'node_value': element_node.node_value,
+                    'text_content': element_node.get_all_children_text() if element_node.node_type.name == 'ELEMENT_NODE' else None,
+
+                    # Additional useful info
+                    'is_clickable': element_node.snapshot_node.is_clickable if element_node.snapshot_node else None,
+                    'cursor_style': element_node.snapshot_node.cursor_style if element_node.snapshot_node else None,
+
+                    # Frame information
+                    'frame_id': element_node.frame_id,
+                    'target_id': element_node.target_id,
+
+                    # AX (accessibility) role if available
+                    'ax_role': element_node.ax_node.role if element_node.ax_node else None,
+                    'ax_name': element_node.ax_node.name if element_node.ax_node else None,
+                }
+
+                # Format as JSON for display
+                import json
+                formatted_info = json.dumps(element_info, indent=2, ensure_ascii=False)
+
+                msg = f'📋 Element {params.index} info:\n```json\n{formatted_info}\n```'
+                memory = f'Retrieved info for element {params.index} ({element_node.tag_name})'
+
+                logger.info(f'Retrieved element info for index {params.index}')
+                return ActionResult(
+                    extracted_content=msg,
+                    include_in_memory=True,
+                    long_term_memory=memory,
+                )
+
+            except Exception as e:
+                error_msg = f'❌ Failed to get element info: {str(e)}'
+                logger.error(error_msg)
                 return ActionResult(error=error_msg)
 
         # =======================
