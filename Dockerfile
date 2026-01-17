@@ -4,6 +4,7 @@ FROM python:3.12-slim
 ARG TARGETPLATFORM
 ARG NODE_MAJOR=20
 ARG USE_CHINA_MIRROR=false
+ARG USE_TORCH_CPU=true
 ARG SETUPTOOLS_SCM_PRETEND_VERSION=0.0.0.dev0
 
 # Set environment variables
@@ -137,8 +138,12 @@ ENV SETUPTOOLS_SCM_PRETEND_VERSION=${SETUPTOOLS_SCM_PRETEND_VERSION}
 # Install VibeSurf using uv
 RUN uv venv --python 3.12 /opt/venv && \
     . /opt/venv/bin/activate && \
-    if [ "$USE_CHINA_MIRROR" = "true" ]; then \
+    if [ "$USE_CHINA_MIRROR" = "true" ] && [ "$USE_TORCH_CPU" = "true" ]; then \
+        uv pip install -e . --index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple --extra-index-url https://download.pytorch.org/whl/cpu; \
+    elif [ "$USE_CHINA_MIRROR" = "true" ]; then \
         uv pip install -e . --index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple; \
+    elif [ "$USE_TORCH_CPU" = "true" ]; then \
+        uv pip install -e . --extra-index-url https://download.pytorch.org/whl/cpu; \
     else \
         uv pip install -e .; \
     fi
