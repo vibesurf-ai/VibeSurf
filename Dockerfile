@@ -13,7 +13,11 @@ ENV PYTHONUNBUFFERED=1 \
     VIBESURF_WORKSPACE=/data/vibesurf_workspace \
     DISPLAY=:99 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-browsers \
-    DEBIAN_FRONTEND=noninteractive
+    DEBIAN_FRONTEND=noninteractive \
+    GTK_IM_MODULE=fcitx \
+    QT_IM_MODULE=fcitx \
+    XMODIFIERS=@im=fcitx \
+    DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/session_bus_socket
 
 # Use China mirror for faster builds in China (set USE_CHINA_MIRROR=true)
 RUN if [ "$USE_CHINA_MIRROR" = "true" ]; then \
