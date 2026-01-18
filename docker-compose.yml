@@ -7,7 +7,7 @@ services:
       args:
         TARGETPLATFORM: ${TARGETPLATFORM:-linux/amd64}
         SETUPTOOLS_SCM_PRETEND_VERSION: ${VERSION:-0.0.0.dev0}
-        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-false}
+        USE_CHINA_MIRROR: ${USE_CHINA_MIRROR:-true}
         USE_TORCH_CPU: ${USE_TORCH_CPU:-true}
     container_name: vibesurf
     ports:
@@ -57,9 +57,10 @@ services:
       # Display Settings
       - DISPLAY=:99
       - PLAYWRIGHT_BROWSERS_PATH=/ms-browsers
-      - RESOLUTION=${RESOLUTION:-1920x1080x24}
-      - RESOLUTION_WIDTH=${RESOLUTION_WIDTH:-1920}
-      - RESOLUTION_HEIGHT=${RESOLUTION_HEIGHT:-1080}
+      # Common resolutions: 1280x720, 1440x900, 1680x1050, 1920x1080
+      - RESOLUTION=${RESOLUTION:-1440x900x24}
+      - RESOLUTION_WIDTH=${RESOLUTION_WIDTH:-1440}
+      - RESOLUTION_HEIGHT=${RESOLUTION_HEIGHT:-900}
 
       # VNC Settings
       - VNC_PASSWORD=${VNC_PASSWORD:-vibesurf}
