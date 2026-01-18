@@ -4,11 +4,14 @@ VibeSurf is licensed under a modified version of the Apache License 2.0, with th
 
 1. VibeSurf may be utilized commercially, including as a backend service for other applications or as an application development platform for enterprises. Should the conditions below be met, a commercial license must be obtained from the producer:
 
-a. Multi-tenant service: Unless explicitly authorized by VibeSurf in writing, you may not use the VibeSurf source code to operate a multi-tenant environment.
+a. Multi-tenant service: Unless explicitly authorized by VibeSurf in writing, you may not use the VibeSurf source code, VibeSurf-provided Docker images, VibeSurf workflows, or any images/containers built from VibeSurf source code to operate a multi-tenant environment.
     - Tenant Definition: Within the context of VibeSurf, one tenant corresponds to one workspace. The workspace provides a separated area for each tenant's data and configurations.
+    - This restriction applies to all forms of VibeSurf distribution, including but not limited to: raw source code, official Docker images (e.g., ghcr.io/vibesurf-ai/vibesurf), workflow templates, custom-built images, or any derivative containerized applications.
 
 b. LOGO and copyright information: In the process of using VibeSurf's frontend, you may not remove or modify the LOGO or copyright information in the VibeSurf console or applications. This restriction is inapplicable to uses of VibeSurf that do not involve its frontend.
     - Frontend Definition: For the purposes of this license, the "frontend" of VibeSurf includes all components located in the `vibe_surf/chrome_extension/` directory when running VibeSurf from the raw source code, or the corresponding frontend container/image when running VibeSurf with Docker or other containerization.
+
+c. SaaS and white-labeling restrictions: You may not offer VibeSurf's core functionalities as a Software-as-a-Service (SaaS) to third parties, including services that repackage VibeSurf with white-labeling, UI reskinning, or other superficial modifications. For commercial deployment needs, please contact the VibeSurf-AI team.
 
 2. As a contributor, you should agree that:
 

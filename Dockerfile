@@ -182,7 +182,30 @@ Name=pinyin\n\
 Layout=\n\
 \n\
 [GroupOrder]\n\
-0=Default" > ~/.config/fcitx5/profile
+0=Default" > ~/.config/fcitx5/profile && \
+    echo "[Hotkey]\n\
+# Trigger Input Method (Shift+Space for better macOS compatibility)\n\
+TriggerKeys=\n\
+# Enumerate when press trigger key repeatedly\n\
+EnumerateWithTriggerKeys=True\n\
+# Temporally switch between first and current Input Method\n\
+AltTriggerKeys=\n\
+# Enumerate Input Method Forward\n\
+EnumerateForwardKeys=\n\
+# Enumerate Input Method Backward\n\
+EnumerateBackwardKeys=\n\
+# Skip first input method while enumerating\n\
+EnumerateSkipFirst=False\n\
+\n\
+[Hotkey/TriggerKeys]\n\
+0=Control+space\n\
+1=Shift+space\n\
+\n\
+[Behavior]\n\
+# Active By Default\n\
+ActiveByDefault=False\n\
+# Share Input State\n\
+ShareInputState=No" > ~/.config/fcitx5/config
 
 # Install playwright browsers (after activating venv)
 RUN mkdir -p $PLAYWRIGHT_BROWSERS_PATH && \
