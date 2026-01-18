@@ -96,15 +96,17 @@ vibesurf
 ### 方式 1: 使用 docker-compose（推荐）
 
 ```bash
-# 1. 编辑 docker-compose.yml 添加您的 API keys（可选）
-# 或创建 .env 文件配置环境变量
+# 1. 克隆 VibeSurf 仓库
+git clone https://github.com/vibesurf-ai/VibeSurf
+cd VibeSurf
+# 可选：编辑 docker-compose.yml 修改环境变量
 
 # 2. 启动 VibeSurf
 docker-compose up -d
 
 # 3. 访问 VibeSurf
 # - 后端: http://localhost:9335
-# - 浏览器 VNC (Web): http://localhost:6080 (密码: vibesurf)
+# - 浏览器 VNC (Web): http://localhost:6080 (默认密码: vibesurf)
 ```
 
 > **提示**：中国用户可以在 `docker-compose.yml` 中设置 `USE_CHINA_MIRROR: true` 来使用国内镜像源加速构建。

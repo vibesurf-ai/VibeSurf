@@ -95,15 +95,17 @@ You can also run VibeSurf in Docker with browser VNC access:
 ### Option 1: Using docker-compose (Recommended)
 
 ```bash
-# 1. Edit docker-compose.yml and add your API keys (optional)
-# Or create a .env file with your environment variables
+# 1. Clone VibeSurf Repo
+git clone https://github.com/vibesurf-ai/VibeSurf
+cd VibeSurf
+# Optional: Edit docker-compose.yml to modify envs
 
 # 2. Start VibeSurf
 docker-compose up -d
 
 # 3. Access VibeSurf
 # - Backend: http://localhost:9335
-# - Browser VNC (Web): http://localhost:6080 (Password: vibesurf)
+# - Browser VNC (Web): http://localhost:6080 (default password: vibesurf)
 ```
 
 > **Note**: The VNC browser environment defaults to English input. Press `Ctrl + Space` to switch to Chinese Pinyin input method.
