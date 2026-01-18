@@ -124,7 +124,7 @@ docker run --name vibesurf -d --restart unless-stopped \
   -v ./data:/data \
   -e IN_DOCKER=true \
   -e VIBESURF_WORKSPACE=/data/vibesurf_workspace \
-  -e RESOLUTION=1920x1080x24 \
+  -e RESOLUTION=1440x900x24 \
   -e VNC_PASSWORD=vibesurf \
   --shm-size=4g \
   --cap-add=SYS_ADMIN \
