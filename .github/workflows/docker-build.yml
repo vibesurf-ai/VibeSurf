@@ -19,6 +19,58 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for setuptools-scm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Update Extension Version
+        run: |
+          echo "=== Updating Extension Version ==="
+
+          # Install setuptools-scm for version extraction
+          python -m pip install --upgrade pip --no-cache-dir
+          pip install --no-cache-dir setuptools-scm[toml]
+
+          # Get release tag from GitHub context (if available)
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+
+          if [ -n "$RELEASE_TAG" ]; then
+            # Extract version from release tag (remove 'v' prefix if present)
+            VERSION=$(echo "$RELEASE_TAG" | sed 's/^v//')
+            echo "Using release tag version: $VERSION"
+          else
+            # Fallback to setuptools-scm for non-release builds
+            VERSION=$(python -m setuptools_scm)
+            echo "Using setuptools-scm version: $VERSION"
+          fi
+
+          # Extract Chrome-compatible version (only numbers and dots)
+          # Remove .devN suffix, git hash (after +), and any non-numeric/non-dot characters
+          TEMP_VERSION=$(echo $VERSION | sed 's/\.dev[0-9]*//' | sed 's/+.*//')
+          CLEAN_VERSION=$(echo $TEMP_VERSION | sed 's/[^0-9.]//g')
+          echo "Clean version for extension: $CLEAN_VERSION"
+
+          # Update manifest.json version
+          cd vibe_surf/chrome_extension
+          python -c "import json; import sys; version = sys.argv[1]; manifest = json.load(open('manifest.json', 'r')); manifest['version'] = version; json.dump(manifest, open('manifest.json', 'w'), indent=2); print(f'Updated manifest.json version to {version}')" "$CLEAN_VERSION"
+
+          # Create version.js file
+          echo "// Extension version - auto-generated during build" > scripts/version.js
+          echo "window.VIBESURF_EXTENSION_VERSION = '$CLEAN_VERSION';" >> scripts/version.js
+          echo "console.log('[VibeSurf] Extension version:', '$CLEAN_VERSION');" >> scripts/version.js
+
+          echo "=== Version files updated ==="
+          echo "manifest.json version:"
+          grep -A1 -B1 '"version"' manifest.json
+          echo "version.js content:"
+          cat scripts/version.js
+
+          # This version will also be used by setuptools-scm for Docker image
+          echo "Version $VERSION will be used for Docker image"
 
       - name: Free up disk space
         run: |
@@ -78,6 +130,58 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for setuptools-scm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Update Extension Version
+        run: |
+          echo "=== Updating Extension Version ==="
+
+          # Install setuptools-scm for version extraction
+          python -m pip install --upgrade pip --no-cache-dir
+          pip install --no-cache-dir setuptools-scm[toml]
+
+          # Get release tag from GitHub context (if available)
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+
+          if [ -n "$RELEASE_TAG" ]; then
+            # Extract version from release tag (remove 'v' prefix if present)
+            VERSION=$(echo "$RELEASE_TAG" | sed 's/^v//')
+            echo "Using release tag version: $VERSION"
+          else
+            # Fallback to setuptools-scm for non-release builds
+            VERSION=$(python -m setuptools_scm)
+            echo "Using setuptools-scm version: $VERSION"
+          fi
+
+          # Extract Chrome-compatible version (only numbers and dots)
+          # Remove .devN suffix, git hash (after +), and any non-numeric/non-dot characters
+          TEMP_VERSION=$(echo $VERSION | sed 's/\.dev[0-9]*//' | sed 's/+.*//')
+          CLEAN_VERSION=$(echo $TEMP_VERSION | sed 's/[^0-9.]//g')
+          echo "Clean version for extension: $CLEAN_VERSION"
+
+          # Update manifest.json version
+          cd vibe_surf/chrome_extension
+          python -c "import json; import sys; version = sys.argv[1]; manifest = json.load(open('manifest.json', 'r')); manifest['version'] = version; json.dump(manifest, open('manifest.json', 'w'), indent=2); print(f'Updated manifest.json version to {version}')" "$CLEAN_VERSION"
+
+          # Create version.js file
+          echo "// Extension version - auto-generated during build" > scripts/version.js
+          echo "window.VIBESURF_EXTENSION_VERSION = '$CLEAN_VERSION';" >> scripts/version.js
+          echo "console.log('[VibeSurf] Extension version:', '$CLEAN_VERSION');" >> scripts/version.js
+
+          echo "=== Version files updated ==="
+          echo "manifest.json version:"
+          grep -A1 -B1 '"version"' manifest.json
+          echo "version.js content:"
+          cat scripts/version.js
+
+          # This version will also be used by setuptools-scm for Docker image
+          echo "Version $VERSION will be used for Docker image"
 
       - name: Free up disk space
         run: |
