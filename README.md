@@ -3,7 +3,13 @@
 [![WeChat](https://img.shields.io/badge/WeChat-Group-07C160?logo=wechat&logoColor=white)](#-join-our-community)
 [![WarmShao](https://img.shields.io/twitter/follow/warmshao?style=social)](https://x.com/warmshao)
 
-VibeSurf is an open-source AI agentic browser that revolutionizes browser automation and research.
+> **Note**: VibeSurf can be used in Claude Code for control and real-time preview of browsers. For more details, see the [claude-surf plugin](https://github.com/vibesurf-ai/claude-surf).
+
+**VibeSurf** is the first open-source AI agentic browser that combines **workflow automation** with **intelligent AI agents** - delivering browser automation that's **faster**, **cheaper**, and **smarter** than traditional solutions.
+
+🎯 **Why VibeSurf?** Save 99% of token costs with workflows, run parallel AI agents across tabs, and keep your data private with local LLM support - all through a seamless Chrome extension.
+
+🐳 **Quick Start with Docker**: Get up and running in seconds with our [Docker image](#-docker-alternative) - no complex setup required!
 
 If you're as excited about open-source AI browsing as I am, give it a star! ⭐
 
@@ -11,15 +17,17 @@ If you're as excited about open-source AI browsing as I am, give it a star! ⭐
 
 ## ✨ Key Features
 
-- 🧠 **Advanced AI Automation**: Beyond browser automation, VibeSurf performs deep research, intelligent crawling, content summarization, and more to exploration.
+- 🔄 **Revolutionary Browser Workflows**: Create drag-and-drop workflows that consume virtually zero tokens - define once, run forever. Perfect for auto-login, data collection, and repetitive tasks with 100x speed boost.
 
-- 🚀 **Multi-Agent Parallel Processing**: Run multiple AI agents simultaneously in different browser tabs, enabling both deep research and wide research with massive efficiency gains.
+- 🚀 **Multi-Agent Parallel Processing**: Run multiple AI agents simultaneously across different browser tabs for massive efficiency gains in both deep and wide research.
 
-- 🔄 **Agentic Browser Workflow**: Create custom drag-and-drop and conversation-based workflows that combine deterministic automation with AI intelligence - perfect for repetitive tasks like auto-login, data collection, and social media posting.
+- 🧠 **Intelligent AI Automation**: Beyond basic automation - perform deep research, intelligent crawling, content summarization, and adaptive browsing with AI decision-making.
 
-- 🎨 **Seamless Chrome Extension UI**: Native browser integration without switching applications, providing an intuitive interface that feels like part of your browser.
+- 🔒 **Privacy-First Architecture**: Full support for local LLMs (Ollama, etc.) and custom APIs - your browsing data never leaves your machine during vibe surfing.
 
-- 🔒 **Privacy-First LLM Support**: Supports local LLMs (Ollama, etc.) and custom LLM APIs to ensure your browsing data stays private and secure during vibe surfing.
+- 🎨 **Seamless Chrome Extension**: Native browser integration without switching applications - feels like a natural part of your browser with intuitive UI.
+
+- 🐳 **One-Click Docker Deployment**: Get started instantly with our [Docker image](#-docker-alternative) - includes VNC access for remote browsing and easy scaling.
 
 ## 🚀 Browser Workflow Magic
 

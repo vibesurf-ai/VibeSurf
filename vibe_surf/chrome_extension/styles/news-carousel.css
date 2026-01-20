@@ -69,7 +69,7 @@
 .news-carousel-track {
     overflow: hidden;
     position: relative;
-    height: 420px; /* Increased height */
+    height: 270px; /* Adjusted to show ~5 news items */
 }
 
 .news-carousel-slides {
