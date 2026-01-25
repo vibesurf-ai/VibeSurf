@@ -40,7 +40,9 @@
 
 ⚡ **速度与可靠性**：确定性工作流提供一致、快速且高度准确的结果。不再需要等待代理"思考"重复的步骤。
 
-<video src="https://github.com/user-attachments/assets/5e50de7a-02e7-44e0-a95b-98d1a3eab66e" controls="controls">Your browser does not support playing this video!</video>
+[![教程：构建浏览器自动化工作流并部署为 API](https://img.youtube.com/vi/N9VMzLMKKpk/maxresdefault.jpg)](https://www.youtube.com/watch?v=N9VMzLMKKpk)
+
+*本教程将从零开始一步步指导您如何使用 VibeSurf 构建一个搜索 X 并提取结果的浏览器自动化工作流。除了基础知识外，还演示了如何将此工作流转换为可部署的 API，并将其作为自定义 Skill 集成到 Claude Code 中。*
 
 👉 [**探索工作流模板**](https://vibe-surf.com/workflows) - 从预构建的常用任务工作流开始！
 
