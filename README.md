@@ -39,7 +39,9 @@ If you're as excited about open-source AI browsing as I am, give it a star! ⭐
 
 ⚡ **Speed & Reliability**: Deterministic workflows deliver consistent, fast, and highly accurate results. No more waiting for agents to "think" through repetitive steps.
 
-<video src="https://github.com/user-attachments/assets/5e50de7a-02e7-44e0-a95b-98d1a3eab66e" controls="controls">Your browser does not support playing this video!</video>
+[![Tutorial: Build Browser Automation Workflow and Deploy as API](https://img.youtube.com/vi/N9VMzLMKKpk/maxresdefault.jpg)](https://www.youtube.com/watch?v=N9VMzLMKKpk)
+
+*A tutorial that step-by-step guides you from scratch on using VibeSurf to build a browser automation workflow that searches X and extracts results. Beyond the basics, it demonstrates how to transform this workflow into a deployable API and integrate it as a custom Skill within Claude Code.*
 
 👉 [**Explore Workflow Templates**](https://vibe-surf.com/workflows) - Get started with pre-built workflows for common tasks!
 
