@@ -4057,52 +4057,53 @@ class VibeSurfSettingsWorkflow {
   // Format JSON with proper indentation and Chinese character support
   formatJSON(obj) {
     try {
-      // If obj is a string that looks like JSON, try to parse it first
+      // Recursively parse nested JSON strings
+      const parseNestedJSON = (value) => {
+        if (typeof value === 'string') {
+          // Try to parse if it looks like JSON
+          const trimmed = value.trim();
+          if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+              (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+            try {
+              const parsed = JSON.parse(value);
+              // Recursively process the parsed object
+              return parseNestedJSON(parsed);
+            } catch {
+              // Not valid JSON, return as-is
+              return value;
+            }
+          }
+          return value;
+        } else if (Array.isArray(value)) {
+          return value.map(item => parseNestedJSON(item));
+        } else if (value && typeof value === 'object') {
+          const result = {};
+          for (const [key, val] of Object.entries(value)) {
+            result[key] = parseNestedJSON(val);
+          }
+          return result;
+        }
+        return value;
+      };
+
+      // Parse input if it's a string
       if (typeof obj === 'string') {
         try {
           obj = JSON.parse(obj);
         } catch {
-          // Not a JSON string, return as-is
           return obj;
         }
       }
 
-      // Use JSON.stringify with replacer to ensure unicode is not escaped
-      // The third parameter (2) adds indentation
-      let jsonStr = JSON.stringify(obj, null, 2);
+      // Recursively parse all nested JSON strings
+      const processed = parseNestedJSON(obj);
+
+      // Stringify with indentation
+      let jsonStr = JSON.stringify(processed, null, 2);
 
       // Decode unicode escape sequences (\uXXXX) to actual characters
       jsonStr = jsonStr.replace(/\\u[\dA-Fa-f]{4}/g, (match) => {
         return String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16));
-      });
-
-      // Handle nested JSON strings (e.g., "params": "{\"key\": \"value\"}")
-      // Match any field that contains an escaped JSON string
-      jsonStr = jsonStr.replace(/"([^"]+)":\s*"([^"]*(?:\\.[^"]*)*)"/g, (match, fieldName, content) => {
-        // Only process if content looks like JSON (starts with { or [)
-        const trimmed = content.trim();
-        if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
-          return match;
-        }
-
-        try {
-          // Unescape the nested JSON string
-          const unescaped = content.replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-          // Try to parse and format it
-          const parsed = JSON.parse(unescaped);
-          const formatted = JSON.stringify(parsed, null, 2);
-
-          // Add proper indentation for the nested JSON (indent by 2 more spaces)
-          const indented = formatted.split('\n').map((line, idx) => {
-            return idx === 0 ? line : '  ' + line;
-          }).join('\n');
-
-          // Return with field name
-          return `"${fieldName}": ${indented}`;
-        } catch {
-          // If parsing fails, return original
-          return match;
-        }
       });
 
       return jsonStr;
