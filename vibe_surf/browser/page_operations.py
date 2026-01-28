@@ -58,11 +58,14 @@ async def scroll_to_text(text, browser_session):
             continue
 
     if not found:
-        # Fallback: Try JavaScript search
+        # Fallback: Try JavaScript search (including text nodes and attributes)
         js_result = await cdp_client.send.Runtime.evaluate(
             params={
                 'expression': f'''
                         (() => {{
+                            const searchText = `{text}`;
+
+                            // First, try to find in text nodes
                             const walker = document.createTreeWalker(
                                 document.body,
                                 NodeFilter.SHOW_TEXT,
@@ -71,30 +74,45 @@ async def scroll_to_text(text, browser_session):
                             );
                             let node;
                             while (node = walker.nextNode()) {{
-                                if (node.textContent.includes("{text}")) {{
+                                if (node.textContent.includes(searchText)) {{
                                     node.parentElement.scrollIntoView({{behavior: 'smooth', block: 'center'}});
-                                    return true;
+                                    return {{found: true, method: 'text'}};
                                 }}
                             }}
-                            return false;
+
+                            // If not found in text, search in common attributes
+                            const attributesToSearch = [
+                                'placeholder', 'aria-label', 'title', 'alt',
+                                'value', 'data-label', 'aria-labelledby'
+                            ];
+
+                            const allElements = document.querySelectorAll('*');
+                            for (const element of allElements) {{
+                                for (const attr of attributesToSearch) {{
+                                    const attrValue = element.getAttribute(attr);
+                                    if (attrValue && attrValue.includes(searchText)) {{
+                                        element.scrollIntoView({{behavior: 'smooth', block: 'center'}});
+                                        return {{found: true, method: 'attribute', attr: attr}};
+                                    }}
+                                }}
+                            }}
+
+                            return {{found: false}};
                         }})()
                     '''
             },
             session_id=session_id,
         )
 
-        if js_result.get('result', {}).get('value'):
+        result_value = js_result.get('result', {}).get('value')
+        if result_value and (result_value is True or (isinstance(result_value, dict) and result_value.get('found'))):
             logger.debug(f'📜 Scrolled to text: "{text}" (via JS)')
             return None
         else:
             logger.warning(f'⚠️ Text not found: "{text}"')
-            raise RuntimeError(f'Text not found: "{text}"', details={'text': text})
 
     # If we got here and found is True, return None (success)
-    if found:
-        return None
-    else:
-        raise RuntimeError(f'Text not found: "{text}"', details={'text': text})
+    return None
 
 
 async def _try_direct_selector(browser_session, target_text: str) -> Optional[str]:

@@ -610,7 +610,13 @@ class VibeSurfAPIClient {
   }
 
   async getWorkflowEvents(jobId) {
-    return this.get(`/v1/build/${encodeURIComponent(jobId)}/events`);
+    // Use polling mode instead of streaming to avoid timeout issues
+    // Set timeout to 10s and reduce retries (polling will be called repeatedly by frontend)
+    return this.get(`/v1/build/${encodeURIComponent(jobId)}/events`, {
+      params: { event_delivery: 'polling' },
+      timeout: 10000,  // 10 seconds (backend waits max 5s for events)
+      retries: 1       // Only retry once, as polling happens frequently
+    });
   }
 
   async getWorkflow(flowId) {

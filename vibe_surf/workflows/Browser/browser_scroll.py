@@ -94,6 +94,5 @@ class BrowserScrollComponent(Component):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            raise e
         finally:
             return self.browser_session
