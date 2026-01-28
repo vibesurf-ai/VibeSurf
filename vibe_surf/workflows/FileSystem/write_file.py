@@ -65,7 +65,7 @@ class WriteFileComponent(Component):
             from vibe_surf.common import get_workspace_dir
             import os
             
-            workspace_dir = get_workspace_dir()
+            workspace_dir = os.path.join(get_workspace_dir(), session_id)
             os.makedirs(workspace_dir, exist_ok=True)
             
             file_system = CustomFileSystem(base_dir=workspace_dir, create_default_files=False)
@@ -80,8 +80,8 @@ class WriteFileComponent(Component):
                 result = await file_system.append_file(self.file_path, content)
             else:
                 result = await file_system.write_file(self.file_path, content)
-
-            return Message(text=result)
+            abs_file_path = file_system.get_dir() / self.file_path
+            return Message(text=str(abs_file_path))
 
         except Exception as e:
             error_message = f"Error writing to file: {str(e)}"

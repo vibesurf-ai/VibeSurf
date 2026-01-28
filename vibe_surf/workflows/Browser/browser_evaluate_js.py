@@ -31,7 +31,7 @@ class BrowserEvaluateJavaScriptComponent(Component):
             required=False,
             multiline=True
         ),
-        StrInput(
+        MessageTextInput(
             name="js_file_path",
             display_name="JS File Path (Optional)",
             info="Path to .js file. Use this as alternative to direct code input to avoid paste issues.",
