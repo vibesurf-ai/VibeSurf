@@ -1475,26 +1475,44 @@ class VibeSurfSettingsWorkflow {
                eventType === 'failed' ||
                eventType === 'stream_end';
       });
-      
-      // Enhanced cache update strategy: NEVER overwrite cached events with fewer events
+
+      // Merge events strategy for polling mode: accumulate all events
       let finalEvents = events;
       let shouldUpdateCache = true;
-      
+
       if (cached && cached.events.length > 0) {
         if (events.length === 0) {
-          // API returned empty - always preserve existing cache
-          finalEvents = cached.events;
-          shouldUpdateCache = false; // Don't update cache with empty result
-        } else if (events.length < cached.events.length && !hasEndEvent) {
-          // API returned fewer events and workflow not complete - suspicious, preserve cache
+          // API returned empty - preserve existing cache
           finalEvents = cached.events;
           shouldUpdateCache = false;
         } else {
-          // API returned more or equal events, or workflow is complete - safe to update
-          finalEvents = events;
+          // Merge new events with cached events (polling returns incremental events)
+          // Create a map to deduplicate events by timestamp and event type
+          const eventMap = new Map();
+
+          // Add cached events first
+          cached.events.forEach(event => {
+            const key = this.getEventKey(event);
+            if (!eventMap.has(key)) {
+              eventMap.set(key, event);
+            }
+          });
+
+          // Add new events (may override duplicates)
+          events.forEach(event => {
+            const key = this.getEventKey(event);
+            eventMap.set(key, event);
+          });
+
+          // Convert back to array and sort by timestamp
+          finalEvents = Array.from(eventMap.values()).sort((a, b) => {
+            const timeA = a.timestamp || a.time || 0;
+            const timeB = b.timestamp || b.time || 0;
+            return timeA - timeB;
+          });
         }
       }
-      
+
       // Update cache only if safe to do so
       if (shouldUpdateCache) {
         const cacheEntry = {
@@ -1563,7 +1581,32 @@ class VibeSurfSettingsWorkflow {
       throw error;
     }
   }
-  
+
+  // Generate a unique key for an event to enable deduplication
+  getEventKey(event) {
+    if (!event || typeof event !== 'object') {
+      return Math.random().toString();
+    }
+
+    // Extract key components
+    const timestamp = event.timestamp || event.time || '';
+    const eventType = event.event || event.eventType || '';
+    const level = event.level || event.type || '';
+
+    // Try to get component/vertex ID from various locations
+    let componentId = '';
+    if (event.data && event.data.build_data && event.data.build_data.id) {
+      componentId = event.data.build_data.id;
+    } else if (event.vertex_id) {
+      componentId = event.vertex_id;
+    } else if (event.data && event.data.vertex_id) {
+      componentId = event.data.vertex_id;
+    }
+
+    // Create a composite key
+    return `${timestamp}_${eventType}_${level}_${componentId}`;
+  }
+
   // Subscribe to event updates for a job
   subscribeToEvents(jobId, callback) {
     
