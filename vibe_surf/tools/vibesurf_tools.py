@@ -1218,7 +1218,7 @@ class VibeSurfTools:
                 username = settings_service.auth_settings.SUPERUSER
                 password = settings_service.auth_settings.SUPERUSER_PASSWORD
 
-                # Fetch workflow from langflow database
+                # Fetch workflow from langflow database (only read flow in session scope)
                 async with session_scope() as langflow_session:
                     current_user = await create_super_user(db=langflow_session, username=username, password=password)
                     db_flow = await _read_flow(session=langflow_session, flow_id=flow_uuid, user_id=current_user.id)
@@ -1229,58 +1229,58 @@ class VibeSurfTools:
                             extracted_content=f'Workflow not found in database: {full_flow_id}'
                         )
 
-                    # Create request with tweaks
-                    input_request = SimplifiedAPIRequest(
-                        input_value=None,
-                        input_type="chat",
-                        output_type="any",
-                        tweaks=tweaks,
-                    )
+                # Create request with tweaks
+                input_request = SimplifiedAPIRequest(
+                    input_value=None,
+                    input_type="chat",
+                    output_type="any",
+                    tweaks=tweaks,
+                )
 
-                    # Execute workflow
-                    result = await simple_run_flow(
-                        flow=db_flow,
-                        input_request=input_request,
-                        stream=False,
-                        api_key_user=current_user,
-                    )
+                # Execute workflow outside session scope to avoid connection timeout
+                result = await simple_run_flow(
+                    flow=db_flow,
+                    input_request=input_request,
+                    stream=False,
+                    api_key_user=current_user,
+                )
 
-                    # Format result
-                    workflow_name = workflow_skills[full_flow_id].get('name', 'Workflow')
-                    result_text = f"# Workflow Execution Result\n\n"
-                    result_text += f"**Workflow:** @flow-{params.workflow_id}: {workflow_name}\n\n"
-                    result_text += f"**Status:** ✅ Completed\n\n"
-                    
-                    if result.outputs:
-                        result_text += "**Results:**\n\n"
-                        # result.outputs is list[RunOutputs]
-                        for outer_idx, run_output in enumerate(result.outputs, 1):
-                            # run_output.outputs is list[ResultData]
-                            for inner_idx, result_data_org in enumerate(run_output.outputs, 1):
-                                # Extract results from ResultData
-                                results_data = result_data_org.results
-                                component_display_name = result_data_org.component_display_name
-                                component_id = result_data_org.component_id
-                                try:
-                                    if "text" in results_data:
-                                        results_data_str = results_data["text"].data["text"]
-                                    elif "output_data" in results_data:
-                                        results_data_str = results_data["output_data"].data
-                                    elif "message" in results_data:
-                                        results_data_str = results_data["message"].data["text"]
-                                    else:
-                                        results_data_str = results_data
-                                except Exception as e:
+                # Format result
+                workflow_name = workflow_skills[full_flow_id].get('name', 'Workflow')
+                result_text = f"# Workflow Execution Result\n\n"
+                result_text += f"**Workflow:** @flow-{params.workflow_id}: {workflow_name}\n\n"
+                result_text += f"**Status:** ✅ Completed\n\n"
+
+                if result.outputs:
+                    result_text += "**Results:**\n\n"
+                    # result.outputs is list[RunOutputs]
+                    for outer_idx, run_output in enumerate(result.outputs, 1):
+                        # run_output.outputs is list[ResultData]
+                        for inner_idx, result_data_org in enumerate(run_output.outputs, 1):
+                            # Extract results from ResultData
+                            results_data = result_data_org.results
+                            component_display_name = result_data_org.component_display_name
+                            component_id = result_data_org.component_id
+                            try:
+                                if "text" in results_data:
+                                    results_data_str = results_data["text"].data["text"]
+                                elif "output_data" in results_data:
+                                    results_data_str = results_data["output_data"].data
+                                elif "message" in results_data:
+                                    results_data_str = results_data["message"].data["text"]
+                                else:
                                     results_data_str = results_data
-                                result_text += f"### Result of {component_id}-{component_display_name}\n\n"
-                                result_text += f"{results_data_str}\n\n"
-                    
-                    logger.info(f'✅ Successfully executed workflow: {full_flow_id}')
-                    return ActionResult(
-                        extracted_content=result_text,
-                        include_extracted_content_only_once=True,
-                        long_term_memory=f'Executed workflow: {workflow_name}'
-                    )
+                            except Exception as e:
+                                results_data_str = results_data
+                            result_text += f"### Result of {component_id}-{component_display_name}\n\n"
+                            result_text += f"{results_data_str}\n\n"
+
+                logger.info(f'✅ Successfully executed workflow: {full_flow_id}')
+                return ActionResult(
+                    extracted_content=result_text,
+                    include_extracted_content_only_once=True,
+                    long_term_memory=f'Executed workflow: {workflow_name}'
+                )
 
             except Exception as e:
                 error_msg = f'❌ Failed to execute workflow: {str(e)}'

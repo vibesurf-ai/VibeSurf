@@ -1906,7 +1906,8 @@ class VibeSurfSettingsWorkflow {
       
     } catch (error) {
       console.error('[SettingsWorkflow] Failed to load workflow logs:', error);
-      this.elements.logsContent.innerHTML = `<div class="log-entry error">${window.i18n.getMessage('failedToLoadLogs', [error.message])}</div>`;
+      const errorMsg = error?.message || error?.toString() || 'Unknown error';
+      this.elements.logsContent.innerHTML = `<div class="log-entry error">${window.i18n.getMessage('failedToLoadLogs', [errorMsg])}</div>`;
     } finally {
       if (this.elements.logsLoading) {
         this.elements.logsLoading.style.display = 'none';
@@ -2038,7 +2039,31 @@ class VibeSurfSettingsWorkflow {
       timestamp = eventData.timestamp || eventData.time || Date.now();
       level = eventData.level || eventData.type || 'info';
       eventType = eventData.event || eventData.eventType || 'unknown';
-      
+
+      // Extract vertex information if available
+      let vertexId = '';
+      let vertexName = '';
+      if (eventData.data && eventData.data.build_data) {
+        const buildData = eventData.data.build_data;
+        // Get full vertex ID
+        if (buildData.id) {
+          vertexId = buildData.id;
+        }
+        // Try to get component name from build_data
+        if (buildData.data && buildData.data.component_display_name) {
+          vertexName = buildData.data.component_display_name;
+        } else if (buildData.id) {
+          // Use vertex ID first part as name if display name not available
+          vertexName = buildData.id.split('-')[0];
+        }
+      } else if (eventData.vertex_id) {
+        vertexId = eventData.vertex_id;
+        vertexName = eventData.vertex_id.split('-')[0];
+      } else if (eventData.data && eventData.data.vertex_id) {
+        vertexId = eventData.data.vertex_id;
+        vertexName = eventData.data.vertex_id.split('-')[0];
+      }
+
       // Build message and details from event data
       if (eventData.message) {
         message = eventData.message;
@@ -2049,11 +2074,21 @@ class VibeSurfSettingsWorkflow {
         if (typeof eventData.data === 'string') {
           message = eventData.data;
         } else {
-          message = this.getEventTypeDescription(eventType);
+          // For vertex events, show the component ID as the main message
+          if (vertexId && (eventType === 'end_vertex' || eventType === 'start_vertex')) {
+            message = vertexId;
+          } else {
+            message = this.getEventTypeDescription(eventType, vertexName);
+          }
           details = eventData.data;
         }
       } else {
-        message = this.getEventTypeDescription(eventType);
+        // For vertex events, show the component ID as the main message
+        if (vertexId && (eventType === 'end_vertex' || eventType === 'start_vertex')) {
+          message = vertexId;
+        } else {
+          message = this.getEventTypeDescription(eventType, vertexName);
+        }
         const filteredData = { ...eventData };
         delete filteredData.timestamp;
         delete filteredData.time;
@@ -2061,7 +2096,7 @@ class VibeSurfSettingsWorkflow {
         delete filteredData.eventType;
         delete filteredData.level;
         delete filteredData.type;
-        
+
         if (Object.keys(filteredData).length > 0) {
           details = filteredData;
         }
@@ -2080,20 +2115,29 @@ class VibeSurfSettingsWorkflow {
   }
   
   // Get user-friendly event type descriptions
-  getEventTypeDescription(eventType) {
+  getEventTypeDescription(eventType, vertexName = '') {
     const descriptions = {
-      'vertices_sorted': 'Workflow initialized and components sorted',
-      'on_end': 'Workflow execution completed',
-      'add_message': 'New message or output generated',
-      'stream_end': 'Data stream finished',
-      'error': 'An error occurred during execution',
-      'failed': 'Workflow execution failed',
-      'start': 'Component execution started',
-      'end': 'Component execution finished',
+      'vertices_sorted': 'Workflow initialized',
+      'on_end': 'Workflow completed',
+      'add_message': 'Message generated',
+      'stream_end': 'Stream finished',
+      'error': 'Error occurred',
+      'failed': 'Execution failed',
+      'start': 'Started',
+      'end': 'Finished',
+      'end_vertex': 'Completed',
+      'start_vertex': 'Started',
       'unknown': 'System event'
     };
-    
-    return descriptions[eventType] || `${eventType} event`;
+
+    let baseDescription = descriptions[eventType] || `${eventType} event`;
+
+    // Add vertex name if available (for non-vertex specific events)
+    if (vertexName && eventType !== 'end_vertex' && eventType !== 'start_vertex') {
+      return `${baseDescription}: ${vertexName}`;
+    }
+
+    return baseDescription;
   }
   
   // Categorize events for better visual representation
@@ -2101,16 +2145,16 @@ class VibeSurfSettingsWorkflow {
     let logLevel = level.toLowerCase();
     let category = 'info';
     let icon = '📄';
-    
+
     if (eventType === 'error' || eventType === 'failed' || level === 'error') {
       logLevel = 'error';
       category = 'error';
       icon = '❌';
-    } else if (eventType === 'end' || eventType === 'on_end' || eventType === 'completed') {
+    } else if (eventType === 'end' || eventType === 'end_vertex' || eventType === 'on_end' || eventType === 'completed') {
       logLevel = 'success';
       category = 'completion';
       icon = '✅';
-    } else if (eventType === 'vertices_sorted' || eventType === 'start') {
+    } else if (eventType === 'vertices_sorted' || eventType === 'start' || eventType === 'start_vertex') {
       logLevel = 'info';
       category = 'system';
       icon = '⚙️';
@@ -2126,7 +2170,7 @@ class VibeSurfSettingsWorkflow {
       category = 'execution';
       icon = '▶️';
     }
-    
+
     return { logLevel, category, icon };
   }
   
@@ -2140,7 +2184,7 @@ class VibeSurfSettingsWorkflow {
     });
     const dateStr = timestamp.toLocaleDateString();
     const hasDetails = details && Object.keys(details).length > 0;
-    
+
     // Format details for display
     let detailsContent = '';
     if (hasDetails) {
@@ -2150,21 +2194,25 @@ class VibeSurfSettingsWorkflow {
         detailsContent = JSON.stringify(details, null, 2);
       }
     }
-    
+
     const detailsSection = hasDetails ? `
       <div class="log-details" style="display: none;">
         <div class="log-details-header">Event Details:</div>
         <pre class="log-details-content">${this.escapeHtml(detailsContent)}</pre>
       </div>
     ` : '';
-    
+
     const expandButton = hasDetails ? `
       <button class="log-expand-btn" data-index="${index}">
         <span class="expand-icon">▶</span>
         <span class="expand-text">Details</span>
       </button>
     ` : '';
-    
+
+    // For vertex events, don't show event type in the header (component ID is the message)
+    const isVertexEvent = eventType === 'end_vertex' || eventType === 'start_vertex';
+    const eventTypeDisplay = isVertexEvent ? '' : `<span class="event-name">${eventType}</span>`;
+
     return `
       <div class="log-entry-enhanced ${logLevel} ${category}" data-index="${index}">
         <div class="log-entry-main">
@@ -2176,7 +2224,7 @@ class VibeSurfSettingsWorkflow {
           <div class="log-content-enhanced">
             <div class="log-event-type">
               <span class="event-category ${category}">${category.toUpperCase()}</span>
-              <span class="event-name">${eventType}</span>
+              ${eventTypeDisplay}
             </div>
             <div class="log-message-enhanced">${this.escapeHtml(message)}</div>
           </div>
