@@ -368,7 +368,7 @@ class VibeSurfBackground {
     const config = VIBESURF_CONFIG || {};
     
     const defaultSettings = {
-      backendUrl: config.BACKEND_URL || 'http://localhost:9335',
+      backendUrl: config.BACKEND_URL,
       defaultSessionPrefix: config.DEFAULT_SESSION_PREFIX || 'vibesurf_',
       notifications: config.NOTIFICATIONS || {
         enabled: true,
@@ -485,7 +485,7 @@ class VibeSurfBackground {
   async checkBackendStatus(backendUrl = null) {
     // Use configuration file value as default from imported module
     const config = VIBESURF_CONFIG || {};
-    backendUrl = backendUrl || config.BACKEND_URL || 'http://localhost:9335';
+    backendUrl = backendUrl || config.BACKEND_URL;
     try {
       const response = await fetch(`${backendUrl}/health`, {
         method: 'GET',

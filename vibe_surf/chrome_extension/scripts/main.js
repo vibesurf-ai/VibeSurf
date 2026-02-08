@@ -122,8 +122,7 @@ class VibeSurfApp {
 
       // Get fresh backend URL from config files (CLI-updated)
       const freshBackendUrl = freshConfig.BACKEND_URL ||
-                               (typeof window !== 'undefined' && window.VIBESURF_CONFIG?.BACKEND_URL) ||
-                               'http://localhost:9336';
+                               (typeof window !== 'undefined' && window.VIBESURF_CONFIG?.BACKEND_URL);
 
       // Check if backend URL has changed (indicates CLI restart with different port)
       const storedBackendUrl = storedSettings.backendUrl;
