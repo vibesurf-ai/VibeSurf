@@ -25,6 +25,7 @@ LLM_PROVIDERS = {
         "gemini-2.5-flash",
     ],
     "kimi": [
+        "kimi-k2.5",
         "kimi-k2-0905-preview",
         "kimi-k2-0711-preview",
         "kimi-k2-turbo-preview",
