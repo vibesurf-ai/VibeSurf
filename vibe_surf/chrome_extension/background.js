@@ -2,7 +2,7 @@
 // Handles extension lifecycle, side panel management, and cross-context communication
 
 // ES6 module imports (for type: "module" in manifest.json)
-import { VIBESURF_CONFIG } from './config.js';
+import { VIBESURF_CONFIG } from './config-module.js';
 import { WorkflowRecorder } from './scripts/workflow-recorder.js';
 
 console.log('[VibeSurf] Modules loaded');

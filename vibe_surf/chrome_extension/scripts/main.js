@@ -75,8 +75,9 @@ class VibeSurfApp {
       this.settings = result.settings || {};
       
       // Apply default settings if not present
+      const configBackendUrl = (typeof window !== 'undefined' && window.VIBESURF_CONFIG?.BACKEND_URL);
       const defaultSettings = {
-        backendUrl: 'http://localhost:9335',
+        backendUrl: configBackendUrl,
         defaultSessionPrefix: 'vibesurf_',
         pollingFrequency: 1000,
         notifications: {

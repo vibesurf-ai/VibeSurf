@@ -5,7 +5,7 @@ class VibeSurfAPIClient {
   constructor(baseURL = null) {
     // Use configuration file values as defaults
     const config = window.VIBESURF_CONFIG || {};
-    this.baseURL = (baseURL || config.BACKEND_URL || 'http://localhost:9335').replace(/\/$/, ''); // Remove trailing slash
+    this.baseURL = (baseURL || config.BACKEND_URL).replace(/\/$/, ''); // Remove trailing slash
     this.apiPrefix = config.API_PREFIX || '/api';
     this.timeout = config.DEFAULT_TIMEOUT || 30000;
     this.retryAttempts = config.RETRY_ATTEMPTS || 3;

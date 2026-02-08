@@ -3,24 +3,24 @@
 
 const VIBESURF_CONFIG = {
   // Backend server configuration
-  BACKEND_URL: 'http://127.0.0.1:9335',
-  
+  BACKEND_URL: 'http://127.0.0.1:9337',
+
   // API related configuration
   API_PREFIX: '/api',
   DEFAULT_TIMEOUT: 30000,
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
-  
+
   // Session configuration
   DEFAULT_SESSION_PREFIX: '',
-  
+
   // Notification configuration
   NOTIFICATIONS: {
     enabled: true,
     taskComplete: true,
     taskError: true
   },
-  
+
   // UI configuration
   UI: {
     theme: 'auto',
@@ -36,7 +36,7 @@ const VIBESURF_CONFIG = {
     wechat: "icons/wx.png", // WeChat QR code image
     website: "https://vibe-surf.com/"
   },
-  
+
   // Debug mode
   DEBUG: false
 };
@@ -53,4 +53,7 @@ if (typeof self !== 'undefined' && typeof window === 'undefined') {
 
 // ES6 module export for type: "module" in manifest.json (background.js)
 // Note: This must be at the top level, not inside a condition
-export { VIBESURF_CONFIG };
+// Use export only when loaded as a module
+if (typeof exports !== 'undefined' && typeof module !== 'undefined' && module.exports) {
+  module.exports = { VIBESURF_CONFIG };
+}
