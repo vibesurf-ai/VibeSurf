@@ -1649,19 +1649,17 @@ class VibeSurfTools:
 
                 # Add active tab info
                 if active_browser_tab:
-                    result_text += f"## 📌 Active Tab\n\n"
+                    result_text += f"## Active Tab\n\n"
                     result_text += f"**Tab ID:** {active_browser_tab.target_id[-4:]}\n"
                     result_text += f"**Title:** {browser_state_summary.title}\n"
                     result_text += f"**URL:** {browser_state_summary.url}\n\n"
 
                 # Add screenshot info
                 if screenshot_path:
-                    result_text += f"## 📸 Highlighted Screenshot\n\n"
-                    result_text += f"**Path:** {screenshot_path}\n"
-                    result_text += f"*Screenshot with element IDs (index) highlighted*\n\n"
+                    result_text += f"## Highlighted Screenshot Path: {screenshot_path}\n\n"
 
                 # Add DOM content
-                result_text += f"## 📄 DOM Content\n\n"
+                result_text += f"## DOM Content\n\n"
                 result_text += f"```\n{dom_content}\n```\n\n"
 
                 logger.info(f'✅ Retrieved browser state for: {browser_state_summary.url}')

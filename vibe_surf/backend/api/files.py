@@ -153,28 +153,50 @@ async def upload_files(
         raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
 
 
-@router.get("/{file_id}")
-async def download_file(file_id: str, db: AsyncSession = Depends(get_db_session)):
-    """Download file by file ID"""
+@router.get("/download")
+async def download_file(
+    file_id: Optional[str] = None,
+    file_path: Optional[str] = None,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """Download file by file ID or file path"""
     from ..shared_state import workspace_dir
 
-    uploaded_file = await UploadedFileQueries.get_file(db, file_id)
-    if not uploaded_file:
-        raise HTTPException(status_code=404, detail="File not found")
+    if not file_id and not file_path:
+        raise HTTPException(status_code=400, detail="Either file_id or file_path must be provided")
 
-    file_path = uploaded_file.file_path
+    # If file_id is provided, look up in database
+    if file_id:
+        uploaded_file = await UploadedFileQueries.get_file(db, file_id)
+        if not uploaded_file:
+            raise HTTPException(status_code=404, detail="File not found")
 
-    if not os.path.exists(file_path):
+        actual_file_path = uploaded_file.file_path
+        original_filename = uploaded_file.original_filename
+        mime_type = uploaded_file.mime_type
+    else:
+        # file_path is provided
+        actual_file_path = file_path
+        # If relative path, combine with workspace_dir
+        if not os.path.isabs(actual_file_path):
+            actual_file_path = os.path.join(workspace_dir, actual_file_path)
+
+        original_filename = os.path.basename(actual_file_path)
+        mime_type, _ = mimetypes.guess_type(actual_file_path)
+        if not mime_type:
+            mime_type = "application/octet-stream"
+
+    if not os.path.exists(actual_file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
 
     # Ensure path is safe
-    if not is_safe_path(workspace_dir, file_path):
+    if not is_safe_path(workspace_dir, actual_file_path):
         raise HTTPException(status_code=403, detail="Access denied")
 
     return FileResponse(
-        path=file_path,
-        filename=uploaded_file.original_filename,
-        media_type=uploaded_file.mime_type
+        path=actual_file_path,
+        filename=original_filename,
+        media_type=mime_type
     )
 
 
