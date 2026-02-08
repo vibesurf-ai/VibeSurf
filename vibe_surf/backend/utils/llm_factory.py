@@ -198,12 +198,44 @@ def create_llm_from_profile(llm_profile) -> BaseChatModel:
             )
 
         elif provider == "kimi":
-            return ChatOpenAICompatible(
-                model=model,
-                base_url="https://api.moonshot.cn/v1" or base_url,
-                api_key=api_key,
-                **common_params
-            )
+            # Special handling for kimi-k2.5 series models
+            # k2.5 models have fixed values for certain parameters:
+            # - temperature: fixed to 1.0 (thinking mode) or 0.6 (non-thinking)
+            # - top_p: fixed to 0.95
+            # - n: fixed to 1
+            # - presence_penalty: fixed to 0.0
+            # - frequency_penalty: fixed to 0.0
+            # Only max_tokens and thinking can be customized
+            is_k2_5 = model and "kimi-k2.5" in model
+
+            if is_k2_5:
+                # For k2.5 models, use fixed parameter values as required by the API:
+                # - temperature: fixed to 1.0 (k2.5 requirement)
+                # - top_p: fixed to 0.95
+                # - frequency_penalty: fixed to 0.0
+                k25_params = {
+                    "temperature": 1.0,
+                    "top_p": 0.95,
+                    "frequency_penalty": 0.0,
+                }
+                if max_tokens is not None:
+                    k25_params["max_tokens"] = max_tokens
+                # thinking parameter can be passed via provider_config
+                if provider_config:
+                    k25_params.update(provider_config)
+                return ChatOpenAICompatible(
+                    model=model,
+                    base_url=base_url or "https://api.moonshot.cn/v1",
+                    api_key=api_key,
+                    **k25_params
+                )
+            else:
+                return ChatOpenAICompatible(
+                    model=model,
+                    base_url=base_url or "https://api.moonshot.cn/v1",
+                    api_key=api_key,
+                    **common_params
+                )
 
         elif provider == "lm_studio":
             return ChatOpenAI(
