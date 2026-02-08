@@ -95,8 +95,7 @@ class VibeSurfApp {
       // Apply default settings if not present
       // Priority: freshConfig (from background) > window.VIBESURF_CONFIG (cached)
       const configBackendUrl = freshConfig.BACKEND_URL ||
-                               (typeof window !== 'undefined' && window.VIBESURF_CONFIG?.BACKEND_URL) ||
-                               'http://localhost:9336';
+                               (typeof window !== 'undefined' && window.VIBESURF_CONFIG?.BACKEND_URL);
       const defaultSettings = {
         backendUrl: configBackendUrl,
         defaultSessionPrefix: 'vibesurf_',
