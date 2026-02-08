@@ -4,7 +4,7 @@
 
 // Default config values (fallback if config.js fails to load)
 const DEFAULT_CONFIG = {
-  BACKEND_URL: 'http://127.0.0.1:9337',
+  BACKEND_URL: 'http://127.0.0.1:9338',
   API_PREFIX: '/api',
   DEFAULT_TIMEOUT: 30000,
   RETRY_ATTEMPTS: 3,

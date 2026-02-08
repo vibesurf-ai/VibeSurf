@@ -18,8 +18,11 @@ class VibeSurfApp {
     try {
       console.log('[VibeSurf] Initializing application...');
 
-      // Load settings from storage
-      await this.loadSettings();
+      // First, get fresh config from background script (which reads from disk)
+      const freshConfig = await this.getFreshConfig();
+
+      // Load settings from storage (with fresh config as default)
+      await this.loadSettings(freshConfig);
 
       // Initialize API client
       this.initializeAPIClient();
@@ -69,13 +72,31 @@ class VibeSurfApp {
     }
   }
 
-  async loadSettings() {
+  async getFreshConfig() {
+    try {
+      console.log('[VibeSurf] Getting fresh config from background...');
+      const response = await chrome.runtime.sendMessage({ type: 'GET_CONFIG' });
+      if (response && response.BACKEND_URL) {
+        console.log('[VibeSurf] Fresh config received:', response.BACKEND_URL);
+        return response;
+      }
+    } catch (error) {
+      console.warn('[VibeSurf] Failed to get fresh config:', error);
+    }
+    // Fallback to window.VIBESURF_CONFIG (loaded from cached config.js)
+    return window.VIBESURF_CONFIG || {};
+  }
+
+  async loadSettings(freshConfig = {}) {
     try {
       const result = await chrome.storage.local.get('settings');
       this.settings = result.settings || {};
-      
+
       // Apply default settings if not present
-      const configBackendUrl = (typeof window !== 'undefined' && window.VIBESURF_CONFIG?.BACKEND_URL);
+      // Priority: freshConfig (from background) > window.VIBESURF_CONFIG (cached)
+      const configBackendUrl = freshConfig.BACKEND_URL ||
+                               (typeof window !== 'undefined' && window.VIBESURF_CONFIG?.BACKEND_URL) ||
+                               'http://localhost:9336';
       const defaultSettings = {
         backendUrl: configBackendUrl,
         defaultSessionPrefix: 'vibesurf_',

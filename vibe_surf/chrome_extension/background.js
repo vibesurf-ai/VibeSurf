@@ -208,7 +208,41 @@ class VibeSurfBackground {
           case 'HEALTH_CHECK':
             result = { status: 'healthy', timestamp: Date.now() };
             break;
-            
+
+          case 'GET_CONFIG':
+            // Dynamically read config.js from disk to get latest values
+            // This bypasses any module caching issues
+            try {
+              const configUrl = chrome.runtime.getURL('config.js');
+              const response = await fetch(configUrl + '?t=' + Date.now()); // Cache-busting
+              const configText = await response.text();
+
+              // Parse BACKEND_URL from config.js
+              const match = configText.match(/BACKEND_URL:\s*['"]([^'"]+)['"]/);
+              const backendUrl = match ? match[1] : VIBESURF_CONFIG.BACKEND_URL;
+
+              result = {
+                BACKEND_URL: backendUrl,
+                API_PREFIX: VIBESURF_CONFIG.API_PREFIX,
+                DEFAULT_TIMEOUT: VIBESURF_CONFIG.DEFAULT_TIMEOUT,
+                RETRY_ATTEMPTS: VIBESURF_CONFIG.RETRY_ATTEMPTS,
+                RETRY_DELAY: VIBESURF_CONFIG.RETRY_DELAY,
+                timestamp: Date.now()
+              };
+              console.log('[VibeSurf] Returning fresh config from disk:', backendUrl);
+            } catch (e) {
+              console.warn('[VibeSurf] Failed to read config.js, using cached:', e);
+              result = {
+                BACKEND_URL: VIBESURF_CONFIG.BACKEND_URL,
+                API_PREFIX: VIBESURF_CONFIG.API_PREFIX,
+                DEFAULT_TIMEOUT: VIBESURF_CONFIG.DEFAULT_TIMEOUT,
+                RETRY_ATTEMPTS: VIBESURF_CONFIG.RETRY_ATTEMPTS,
+                RETRY_DELAY: VIBESURF_CONFIG.RETRY_DELAY,
+                timestamp: Date.now()
+              };
+            }
+            break;
+
           case 'GET_BACKEND_STATUS':
             result = await this.checkBackendStatus(message.data?.backendUrl);
             break;
