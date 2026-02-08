@@ -4,6 +4,8 @@
 [![WarmShao](https://img.shields.io/twitter/follow/warmshao?style=social)](https://x.com/warmshao)
 
 > **Note**: VibeSurf can be used in Claude Code for control and real-time preview of browsers. For more details, see the [claude-surf plugin](https://github.com/vibesurf-ai/claude-surf).
+>
+> **Note**: VibeSurf is also available in Open-Claw. Install with: `npx clawhub@latest install vibesurf`. For more details, see [claw-surf](https://github.com/vibesurf-ai/claw-surf).
 
 **VibeSurf** is the first open-source AI agentic browser that combines **workflow automation** with **intelligent AI agents** - delivering browser automation that's **faster**, **cheaper**, and **smarter** than traditional solutions.
 
