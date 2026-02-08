@@ -89,6 +89,11 @@ async def create_llm_profile(
                 status_code=400,
                 detail=f"Profile with name '{profile_request.profile_name}' already exists"
             )
+
+        # Check if there's no default profile, force this one to be default
+        default_profile = await LLMProfileQueries.get_default_profile(db)
+        if default_profile is None:
+            profile_request.is_default = True
         
         # Create new profile - now returns dict directly
         profile_data = await LLMProfileQueries.create_profile(
