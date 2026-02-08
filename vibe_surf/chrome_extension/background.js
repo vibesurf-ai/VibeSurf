@@ -2,7 +2,7 @@
 // Handles extension lifecycle, side panel management, and cross-context communication
 
 // ES6 module imports (for type: "module" in manifest.json)
-import { VIBESURF_CONFIG } from './config.js';
+import { VIBESURF_CONFIG } from './config-module.js';
 import { WorkflowRecorder } from './scripts/workflow-recorder.js';
 
 console.log('[VibeSurf] Modules loaded');
@@ -208,7 +208,41 @@ class VibeSurfBackground {
           case 'HEALTH_CHECK':
             result = { status: 'healthy', timestamp: Date.now() };
             break;
-            
+
+          case 'GET_CONFIG':
+            // Dynamically read config.js from disk to get latest values
+            // This bypasses any module caching issues
+            try {
+              const configUrl = chrome.runtime.getURL('config.js');
+              const response = await fetch(configUrl + '?t=' + Date.now()); // Cache-busting
+              const configText = await response.text();
+
+              // Parse BACKEND_URL from config.js
+              const match = configText.match(/BACKEND_URL:\s*['"]([^'"]+)['"]/);
+              const backendUrl = match ? match[1] : VIBESURF_CONFIG.BACKEND_URL;
+
+              result = {
+                BACKEND_URL: backendUrl,
+                API_PREFIX: VIBESURF_CONFIG.API_PREFIX,
+                DEFAULT_TIMEOUT: VIBESURF_CONFIG.DEFAULT_TIMEOUT,
+                RETRY_ATTEMPTS: VIBESURF_CONFIG.RETRY_ATTEMPTS,
+                RETRY_DELAY: VIBESURF_CONFIG.RETRY_DELAY,
+                timestamp: Date.now()
+              };
+              console.log('[VibeSurf] Returning fresh config from disk:', backendUrl);
+            } catch (e) {
+              console.warn('[VibeSurf] Failed to read config.js, using cached:', e);
+              result = {
+                BACKEND_URL: VIBESURF_CONFIG.BACKEND_URL,
+                API_PREFIX: VIBESURF_CONFIG.API_PREFIX,
+                DEFAULT_TIMEOUT: VIBESURF_CONFIG.DEFAULT_TIMEOUT,
+                RETRY_ATTEMPTS: VIBESURF_CONFIG.RETRY_ATTEMPTS,
+                RETRY_DELAY: VIBESURF_CONFIG.RETRY_DELAY,
+                timestamp: Date.now()
+              };
+            }
+            break;
+
           case 'GET_BACKEND_STATUS':
             result = await this.checkBackendStatus(message.data?.backendUrl);
             break;
@@ -334,7 +368,7 @@ class VibeSurfBackground {
     const config = VIBESURF_CONFIG || {};
     
     const defaultSettings = {
-      backendUrl: config.BACKEND_URL || 'http://localhost:9335',
+      backendUrl: config.BACKEND_URL,
       defaultSessionPrefix: config.DEFAULT_SESSION_PREFIX || 'vibesurf_',
       notifications: config.NOTIFICATIONS || {
         enabled: true,
@@ -451,7 +485,7 @@ class VibeSurfBackground {
   async checkBackendStatus(backendUrl = null) {
     // Use configuration file value as default from imported module
     const config = VIBESURF_CONFIG || {};
-    backendUrl = backendUrl || config.BACKEND_URL || 'http://localhost:9335';
+    backendUrl = backendUrl || config.BACKEND_URL;
     try {
       const response = await fetch(`${backendUrl}/health`, {
         method: 'GET',

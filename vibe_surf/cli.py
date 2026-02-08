@@ -310,20 +310,76 @@ def find_first_available_browser() -> Optional[str]:
     return None
 
 
+def get_extension_config_paths():
+    """Get the paths to extension config files."""
+    if getattr(sys, 'frozen', False):
+        # PyInstaller frozen environment
+        bundle_dir = Path(sys._MEIPASS)
+        ext_dir = bundle_dir / "vibe_surf" / "chrome_extension"
+    else:
+        # Development environment
+        ext_dir = Path(__file__).parent / "chrome_extension"
+
+    return {
+        'config': ext_dir / "config.js",
+        'config_module': ext_dir / "config-module.js"
+    }
+
+
+def update_extension_config(port: int) -> bool:
+    """Update extension config files with the actual backend port."""
+    config_paths = get_extension_config_paths()
+    import re
+    new_url = f"http://127.0.0.1:{port}"
+    updated_any = False
+
+    # Update both config files
+    for name, config_path in config_paths.items():
+        if not config_path.exists():
+            console.print(f"[yellow]⚠️  Extension {name} not found at: {config_path}[/yellow]")
+            continue
+
+        try:
+            content = config_path.read_text(encoding='utf-8')
+
+            # Update BACKEND_URL with the actual port
+            # Match patterns like: BACKEND_URL: 'http://127.0.0.1:9336' or BACKEND_URL: "http://127.0.0.1:9336"
+            updated_content = re.sub(
+                r'(BACKEND_URL\s*:\s*[\'"])[^\'"]*([\'"])',
+                f"\\g<1>{new_url}\\g<2>",
+                content
+            )
+
+            if updated_content != content:
+                config_path.write_text(updated_content, encoding='utf-8')
+                console.print(f"[green]✅ Updated extension {name}: {config_path.name}[/green]")
+                updated_any = True
+            else:
+                console.print(f"[dim]   Extension {name} already up to date[/dim]")
+
+        except Exception as e:
+            console.print(f"[yellow]⚠️  Failed to update extension {name}: {e}[/yellow]")
+
+    if updated_any:
+        console.print(f"[dim]   Backend URL: {new_url}[/dim]")
+
+    return updated_any
+
+
 def configure_port() -> int:
     """Configure backend port."""
     console.print("\n[bold cyan]🔌 Port Configuration[/bold cyan]")
-    
+
     # Get port from environment variable
     env_port = os.environ.get('VIBESURF_BACKEND_PORT', '').strip()
     default_port = 9335
-    
+
     if env_port:
         try:
             default_port = int(env_port)
         except ValueError:
             console.print(f"[yellow]⚠️  Invalid VIBESURF_BACKEND_PORT: {env_port}. Using default: {default_port}[/yellow]")
-    
+
     # Check if default port is available
     if is_port_available(default_port):
         console.print(f"[green]✅ Port {default_port} is available[/green]")
@@ -332,9 +388,13 @@ def configure_port() -> int:
         console.print(f"[yellow]⚠️  Port {default_port} is occupied, finding next available port...[/yellow]")
         selected_port = find_available_port(default_port + 1)
         console.print(f"[green]✅ Using port {selected_port}[/green]")
-    
+
     # Set environment variable
     os.environ['VIBESURF_BACKEND_PORT'] = str(selected_port)
+
+    # Update extension config with the actual port
+    update_extension_config(selected_port)
+
     return selected_port
 
 

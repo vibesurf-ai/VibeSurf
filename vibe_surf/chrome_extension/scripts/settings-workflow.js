@@ -749,9 +749,9 @@ class VibeSurfSettingsWorkflow {
         
         // Reload workflows list
         this.loadWorkflows();
-        
+
         // Navigate to the new workflow
-        const backendUrl = this.apiClient.baseURL || window.CONFIG?.BACKEND_URL || 'http://localhost:9335';
+        const backendUrl = this.apiClient.baseURL || window.VIBESURF_CONFIG?.BACKEND_URL;
         const editUrl = `${backendUrl}/flow/${workflowId}`;
         
         // Open in new tab using Chrome extension API
@@ -2777,9 +2777,9 @@ class VibeSurfSettingsWorkflow {
   
   // Handle workflow edit
   handleWorkflowEdit(workflowId) {
-    
+
     // Get backend URL from API client or settings
-    const backendUrl = this.apiClient.baseURL || window.CONFIG?.BACKEND_URL || 'http://localhost:9335';
+    const backendUrl = this.apiClient.baseURL || window.VIBESURF_CONFIG?.BACKEND_URL;
     const editUrl = `${backendUrl}/flow/${workflowId}`;
     
     // Open in new tab using Chrome extension API
@@ -3389,7 +3389,7 @@ class VibeSurfSettingsWorkflow {
   // Save recording to backend
   async saveRecording(steps) {
     try {
-      const backendUrl = this.apiClient.baseURL || window.CONFIG?.BACKEND_URL || 'http://127.0.0.1:9335';
+      const backendUrl = this.apiClient.baseURL || window.VIBESURF_CONFIG?.BACKEND_URL;
       
       const response = await fetch(`${backendUrl}/api/vibesurf/workflows/save-recording`, {
         method: 'POST',

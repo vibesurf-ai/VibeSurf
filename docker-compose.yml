@@ -17,8 +17,8 @@ services:
     environment:
       # VibeSurf Settings
       - IN_DOCKER=true
-      - VIBESURF_WORKSPACE=/data/vibesurf_workspace
-      - VIBESURF_BACKEND_PORT=9335
+      - VIBESURF_WORKSPACE=${VIBESURF_WORKSPACE:-/data/vibesurf_workspace}
+      - VIBESURF_BACKEND_PORT=${VIBESURF_BACKEND_PORT:-9335}
       - VIBESURF_API_KEY=${VIBESURF_API_KEY:-}
       - VIBESURF_DEBUG=${VIBESURF_DEBUG:-false}
       - VIBESURF_ANONYMIZED_TELEMETRY=${VIBESURF_ANONYMIZED_TELEMETRY:-true}

@@ -139,6 +139,7 @@ docker run --name vibesurf -d --restart unless-stopped \
   -p 5901:5901 \
   -v ./data:/data \
   -e IN_DOCKER=true \
+  -e VIBESURF_BACKEND_PORT=9335 \
   -e VIBESURF_WORKSPACE=/data/vibesurf_workspace \
   -e RESOLUTION=1440x900x24 \
   -e VNC_PASSWORD=vibesurf \

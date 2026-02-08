@@ -18,8 +18,11 @@ class VibeSurfApp {
     try {
       console.log('[VibeSurf] Initializing application...');
 
-      // Load settings from storage
-      await this.loadSettings();
+      // First, get fresh config from background script (which reads from disk)
+      const freshConfig = await this.getFreshConfig();
+
+      // Load settings from storage (with fresh config as default)
+      await this.loadSettings(freshConfig);
 
       // Initialize API client
       this.initializeAPIClient();
@@ -69,14 +72,68 @@ class VibeSurfApp {
     }
   }
 
-  async loadSettings() {
+  async getFreshConfig() {
+    try {
+      // Directly fetch config.js from extension URL (bypasses all caching issues)
+      const configUrl = chrome.runtime.getURL('config.js');
+      console.log('[VibeSurf] Fetching fresh config from:', configUrl);
+      const response = await fetch(configUrl + '?t=' + Date.now());
+      const configText = await response.text();
+
+      // Parse BACKEND_URL from config.js
+      const match = configText.match(/BACKEND_URL:\s*['"]([^'"]+)['"]/);
+      const backendUrl = match ? match[1] : null;
+
+      if (backendUrl) {
+        console.log('[VibeSurf] Fresh config loaded directly:', backendUrl);
+        return {
+          BACKEND_URL: backendUrl,
+          API_PREFIX: '/api',
+          DEFAULT_TIMEOUT: 30000,
+          RETRY_ATTEMPTS: 3,
+          RETRY_DELAY: 1000
+        };
+      }
+    } catch (error) {
+      console.warn('[VibeSurf] Failed to fetch config.js directly:', error);
+    }
+
+    // Fallback 1: try background script
+    try {
+      console.log('[VibeSurf] Trying background script...');
+      const response = await chrome.runtime.sendMessage({ type: 'GET_CONFIG' });
+      if (response && response.BACKEND_URL) {
+        console.log('[VibeSurf] Fresh config from background:', response.BACKEND_URL);
+        return response;
+      }
+    } catch (error) {
+      console.warn('[VibeSurf] Background script failed:', error);
+    }
+
+    // Fallback 2: use window.VIBESURF_CONFIG
+    console.log('[VibeSurf] Falling back to window.VIBESURF_CONFIG');
+    return window.VIBESURF_CONFIG || {};
+  }
+
+  async loadSettings(freshConfig = {}) {
     try {
       const result = await chrome.storage.local.get('settings');
-      this.settings = result.settings || {};
-      
-      // Apply default settings if not present
+      const storedSettings = result.settings || {};
+
+      // Get fresh backend URL from config files (CLI-updated)
+      const freshBackendUrl = freshConfig.BACKEND_URL ||
+                               (typeof window !== 'undefined' && window.VIBESURF_CONFIG?.BACKEND_URL);
+
+      // Check if backend URL has changed (indicates CLI restart with different port)
+      const storedBackendUrl = storedSettings.backendUrl;
+      const backendUrlChanged = storedBackendUrl && storedBackendUrl !== freshBackendUrl;
+
+      if (backendUrlChanged) {
+        console.log('[VibeSurf] Backend URL changed:', storedBackendUrl, '->', freshBackendUrl);
+      }
+
       const defaultSettings = {
-        backendUrl: 'http://localhost:9335',
+        backendUrl: freshBackendUrl,
         defaultSessionPrefix: 'vibesurf_',
         pollingFrequency: 1000,
         notifications: {
@@ -91,9 +148,14 @@ class VibeSurfApp {
         },
         debug: false
       };
-      
-      this.settings = { ...defaultSettings, ...this.settings };
-      
+
+      // Merge: defaultSettings < storedSettings (unless backend URL changed)
+      // If backend URL changed, use the fresh one
+      this.settings = { ...defaultSettings, ...storedSettings };
+
+      // Always use fresh backend URL from config (don't let storage override)
+      this.settings.backendUrl = freshBackendUrl;
+
       // Save merged settings back
       await chrome.storage.local.set({ settings: this.settings });
       
