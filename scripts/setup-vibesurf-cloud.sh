@@ -248,6 +248,12 @@ export VNC_PASSWORD=${VNC_PASSWORD:-vibesurf}
 export VNC_PORT=${VNC_PORT:-5901}
 export NOVNC_PORT=${NOVNC_PORT:-6080}
 
+# Input method environment variables for Chinese input
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+export DBUS_SESSION_BUS_ADDRESS=${DBUS_SESSION_BUS_ADDRESS:-unix:path=/var/run/dbus/session_bus_socket}
+
 # Color output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
