@@ -625,10 +625,15 @@ async def initialize_vibesurf_components():
             primary_monitor = get_monitors()[0]
             _update_extension_backend_url(envs["VIBESURF_EXTENSION"], backend_url)
 
+            # Get headless mode from environment variable (set by CLI --headless flag)
+            headless_mode = os.getenv("BROWSER_HEADLESS", "false").lower() == "true"
+            if headless_mode:
+                logger.info("🖥️  Browser running in headless mode")
+
             browser_profile = AgentBrowserProfile(
                 executable_path=browser_execution_path,
                 user_data_dir=browser_user_data,
-                headless=False,
+                headless=headless_mode,
                 keep_alive=True,
                 auto_download_pdfs=False,
                 highlight_elements=True,
