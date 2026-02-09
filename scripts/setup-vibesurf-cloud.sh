@@ -205,7 +205,7 @@ info "✓ Environment variables set"
 # ============================================
 # 5. Create startup script
 # ============================================
-info "Step 5/5: Creating startup script..."
+info "Step 5/6: Creating startup script..."
 
 cat > /usr/local/bin/start-vibesurf-gui << 'SCRIPT'
 #!/bin/bash
@@ -352,6 +352,33 @@ cp /usr/local/bin/start-vibesurf-gui /opt/vibesurf/scripts/
 info "✓ Startup script created: /usr/local/bin/start-vibesurf-gui"
 
 # ============================================
+# 6. Install Playwright browsers
+# ============================================
+info "Step 6/6: Installing Playwright browsers..."
+
+# Check if python and pip are available
+if command -v python3 &> /dev/null; then
+    PYTHON=python3
+elif command -v python &> /dev/null; then
+    PYTHON=python
+else
+    warn "Python not found, skipping Playwright installation"
+    PYTHON=""
+fi
+
+if [ -n "$PYTHON" ]; then
+    # Check if playwright is installed
+    if $PYTHON -c "import playwright" 2>/dev/null; then
+        info "Installing Playwright Chromium browser..."
+        $PYTHON -m playwright install chromium --with-deps || warn "Playwright install failed, you may need to install manually"
+    else
+        warn "Playwright Python package not found, skipping browser installation"
+    fi
+fi
+
+info "✓ Playwright setup complete"
+
+# ============================================
 # Installation complete
 # ============================================
 info ""
@@ -361,12 +388,16 @@ info "========================================"
 info ""
 info "Usage:"
 info ""
-info "1. Start GUI environment:"
+info "1. Start GUI environment (runs in foreground):"
 info "   start-vibesurf-gui"
 info ""
-info "2. In another terminal, start vibesurf:"
+info "2. Or start everything in background:"
+info "   nohup start-vibesurf-gui > /var/log/vibesurf-gui.log 2>&1 &"
+info ""
+info "3. Then start vibesurf with browser auto-detection:"
 info "   export DISPLAY=:99"
-info "   vibesurf"
+info "   export BROWSER_EXECUTION_PATH=\$(find /ms-browsers/chromium-*/chrome-linux*/chrome ~/.cache/ms-playwright/*/chrome-linux/chrome 2>/dev/null | head -1)"
+info "   vibesurf --no_select_browser --host 0.0.0.0"
 info ""
 info "Custom password:"
 info "   VNC_PASSWORD=yourpassword start-vibesurf-gui"
