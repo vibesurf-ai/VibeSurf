@@ -1,18 +1,18 @@
 #!/bin/bash
 #
-# VibeSurf 云端环境安装脚本
-# 用于在云端服务器（如 Ubuntu VM、K8s 容器）上安装 VibeSurf 所需的全部依赖
+# VibeSurf Cloud Environment Setup Script
+# Installs all dependencies required to run VibeSurf on cloud servers (Ubuntu VM, K8s containers, etc.)
 #
 
 set -e
 
-# 颜色输出
+# Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# 打印带颜色的信息
+# Print colored messages
 info() {
     echo -e "${GREEN}[INFO]${NC} $1"
 }
@@ -25,30 +25,30 @@ error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# 检查是否为 root 用户
+# Check if running as root
 if [ "$EUID" -ne 0 ]; then
-    error "请使用 root 用户运行此脚本"
+    error "Please run this script as root"
     exit 1
 fi
 
-# 检测是否使用中国镜像
+# Check if using China mirror
 USE_CHINA_MIRROR=${USE_CHINA_MIRROR:-false}
 if [ "$USE_CHINA_MIRROR" = "true" ]; then
-    info "使用中国镜像源..."
+    info "Using China mirror sources..."
     sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null || true
     sed -i 's/security.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null || true
     sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/*.sources 2>/dev/null || true
 fi
 
 # ============================================
-# 1. 安装系统依赖
+# 1. Install system dependencies
 # ============================================
-info "步骤 1/5: 安装系统依赖..."
+info "Step 1/5: Installing system dependencies..."
 
 apt-get update
 
 apt-get install -y --no-install-recommends \
-    # 基本工具
+    # Basic utilities
     wget \
     curl \
     git \
@@ -57,7 +57,7 @@ apt-get install -y --no-install-recommends \
     netcat-traditional \
     gnupg \
     ca-certificates \
-    # 浏览器依赖
+    # Browser dependencies
     xvfb \
     libxss1 \
     libnss3 \
@@ -80,12 +80,12 @@ apt-get install -y --no-install-recommends \
     fonts-dejavu-core \
     fonts-dejavu-extra \
     fontconfig \
-    # 中文字体
+    # Chinese fonts
     fonts-noto-cjk \
     fonts-noto-cjk-extra \
     fonts-wqy-microhei \
     fonts-wqy-zenhei \
-    # 输入法框架和中文输入
+    # Input method framework and Chinese input
     fcitx5 \
     fcitx5-chinese-addons \
     fcitx5-frontend-gtk3 \
@@ -94,35 +94,35 @@ apt-get install -y --no-install-recommends \
     fcitx5-config-qt \
     fcitx5-module-xorg \
     im-config \
-    # VNC 依赖
+    # VNC dependencies
     dbus \
     xauth \
     x11vnc \
     tigervnc-tools \
-    # 进程管理
+    # Process management
     supervisor \
     net-tools \
     procps \
-    # Python numpy 依赖
+    # Python numpy dependencies
     python3-numpy \
-    # FFmpeg 视频处理
+    # FFmpeg for video processing
     ffmpeg
 
 apt-get clean
 rm -rf /var/lib/apt/lists/*
 
-info "✓ 系统依赖安装完成"
+info "✓ System dependencies installed"
 
 # ============================================
-# 2. 安装 noVNC
+# 2. Install noVNC
 # ============================================
-info "步骤 2/5: 安装 noVNC..."
+info "Step 2/5: Installing noVNC..."
 
 if [ -d "/opt/novnc" ]; then
-    warn "noVNC 已存在，跳过安装"
+    warn "noVNC already exists, skipping installation"
 else
     if [ "$USE_CHINA_MIRROR" = "true" ]; then
-        # 使用国内镜像加速
+        # Use China mirror for faster download
         git clone https://ghproxy.com/https://github.com/novnc/noVNC.git /opt/novnc || \
         git clone https://github.com/novnc/noVNC.git /opt/novnc
         git clone https://ghproxy.com/https://github.com/novnc/websockify /opt/novnc/utils/websockify || \
@@ -132,17 +132,17 @@ else
         git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify
     fi
     ln -sf /opt/novnc/vnc.html /opt/novnc/index.html
-    info "✓ noVNC 安装完成"
+    info "✓ noVNC installed"
 fi
 
 # ============================================
-# 3. 配置 fcitx5 中文输入法
+# 3. Configure fcitx5 Chinese input method
 # ============================================
-info "步骤 3/5: 配置 fcitx5 中文输入法..."
+info "Step 3/5: Configuring fcitx5 Chinese input method..."
 
 mkdir -p ~/.config/fcitx5
 
-# 创建 fcitx5 profile 配置
+# Create fcitx5 profile config
 cat > ~/.config/fcitx5/profile << 'EOF'
 [Groups/0]
 Name=Default
@@ -161,7 +161,7 @@ Layout=
 0=Default
 EOF
 
-# 创建 fcitx5 配置
+# Create fcitx5 config
 cat > ~/.config/fcitx5/config << 'EOF'
 [Hotkey]
 # Trigger Input Method (Shift+Space for better macOS compatibility)
@@ -188,16 +188,16 @@ ActiveByDefault=False
 ShareInputState=No
 EOF
 
-info "✓ fcitx5 配置完成"
+info "✓ fcitx5 configured"
 
 # ============================================
-# 4. 设置环境变量
+# 4. Set environment variables
 # ============================================
-info "步骤 4/5: 设置环境变量..."
+info "Step 4/5: Setting environment variables..."
 
 cat >> ~/.bashrc << 'EOF'
 
-# VibeSurf 环境变量
+# VibeSurf environment variables
 export IN_DOCKER=true
 export DISPLAY=:99
 export RESOLUTION=1440x900x24
@@ -208,7 +208,7 @@ export XMODIFIERS=@im=fcitx
 export DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/session_bus_socket
 EOF
 
-# 立即生效
+# Apply immediately
 export IN_DOCKER=true
 export DISPLAY=:99
 export RESOLUTION=1440x900x24
@@ -217,29 +217,29 @@ export QT_IM_MODULE=fcitx
 export XMODIFIERS=@im=fcitx
 export DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/session_bus_socket
 
-info "✓ 环境变量设置完成"
+info "✓ Environment variables set"
 
 # ============================================
-# 5. 创建启动脚本
+# 5. Create startup script
 # ============================================
-info "步骤 5/5: 创建启动脚本..."
+info "Step 5/5: Creating startup script..."
 
 cat > /usr/local/bin/start-vibesurf-gui << 'SCRIPT'
 #!/bin/bash
 #
-# 启动 VibeSurf GUI 环境（Xvfb + x11vnc + noVNC）
+# Start VibeSurf GUI environment (Xvfb + x11vnc + noVNC)
 #
 
 set -e
 
-# 默认配置
+# Default configuration
 export DISPLAY=${DISPLAY:-:99}
 export RESOLUTION=${RESOLUTION:-1440x900x24}
 export VNC_PASSWORD=${VNC_PASSWORD:-vibesurf}
 export VNC_PORT=${VNC_PORT:-5901}
 export NOVNC_PORT=${NOVNC_PORT:-6080}
 
-# 颜色输出
+# Color output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
@@ -252,53 +252,53 @@ warn() {
     echo -e "${YELLOW}[WARN]${NC} $1"
 }
 
-# 清理函数
+# Cleanup function
 cleanup() {
-    warn "正在清理..."
+    warn "Cleaning up..."
     pkill -9 Xvfb 2>/dev/null || true
     pkill -9 x11vnc 2>/dev/null || true
     pkill -f novnc_proxy 2>/dev/null || true
     pkill -9 fcitx5 2>/dev/null || true
 }
 
-# 捕获退出信号
+# Trap exit signal
 trap cleanup EXIT
 
 info "========================================"
-info "启动 VibeSurf GUI 环境"
+info "Starting VibeSurf GUI environment"
 info "========================================"
 
-# 1. 清理旧进程
-info "[1/6] 清理旧进程..."
+# 1. Cleanup old processes
+info "[1/6] Cleaning up old processes..."
 cleanup
 sleep 1
 
-# 2. 启动 D-Bus
-info "[2/6] 启动 D-Bus..."
+# 2. Start D-Bus
+info "[2/6] Starting D-Bus..."
 mkdir -p /var/run/dbus
 rm -f /var/run/dbus/pid
 dbus-daemon --session --nofork --nopidfile --address=unix:path=/var/run/dbus/session_bus_socket &
 sleep 1
 
-# 3. 启动 Xvfb
-info "[3/6] 启动 Xvfb (分辨率: $RESOLUTION)..."
+# 3. Start Xvfb
+info "[3/6] Starting Xvfb (resolution: $RESOLUTION)..."
 Xvfb $DISPLAY -screen 0 $RESOLUTION -ac +extension GLX +render -noreset &
 sleep 2
 
-# 验证 Xvfb
+# Verify Xvfb
 if ! xdpyinfo -display $DISPLAY >/dev/null 2>&1; then
-    echo "错误: Xvfb 启动失败"
+    echo "Error: Xvfb failed to start"
     exit 1
 fi
-info "✓ Xvfb 启动成功"
+info "✓ Xvfb started successfully"
 
-# 4. 启动 fcitx5
-info "[4/6] 启动 fcitx5 中文输入法..."
+# 4. Start fcitx5
+info "[4/6] Starting fcitx5 Chinese input method..."
 fcitx5 --replace &
 sleep 2
 
-# 5. 设置 VNC 密码并启动 x11vnc
-info "[5/6] 启动 x11vnc (端口: $VNC_PORT)..."
+# 5. Set VNC password and start x11vnc
+info "[5/6] Starting x11vnc (port: $VNC_PORT)..."
 mkdir -p ~/.vnc
 echo "$VNC_PASSWORD" | vncpasswd -f > ~/.vnc/passwd
 chmod 600 ~/.vnc/passwd
@@ -312,15 +312,15 @@ x11vnc -display $DISPLAY \
 
 sleep 2
 
-# 验证端口
+# Verify port
 if ! netstat -tlnp 2>/dev/null | grep -q ":$VNC_PORT"; then
-    echo "错误: x11vnc 启动失败，端口 $VNC_PORT 未监听"
+    echo "Error: x11vnc failed to start, port $VNC_PORT not listening"
     exit 1
 fi
-info "✓ x11vnc 启动成功"
+info "✓ x11vnc started successfully"
 
-# 6. 启动 noVNC
-info "[6/6] 启动 noVNC (端口: $NOVNC_PORT)..."
+# 6. Start noVNC
+info "[6/6] Starting noVNC (port: $NOVNC_PORT)..."
 cd /opt/novnc
 nohup ./utils/novnc_proxy \
     --vnc localhost:$VNC_PORT \
@@ -330,64 +330,64 @@ nohup ./utils/novnc_proxy \
 
 sleep 1
 
-# 获取 IP
+# Get IP
 IP=$(hostname -I | awk '{print $1}')
 
 info ""
 info "========================================"
-info "✓ VibeSurf GUI 环境启动成功！"
+info "✓ VibeSurf GUI environment started!"
 info "========================================"
 info ""
-info "访问地址:"
+info "Access URLs:"
 info "  - noVNC (Web): http://$IP:$NOVNC_PORT/vnc.html"
-info "  - VNC 客户端: $IP:$VNC_PORT"
+info "  - VNC Client: $IP:$VNC_PORT"
 info ""
-info "默认密码:"
-info "  VNC 密码: $VNC_PASSWORD"
+info "Default password:"
+info "  VNC Password: $VNC_PASSWORD"
 info ""
-info "环境变量:"
+info "Environment variables:"
 info "  DISPLAY=$DISPLAY"
 info "  RESOLUTION=$RESOLUTION"
 info ""
-info "现在可以启动 vibesurf:"
+info "Now you can start vibesurf:"
 info "  export DISPLAY=$DISPLAY"
 info "  vibesurf"
 info ""
-info "按 Ctrl+C 停止所有服务"
+info "Press Ctrl+C to stop all services"
 info "========================================"
 
-# 保持运行
+# Keep running
 wait
 SCRIPT
 
 chmod +x /usr/local/bin/start-vibesurf-gui
 
-# 同时复制到项目目录
+# Also copy to project directory
 mkdir -p /opt/vibesurf/scripts
 cp /usr/local/bin/start-vibesurf-gui /opt/vibesurf/scripts/
 
-info "✓ 启动脚本已创建: /usr/local/bin/start-vibesurf-gui"
+info "✓ Startup script created: /usr/local/bin/start-vibesurf-gui"
 
 # ============================================
-# 安装完成
+# Installation complete
 # ============================================
 info ""
 info "========================================"
-info "✓ VibeSurf 云端环境安装完成！"
+info "✓ VibeSurf cloud environment installed!"
 info "========================================"
 info ""
-info "使用方法:"
+info "Usage:"
 info ""
-info "1. 启动 GUI 环境:"
+info "1. Start GUI environment:"
 info "   start-vibesurf-gui"
 info ""
-info "2. 在另一个终端启动 vibesurf:"
+info "2. In another terminal, start vibesurf:"
 info "   export DISPLAY=:99"
 info "   vibesurf"
 info ""
-info "自定义密码:"
+info "Custom password:"
 info "   VNC_PASSWORD=yourpassword start-vibesurf-gui"
 info ""
-info "自定义分辨率:"
+info "Custom resolution:"
 info "   RESOLUTION=1920x1080x24 start-vibesurf-gui"
 info "========================================"
