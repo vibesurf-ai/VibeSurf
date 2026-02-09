@@ -458,11 +458,11 @@ info "1. Start GUI environment (runs in foreground):"
 info "   start-vibesurf-gui"
 info ""
 info "2. Or start everything in background:"
-info "   VIBESURF_NO_CLEANUP=1 nohup start-vibesurf-gui > /var/log/vibesurf-gui.log 2>&1 &"
+info "   VIBESURF_NO_CLEANUP=1 VNC_PASSWORD=yourpassword nohup start-vibesurf-gui > /var/log/vibesurf-gui.log 2>&1 &"
 info ""
 info "3. Then start vibesurf:"
 info '   export DISPLAY=:99'
-info '   export BROWSER_EXECUTION_PATH=$(find ~/.cache/ms-playwright/*/chrome-linux/chrome 2>/dev/null | head -1)'
+info '   export BROWSER_EXECUTION_PATH=$(find ~/.cache/ms-playwright -name chrome -type f 2>/dev/null | head -1)'
 info '   vibesurf --no_select_browser --host 0.0.0.0'
 info ""
 info "Custom password:"

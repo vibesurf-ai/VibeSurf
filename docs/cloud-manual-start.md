@@ -26,7 +26,7 @@ start-vibesurf-gui
 Then in another terminal:
 ```bash
 export DISPLAY=:99
-export BROWSER_EXECUTION_PATH=$(find ~/.cache/ms-playwright/*/chrome-linux/chrome 2>/dev/null | head -1)
+export BROWSER_EXECUTION_PATH=$(find ~/.cache/ms-playwright -name chrome -type f 2>/dev/null | head -1)
 vibesurf --no_select_browser --host 0.0.0.0
 ```
 
@@ -42,7 +42,7 @@ sleep 5
 
 # Start vibesurf
 export DISPLAY=:99
-export BROWSER_EXECUTION_PATH=$(find ~/.cache/ms-playwright/*/chrome-linux/chrome 2>/dev/null | head -1)
+export BROWSER_EXECUTION_PATH=$(find ~/.cache/ms-playwright -name chrome -type f 2>/dev/null | head -1)
 nohup vibesurf --no_select_browser --host 0.0.0.0 > /var/log/vibesurf.log 2>&1 &
 ```
 
