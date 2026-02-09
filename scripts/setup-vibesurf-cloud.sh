@@ -38,65 +38,19 @@ info "Step 1/5: Installing system dependencies..."
 
 apt-get update
 
+# Install all required packages (grouped by category for clarity)
 apt-get install -y --no-install-recommends \
-    # Basic utilities
-    wget \
-    curl \
-    git \
-    unzip \
-    vim \
-    netcat-traditional \
-    gnupg \
-    ca-certificates \
-    # Browser dependencies
-    xvfb \
-    libxss1 \
-    libnss3 \
-    libnspr4 \
-    libasound2 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libdrm2 \
-    libgbm1 \
-    libgtk-3-0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    xdg-utils \
-    fonts-liberation \
-    fonts-dejavu \
-    fonts-dejavu-core \
-    fonts-dejavu-extra \
-    fontconfig \
-    # Chinese fonts
-    fonts-noto-cjk \
-    fonts-noto-cjk-extra \
-    fonts-wqy-microhei \
-    fonts-wqy-zenhei \
-    # Input method framework and Chinese input
-    fcitx5 \
-    fcitx5-chinese-addons \
-    fcitx5-frontend-gtk3 \
-    fcitx5-frontend-gtk2 \
-    fcitx5-frontend-qt5 \
-    fcitx5-config-qt \
-    fcitx5-module-xorg \
-    im-config \
-    # VNC dependencies
-    dbus \
-    xauth \
-    x11vnc \
-    tigervnc-tools \
-    # Process management
-    supervisor \
-    net-tools \
-    procps \
-    # Python numpy dependencies
+    wget curl git unzip vim netcat-traditional gnupg ca-certificates \
+    xvfb libxss1 libnss3 libnspr4 libasound2 libatk1.0-0 libatk-bridge2.0-0 \
+    libcups2 libdbus-1-3 libdrm2 libgbm1 libgtk-3-0 libxcomposite1 \
+    libxdamage1 libxfixes3 libxrandr2 xdg-utils \
+    fonts-liberation fonts-dejavu fonts-dejavu-core fonts-dejavu-extra fontconfig \
+    fonts-noto-cjk fonts-noto-cjk-extra fonts-wqy-microhei fonts-wqy-zenhei \
+    fcitx5 fcitx5-chinese-addons fcitx5-frontend-gtk3 fcitx5-frontend-gtk2 \
+    fcitx5-frontend-qt5 fcitx5-config-qt fcitx5-module-xorg im-config \
+    dbus xauth x11vnc tigervnc-tools \
+    supervisor net-tools procps \
     python3-numpy \
-    # FFmpeg for video processing
     ffmpeg
 
 apt-get clean
