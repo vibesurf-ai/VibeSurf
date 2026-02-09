@@ -10,7 +10,6 @@ from vibe_surf.langflow.components._importing import import_mod
 if TYPE_CHECKING:
     from .calculator import CalculatorToolComponent
     from .python_code_structured_tool import PythonCodeStructuredTool
-    from .python_repl import PythonREPLToolComponent
     from .search_api import SearchAPIComponent
     from .searxng import SearXNGToolComponent
     from .serp_api import SerpAPIComponent
@@ -22,7 +21,6 @@ if TYPE_CHECKING:
 _dynamic_imports = {
     "CalculatorToolComponent": "calculator",
     "PythonCodeStructuredTool": "python_code_structured_tool",
-    "PythonREPLToolComponent": "python_repl",
     "SearchAPIComponent": "search_api",
     "SearXNGToolComponent": "searxng",
     "SerpAPIComponent": "serp_api",
@@ -35,7 +33,6 @@ _dynamic_imports = {
 __all__ = [
     "CalculatorToolComponent",
     "PythonCodeStructuredTool",
-    "PythonREPLToolComponent",
     "SearXNGToolComponent",
     "SearchAPIComponent",
     "SerpAPIComponent",

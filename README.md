@@ -76,6 +76,8 @@ uv tool install vibesurf
 ```
 
 > **Tip**: Use `uv tool upgrade vibesurf` to upgrade to the latest version.
+>
+> **Full Installation**: To install with all optional features (including PyTorch, OCR, and advanced document processing), use `uv tool install vibesurf[full]`.
 
 ### 3. Launch VibeSurf
 Start the VibeSurf browser assistant
@@ -162,6 +164,11 @@ cd VibeSurf
 uv venv --python 3.12
 source .venv/bin/activate
 uv pip install -e .
+```
+
+**Full Installation (with all optional features)**
+```bash
+uv pip install -e ".[full]"
 ```
 
 **Windows**
