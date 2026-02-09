@@ -56,7 +56,7 @@ install_packages() {
             apt-get update
             apt-get install -y --no-install-recommends \
                 wget curl git unzip vim netcat-traditional gnupg ca-certificates \
-                xvfb libxss1 libnss3 libnspr4 libasound2 libatk1.0-0 libatk-bridge2.0-0 \
+                xvfb libxss1 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
                 libcups2 libdbus-1-3 libdrm2 libgbm1 libgtk-3-0 libxcomposite1 \
                 libxdamage1 libxfixes3 libxrandr2 xdg-utils \
                 fonts-liberation fonts-dejavu fonts-dejavu-core fonts-dejavu-extra fontconfig \
@@ -80,7 +80,7 @@ install_packages() {
             # Install base packages (common for both CentOS 7 and 8+)
             $PKG_MANAGER install -y \
                 wget curl git unzip vim nmap-ncat gnupg ca-certificates \
-                xorg-x11-server-Xvfb libXScrnSaver nss nspr alsa-lib \
+                xorg-x11-server-Xvfb libXScrnSaver nss nspr \
                 atk at-spi2-atk cups-libs dbus-libs libdrm mesa-libgbm \
                 gtk3 libXcomposite libXdamage libXfixes libXrandr xdg-utils \
                 liberation-fonts dejavu-sans-fonts dejavu-sans-mono-fonts \
