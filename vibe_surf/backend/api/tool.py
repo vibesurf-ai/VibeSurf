@@ -40,6 +40,7 @@ class ActionParamsResponse(BaseModel):
 class ExecuteActionRequest(BaseModel):
     action_name: str
     parameters: Dict[str, Any] = {}
+    llm_profile_name: Optional[str] = None
 
 
 class ExecuteActionResponse(BaseModel):
@@ -292,6 +293,44 @@ async def execute_action(request: ExecuteActionRequest):
         source = action_info['source']
         original_name = action_info['original_name']  # Get original name without prefix
 
+        # Import shared state for LLM initialization check
+        from ..shared_state import current_llm_profile_name
+        from ..database import get_db_session
+        from ..database.queries import LLMProfileQueries
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from fastapi import Depends
+
+        # Initialize LLM for this task if needed
+        if request.llm_profile_name:
+            # Get database session
+            db_gen = get_db_session()
+            db = await anext(db_gen)
+            try:
+                # Get LLM profile from database
+                llm_profile = await LLMProfileQueries.get_profile_with_decrypted_key(db, request.llm_profile_name)
+                if not llm_profile:
+                    return ExecuteActionResponse(
+                        success=False,
+                        action_name=request.action_name,
+                        error="llm_connection_failed",
+                        result={"message": f"Failed to get LLM profile with decrypted key {request.llm_profile_name}", "llm_profile": request.llm_profile_name}
+                    )
+
+                if not current_llm_profile_name or current_llm_profile_name != request.llm_profile_name:
+                    # Import _ensure_llm_initialized from task module
+                    from .task import _ensure_llm_initialized
+                    success, message = await _ensure_llm_initialized(llm_profile)
+                    logger.info("Test LLM Connection!")
+                    if not success:
+                        return ExecuteActionResponse(
+                            success=False,
+                            action_name=request.action_name,
+                            error="llm_connection_failed",
+                            result={"message": f"Cannot connect to LLM API: {message}", "llm_profile": request.llm_profile_name}
+                        )
+            finally:
+                await db.close()
+
         # Initialize file_system with workspace_dir + "apis"
         apis_dir = os.path.join(workspace_dir, "apis")
         os.makedirs(apis_dir, exist_ok=True)
@@ -330,16 +369,7 @@ async def execute_action(request: ExecuteActionRequest):
         # Execute the action using the act method
         try:
             # Import browser_manager and llm from shared_state
-            from ..shared_state import browser_manager, llm, current_llm_profile_name
-
-            # Initialize LLM for this task if needed
-            if not current_llm_profile_name:
-                return ExecuteActionResponse(
-                    success=False,
-                    action_name=request.action_name,
-                    error="LLM not initialized. Please initialize LLM profile first.",
-                    result={"error": "llm_not_initialized"}
-                )
+            from ..shared_state import browser_manager, llm
 
             # Execute based on source
             if source == 'vibesurf_tools':
