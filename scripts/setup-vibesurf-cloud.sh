@@ -263,6 +263,11 @@ warn() {
 
 # Cleanup function
 cleanup() {
+    # Skip cleanup if running in background (nohup) to prevent killing services
+    # when the parent shell exits
+    if [ -n "$VIBESURF_NO_CLEANUP" ]; then
+        return
+    fi
     warn "Cleaning up..."
     pkill -9 Xvfb 2>/dev/null || true
     pkill -9 x11vnc 2>/dev/null || true
@@ -271,8 +276,10 @@ cleanup() {
     pkill -9 fcitx 2>/dev/null || true
 }
 
-# Trap exit signal
-trap cleanup EXIT
+# Trap exit signal (only in foreground/interactive mode)
+if [ -z "$VIBESURF_NO_CLEANUP" ]; then
+    trap cleanup EXIT
+fi
 
 info "========================================"
 info "Starting VibeSurf GUI environment"
@@ -451,7 +458,7 @@ info "1. Start GUI environment (runs in foreground):"
 info "   start-vibesurf-gui"
 info ""
 info "2. Or start everything in background:"
-info "   nohup start-vibesurf-gui > /var/log/vibesurf-gui.log 2>&1 &"
+info "   VIBESURF_NO_CLEANUP=1 nohup start-vibesurf-gui > /var/log/vibesurf-gui.log 2>&1 &"
 info ""
 info "3. Then start vibesurf:"
 info "   export DISPLAY=:99"
