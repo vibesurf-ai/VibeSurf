@@ -3,8 +3,8 @@
 [![WeChat](https://img.shields.io/badge/WeChat-Group-07C160?logo=wechat&logoColor=white)](#-join-our-community)
 [![WarmShao](https://img.shields.io/twitter/follow/warmshao?style=social)](https://x.com/warmshao)
 
-> **Note**: VibeSurf can be used in Claude Code for control and real-time preview of browsers. For more details, see the [claude-surf plugin](https://github.com/vibesurf-ai/claude-surf).
->
+> **Note**: VibeSurf can be used in Claude Code for control and real-time preview of browsers. For more details, see the [claude-surf](https://github.com/vibesurf-ai/claude-surf).
+
 > **Note**: VibeSurf is also available in Open-Claw. Install with: `npx clawhub@latest install vibesurf`. For more details, see [claw-surf](https://github.com/vibesurf-ai/claw-surf).
 
 **VibeSurf** is the first open-source AI agentic browser that combines **workflow automation** with **intelligent AI agents** - delivering browser automation that's **faster**, **cheaper**, and **smarter** than traditional solutions.
@@ -12,6 +12,8 @@
 🎯 **Why VibeSurf?** Save 99% of token costs with workflows, run parallel AI agents across tabs, and keep your data private with local LLM support - all through a seamless Chrome extension.
 
 🐳 **Quick Start with Docker**: Get up and running in seconds with our [Docker image](#-docker-alternative) - no complex setup required!
+
+☁️ **Non-Docker Deployment**: For cloud manual deployment with noVNC browser visualization, see [docs/cloud-manual-start.md](docs/cloud-manual-start.md).
 
 If you're as excited about open-source AI browsing as I am, give it a star! ⭐
 

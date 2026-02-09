@@ -205,7 +205,7 @@ info "✓ Environment variables set"
 # ============================================
 # 5. Create startup script
 # ============================================
-info "Step 5/6: Creating startup script..."
+info "Step 5/8: Creating startup script..."
 
 cat > /usr/local/bin/start-vibesurf-gui << 'SCRIPT'
 #!/bin/bash
@@ -354,9 +354,33 @@ cp /usr/local/bin/start-vibesurf-gui /opt/vibesurf/scripts/
 info "✓ Startup script created: /usr/local/bin/start-vibesurf-gui"
 
 # ============================================
-# 6. Install Playwright browsers
+# 6. Install uv and VibeSurf
 # ============================================
-info "Step 6/6: Installing Playwright browsers..."
+info "Step 6/7: Installing uv..."
+
+if command -v uv &> /dev/null; then
+    info "uv already installed, skipping"
+else
+    # Install uv using the official installer
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    # Source the environment to make uv available
+    export PATH="$HOME/.cargo/bin:$PATH"
+    info "✓ uv installed"
+fi
+
+info "Step 7/7: Installing VibeSurf..."
+
+if command -v uv &> /dev/null; then
+    uv tool install vibesurf
+    info "✓ VibeSurf installed"
+else
+    warn "uv not found in PATH, skipping VibeSurf installation"
+fi
+
+# ============================================
+# 8. Install Playwright browsers
+# ============================================
+info "Step 8/8: Installing Playwright browsers..."
 
 # Check if python and pip are available
 if command -v python3 &> /dev/null; then
@@ -396,14 +420,15 @@ info ""
 info "2. Or start everything in background:"
 info "   nohup start-vibesurf-gui > /var/log/vibesurf-gui.log 2>&1 &"
 info ""
-info "3. Then start vibesurf with browser auto-detection:"
-info "   export DISPLAY=:99"
-info "   export BROWSER_EXECUTION_PATH=\$(find /ms-browsers/chromium-*/chrome-linux*/chrome ~/.cache/ms-playwright/*/chrome-linux/chrome 2>/dev/null | head -1)"
-info "   vibesurf --no_select_browser --host 0.0.0.0"
+info "3. Then start vibesurf:"
+info "   vibesurf"
 info ""
 info "Custom password:"
 info "   VNC_PASSWORD=yourpassword start-vibesurf-gui"
 info ""
 info "Custom resolution:"
 info "   RESOLUTION=1920x1080x24 start-vibesurf-gui"
+info ""
+info "Upgrade VibeSurf:"
+info "   uv tool upgrade vibesurf"
 info "========================================"
