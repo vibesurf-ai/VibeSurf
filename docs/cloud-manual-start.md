@@ -34,7 +34,8 @@ vibesurf --no_select_browser --host 0.0.0.0
 
 ```bash
 # Start GUI environment in background
-nohup start-vibesurf-gui > /var/log/vibesurf-gui.log 2>&1 &
+# Note: VIBESURF_NO_CLEANUP=1 prevents cleanup when parent shell exits
+VIBESURF_NO_CLEANUP=1 nohup start-vibesurf-gui > /var/log/vibesurf-gui.log 2>&1 &
 
 # Wait for Xvfb to be ready
 sleep 5
