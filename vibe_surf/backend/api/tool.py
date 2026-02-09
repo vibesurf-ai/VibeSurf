@@ -330,7 +330,16 @@ async def execute_action(request: ExecuteActionRequest):
         # Execute the action using the act method
         try:
             # Import browser_manager and llm from shared_state
-            from ..shared_state import browser_manager, llm
+            from ..shared_state import browser_manager, llm, current_llm_profile_name
+
+            # Initialize LLM for this task if needed
+            if not current_llm_profile_name:
+                return ExecuteActionResponse(
+                    success=False,
+                    action_name=request.action_name,
+                    error="LLM not initialized. Please initialize LLM profile first.",
+                    result={"error": "llm_not_initialized"}
+                )
 
             # Execute based on source
             if source == 'vibesurf_tools':
