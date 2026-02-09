@@ -4,7 +4,9 @@
 [![微信群](https://img.shields.io/badge/WeChat-微信群-07C160?logo=wechat&logoColor=white)](#-加入我们的社区)
 [![WarmShao](https://img.shields.io/twitter/follow/warmshao?style=social)](https://x.com/warmshao)
 
-> **注意**：VibeSurf 可以用于 Claude Code 中实现浏览器的控制和实时预览。详情参考 [claude-surf 插件](https://github.com/vibesurf-ai/claude-surf)。
+> **注意**：VibeSurf 可以用于 Claude Code 中实现浏览器的控制和实时预览。详情参考 [claude-surf](https://github.com/vibesurf-ai/claude-surf)。
+
+> **注意**：VibeSurf 也可以在 Open-Claw 中使用。安装命令：`npx clawhub@latest install vibesurf`。详情参考 [claw-surf](https://github.com/vibesurf-ai/claw-surf)。 云端部署说明请参考 [docs/cloud-manual-start.md](docs/cloud-manual-start.md)。
 
 **VibeSurf** 是首个结合**工作流自动化**与**智能 AI 代理**的开源 AI 浏览器 - 提供比传统方案**更快**、**更省钱**、**更智能**的浏览器自动化解决方案。
 
