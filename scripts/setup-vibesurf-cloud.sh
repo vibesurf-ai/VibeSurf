@@ -248,6 +248,12 @@ export VNC_PASSWORD=${VNC_PASSWORD:-vibesurf}
 export VNC_PORT=${VNC_PORT:-5901}
 export NOVNC_PORT=${NOVNC_PORT:-6080}
 
+# Input method environment variables for Chinese input
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+export DBUS_SESSION_BUS_ADDRESS=${DBUS_SESSION_BUS_ADDRESS:-unix:path=/var/run/dbus/session_bus_socket}
+
 # Color output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -263,6 +269,11 @@ warn() {
 
 # Cleanup function
 cleanup() {
+    # Skip cleanup if running in background (nohup) to prevent killing services
+    # when the parent shell exits
+    if [ -n "$VIBESURF_NO_CLEANUP" ]; then
+        return
+    fi
     warn "Cleaning up..."
     pkill -9 Xvfb 2>/dev/null || true
     pkill -9 x11vnc 2>/dev/null || true
@@ -271,8 +282,10 @@ cleanup() {
     pkill -9 fcitx 2>/dev/null || true
 }
 
-# Trap exit signal
-trap cleanup EXIT
+# Trap exit signal (only in foreground/interactive mode)
+if [ -z "$VIBESURF_NO_CLEANUP" ]; then
+    trap cleanup EXIT
+fi
 
 info "========================================"
 info "Starting VibeSurf GUI environment"
@@ -305,10 +318,10 @@ info "✓ Xvfb started successfully"
 # 4. Start fcitx/fcitx5 (auto-detect)
 if command -v fcitx5 &> /dev/null; then
     info "[4/6] Starting fcitx5 Chinese input method..."
-    fcitx5 --replace &
+    DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/session_bus_socket fcitx5 --replace &
 elif command -v fcitx &> /dev/null; then
     info "[4/6] Starting fcitx Chinese input method..."
-    fcitx &
+    DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/session_bus_socket fcitx &
 else
     warn "No Chinese input method found (fcitx5/fcitx), skipping..."
 fi
@@ -451,12 +464,16 @@ info "1. Start GUI environment (runs in foreground):"
 info "   start-vibesurf-gui"
 info ""
 info "2. Or start everything in background:"
-info "   nohup start-vibesurf-gui > /var/log/vibesurf-gui.log 2>&1 &"
+info "   VIBESURF_NO_CLEANUP=1 VNC_PASSWORD=yourpassword nohup start-vibesurf-gui > /var/log/vibesurf-gui.log 2>&1 &"
 info ""
-info "3. Then start vibesurf:"
-info "   export DISPLAY=:99"
-info "   export BROWSER_EXECUTION_PATH=\$(find ~/.cache/ms-playwright/*/chrome-linux/chrome 2>/dev/null | head -1)"
-info "   vibesurf --no_select_browser --host 0.0.0.0"
+info "3. Then start vibesurf (with Chinese input support):"
+info '   export DISPLAY=:99'
+info '   export GTK_IM_MODULE=fcitx'
+info '   export QT_IM_MODULE=fcitx'
+info '   export XMODIFIERS=@im=fcitx'
+info '   export DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/session_bus_socket'
+info '   export BROWSER_EXECUTION_PATH=$(find ~/.cache/ms-playwright -name chrome -type f 2>/dev/null | head -1)'
+info '   vibesurf --no_select_browser --host 0.0.0.0'
 info ""
 info "Custom password:"
 info "   VNC_PASSWORD=yourpassword start-vibesurf-gui"
