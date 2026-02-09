@@ -31,83 +31,92 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Detect package manager
+if command -v apt-get &> /dev/null; then
+    PKG_MANAGER="apt"
+elif command -v yum &> /dev/null; then
+    PKG_MANAGER="yum"
+elif command -v dnf &> /dev/null; then
+    PKG_MANAGER="dnf"
+else
+    error "No supported package manager found (apt, yum, or dnf)"
+    exit 1
+fi
+
+info "Detected package manager: $PKG_MANAGER"
+
 # ============================================
 # 1. Install system dependencies
 # ============================================
-info "Step 1/5: Installing system dependencies..."
+info "Step 1/8: Installing system dependencies..."
 
-apt-get update
+install_packages() {
+    case $PKG_MANAGER in
+        apt)
+            apt-get update
+            apt-get install -y --no-install-recommends \
+                wget curl git unzip vim netcat-traditional gnupg ca-certificates \
+                xvfb libxss1 libnss3 libnspr4 libasound2 libatk1.0-0 libatk-bridge2.0-0 \
+                libcups2 libdbus-1-3 libdrm2 libgbm1 libgtk-3-0 libxcomposite1 \
+                libxdamage1 libxfixes3 libxrandr2 xdg-utils \
+                fonts-liberation fonts-dejavu fonts-dejavu-core fonts-dejavu-extra fontconfig \
+                fonts-noto-cjk fonts-noto-cjk-extra fonts-wqy-microhei fonts-wqy-zenhei \
+                fcitx5 fcitx5-chinese-addons fcitx5-frontend-gtk3 fcitx5-frontend-gtk2 \
+                fcitx5-frontend-qt5 fcitx5-config-qt fcitx5-module-xorg im-config \
+                dbus xauth x11vnc tigervnc-tools \
+                supervisor net-tools procps \
+                python3-numpy \
+                ffmpeg
+            apt-get clean
+            rm -rf /var/lib/apt/lists/*
+            ;;
+        yum|dnf)
+            $PKG_MANAGER update -y
+            $PKG_MANAGER install -y epel-release
+            $PKG_MANAGER update -y
+            # Use group install syntax (compatible with both yum and dnf)
+            $PKG_MANAGER group install -y "Development Tools" 2>/dev/null || $PKG_MANAGER groupinstall -y "Development Tools"
 
-apt-get install -y --no-install-recommends \
-    # Basic utilities
-    wget \
-    curl \
-    git \
-    unzip \
-    vim \
-    netcat-traditional \
-    gnupg \
-    ca-certificates \
-    # Browser dependencies
-    xvfb \
-    libxss1 \
-    libnss3 \
-    libnspr4 \
-    libasound2 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libdrm2 \
-    libgbm1 \
-    libgtk-3-0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    xdg-utils \
-    fonts-liberation \
-    fonts-dejavu \
-    fonts-dejavu-core \
-    fonts-dejavu-extra \
-    fontconfig \
-    # Chinese fonts
-    fonts-noto-cjk \
-    fonts-noto-cjk-extra \
-    fonts-wqy-microhei \
-    fonts-wqy-zenhei \
-    # Input method framework and Chinese input
-    fcitx5 \
-    fcitx5-chinese-addons \
-    fcitx5-frontend-gtk3 \
-    fcitx5-frontend-gtk2 \
-    fcitx5-frontend-qt5 \
-    fcitx5-config-qt \
-    fcitx5-module-xorg \
-    im-config \
-    # VNC dependencies
-    dbus \
-    xauth \
-    x11vnc \
-    tigervnc-tools \
-    # Process management
-    supervisor \
-    net-tools \
-    procps \
-    # Python numpy dependencies
-    python3-numpy \
-    # FFmpeg for video processing
-    ffmpeg
+            # Install base packages (common for both CentOS 7 and 8+)
+            $PKG_MANAGER install -y \
+                wget curl git unzip vim nmap-ncat gnupg ca-certificates \
+                xorg-x11-server-Xvfb libXScrnSaver nss nspr alsa-lib \
+                atk at-spi2-atk cups-libs dbus-libs libdrm mesa-libgbm \
+                gtk3 libXcomposite libXdamage libXfixes libXrandr xdg-utils \
+                liberation-fonts dejavu-sans-fonts dejavu-sans-mono-fonts \
+                dejavu-serif-fonts fontconfig \
+                cjkuni-uming-fonts wqy-microhei-fonts wqy-zenhei-fonts \
+                dbus xauth x11vnc tigervnc-server \
+                net-tools procps-ng \
+                python3 python3-pip \
+                ffmpeg || warn "Some packages failed to install"
 
-apt-get clean
-rm -rf /var/lib/apt/lists/*
+            # Try to install fcitx5 (CentOS 8+/RHEL 8+), fallback to fcitx (CentOS 7)
+            if ! $PKG_MANAGER install -y fcitx5 fcitx5-gtk2 fcitx5-gtk3 fcitx5-qt 2>/dev/null; then
+                warn "fcitx5 not available, trying fcitx..."
+                $PKG_MANAGER install -y fcitx fcitx-configtool || warn "fcitx installation failed"
+            fi
+
+            # Install supervisor via pip if not available in repos
+            if ! $PKG_MANAGER install -y supervisor 2>/dev/null; then
+                warn "supervisor not in repos, installing via pip3..."
+                pip3 install supervisor
+            fi
+
+            # Clean up
+            $PKG_MANAGER clean all
+            ;;
+    esac
+}
+
+install_packages
 
 info "✓ System dependencies installed"
 
 # ============================================
 # 2. Install noVNC
 # ============================================
-info "Step 2/5: Installing noVNC..."
+info "Step 2/8: Installing noVNC..."
 
 if [ -d "/opt/novnc" ]; then
     warn "noVNC already exists, skipping installation"
@@ -119,14 +128,18 @@ else
 fi
 
 # ============================================
-# 3. Configure fcitx5 Chinese input method
+# 3. Configure fcitx5/fcitx Chinese input method
 # ============================================
-info "Step 3/5: Configuring fcitx5 Chinese input method..."
+info "Step 3/8: Configuring Chinese input method..."
 
-mkdir -p ~/.config/fcitx5
+# Detect which input method is installed (fcitx5 for newer systems, fcitx for older)
+if command -v fcitx5 &> /dev/null; then
+    IM_CMD="fcitx5"
+    IM_CONFIG_DIR="~/.config/fcitx5"
+    mkdir -p ~/.config/fcitx5
 
-# Create fcitx5 profile config
-cat > ~/.config/fcitx5/profile << 'EOF'
+    # Create fcitx5 profile config
+    cat > ~/.config/fcitx5/profile << 'EOF'
 [Groups/0]
 Name=Default
 Default Layout=us
@@ -144,20 +157,14 @@ Layout=
 0=Default
 EOF
 
-# Create fcitx5 config
-cat > ~/.config/fcitx5/config << 'EOF'
+    # Create fcitx5 config
+    cat > ~/.config/fcitx5/config << 'EOF'
 [Hotkey]
-# Trigger Input Method (Shift+Space for better macOS compatibility)
 TriggerKeys=
-# Enumerate when press trigger key repeatedly
 EnumerateWithTriggerKeys=True
-# Temporally switch between first and current Input Method
 AltTriggerKeys=
-# Enumerate Input Method Forward
 EnumerateForwardKeys=
-# Enumerate Input Method Backward
 EnumerateBackwardKeys=
-# Skip first input method while enumerating
 EnumerateSkipFirst=False
 
 [Hotkey/TriggerKeys]
@@ -165,29 +172,48 @@ EnumerateSkipFirst=False
 1=Shift+space
 
 [Behavior]
-# Active By Default
 ActiveByDefault=False
-# Share Input State
 ShareInputState=No
 EOF
+    info "✓ fcitx5 configured"
+else
+    # Fallback to fcitx (CentOS 7, older systems)
+    mkdir -p ~/.config/fcitx
+    IM_CMD="fcitx"
 
-info "✓ fcitx5 configured"
+    # Create fcitx profile config
+    cat > ~/.config/fcitx/profile << 'EOF'
+[Profile]
+IMName=pinyin
+EOF
+
+    info "✓ fcitx configured (legacy mode)"
+fi
 
 # ============================================
 # 4. Set environment variables
 # ============================================
-info "Step 4/5: Setting environment variables..."
+info "Step 4/8: Setting environment variables..."
 
-cat >> ~/.bashrc << 'EOF'
+# Detect input method for environment variables
+if command -v fcitx5 &> /dev/null; then
+    IM_MODULE="fcitx"
+    IM_MODIFIER="@im=fcitx"
+else
+    IM_MODULE="fcitx"
+    IM_MODIFIER="@im=fcitx"
+fi
+
+cat >> ~/.bashrc << EOF
 
 # VibeSurf environment variables
 export IN_DOCKER=true
 export DISPLAY=:99
 export RESOLUTION=1440x900x24
 export VIBESURF_WORKSPACE=/data/vibesurf_workspace
-export GTK_IM_MODULE=fcitx
-export QT_IM_MODULE=fcitx
-export XMODIFIERS=@im=fcitx
+export GTK_IM_MODULE=$IM_MODULE
+export QT_IM_MODULE=$IM_MODULE
+export XMODIFIERS=$IM_MODIFIER
 export DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/session_bus_socket
 EOF
 
@@ -195,9 +221,9 @@ EOF
 export IN_DOCKER=true
 export DISPLAY=:99
 export RESOLUTION=1440x900x24
-export GTK_IM_MODULE=fcitx
-export QT_IM_MODULE=fcitx
-export XMODIFIERS=@im=fcitx
+export GTK_IM_MODULE=$IM_MODULE
+export QT_IM_MODULE=$IM_MODULE
+export XMODIFIERS=$IM_MODIFIER
 export DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/session_bus_socket
 
 info "✓ Environment variables set"
@@ -242,6 +268,7 @@ cleanup() {
     pkill -9 x11vnc 2>/dev/null || true
     pkill -f novnc_proxy 2>/dev/null || true
     pkill -9 fcitx5 2>/dev/null || true
+    pkill -9 fcitx 2>/dev/null || true
 }
 
 # Trap exit signal
@@ -275,9 +302,16 @@ if ! xdpyinfo -display $DISPLAY >/dev/null 2>&1; then
 fi
 info "✓ Xvfb started successfully"
 
-# 4. Start fcitx5
-info "[4/6] Starting fcitx5 Chinese input method..."
-fcitx5 --replace &
+# 4. Start fcitx/fcitx5 (auto-detect)
+if command -v fcitx5 &> /dev/null; then
+    info "[4/6] Starting fcitx5 Chinese input method..."
+    fcitx5 --replace &
+elif command -v fcitx &> /dev/null; then
+    info "[4/6] Starting fcitx Chinese input method..."
+    fcitx &
+else
+    warn "No Chinese input method found (fcitx5/fcitx), skipping..."
+fi
 sleep 2
 
 # 5. Set VNC password and start x11vnc
@@ -356,7 +390,7 @@ info "✓ Startup script created: /usr/local/bin/start-vibesurf-gui"
 # ============================================
 # 6. Install uv and VibeSurf
 # ============================================
-info "Step 6/7: Installing uv..."
+info "Step 6/8: Installing uv..."
 
 if command -v uv &> /dev/null; then
     info "uv already installed, skipping"
@@ -368,7 +402,7 @@ else
     info "✓ uv installed"
 fi
 
-info "Step 7/7: Installing VibeSurf..."
+info "Step 7/8: Installing VibeSurf..."
 
 if command -v uv &> /dev/null; then
     uv tool install vibesurf
