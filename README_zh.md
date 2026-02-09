@@ -85,6 +85,11 @@ uv tool install vibesurf
 vibesurf
 ```
 
+> **注意**：如需在无头浏览器模式（无可见 GUI）下运行，请使用 `--headless` 标志：
+> ```bash
+> vibesurf --headless
+> ```
+
 **注意**：从 Chrome 142 开始，不再支持 `--load-extension` 标志。首次启动 VibeSurf 时，**浏览器会弹出一个窗口显示扩展的路径**。手动加载扩展的步骤：
 
 - 打开 chrome://extensions

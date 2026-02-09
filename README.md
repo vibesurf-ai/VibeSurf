@@ -86,6 +86,11 @@ Start the VibeSurf browser assistant
 vibesurf
 ```
 
+> **Note**: To run in headless browser mode without a visible GUI, use the `--headless` flag:
+> ```bash
+> vibesurf --headless
+> ```
+
 **Note**: Starting from Chrome 142, the `--load-extension` flag is no longer supported. When you first start VibeSurf, **the browser will show a popup displaying the extension path**. To manually load the extension:
 
 - Open chrome://extensions

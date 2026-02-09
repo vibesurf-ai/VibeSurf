@@ -180,7 +180,8 @@ async def _ensure_llm_initialized(llm_profile):
             # Still continue if we got some response, just log the warning
         
         logger.info(f"LLM connectivity test successful for profile: {llm_profile['profile_name']}")
-
+        from .. import shared_state
+        shared_state.llm = new_llm
         # Update vibesurf agent's LLM and register with token cost service
         if vibesurf_agent and vibesurf_agent.token_cost_service:
             vibesurf_agent.llm = vibesurf_agent.token_cost_service.register_llm(new_llm)

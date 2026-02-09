@@ -40,6 +40,7 @@ class ActionParamsResponse(BaseModel):
 class ExecuteActionRequest(BaseModel):
     action_name: str
     parameters: Dict[str, Any] = {}
+    llm_profile_name: Optional[str] = None
 
 
 class ExecuteActionResponse(BaseModel):
@@ -291,6 +292,78 @@ async def execute_action(request: ExecuteActionRequest):
         action = action_info['action']
         source = action_info['source']
         original_name = action_info['original_name']  # Get original name without prefix
+
+        # Import shared state for LLM initialization check
+        from ..shared_state import current_llm_profile_name, llm
+        from ..database import get_db_session
+        from ..database.queries import LLMProfileQueries
+
+        # Determine which LLM profile to use
+        # Priority: request.llm_profile_name > current_llm_profile_name > get from DB
+        target_llm_profile_name = request.llm_profile_name or current_llm_profile_name
+
+        # If no LLM profile available, try to get one from database
+        if not target_llm_profile_name:
+            db_gen = get_db_session()
+            db = await anext(db_gen)
+            try:
+                # Try to get default profile first
+                default_profile = await LLMProfileQueries.get_default_profile(db)
+                if default_profile:
+                    target_llm_profile_name = default_profile.profile_name
+                    logger.info(f"Using default LLM profile from database: {target_llm_profile_name}")
+                else:
+                    # If no default, get any available profile
+                    profiles = await LLMProfileQueries.list_profiles(db, limit=1)
+                    if profiles:
+                        target_llm_profile_name = profiles[0].profile_name
+                        logger.info(f"Using first available LLM profile from database: {target_llm_profile_name}")
+
+                # Update shared_state with the profile name from DB
+                if target_llm_profile_name:
+                    from .. import shared_state
+                    shared_state.current_llm_profile_name = target_llm_profile_name
+            finally:
+                await db.close()
+
+        # If still no profile available, return error
+        if not target_llm_profile_name:
+            return ExecuteActionResponse(
+                success=False,
+                action_name=request.action_name,
+                error="llm_not_initialized",
+                result={"message": "No LLM profile available. Please create an LLM profile first."}
+            )
+
+        # Initialize LLM if needed (llm is None or profile changed)
+        if not llm or not current_llm_profile_name or current_llm_profile_name != target_llm_profile_name:
+            # Get database session
+            db_gen = get_db_session()
+            db = await anext(db_gen)
+            try:
+                # Get LLM profile from database
+                llm_profile = await LLMProfileQueries.get_profile_with_decrypted_key(db, target_llm_profile_name)
+                if not llm_profile:
+                    return ExecuteActionResponse(
+                        success=False,
+                        action_name=request.action_name,
+                        error="llm_connection_failed",
+                        result={"message": f"Failed to get LLM profile with decrypted key {target_llm_profile_name}", "llm_profile": target_llm_profile_name}
+                    )
+
+                # Import _ensure_llm_initialized from task module
+                from .task import _ensure_llm_initialized
+                success, message = await _ensure_llm_initialized(llm_profile)
+                logger.info("Test LLM Connection!")
+                if not success:
+                    return ExecuteActionResponse(
+                        success=False,
+                        action_name=request.action_name,
+                        error="llm_connection_failed",
+                        result={"message": f"Cannot connect to LLM API: {message}", "llm_profile": target_llm_profile_name}
+                    )
+            finally:
+                await db.close()
 
         # Initialize file_system with workspace_dir + "apis"
         apis_dir = os.path.join(workspace_dir, "apis")
