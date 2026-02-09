@@ -6,13 +6,15 @@
 
 > **注意**：VibeSurf 可以用于 Claude Code 中实现浏览器的控制和实时预览。详情参考 [claude-surf](https://github.com/vibesurf-ai/claude-surf)。
 
-> **注意**：VibeSurf 也可以在 Open-Claw 中使用。安装命令：`npx clawhub@latest install vibesurf`。详情参考 [claw-surf](https://github.com/vibesurf-ai/claw-surf)。 云端部署说明请参考 [docs/cloud-manual-start.md](docs/cloud-manual-start.md)。
+> **注意**：VibeSurf 也可以在 Open-Claw 中使用。安装命令：`npx clawhub@latest install vibesurf`。详情参考 [claw-surf](https://github.com/vibesurf-ai/claw-surf)。
 
 **VibeSurf** 是首个结合**工作流自动化**与**智能 AI 代理**的开源 AI 浏览器 - 提供比传统方案**更快**、**更省钱**、**更智能**的浏览器自动化解决方案。
 
 🎯 **为什么选择 VibeSurf？** 工作流节省 99% 的 token 成本，跨标签页并行运行多个 AI 代理，支持本地 LLM 保护数据隐私 - 所有功能都通过无缝的 Chrome 扩展实现。
 
 🐳 **Docker 快速启动**：使用我们的 [Docker 镜像](#-docker-alternative) 几秒钟即可开始使用 - 无需复杂配置！
+
+☁️ **非Docker部署**：云端手动部署 + noVNC 浏览器可视化请参考 [docs/cloud-manual-start.md](docs/cloud-manual-start.md)。
 
 如果你和我一样对开源 AI 浏览感到兴奋，请给它一个 star！⭐
 
