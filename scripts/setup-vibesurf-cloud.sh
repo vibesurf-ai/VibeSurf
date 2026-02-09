@@ -318,10 +318,10 @@ info "✓ Xvfb started successfully"
 # 4. Start fcitx/fcitx5 (auto-detect)
 if command -v fcitx5 &> /dev/null; then
     info "[4/6] Starting fcitx5 Chinese input method..."
-    fcitx5 --replace &
+    DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/session_bus_socket fcitx5 --replace &
 elif command -v fcitx &> /dev/null; then
     info "[4/6] Starting fcitx Chinese input method..."
-    fcitx &
+    DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/session_bus_socket fcitx &
 else
     warn "No Chinese input method found (fcitx5/fcitx), skipping..."
 fi
