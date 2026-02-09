@@ -31,37 +31,77 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Detect package manager
+if command -v apt-get &> /dev/null; then
+    PKG_MANAGER="apt"
+elif command -v yum &> /dev/null; then
+    PKG_MANAGER="yum"
+elif command -v dnf &> /dev/null; then
+    PKG_MANAGER="dnf"
+else
+    error "No supported package manager found (apt, yum, or dnf)"
+    exit 1
+fi
+
+info "Detected package manager: $PKG_MANAGER"
+
 # ============================================
 # 1. Install system dependencies
 # ============================================
-info "Step 1/5: Installing system dependencies..."
+info "Step 1/8: Installing system dependencies..."
 
-apt-get update
+install_packages() {
+    case $PKG_MANAGER in
+        apt)
+            apt-get update
+            apt-get install -y --no-install-recommends \
+                wget curl git unzip vim netcat-traditional gnupg ca-certificates \
+                xvfb libxss1 libnss3 libnspr4 libasound2 libatk1.0-0 libatk-bridge2.0-0 \
+                libcups2 libdbus-1-3 libdrm2 libgbm1 libgtk-3-0 libxcomposite1 \
+                libxdamage1 libxfixes3 libxrandr2 xdg-utils \
+                fonts-liberation fonts-dejavu fonts-dejavu-core fonts-dejavu-extra fontconfig \
+                fonts-noto-cjk fonts-noto-cjk-extra fonts-wqy-microhei fonts-wqy-zenhei \
+                fcitx5 fcitx5-chinese-addons fcitx5-frontend-gtk3 fcitx5-frontend-gtk2 \
+                fcitx5-frontend-qt5 fcitx5-config-qt fcitx5-module-xorg im-config \
+                dbus xauth x11vnc tigervnc-tools \
+                supervisor net-tools procps \
+                python3-numpy \
+                ffmpeg
+            apt-get clean
+            rm -rf /var/lib/apt/lists/*
+            ;;
+        yum|dnf)
+            $PKG_MANAGER update -y
+            $PKG_MANAGER install -y epel-release
+            $PKG_MANAGER update -y
+            $PKG_MANAGER groupinstall -y "Development Tools"
+            $PKG_MANAGER install -y \
+                wget curl git unzip vim netcat gnupg ca-certificates \
+                xorg-x11-server-Xvfb libXScrnSaver nss nspr alsa-lib \
+                atk at-spi2-atk cups-libs dbus-libs libdrm mesa-libgbm \
+                gtk3 libXcomposite libXdamage libXfixes libXrandr xdg-utils \
+                liberation-fonts dejavu-sans-fonts dejavu-sans-mono-fonts \
+                dejavu-serif-fonts fontconfig \
+                cjkuni-uming-fonts wqy-microhei-fonts wqy-zenhei-fonts \
+                fcitx5 fcitx5-chinese-addons fcitx5-gtk2 fcitx5-gtk3 \
+                fcitx5-qt fcitx5-configtool im-chooser \
+                dbus xauth x11vnc tigervnc-server \
+                supervisor net-tools procps-ng \
+                numpy \
+                ffmpeg
+            $PKG_MANAGER clean all
+            ;;
+    esac
+}
 
-# Install all required packages (grouped by category for clarity)
-apt-get install -y --no-install-recommends \
-    wget curl git unzip vim netcat-traditional gnupg ca-certificates \
-    xvfb libxss1 libnss3 libnspr4 libasound2 libatk1.0-0 libatk-bridge2.0-0 \
-    libcups2 libdbus-1-3 libdrm2 libgbm1 libgtk-3-0 libxcomposite1 \
-    libxdamage1 libxfixes3 libxrandr2 xdg-utils \
-    fonts-liberation fonts-dejavu fonts-dejavu-core fonts-dejavu-extra fontconfig \
-    fonts-noto-cjk fonts-noto-cjk-extra fonts-wqy-microhei fonts-wqy-zenhei \
-    fcitx5 fcitx5-chinese-addons fcitx5-frontend-gtk3 fcitx5-frontend-gtk2 \
-    fcitx5-frontend-qt5 fcitx5-config-qt fcitx5-module-xorg im-config \
-    dbus xauth x11vnc tigervnc-tools \
-    supervisor net-tools procps \
-    python3-numpy \
-    ffmpeg
-
-apt-get clean
-rm -rf /var/lib/apt/lists/*
+install_packages
 
 info "✓ System dependencies installed"
 
 # ============================================
 # 2. Install noVNC
 # ============================================
-info "Step 2/5: Installing noVNC..."
+info "Step 2/8: Installing noVNC..."
 
 if [ -d "/opt/novnc" ]; then
     warn "noVNC already exists, skipping installation"
@@ -75,7 +115,7 @@ fi
 # ============================================
 # 3. Configure fcitx5 Chinese input method
 # ============================================
-info "Step 3/5: Configuring fcitx5 Chinese input method..."
+info "Step 3/8: Configuring fcitx5 Chinese input method..."
 
 mkdir -p ~/.config/fcitx5
 
@@ -130,7 +170,7 @@ info "✓ fcitx5 configured"
 # ============================================
 # 4. Set environment variables
 # ============================================
-info "Step 4/5: Setting environment variables..."
+info "Step 4/8: Setting environment variables..."
 
 cat >> ~/.bashrc << 'EOF'
 
@@ -310,7 +350,7 @@ info "✓ Startup script created: /usr/local/bin/start-vibesurf-gui"
 # ============================================
 # 6. Install uv and VibeSurf
 # ============================================
-info "Step 6/7: Installing uv..."
+info "Step 6/8: Installing uv..."
 
 if command -v uv &> /dev/null; then
     info "uv already installed, skipping"
@@ -322,7 +362,7 @@ else
     info "✓ uv installed"
 fi
 
-info "Step 7/7: Installing VibeSurf..."
+info "Step 7/8: Installing VibeSurf..."
 
 if command -v uv &> /dev/null; then
     uv tool install vibesurf
