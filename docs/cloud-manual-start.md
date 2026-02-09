@@ -25,8 +25,17 @@ start-vibesurf-gui
 
 Then in another terminal:
 ```bash
+# Set display and input method environment variables
 export DISPLAY=:99
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+export DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/session_bus_socket
+
+# Find browser path
 export BROWSER_EXECUTION_PATH=$(find ~/.cache/ms-playwright -name chrome -type f 2>/dev/null | head -1)
+
+# Start vibesurf
 vibesurf --no_select_browser --host 0.0.0.0
 ```
 
@@ -40,8 +49,12 @@ VIBESURF_NO_CLEANUP=1 nohup start-vibesurf-gui > /var/log/vibesurf-gui.log 2>&1 
 # Wait for Xvfb to be ready
 sleep 5
 
-# Start vibesurf
+# Start vibesurf with input method support
 export DISPLAY=:99
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+export DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/session_bus_socket
 export BROWSER_EXECUTION_PATH=$(find ~/.cache/ms-playwright -name chrome -type f 2>/dev/null | head -1)
 nohup vibesurf --no_select_browser --host 0.0.0.0 > /var/log/vibesurf.log 2>&1 &
 ```

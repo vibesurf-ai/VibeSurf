@@ -466,8 +466,12 @@ info ""
 info "2. Or start everything in background:"
 info "   VIBESURF_NO_CLEANUP=1 VNC_PASSWORD=yourpassword nohup start-vibesurf-gui > /var/log/vibesurf-gui.log 2>&1 &"
 info ""
-info "3. Then start vibesurf:"
+info "3. Then start vibesurf (with Chinese input support):"
 info '   export DISPLAY=:99'
+info '   export GTK_IM_MODULE=fcitx'
+info '   export QT_IM_MODULE=fcitx'
+info '   export XMODIFIERS=@im=fcitx'
+info '   export DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/dbus/session_bus_socket'
 info '   export BROWSER_EXECUTION_PATH=$(find ~/.cache/ms-playwright -name chrome -type f 2>/dev/null | head -1)'
 info '   vibesurf --no_select_browser --host 0.0.0.0'
 info ""
