@@ -506,6 +506,8 @@ def main():
                        help='Skip browser selection and use first available browser (Chrome -> Edge -> Brave)')
     parser.add_argument('--host', type=str, default='127.0.0.1',
                        help='Host address to bind the server (default: 127.0.0.1, use 0.0.0.0 for Docker)')
+    parser.add_argument('--headless', action='store_true',
+                       help='Run browser in headless mode (no visible browser window)')
     args = parser.parse_args()
 
     try:
@@ -570,6 +572,13 @@ def main():
         
         # Set browser path in environment
         os.environ['BROWSER_EXECUTION_PATH'] = browser_path
+
+        # Set headless mode in environment if enabled
+        if args.headless:
+            os.environ['BROWSER_HEADLESS'] = 'true'
+            console.print("[cyan]🖥️  Running browser in headless mode[/cyan]")
+        else:
+            os.environ['BROWSER_HEADLESS'] = 'false'
 
         # Start backend
         start_backend(port, args.host)
