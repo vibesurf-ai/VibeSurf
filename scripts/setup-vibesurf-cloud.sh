@@ -326,7 +326,6 @@ x11vnc -display $DISPLAY \
     -noprimary \
     -rfbauth ~/.vnc/passwd \
     -rfbport $VNC_PORT \
-    -clipboard both \
     -repeat &
 
 sleep 2
