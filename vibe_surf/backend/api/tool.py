@@ -294,7 +294,7 @@ async def execute_action(request: ExecuteActionRequest):
         original_name = action_info['original_name']  # Get original name without prefix
 
         # Import shared state for LLM initialization check
-        from ..shared_state import current_llm_profile_name
+        from ..shared_state import current_llm_profile_name, llm
         from ..database import get_db_session
         from ..database.queries import LLMProfileQueries
         from sqlalchemy.ext.asyncio import AsyncSession
@@ -316,7 +316,7 @@ async def execute_action(request: ExecuteActionRequest):
                         result={"message": f"Failed to get LLM profile with decrypted key {request.llm_profile_name}", "llm_profile": request.llm_profile_name}
                     )
 
-                if not current_llm_profile_name or current_llm_profile_name != request.llm_profile_name:
+                if not llm or not current_llm_profile_name or current_llm_profile_name != request.llm_profile_name:
                     # Import _ensure_llm_initialized from task module
                     from .task import _ensure_llm_initialized
                     success, message = await _ensure_llm_initialized(llm_profile)
