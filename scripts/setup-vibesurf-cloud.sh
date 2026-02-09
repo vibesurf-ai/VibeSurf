@@ -31,15 +31,6 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Check if using China mirror
-USE_CHINA_MIRROR=${USE_CHINA_MIRROR:-false}
-if [ "$USE_CHINA_MIRROR" = "true" ]; then
-    info "Using China mirror sources..."
-    sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null || true
-    sed -i 's/security.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null || true
-    sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-fi
-
 # ============================================
 # 1. Install system dependencies
 # ============================================
@@ -121,16 +112,8 @@ info "Step 2/5: Installing noVNC..."
 if [ -d "/opt/novnc" ]; then
     warn "noVNC already exists, skipping installation"
 else
-    if [ "$USE_CHINA_MIRROR" = "true" ]; then
-        # Use China mirror for faster download
-        git clone https://ghproxy.com/https://github.com/novnc/noVNC.git /opt/novnc || \
-        git clone https://github.com/novnc/noVNC.git /opt/novnc
-        git clone https://ghproxy.com/https://github.com/novnc/websockify /opt/novnc/utils/websockify || \
-        git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify
-    else
-        git clone https://github.com/novnc/noVNC.git /opt/novnc
-        git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify
-    fi
+    git clone https://github.com/novnc/noVNC.git /opt/novnc
+    git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify
     ln -sf /opt/novnc/vnc.html /opt/novnc/index.html
     info "✓ noVNC installed"
 fi
