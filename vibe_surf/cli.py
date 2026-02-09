@@ -71,7 +71,7 @@ def find_chrome_browser() -> Optional[str]:
             '/usr/bin/google-chrome-stable',
             '/usr/bin/google-chrome',
             '/usr/local/bin/google-chrome',
-            f'{playwright_path}/chromium-*/chrome-linux/chrome',
+            f'{playwright_path}/chromium-*/chrome-linux*/chrome',
             '/usr/bin/chromium',
             '/usr/bin/chromium-browser',
             '/usr/local/bin/chromium',
