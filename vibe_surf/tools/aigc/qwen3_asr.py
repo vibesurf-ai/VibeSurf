@@ -3,29 +3,37 @@ Qwen3 ASR (Automatic Speech Recognition) Processor
 
 This module provides an interface to process audio/video files and generate
 transcriptions with optional SRT subtitle files using Qwen3-ASR-Flash API.
+
+Note: This module requires the 'full' extras to be installed:
+    pip install vibesurf[full]
 """
 
 import os
 import io
-import pdb
 import re
-import srt
 import time
 import random
 import requests
 import dashscope
 import subprocess
 import numpy as np
-import soundfile as sf
 import concurrent.futures
 
 from tqdm import tqdm
 from datetime import timedelta
 from collections import Counter
 from urllib.parse import urlparse
-from pydub import AudioSegment
-from silero_vad import load_silero_vad, get_speech_timestamps
 from typing import Optional, Tuple, List
+
+# Optional dependencies - only required when using ASR functionality
+try:
+    import srt
+    import soundfile as sf
+    from pydub import AudioSegment
+    from silero_vad import load_silero_vad, get_speech_timestamps
+    _ASR_DEPS_AVAILABLE = True
+except ImportError:
+    _ASR_DEPS_AVAILABLE = False
 
 
 WAV_SAMPLE_RATE = 16000
@@ -107,6 +115,14 @@ class Qwen3ASRProcessor:
         self.tmp_dir = tmp_dir or os.path.join(os.path.expanduser("~"), "qwen3-asr-cache")
         self.silence = silence
         
+    def _check_asr_deps(self):
+        """Check if ASR dependencies are available."""
+        if not _ASR_DEPS_AVAILABLE:
+            raise ImportError(
+                "ASR functionality requires additional dependencies. "
+                "Please install with: pip install vibesurf[full]"
+            )
+
     def run(
         self,
         input_file: str,
@@ -116,16 +132,19 @@ class Qwen3ASRProcessor:
     ) -> str:
         """
         Process audio/video file and generate transcription with optional SRT subtitles
-        
+
         Args:
             input_file: Path to input media file (local path or HTTP URL)
             context: Context text for Qwen3-ASR-Flash
             save_srt: Whether to save SRT subtitle file (default: True)
             output_dir: Output directory for results (default: same as input file)
-            
+
         Returns:
             str: Path to the generated SRT file (or text file if save_srt=False)
         """
+        # Check if ASR dependencies are available
+        self._check_asr_deps()
+
         # Check if input file exists
         if input_file.startswith(("http://", "https://")):
             try:
@@ -147,6 +166,7 @@ class Qwen3ASRProcessor:
         # Segment audio using VAD
         if not self.silence:
             print(f"Initializing Silero VAD model for segmenting...")
+        from silero_vad import load_silero_vad
         worker_vad_model = load_silero_vad(onnx=True)
         wav_list = self._process_vad(wav, worker_vad_model)
 
@@ -236,6 +256,7 @@ class Qwen3ASRProcessor:
     
     def _load_audio(self, file_path: str) -> np.ndarray:
         """Load audio file and convert to 16kHz mono WAV"""
+        import soundfile as sf
         try:
             command = [
                 'ffmpeg',
@@ -274,6 +295,7 @@ class Qwen3ASRProcessor:
         max_segment_threshold_s: int = 180
     ) -> List[Tuple[int, int, np.ndarray]]:
         """Process VAD and segment audio"""
+        from silero_vad import get_speech_timestamps
         try:
             speech_timestamps = get_speech_timestamps(wav, worker_vad_model)
 
@@ -400,18 +422,19 @@ class Qwen3ASRProcessor:
         self,
         results: List[Tuple[int, str]],
         wav_list: List[Tuple[int, int, np.ndarray]]
-    ) -> List[srt.Subtitle]:
+    ):
         """
         Generate SRT subtitles by splitting text at sentence boundaries
         and estimating timestamps based on character count
-        
+
         Args:
             results: List of (segment_idx, transcribed_text) tuples
             wav_list: List of (start_sample, end_sample, wav_data) tuples
-            
+
         Returns:
             List of srt.Subtitle objects
         """
+        import srt
         subtitles = []
         subtitle_index = 1
         
@@ -485,20 +508,20 @@ class Qwen3ASRProcessor:
     
     def _merge_short_subtitles(
         self,
-        subtitles: List[srt.Subtitle],
+        subtitles: List,
         merge_threshold: float = 1.0
-    ) -> List[srt.Subtitle]:
+    ) -> List:
         """
         Merge subtitles that are shorter than merge_threshold seconds
-        
+
         This method merges any chunk shorter than the threshold,
         regardless of whether it was separated by commas or periods.
-        
+
         Args:
             subtitles: List of srt.Subtitle objects
             merge_threshold: Duration threshold in seconds (default: 1.0s)
                 Chunks shorter than this will be merged with adjacent chunks
-            
+
         Returns:
             List of srt.Subtitle objects with short ones merged
         """
@@ -816,6 +839,7 @@ class Qwen3ASRProcessor:
     
     def _save_audio_file(self, wav: np.ndarray, file_path: str):
         """Save audio to file"""
+        import soundfile as sf
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         sf.write(file_path, wav, WAV_SAMPLE_RATE)
     
@@ -889,18 +913,19 @@ class Qwen3ASRProcessor:
     
     def _asr(self, wav_url: str, context: str = "") -> Tuple[str, str]:
         """Call Qwen3-ASR-Flash API for transcription"""
+        from pydub import AudioSegment
         if not wav_url.startswith("http"):
             assert os.path.exists(wav_url), f"{wav_url} not exists!"
             file_path = wav_url
             file_size = os.path.getsize(file_path)
-            
+
             # Convert to mp3 if file size > 10M
             if file_size > 10 * 1024 * 1024:
                 mp3_path = os.path.splitext(file_path)[0] + ".mp3"
                 audio = AudioSegment.from_file(file_path)
                 audio.export(mp3_path, format="mp3")
                 wav_url = mp3_path
-            
+
             wav_url = f"file://{wav_url}"
         
         # Submit the ASR task

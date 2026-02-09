@@ -6,9 +6,7 @@ from vibe_surf.langflow.components.anthropic.anthropic import AnthropicModelComp
 from vibe_surf.langflow.components.azure.azure_openai import AzureChatOpenAIComponent
 from vibe_surf.langflow.components.google.google_generative_ai import GoogleGenerativeAIComponent
 from vibe_surf.langflow.components.groq.groq import GroqModel
-from vibe_surf.langflow.components.nvidia.nvidia import NVIDIAModelComponent
 from vibe_surf.langflow.components.openai.openai_chat_model import OpenAIModelComponent
-from vibe_surf.langflow.components.sambanova.sambanova import SambaNovaComponent
 from vibe_surf.langflow.inputs.inputs import InputTypes, SecretStrInput
 from vibe_surf.langflow.template.field.base import Input
 
@@ -145,17 +143,6 @@ def _get_anthropic_inputs_and_fields():
     return anthropic_inputs, create_input_fields_dict(anthropic_inputs, "")
 
 
-def _get_nvidia_inputs_and_fields():
-    try:
-        from vibe_surf.langflow.components.nvidia.nvidia import NVIDIAModelComponent
-
-        nvidia_inputs = get_filtered_inputs(NVIDIAModelComponent)
-    except ImportError as e:
-        msg = "NVIDIA is not installed. Please install it with `pip install langchain-nvidia`."
-        raise ImportError(msg) from e
-    return nvidia_inputs, create_input_fields_dict(nvidia_inputs, "")
-
-
 def _get_amazon_bedrock_inputs_and_fields():
     try:
         from vibe_surf.langflow.components.amazon.amazon_bedrock_model import AmazonBedrockComponent
@@ -165,17 +152,6 @@ def _get_amazon_bedrock_inputs_and_fields():
         msg = "Amazon Bedrock is not installed. Please install it with `pip install langchain-amazon-bedrock`."
         raise ImportError(msg) from e
     return amazon_bedrock_inputs, create_input_fields_dict(amazon_bedrock_inputs, "")
-
-
-def _get_sambanova_inputs_and_fields():
-    try:
-        from vibe_surf.langflow.components.sambanova.sambanova import SambaNovaComponent
-
-        sambanova_inputs = get_filtered_inputs(SambaNovaComponent)
-    except ImportError as e:
-        msg = "SambaNova is not installed. Please install it with `pip install langchain-sambanova`."
-        raise ImportError(msg) from e
-    return sambanova_inputs, create_input_fields_dict(sambanova_inputs, "")
 
 
 MODEL_PROVIDERS_DICT: dict[str, ModelProvidersDict] = {}
@@ -234,19 +210,6 @@ except ImportError:
     pass
 
 try:
-    nvidia_inputs, nvidia_fields = _get_nvidia_inputs_and_fields()
-    MODEL_PROVIDERS_DICT["NVIDIA"] = {
-        "fields": nvidia_fields,
-        "inputs": nvidia_inputs,
-        "prefix": "",
-        "component_class": NVIDIAModelComponent(),
-        "icon": NVIDIAModelComponent.icon,
-        "is_active": False,
-    }
-except ImportError:
-    pass
-
-try:
     bedrock_inputs, bedrock_fields = _get_amazon_bedrock_inputs_and_fields()
     MODEL_PROVIDERS_DICT["Amazon Bedrock"] = {
         "fields": bedrock_fields,
@@ -268,19 +231,6 @@ try:
         "component_class": GoogleGenerativeAIComponent(),
         "icon": GoogleGenerativeAIComponent.icon,
         "is_active": True,
-    }
-except ImportError:
-    pass
-
-try:
-    sambanova_inputs, sambanova_fields = _get_sambanova_inputs_and_fields()
-    MODEL_PROVIDERS_DICT["SambaNova"] = {
-        "fields": sambanova_fields,
-        "inputs": sambanova_inputs,
-        "prefix": "",
-        "component_class": SambaNovaComponent(),
-        "icon": SambaNovaComponent.icon,
-        "is_active": False,
     }
 except ImportError:
     pass

@@ -75,6 +75,8 @@ uv tool install vibesurf
 ```
 
 > **提示**：使用 `uv tool upgrade vibesurf` 可升级到最新版本。
+>
+> **完整安装**：如需安装所有可选功能（包括 PyTorch、OCR 和高级文档处理），请使用 `uv tool install vibesurf[full]`。
 
 ### 3. 启动 VibeSurf
 启动 VibeSurf 浏览器助手
@@ -164,6 +166,11 @@ cd VibeSurf
 uv venv --python 3.12
 source .venv/bin/activate
 uv pip install -e .
+```
+
+**完整安装（包含所有可选功能）**
+```bash
+uv pip install -e ".[full]"
 ```
 
 **Windows**
