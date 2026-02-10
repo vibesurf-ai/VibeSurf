@@ -137,7 +137,7 @@ class XiaoHongShuApiClient(BaseAPIClient):
                 self.new_tab = True
                 await asyncio.sleep(2)
 
-            cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=target_id)
+            cdp_session = await self.browser_session.get_or_create_cdp_session(target_id=self.target_id)
             result = await asyncio.wait_for(
                 cdp_session.cdp_client.send.Storage.getCookies(session_id=cdp_session.session_id), timeout=8.0
             )
