@@ -195,10 +195,7 @@ async def call_api(
         md_content += f"> 💡 Click the link above to view all results.\n"
         
         logger.info(f"{config['name']} data retrieved with method: {params.method}")
-        
-        # Close client
-        await client.close()
-        
+
         return ActionResult(extracted_content=md_content)
         
     except Exception as e:
