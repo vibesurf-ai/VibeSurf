@@ -636,7 +636,7 @@ async def initialize_vibesurf_components():
                 headless=headless_mode,
                 keep_alive=True,
                 auto_download_pdfs=False,
-                highlight_elements=True,
+                highlight_elements=False,
                 custom_extensions=[envs["VIBESURF_EXTENSION"]],
                 window_size={"width": primary_monitor.width, "height": primary_monitor.height}
             )
