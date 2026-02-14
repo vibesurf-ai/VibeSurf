@@ -99,7 +99,7 @@ def validate_vibesurf_api_key(api_key: str) -> bool:
     if not api_key.startswith('vs-'):
         return False
     
-    return len(api_key) == 51
+    return len(api_key) > 40
 
 @router.post("/verify-key", response_model=VibeSurfApiKeyResponse)
 async def verify_vibesurf_key(
